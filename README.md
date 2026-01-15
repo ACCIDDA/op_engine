@@ -7,8 +7,8 @@ Operator-Partitioned Engine (OP Engine) is a multiphysics model engine with a un
 1. Clone the repository
 
 ```bash
-git clone git@github.com:ACCIDDA/gempyor2.git
-cd gempyor2
+git clone git@github.com:ACCIDDA/op_engine.git
+cd op_engine
 ```
 
 2. Create a virtual environment and install dependencies using [`uv`](https://docs.astral.sh/uv/). To create a `.venv` with the package installed:
