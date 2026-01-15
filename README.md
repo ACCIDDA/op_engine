@@ -1,6 +1,6 @@
-# gempyor2
+# OP Engine
 
-The next generation vectorized compartmental model engine for [`flepimop2`](https://github.com/ACCIDDA/flepimop2).
+Operator-Partitioned Engine (OP Engine) is a multiphysics model engine with a unified interface for solving ODEs and PDEs using operator splitting and IMEX (Implicit-Explicit) solvers. It is designed to be compatible with [`flepimop2`](https://github.com/ACCIDDA/flepimop2).
 
 ## Local Development
 
