@@ -1,0 +1,185 @@
+# ================================
+# Python bytecode / cache
+# ================================
+__pycache__/
+*.py[codz]
+*$py.class
+
+# C extensions
+*.so
+
+# ================================
+# Distribution / packaging
+# ================================
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ================================
+# PyInstaller
+# ================================
+*.manifest
+*.spec
+
+# ================================
+# Logs / coverage / testing
+# ================================
+pip-log.txt
+pip-delete-this-directory.txt
+
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# ================================
+# Localization
+# ================================
+*.mo
+*.pot
+
+# ================================
+# Framework-specific
+# ================================
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+instance/
+.webassets-cache
+.scrapy
+
+docs/_build/
+
+.pybuilder/
+target/
+
+# ================================
+# Jupyter / IPython
+# ================================
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ================================
+# Python env managers
+# ================================
+.python-version
+
+# ================================
+# Dependency managers
+# ================================
+uv.lock
+
+.pdm-python
+.pdm-build/
+
+.pixi
+
+__pypackages__/
+
+# ================================
+# Runtime artifacts
+# ================================
+celerybeat-schedule
+celerybeat.pid
+
+*.sage.py
+
+# ================================
+# Virtual environments
+# ================================
+.env
+.envrc
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ================================
+# IDEs / Editors
+# ================================
+.spyderproject
+.spyproject
+.ropeproject
+
+/site
+
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+.pyre/
+.pytype/
+
+cython_debug/
+
+.ruff_cache/
+
+.pypirc
+
+.cursorignore
+.cursorindexingignore
+
+marimo/_static/
+marimo/_lsp/
+__marimo__/
+
+# ================================
+# macOS / Apple filesystem junk
+# ================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+.fseventsd
+
+# ================================
+# Example output artifacts
+# ================================
+
+# Matplotlib / plotting outputs
+*.png
+*.pdf
+*.svg
+
+# Numpy saved arrays
+*.npy
+*.npz
+
+# CSV outputs from examples
+*.csv
+
+# Optional example output directory convention
+examples/output/
+

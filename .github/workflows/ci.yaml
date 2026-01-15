@@ -1,0 +1,72 @@
+---
+name: 'CI'
+
+'on':
+  pull_request:
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: 'read'
+
+jobs:
+  ci:
+    name: 'CI (${{ matrix.python-version }})'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        python-version:
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
+    steps:
+      - name: 'Install just'
+        run: 'sudo apt install just'
+      - name: 'Checkout repository'
+        # v5.0.0
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+        with:
+          persist-credentials: false
+      - name: 'Setup uv with python ${{ matrix.python-version }}'
+        # v7.1.2
+        uses: 'astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41'
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'pyproject.toml'
+          python-version: '${{ matrix.python-version }}'
+      - name: 'Run Checks'
+        run: 'just ci'
+        env:
+          UV_PYTHON_VERSION: '${{ matrix.python-version }}'
+  docs:
+    name: 'Build (${{ matrix.python-version }})'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        python-version:
+          - '3.12'
+    steps:
+      - name: 'Install just'
+        run: 'sudo apt install just'
+      - name: 'Checkout repository'
+        # v5.0.0
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+        with:
+          persist-credentials: false
+      - name: 'Setup uv'
+        # v6.8.0
+        uses: 'astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e'
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'pyproject.toml'
+          python-version: '${{ matrix.python-version }}'
+      - name: 'Build Documentation'
+        run: 'just docs'
+        env:
+          UV_PYTHON_VERSION: '${{ matrix.python-version }}'

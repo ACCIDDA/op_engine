@@ -1,0 +1,85 @@
+[project]
+name = "op_engine"
+version = "0.1.0"
+description = "Multiphysics integration engine for ODEs and PDEs using implicit–explicit operator splitting"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Joshua Macdonald", email = "jmacdo16@jh.edu" },
+    { name = "Carl Pearson", email = "cap1024@unc.edu" },
+    { name = "Timothy Willard", email = "twillard@unc.edu" },
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+]
+
+# Recommended for PyPI discoverability and tooling.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+
+[project.optional-dependencies]
+data = [
+    "pandas>=2.2",
+    "pyarrow>=16.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "mkdocs>=1.6.1",
+    "mypy>=1.18.2",
+    "pytest>=8.4.2",
+    "ruff>=0.13.3",
+    "sybil[pytest]>=9.2.0",
+    "scipy-stubs>=0.5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "docs/",
+    "src/op_engine/",
+    "tests/",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 72
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",
+    "CPY001",
+    "D203",
+    "D212",
+    "PLR2004",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["INP001", "S101"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+exclude = ["examples/"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/op_engine"]
+include = ["src/op_engine/py.typed"]
+

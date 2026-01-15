@@ -1,0 +1,6 @@
+---
+site_name: "OP Engine Documentation"
+nav:
+  - Home: "index.md"
+  - Guides:
+      - Getting Started: "guides/getting-started.md"

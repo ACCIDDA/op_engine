@@ -1,0 +1,48 @@
+---
+name: 'YAML'
+
+'on':
+  pull_request:
+    branches:
+      - 'main'
+    paths:
+      - '**.yaml'
+      - '**.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: 'read'
+
+jobs:
+  yaml:
+    name: 'YAML Lint'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout repository'
+        # v5.0.0
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+        with:
+          persist-credentials: false
+      - name: 'Install yamllint'
+        run: 'sudo apt install yamllint'
+      - name: 'Run yamllint'
+        run: 'yamllint --strict .'
+  zizmor:
+    name: 'zizmor lint'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout repository'
+        # v5.0.0
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+        with:
+          persist-credentials: false
+      - name: 'Run zizmor'
+        # v0.2.0
+        uses: 'zizmorcore/zizmor-action@e673c3917a1aef3c65c972347ed84ccd013ecda4'
+        with:
+          persona: 'pedantic'
+          advanced-security: false
