@@ -5,6 +5,13 @@ This module verifies:
 - Laplacian construction for supported boundary conditions.
 - Crank-Nicolson operator construction (dense/sparse autodispatch).
 - Predictor-corrector construction for dense and sparse base matrices.
+- IMEX/TR-BDF2 utilities:
+    * identity + implicit-euler + trapezoidal stage operators
+    * StageOperatorContext dataclass behavior
+    * make_constant_base_builder wrapper
+    * stage-operator factory behavior for:
+        - constant base builders
+        - time/state dependent base builders
 - implicit_solve correctness for 1D and 2D RHS (dense and sparse paths).
 - Group aggregation utilities (matrix-based and ID-based).
 - Kronecker utilities (kron_prod, kron_sum) basic algebra and shape behavior.
@@ -17,14 +24,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import csr_matrix, identity, issparse
 
 from op_engine.matrix_ops import (
     DiffusionConfig,
     GridGeometry,
+    StageOperatorContext,
     build_crank_nicolson_operator,
+    build_identity_operator,
+    build_implicit_euler_operators,
     build_laplacian_tridiag,
     build_predictor_corrector,
+    build_trapezoidal_operators,
     encode_groups,
     grouped_count_ids,
     grouped_sum_ids,
@@ -32,6 +43,8 @@ from op_engine.matrix_ops import (
     implicit_solve,
     kron_prod,
     kron_sum,
+    make_constant_base_builder,
+    make_stage_operator_factory,
     matrix_grouped_count,
     matrix_grouped_sum,
     smooth,
@@ -44,14 +57,7 @@ if TYPE_CHECKING:
 
 
 def _as_dense(mat: object) -> NDArray[np.floating]:
-    """Convert a matrix-like to a dense ndarray.
-
-    Args:
-        mat: Dense ndarray or a scipy sparse matrix.
-
-    Returns:
-        Dense ndarray form of mat.
-    """
+    """Convert a matrix-like to a dense ndarray."""
     if hasattr(mat, "toarray"):
         return np.asarray(mat.toarray())
     return np.asarray(mat)
@@ -70,7 +76,6 @@ def test_laplacian_tridiag_neumann_structure_small() -> None:
     a = build_laplacian_tridiag(n, dx, coeff, bc="neumann")
     a_dense = a.toarray()
 
-    # Symmetric
     assert np.allclose(a_dense, a_dense.T)
 
     main_diag = np.diag(a_dense)
@@ -118,12 +123,7 @@ def test_crank_nicolson_operator_dense_matches_formula() -> None:
 
     left, right = build_crank_nicolson_operator(geom, cfg, dt)
 
-    lap = build_laplacian_tridiag(
-        geom.n,
-        geom.dx,
-        cfg.coeff,
-        dtype=cfg.dtype,
-        bc=cfg.bc)
+    lap = build_laplacian_tridiag(geom.n, geom.dx, cfg.coeff, dtype=cfg.dtype, bc=cfg.bc)
     a = lap.toarray() * dt
     ident = np.eye(geom.n, dtype=np.dtype(cfg.dtype))
 
@@ -138,7 +138,6 @@ def test_crank_nicolson_operator_dense_matches_formula() -> None:
 
 def test_crank_nicolson_operator_sparse_matches_formula_large() -> None:
     """Sparse CN operators match the same formula, and return CSR on large n."""
-    # Use a size large enough to trigger sparse autodispatch (threshold is internal).
     geom = GridGeometry(n=351, dx=0.1)
     cfg = DiffusionConfig(coeff=0.25, bc="neumann")
     dt = 0.02
@@ -148,12 +147,7 @@ def test_crank_nicolson_operator_sparse_matches_formula_large() -> None:
     assert issparse(left)
     assert issparse(right)
 
-    lap = build_laplacian_tridiag(
-        geom.n,
-        geom.dx,
-        cfg.coeff,
-        dtype=cfg.dtype,
-        bc=cfg.bc)
+    lap = build_laplacian_tridiag(geom.n, geom.dx, cfg.coeff, dtype=cfg.dtype, bc=cfg.bc)
     a = lap.toarray() * dt
     ident = np.eye(geom.n, dtype=np.dtype(cfg.dtype))
 
@@ -175,9 +169,10 @@ def test_crank_nicolson_absorbing_enforces_identity_rows() -> None:
     left_d = _as_dense(left)
     right_d = _as_dense(right)
 
+    eye = np.eye(geom.n)
     for mat in (left_d, right_d):
-        assert np.allclose(mat[0, :], np.eye(geom.n)[0, :])
-        assert np.allclose(mat[-1, :], np.eye(geom.n)[-1, :])
+        assert np.allclose(mat[0, :], eye[0, :])
+        assert np.allclose(mat[-1, :], eye[-1, :])
 
 
 # -------------------------------------------------------------------
@@ -215,6 +210,220 @@ def test_build_predictor_corrector_sparse_base_matrix() -> None:
 
 
 # -------------------------------------------------------------------
+# IMEX/TR-BDF2 support utilities (operators + factories)
+# -------------------------------------------------------------------
+
+
+def test_build_identity_operator_dense_small() -> None:
+    """build_identity_operator returns dense for small n by default."""
+    n = 10
+    ident = build_identity_operator(n, dtype=np.float64)
+    assert not issparse(ident)
+    assert ident.shape == (n, n)
+    assert np.allclose(np.asarray(ident), np.eye(n))
+
+
+def test_build_identity_operator_sparse_large() -> None:
+    """build_identity_operator returns CSR for large n by default."""
+    n = 400
+    ident = build_identity_operator(n, dtype=np.float64)
+    assert issparse(ident)
+    assert ident.shape == (n, n)
+    assert np.allclose(_as_dense(ident), np.eye(n))
+
+
+def test_build_implicit_euler_operators_dense_matches_formula() -> None:
+    """Implicit Euler operators satisfy L = I - s*A and R = I for dense A."""
+    n = 6
+    rng = np.random.default_rng(10)
+    a = rng.standard_normal(size=(n, n))
+    s = 0.25
+
+    left, right = build_implicit_euler_operators(a, dt_scale=s)
+
+    ident = np.eye(n, dtype=a.dtype)
+    assert np.allclose(np.asarray(left), ident - s * a)
+    assert np.allclose(np.asarray(right), ident)
+
+
+def test_build_implicit_euler_operators_sparse_matches_formula() -> None:
+    """Implicit Euler operators satisfy L = I - s*A and R = I for sparse A."""
+    n = 12
+    rng = np.random.default_rng(11)
+    a_dense = rng.standard_normal(size=(n, n))
+    a_sparse = csr_matrix(a_dense)
+    s = 0.1
+
+    left, right = build_implicit_euler_operators(a_sparse, dt_scale=s)
+
+    assert issparse(left)
+    assert issparse(right)
+
+    ident = np.eye(n, dtype=a_dense.dtype)
+    assert np.allclose(_as_dense(left), ident - s * a_dense)
+    assert np.allclose(_as_dense(right), ident)
+
+
+def test_build_trapezoidal_operators_dense_matches_formula() -> None:
+    """Trapezoidal operators satisfy L = I - 0.5*s*A and R = I + 0.5*s*A (dense)."""
+    n = 7
+    rng = np.random.default_rng(12)
+    a = rng.standard_normal(size=(n, n))
+    s = 0.4
+
+    left, right = build_trapezoidal_operators(a, dt_scale=s)
+
+    ident = np.eye(n, dtype=a.dtype)
+    assert np.allclose(np.asarray(left), ident - 0.5 * s * a)
+    assert np.allclose(np.asarray(right), ident + 0.5 * s * a)
+
+
+def test_build_trapezoidal_operators_sparse_matches_formula() -> None:
+    """Trapezoidal operators satisfy L/R formula for sparse A."""
+    n = 9
+    rng = np.random.default_rng(13)
+    a_dense = rng.standard_normal(size=(n, n))
+    a_sparse = csr_matrix(a_dense)
+    s = 0.33
+
+    left, right = build_trapezoidal_operators(a_sparse, dt_scale=s)
+
+    assert issparse(left)
+    assert issparse(right)
+
+    ident = np.eye(n, dtype=a_dense.dtype)
+    assert np.allclose(_as_dense(left), ident - 0.5 * s * a_dense)
+    assert np.allclose(_as_dense(right), ident + 0.5 * s * a_dense)
+
+
+def test_stage_operator_context_fields_roundtrip() -> None:
+    """StageOperatorContext carries (t, y, stage) faithfully."""
+    rng = np.random.default_rng(99)
+    y = rng.standard_normal(size=5).astype(float)
+    ctx = StageOperatorContext(t=1.25, y=y, stage="tr")
+    assert ctx.t == pytest.approx(1.25)
+    assert ctx.stage == "tr"
+    assert np.allclose(ctx.y, y)
+
+
+def test_make_constant_base_builder_returns_same_operator() -> None:
+    """make_constant_base_builder returns the same object (dense) each time."""
+    a = np.eye(4, dtype=float)
+    builder = make_constant_base_builder(a)
+    ctx = StageOperatorContext(t=0.0, y=np.zeros(4), stage=None)
+    out1 = builder(ctx)
+    out2 = builder(ctx)
+    # We expect identity by value; by object is also true in current implementation.
+    assert np.allclose(np.asarray(out1), a)
+    assert np.allclose(np.asarray(out2), a)
+
+
+def test_stage_operator_factory_implicit_euler_constant_builder_matches_direct_builder() -> None:
+    """Factory(implicit-euler) equals build_implicit_euler_operators for constant base."""
+    n = 8
+    rng = np.random.default_rng(20)
+    a = rng.standard_normal(size=(n, n))
+    builder = make_constant_base_builder(a)
+    factory = make_stage_operator_factory(builder, scheme="implicit-euler")
+
+    dt = 0.5
+    scale = 0.3
+    ctx = StageOperatorContext(t=0.0, y=np.zeros(n), stage="tr")
+
+    left_f, right_f = factory(dt, scale, ctx)
+    left_d, right_d = build_implicit_euler_operators(a, dt_scale=dt * scale)
+
+    assert np.allclose(_as_dense(left_f), np.asarray(left_d))
+    assert np.allclose(_as_dense(right_f), np.asarray(right_d))
+
+
+def test_stage_operator_factory_trapezoidal_constant_builder_matches_direct_builder() -> None:
+    """Factory(trapezoidal) equals build_trapezoidal_operators for constant base."""
+    n = 8
+    rng = np.random.default_rng(21)
+    a = rng.standard_normal(size=(n, n))
+    builder = make_constant_base_builder(a)
+    factory = make_stage_operator_factory(builder, scheme="trapezoidal")
+
+    dt = 0.25
+    scale = 0.8
+    ctx = StageOperatorContext(t=2.0, y=np.ones(n), stage="bdf2")
+
+    left_f, right_f = factory(dt, scale, ctx)
+    left_d, right_d = build_trapezoidal_operators(a, dt_scale=dt * scale)
+
+    assert np.allclose(_as_dense(left_f), np.asarray(left_d))
+    assert np.allclose(_as_dense(right_f), np.asarray(right_d))
+
+
+def test_stage_operator_factory_time_state_dependent_builder_is_used() -> None:
+    """Factory passes ctx through to base_builder; builder can depend on t and y."""
+    n = 5
+
+    # Base operator depends on t and sum(y) so we can assert it changes.
+    def base_builder(ctx: StageOperatorContext) -> NDArray[np.floating]:
+        s = float(np.sum(ctx.y))
+        return (ctx.t + s) * np.eye(n, dtype=float)
+
+    factory = make_stage_operator_factory(base_builder, scheme="implicit-euler")
+
+    dt = 0.1
+    scale = 2.0
+
+    ctx1 = StageOperatorContext(t=1.0, y=np.zeros(n), stage="tr")
+    left1, right1 = factory(dt, scale, ctx1)
+
+    ctx2 = StageOperatorContext(t=2.0, y=np.ones(n), stage="tr")
+    left2, right2 = factory(dt, scale, ctx2)
+
+    # For implicit-euler: L = I - (dt*scale) * A, with A = (t + sum(y))*I
+    ident = np.eye(n, dtype=float)
+    a1 = (ctx1.t + float(np.sum(ctx1.y))) * np.eye(n, dtype=float)
+    a2 = (ctx2.t + float(np.sum(ctx2.y))) * np.eye(n, dtype=float)
+
+    assert np.allclose(_as_dense(right1), ident)
+    assert np.allclose(_as_dense(right2), ident)
+    assert np.allclose(_as_dense(left1), ident - (dt * scale) * a1)
+    assert np.allclose(_as_dense(left2), ident - (dt * scale) * a2)
+
+    # and they should not be identical
+    assert not np.allclose(_as_dense(left1), _as_dense(left2))
+
+
+def test_stage_operator_factory_unknown_scheme_raises() -> None:
+    """Unknown scheme in stage-operator factory raises ValueError."""
+    n = 4
+    a = np.eye(n)
+
+    builder = make_constant_base_builder(a)
+    with pytest.raises(ValueError, match="Unknown scheme"):
+        _ = make_stage_operator_factory(builder, scheme="nope")  # type: ignore[arg-type]
+
+
+def test_build_stage_operators_nonfinite_scale_raises() -> None:
+    """Stage operator builders reject non-finite dt_scale."""
+    n = 4
+    a = np.eye(n)
+    with pytest.raises(ValueError, match="scale must be a finite float"):
+        _ = build_implicit_euler_operators(a, dt_scale=float("nan"))
+    with pytest.raises(ValueError, match="scale must be a finite float"):
+        _ = build_trapezoidal_operators(a, dt_scale=float("inf"))
+
+
+def test_stage_operator_factory_rejects_bad_base_builder_return_type() -> None:
+    """If base_builder returns an invalid type, factory should raise TypeError."""
+    n = 3
+
+    def bad_builder(ctx: StageOperatorContext) -> object:  # noqa: ARG001
+        return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]  # list, not ndarray/csr
+
+    factory = make_stage_operator_factory(bad_builder, scheme="implicit-euler")
+    ctx = StageOperatorContext(t=0.0, y=np.zeros(n), stage=None)
+    with pytest.raises(TypeError, match="base_builder must return"):
+        _ = factory(0.1, 1.0, ctx)
+
+
+# -------------------------------------------------------------------
 # implicit_solve correctness
 # -------------------------------------------------------------------
 
@@ -240,20 +449,12 @@ def test_implicit_solve_sparse_matches_dense() -> None:
     cfg = DiffusionConfig(coeff=0.1, bc="neumann")
     dt = 0.02
 
-    # Force dense and sparse via manual construction:
-    # - Dense: small n via CN formula on dense Laplacian.
-    lap = build_laplacian_tridiag(
-        geom_small.n,
-        geom_small.dx,
-        cfg.coeff,
-        dtype=cfg.dtype)
+    lap = build_laplacian_tridiag(geom_small.n, geom_small.dx, cfg.coeff, dtype=cfg.dtype)
     a = lap.toarray() * dt
     ident = np.eye(geom_small.n, dtype=np.dtype(cfg.dtype))
     left_dense = ident - 0.5 * a
     right_dense = ident + 0.5 * a
 
-    # - Sparse: use large-n dispatch, then slice down to compare on same n is messy.
-    # Instead, directly build sparse CN operators from CSR Laplacian here:
     lap_csr = lap.tocsr()
     left_sparse = (csr_matrix(ident) - 0.5 * (lap_csr * dt)).tocsr()
     right_sparse = (csr_matrix(ident) + 0.5 * (lap_csr * dt)).tocsr()
@@ -280,12 +481,25 @@ def test_implicit_solve_2d_rhs_matches_columnwise() -> None:
     rng = np.random.default_rng(6)
     x = rng.standard_normal(size=(geom.n, 3))
 
-    y_col = np.column_stack(
-        [np.linalg.solve(left_a, right_a @ x[:, k]) for k in range(x.shape[1])]
-    )
+    y_col = np.column_stack([np.linalg.solve(left_a, right_a @ x[:, k]) for k in range(x.shape[1])])
     y = implicit_solve(left, right, x)
 
     assert np.allclose(y, y_col, atol=1e-10, rtol=1e-10)
+
+
+def test_implicit_solve_identity_operators_returns_x() -> None:
+    """implicit_solve with L=I and R=I returns x unchanged (1D and 2D)."""
+    n = 11
+    ident = identity(n, format="csr", dtype=np.float64)
+    rng = np.random.default_rng(123)
+
+    x1 = rng.standard_normal(size=n)
+    y1 = implicit_solve(ident, ident, x1)
+    assert np.allclose(y1, x1)
+
+    x2 = rng.standard_normal(size=(n, 4))
+    y2 = implicit_solve(ident, ident, x2)
+    assert np.allclose(y2, x2)
 
 
 # -------------------------------------------------------------------

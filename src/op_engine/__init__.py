@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .core_solver import CoreSolver, RHSFunction, ReactionRHSFunction
+from .core_solver import CoreSolver, ReactionRHSFunction, RHSFunction
 from .matrix_ops import (
     DiffusionConfig,
     GridGeometry,
@@ -51,4 +51,3 @@ __all__ = [
 ]
 
 __version__ = "0.1.0"
-

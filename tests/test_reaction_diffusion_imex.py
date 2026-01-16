@@ -272,10 +272,8 @@ def test_imex_reduces_to_cn_when_reaction_zero() -> None:
 
     y_cn = _run_cn_diffusion(y0, cast("FloatArray", time_grid), geom, cfg)
     y_imex = _run_imex_diffusion_zero_reaction(
-        y0,
-        cast("FloatArray", time_grid),
-        geom,
-        cfg)
+        y0, cast("FloatArray", time_grid), geom, cfg
+    )
 
     assert np.allclose(y_imex, y_cn, atol=1e-10, rtol=1e-10)
 

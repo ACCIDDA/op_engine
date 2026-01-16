@@ -9,6 +9,7 @@ This module tests the core functionality of ModelCore including:
 - State management with and without history tracking
 - State updates via deltas and direct assignment
 - Bounds checking for timestep advancement
+- New convenience APIs: current_time, get_time_at, state_ndim, validate_state_shape
 """
 
 from __future__ import annotations
@@ -19,8 +20,13 @@ import pytest
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
 
+# -------------------------------------------------------------------
+# Time grid / dt
+# -------------------------------------------------------------------
+
+
 def test_model_core_timegrid_uniform_dt_grid_ok() -> None:
-    """Test initialization with a uniform time grid and dt_grid correctness."""
+    """Initialization with a uniform time grid and dt_grid correctness."""
     time_grid = np.linspace(0.0, 10.0, 11)  # dt = 1.0
     core = ModelCore(n_states=3, n_subgroups=2, time_grid=time_grid)
 
@@ -35,9 +41,14 @@ def test_model_core_timegrid_uniform_dt_grid_ok() -> None:
     assert core.state_shape == (3, 2)
     assert core.current_state.shape == core.state_shape
 
+    # Time helpers
+    assert np.isclose(core.current_time, float(time_grid[0]))
+    assert np.isclose(core.get_time_at(0), float(time_grid[0]))
+    assert np.isclose(core.get_time_at(10), float(time_grid[10]))
+
 
 def test_model_core_timegrid_nonuniform_dt_grid_ok() -> None:
-    """Test initialization with a non-uniform time grid and get_dt access."""
+    """Initialization with a non-uniform time grid and get_dt access."""
     time_grid = np.array([0.0, 0.1, 0.4, 1.0], dtype=float)
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid)
 
@@ -48,34 +59,39 @@ def test_model_core_timegrid_nonuniform_dt_grid_ok() -> None:
     assert np.isclose(core.get_dt(1), 0.3)
     assert np.isclose(core.get_dt(2), 0.6)
 
+    assert np.isclose(core.get_time_at(2), 0.4)
+
 
 def test_model_core_timegrid_nonmonotone_raises() -> None:
-    """Test that ModelCore raises an error with a non-monotonic time grid."""
+    """Non-monotonic time grids are rejected."""
     time_grid = np.array([0.0, 1.0, 0.5], dtype=float)
     with pytest.raises(ValueError, match="strictly increasing"):
         ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
 
 
 def test_model_core_timegrid_repeated_time_raises() -> None:
-    """Test that repeated time points raise an error."""
+    """Repeated time points are rejected."""
     time_grid = np.array([0.0, 1.0, 1.0], dtype=float)
     with pytest.raises(ValueError, match="strictly increasing"):
         ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
 
 
-def test_model_core_single_step_dt_grid_empty() -> None:
-    """Test that ModelCore handles single-step time grid correctly."""
+def test_model_core_single_step_dt_grid_empty_and_get_dt_is_zero() -> None:
+    """Single-step time grids yield empty dt_grid and get_dt returns 0."""
     time_grid = np.array([0.0], dtype=float)
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
 
     assert core.n_timesteps == 1
     assert core.dt == 0.0
     assert core.dt_grid.shape == (0,)
-    assert np.isclose(core.get_dt(0), 0.0)  # Single-step special case
+    assert np.isclose(core.get_dt(0), 0.0)
+
+    assert np.isclose(core.current_time, 0.0)
+    assert np.isclose(core.get_time_at(0), 0.0)
 
 
 def test_get_dt_out_of_bounds_raises() -> None:
-    """Test that get_dt raises IndexError for invalid indices."""
+    """get_dt raises IndexError for invalid indices (multi-step grid)."""
     time_grid = np.array([0.0, 0.5, 1.0], dtype=float)
     core = ModelCore(n_states=1, n_subgroups=1, time_grid=time_grid)
 
@@ -86,13 +102,31 @@ def test_get_dt_out_of_bounds_raises() -> None:
         _ = core.get_dt(2)  # valid are 0..n_timesteps-2 == 1
 
 
-def test_axis_names_default_and_axis_index() -> None:
-    """Test default axis_names and axis_index resolution."""
+def test_get_time_at_out_of_bounds_raises() -> None:
+    """get_time_at raises IndexError for invalid indices."""
+    time_grid = np.array([0.0, 0.5, 1.0], dtype=float)
+    core = ModelCore(n_states=1, n_subgroups=1, time_grid=time_grid)
+
+    with pytest.raises(IndexError, match="time index out of bounds"):
+        _ = core.get_time_at(-1)
+
+    with pytest.raises(IndexError, match="time index out of bounds"):
+        _ = core.get_time_at(99)
+
+
+# -------------------------------------------------------------------
+# Axis metadata
+# -------------------------------------------------------------------
+
+
+def test_axis_names_default_and_axis_index_and_state_ndim() -> None:
+    """Default axis_names and axis_index resolution + state_ndim."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(4,))
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid, options=opts)
 
     assert core.state_shape == (2, 3, 4)
+    assert core.state_ndim == 3
     assert core.axis_names == ("state", "subgroup", "axis2")
 
     assert core.axis_index("state") == 0
@@ -108,7 +142,7 @@ def test_axis_names_default_and_axis_index() -> None:
 
 
 def test_axis_names_length_mismatch_raises() -> None:
-    """Test that axis_names length mismatch raises ValueError."""
+    """axis_names length mismatch raises ValueError."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(4,), axis_names=("state", "subgroup"))
     with pytest.raises(ValueError, match="axis_names length"):
@@ -116,7 +150,7 @@ def test_axis_names_length_mismatch_raises() -> None:
 
 
 def test_axis_coords_metadata_roundtrip() -> None:
-    """Test that axis coordinate metadata can be retrieved by name/index."""
+    """Axis coordinate metadata can be retrieved by name/index."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     axis_coords = {
         "subgroup": np.array([10.0, 20.0, 30.0]),
@@ -136,8 +170,13 @@ def test_axis_coords_metadata_roundtrip() -> None:
     assert core.get_axis_coords("state") is None
 
 
+# -------------------------------------------------------------------
+# State shapes, history, initialization
+# -------------------------------------------------------------------
+
+
 def test_state_shape_multi_axis_and_history_on() -> None:
-    """Test state/history shapes for a multi-axis state tensor."""
+    """State/history shapes for a multi-axis state tensor."""
     time_grid = np.array([0.0, 0.5, 1.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(4, 5), store_history=True)
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid, options=opts)
@@ -150,7 +189,7 @@ def test_state_shape_multi_axis_and_history_on() -> None:
 
 
 def test_set_initial_state_and_history_on() -> None:
-    """Test setting initial state with history enabled."""
+    """Setting initial state with history enabled stores step 0."""
     time_grid = np.array([0.0, 1.0, 2.0], dtype=float)
     opts = ModelCoreOptions(store_history=True)
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid, options=opts)
@@ -167,7 +206,7 @@ def test_set_initial_state_and_history_on() -> None:
 
 
 def test_set_initial_state_and_history_off() -> None:
-    """Test setting initial state with history disabled."""
+    """Setting initial state with history disabled does not allocate history."""
     time_grid = np.array([0.0, 0.5, 1.0], dtype=float)
     opts = ModelCoreOptions(store_history=False)
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid, options=opts)
@@ -184,7 +223,7 @@ def test_set_initial_state_and_history_off() -> None:
 
 
 def test_set_initial_state_wrong_shape_raises() -> None:
-    """Test that setting an initial state with the wrong shape raises an error."""
+    """Setting an initial state with the wrong shape raises an error."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid)
 
@@ -193,8 +232,34 @@ def test_set_initial_state_wrong_shape_raises() -> None:
         core.set_initial_state(bad_init)
 
 
+# -------------------------------------------------------------------
+# validate_state_shape helper
+# -------------------------------------------------------------------
+
+
+def test_validate_state_shape_accepts_and_rejects() -> None:
+    """validate_state_shape accepts correct shape and rejects incorrect shape."""
+    time_grid = np.array([0.0, 1.0], dtype=float)
+    core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid)
+
+    ok = np.zeros(core.state_shape, dtype=float)
+    core.validate_state_shape(ok)  # should not raise
+
+    bad = np.zeros((2, 2), dtype=float)
+    with pytest.raises(ValueError, match="Next state shape"):
+        core.validate_state_shape(bad)
+
+    with pytest.raises(ValueError, match="custom"):
+        core.validate_state_shape(bad, msg="custom {actual} {expected}")
+
+
+# -------------------------------------------------------------------
+# State updates: deltas / next state / bounds
+# -------------------------------------------------------------------
+
+
 def test_apply_deltas_updates_state_and_history_multi_axis() -> None:
-    """Test that applying deltas updates state and history for multi-axis tensors."""
+    """Applying deltas updates state and history for multi-axis tensors."""
     time_grid = np.array([0.0, 1.0, 2.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(3,), store_history=True)
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid, options=opts)
@@ -209,16 +274,18 @@ def test_apply_deltas_updates_state_and_history_multi_axis() -> None:
     assert core.current_step == 1
     assert np.array_equal(core.get_current_state(), init + delta1)
     assert np.array_equal(core.get_state_at(1), init + delta1)
+    assert np.isclose(core.current_time, float(time_grid[1]))
 
     core.apply_deltas(delta2)
     assert core.current_step == 2
     expected = init + delta1 + delta2
     assert np.array_equal(core.get_current_state(), expected)
     assert np.array_equal(core.get_state_at(2), expected)
+    assert np.isclose(core.current_time, float(time_grid[2]))
 
 
 def test_apply_deltas_wrong_shape_raises() -> None:
-    """Test that apply_deltas rejects wrong-shaped inputs."""
+    """apply_deltas rejects wrong-shaped inputs."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
     core.set_initial_state(np.zeros(core.state_shape, dtype=float))
@@ -229,7 +296,7 @@ def test_apply_deltas_wrong_shape_raises() -> None:
 
 
 def test_apply_next_state_overwrites_state() -> None:
-    """Test that applying next state overwrites the current state correctly."""
+    """apply_next_state overwrites the current state correctly and stores history."""
     time_grid = np.array([0.0, 0.5, 1.0], dtype=float)
     opts = ModelCoreOptions(store_history=True)
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid, options=opts)
@@ -243,10 +310,11 @@ def test_apply_next_state_overwrites_state() -> None:
     assert core.current_step == 1
     assert np.array_equal(core.get_current_state(), next_state)
     assert np.array_equal(core.get_state_at(1), next_state)
+    assert np.isclose(core.current_time, float(time_grid[1]))
 
 
 def test_apply_next_state_wrong_shape_raises() -> None:
-    """Test that apply_next_state rejects wrong-shaped inputs."""
+    """apply_next_state rejects wrong-shaped inputs."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
     core.set_initial_state(np.zeros(core.state_shape, dtype=float))
@@ -257,7 +325,7 @@ def test_apply_next_state_wrong_shape_raises() -> None:
 
 
 def test_get_state_at_step_oob_raises() -> None:
-    """Test that get_state_at raises IndexError when step is out of bounds."""
+    """get_state_at raises IndexError when step is out of bounds."""
     time_grid = np.array([0.0, 1.0, 2.0], dtype=float)
     opts = ModelCoreOptions(store_history=True)
     core = ModelCore(n_states=1, n_subgroups=1, time_grid=time_grid, options=opts)
@@ -271,7 +339,7 @@ def test_get_state_at_step_oob_raises() -> None:
 
 
 def test_cannot_advance_past_last_step() -> None:
-    """Test that advancing at the final timestep raises an error."""
+    """Advancing at the final timestep raises an error."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     core = ModelCore(n_states=1, n_subgroups=1, time_grid=time_grid)
 
@@ -283,24 +351,27 @@ def test_cannot_advance_past_last_step() -> None:
         core.apply_next_state(np.array([[2.0]], dtype=float))
 
 
+# -------------------------------------------------------------------
+# Reshape / unreshape helpers
+# -------------------------------------------------------------------
+
+
 def test_reshape_and_unreshape_for_axis_solve_roundtrip() -> None:
-    """Test reshape_for_axis_solve and unreshape_from_axis_solve roundtrip."""
+    """reshape_for_axis_solve and unreshape_from_axis_solve roundtrip."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(4,))
     core = ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid, options=opts)
 
     init = np.arange(np.prod(core.state_shape), dtype=float).reshape(core.state_shape)
     core.set_initial_state(init)
-
     x = core.get_current_state()
 
-    x2d, original_shape, axis_len = core.reshape_for_axis_solve(x, "subgroup")
+    x2d, original_shape, axis_idx = core.reshape_for_axis_solve(x, "subgroup")
     assert original_shape == core.state_shape
-    assert axis_len == core.state_shape[1]
-    assert x2d.shape == (
-        core.state_shape[1],
-        core.state_shape[0] * core.state_shape[2],
-    )
+    assert axis_idx == 1
+
+    # axis_len = 3, batch = 2*4 = 8
+    assert x2d.shape == (core.state_shape[1], core.state_shape[0] * core.state_shape[2])
 
     x_roundtrip = core.unreshape_from_axis_solve(x2d, original_shape, "subgroup")
     assert x_roundtrip.shape == core.state_shape
@@ -308,7 +379,7 @@ def test_reshape_and_unreshape_for_axis_solve_roundtrip() -> None:
 
 
 def test_reshape_for_axis_solve_wrong_shape_raises() -> None:
-    """Test reshape_for_axis_solve rejects arrays not matching state_shape."""
+    """reshape_for_axis_solve rejects arrays not matching state_shape."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(3,))
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid, options=opts)
@@ -318,8 +389,31 @@ def test_reshape_for_axis_solve_wrong_shape_raises() -> None:
         _ = core.reshape_for_axis_solve(bad, "subgroup")
 
 
+def test_unreshape_from_axis_solve_respects_axis_position() -> None:
+    """unreshape_from_axis_solve reconstructs the correct layout for a non-leading axis."""
+    time_grid = np.array([0.0, 1.0], dtype=float)
+    opts = ModelCoreOptions(other_axes=(2,))  # shape (state, subgroup, axis2)
+    core = ModelCore(n_states=3, n_subgroups=4, time_grid=time_grid, options=opts)
+
+    x = np.arange(np.prod(core.state_shape), dtype=float).reshape(core.state_shape)
+    core.set_initial_state(x)
+
+    # Solve along axis2 (index 2): expect x2d shape (2, 3*4)
+    x2d, original_shape, axis_idx = core.reshape_for_axis_solve(x, "axis2")
+    assert axis_idx == 2
+    assert x2d.shape == (2, 3 * 4)
+
+    x_back = core.unreshape_from_axis_solve(x2d, original_shape, "axis2")
+    assert np.array_equal(x_back, x)
+
+
+# -------------------------------------------------------------------
+# Views / dtype
+# -------------------------------------------------------------------
+
+
 def test_get_current_state_is_view() -> None:
-    """Test that get_current_state returns a view into the current state."""
+    """get_current_state returns a view into the current state."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
 
@@ -333,7 +427,7 @@ def test_get_current_state_is_view() -> None:
 
 
 def test_dtype_propagation() -> None:
-    """Test that dtype is applied to internal arrays and dt_grid."""
+    """dtype is applied to internal arrays and dt_grid."""
     time_grid = np.array([0.0, 0.25, 1.0], dtype=float)
     opts = ModelCoreOptions(dtype=np.float32)
     core = ModelCore(n_states=1, n_subgroups=2, time_grid=time_grid, options=opts)

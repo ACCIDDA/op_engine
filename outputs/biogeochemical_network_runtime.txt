@@ -1,0 +1,36 @@
+Timing / solver stats
+
+Operator mode: frozen
+
+Main run wall times:
+op_engine: Heun (A=0)                         0.477639 s
+op_engine: TR-BDF2 split A                    2.466767 s
+op_engine: TR-BDF2 split B                    2.526965 s
+op_engine: TR-BDF2 split C (dissipative)      2.469053 s
+solve_ivp: RK45                               0.856655 s
+solve_ivp: BDF                                2.108888 s
+
+SciPy solve_ivp details (main run):
+  solve_ivp: RK45
+    success : True
+    message : The solver successfully reached the end of the integration interval.
+    nfev    : 56168
+    njev    : 0
+    nlu     : 0
+    wall_s  : 0.8566553099662997
+
+  solve_ivp: BDF
+    success : True
+    message : The solver successfully reached the end of the integration interval.
+    nfev    : 65940
+    njev    : 7
+    nlu     : 4118
+    wall_s  : 2.1088882390176877
+
+
+dt sweep wall times:
+dt_days,op_engine: Heun (A=0),op_engine: TR-BDF2 split A,op_engine: TR-BDF2 split B,op_engine: TR-BDF2 split C,solve_ivp: RK45,solve_ivp: BDF
+0.09125,1.932620853,10.76490524,10.82176617,10.89591822,0.873086296,2.232691036
+0.1825,0.955980746,5.135113999,5.789998354,5.083321542,0.8688878421,2.183607805
+0.365,0.476738899,2.581753271,3.305980197,2.523534425,0.860677828,2.124106563
+0.73,0.248255816,1.306575341,1.326971337,1.272170416,0.8415026,2.05179096

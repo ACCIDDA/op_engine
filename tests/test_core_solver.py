@@ -10,6 +10,11 @@ This module contains tests that verify:
 - CoreSolver.run_imex implements an explicit Heun step when A = 0 (no operators),
   including on non-uniform time grids.
 - CoreSolver validates operator sizes against the configured operator axis.
+- CoreSolver.run_imex_trbdf2:
+    * works with no operators (purely explicit, second order on smooth problems),
+    * supports stage-operator factories that depend on time (ctx.t),
+    * supports stage-operator factories that depend on stage state (ctx.y),
+    * passes correct ctx.stage labels ("tr", "bdf2") to factories.
 """
 
 from __future__ import annotations
@@ -20,7 +25,7 @@ import numpy as np
 import pytest
 
 from op_engine.core_solver import CoreSolver, ReactionRHSFunction, RHSFunction
-from op_engine.matrix_ops import implicit_solve
+from op_engine.matrix_ops import StageOperatorContext, implicit_solve
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
 if TYPE_CHECKING:
@@ -47,6 +52,11 @@ def _make_core(
         time_grid=np.asarray(time_grid, dtype=float),
         options=opts,
     )
+
+
+# -------------------------------------------------------------------
+# Legacy / base behavior
+# -------------------------------------------------------------------
 
 
 def test_core_solver_euler_mode_uses_rhs_as_next_state() -> None:
@@ -208,3 +218,142 @@ def test_core_solver_operator_size_mismatch_raises() -> None:
 
     with pytest.raises(ValueError, match="Operator axis length"):
         _ = CoreSolver(core, operators=(left, right), operator_axis="subgroup")
+
+
+# -------------------------------------------------------------------
+# New capability: TR-BDF2 explicit fallback with no operators
+# -------------------------------------------------------------------
+
+
+def test_core_solver_run_imex_trbdf2_no_operators_constant_reaction_exact() -> None:
+    """run_imex_trbdf2 runs without operators and is exact on y' = 1."""
+    time_grid = np.array([0.0, 0.1, 0.4, 1.0], dtype=float)  # non-uniform
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=time_grid)
+
+    init = np.array([[0.0]], dtype=float)
+    core.set_initial_state(init)
+
+    def reaction_rhs(_t: float, state: FloatArray) -> FloatArray:  # noqa: ARG001
+        return np.ones_like(state)
+
+    solver = CoreSolver(core, operators=None)
+    solver.run_imex_trbdf2(reaction_rhs, operators_tr=None, operators_bdf2=None)
+
+    assert np.allclose(core.current_state[0, 0], 1.0, atol=1e-12, rtol=0.0)
+    assert core.state_array is not None
+    assert np.allclose(core.state_array[:, 0, 0], time_grid, atol=1e-12, rtol=0.0)
+
+
+# -------------------------------------------------------------------
+# New capability: TR-BDF2 stage-operator factories with ctx (time/state/stage)
+# -------------------------------------------------------------------
+
+
+def test_core_solver_trbdf2_stage_operator_factory_receives_time_and_stage_labels() -> None:
+    """TR-BDF2 passes ctx.t and ctx.stage to operator factories.
+
+    We use a single-step run with F=0 so the method is purely the linear map.
+    The factories build 1x1 operators whose coefficients depend on ctx.t, and we
+    also assert the ctx.stage labels are as expected.
+    """
+    time_grid = np.array([0.0, 1.0], dtype=float)
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=time_grid)
+    core.set_initial_state(np.array([[1.0]], dtype=float))
+
+    # F(t,y) = 0
+    def reaction_rhs(_t: float, state: FloatArray) -> FloatArray:  # noqa: ARG001
+        return np.zeros_like(state)
+
+    seen: list[StageOperatorContext] = []
+
+    # TR stage: trapezoidal-like operators with a(t) = ctx.t
+    def tr_factory(dt: float, scale: float, ctx: StageOperatorContext):
+        seen.append(ctx)
+        a = float(ctx.t)  # time-varying "A"
+        s = float(dt) * float(scale)
+        left = np.array([[1.0 - 0.5 * s * a]], dtype=float)
+        right = np.array([[1.0 + 0.5 * s * a]], dtype=float)
+        return left, right
+
+    # BDF2 stage: implicit-euler-like operators with a(t) = ctx.t
+    def bdf_factory(dt: float, scale: float, ctx: StageOperatorContext):
+        seen.append(ctx)
+        a = float(ctx.t)
+        s = float(dt) * float(scale)
+        left = np.array([[1.0 - s * a]], dtype=float)
+        right = np.array([[1.0]], dtype=float)
+        return left, right
+
+    solver = CoreSolver(core, operators=None)
+    solver.run_imex_trbdf2(
+        reaction_rhs,
+        operators_tr=tr_factory,
+        operators_bdf2=bdf_factory,
+    )
+
+    # We expect exactly two factory calls: TR stage, then BDF2 stage.
+    assert len(seen) == 2
+
+    ctx_tr, ctx_bdf = seen
+    assert ctx_tr.stage == "tr"
+    assert ctx_bdf.stage == "bdf2"
+
+    # Time points:
+    gamma = float(2.0 - np.sqrt(2.0))
+    assert np.isclose(ctx_tr.t, gamma, atol=0.0, rtol=0.0)
+    assert np.isclose(ctx_bdf.t, 1.0, atol=0.0, rtol=0.0)
+
+    # Both contexts should include a stage state tensor shaped like the model state.
+    assert ctx_tr.y.shape == core.state_shape
+    assert ctx_bdf.y.shape == core.state_shape
+
+    # Sanity: purely linear map with stable operators should keep the solution finite.
+    assert np.isfinite(core.current_state[0, 0])
+
+
+def test_core_solver_trbdf2_stage_operator_factory_can_depend_on_stage_state() -> None:
+    """Factories can depend on ctx.y (stage state) to produce different operators.
+
+    This is a plumbing test: we make the BDF2 left operator depend on ctx.y in a
+    way that (a) is stable and (b) produces a detectable effect compared to a
+    time-only operator.
+    """
+    time_grid = np.array([0.0, 1.0], dtype=float)
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=time_grid)
+    core.set_initial_state(np.array([[2.0]], dtype=float))
+
+    def reaction_rhs(_t: float, state: FloatArray) -> FloatArray:  # noqa: ARG001
+        return np.zeros_like(state)
+
+    # TR stage: choose constant A=0 so y1 == y0 deterministically.
+    def tr_factory(_dt: float, _scale: float, ctx: StageOperatorContext):
+        assert ctx.stage == "tr"
+        left = np.array([[1.0]], dtype=float)
+        right = np.array([[1.0]], dtype=float)
+        return left, right
+
+    # BDF2 stage: set A = alpha * |y_stage1| so the left operator changes with state.
+    alpha = 0.1
+
+    def bdf_factory(dt: float, scale: float, ctx: StageOperatorContext):
+        assert ctx.stage == "bdf2"
+        ymag = float(np.abs(np.asarray(ctx.y, dtype=float)[0, 0]))
+        a = alpha * ymag
+        s = float(dt) * float(scale)
+        left = np.array([[1.0 - s * a]], dtype=float)
+        right = np.array([[1.0]], dtype=float)
+        return left, right
+
+    solver = CoreSolver(core, operators=None)
+    solver.run_imex_trbdf2(
+        reaction_rhs,
+        operators_tr=tr_factory,
+        operators_bdf2=bdf_factory,
+    )
+
+    # With F=0 and TR stage identity, ctx.y_stage1 == y0 == 2, so a = 0.2.
+    # That yields a non-identity left op and therefore y_{n+1} != y0 in general.
+    # We only assert it changes and remains finite (plumbing + stability).
+    y_final = float(core.current_state[0, 0])
+    assert np.isfinite(y_final)
+    assert not np.isclose(y_final, 2.0)
