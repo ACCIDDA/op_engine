@@ -16,9 +16,10 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
+import numpy.typing as npt
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -47,6 +48,11 @@ _STEP_OOB_ERROR = "Step out of bounds"
 _FINAL_TIMESTEP_ERROR = "Simulation has already reached final timestep"
 _DT_INDEX_OOB_ERROR = "dt index out of bounds: {idx}"
 _TIME_INDEX_OOB_ERROR = "time index out of bounds: {idx}"
+
+
+# Typing helpers ------------------------------------------------------------
+
+FloatArray = npt.NDArray[np.floating[Any]]
 
 
 @dataclass(slots=True)
@@ -83,12 +89,25 @@ class ModelCoreOptions:
 class ArrayBackend(Protocol):
     """Minimal array backend interface for ModelCore numerical storage."""
 
-    def asarray(self, x: object, dtype: object | None = None) -> np.ndarray: ...
-    def zeros(self, shape: tuple[int, ...], dtype: object | None = None) -> np.ndarray: ...
+    def asarray(
+        self,
+        x: object,
+        dtype: object | None = None,
+    ) -> np.ndarray:
+        """Convert input to an array of the backend type."""
+        ...
+
+    def zeros(
+        self,
+        shape: tuple[int, ...],
+        dtype: object | None = None,
+    ) -> np.ndarray:
+        """Return a new array of given shape filled with zeros."""
+        ...
 
 
 class ModelCore:
-    """Core class for managing the numerical state of a model."""
+    """Core state and time manager for time-evolving models."""
 
     def __init__(
         self,
@@ -98,6 +117,18 @@ class ModelCore:
         *,
         options: ModelCoreOptions | None = None,
     ) -> None:
+        """
+        Initialize ModelCore.
+
+        Args:
+            n_states: Number of state variables.
+            n_subgroups: Number of subgroups (e.g., age groups).
+            time_grid: 1D array of times, shape (n_timesteps,).
+            options: Optional ModelCoreOptions for additional configuration.
+
+        Raises:
+            ValueError: if time_grid is invalid or any shapes mismatch.
+        """
         opts = options or ModelCoreOptions()
 
         # Forward-compat hook; stored for later wiring. For now ModelCore remains
@@ -148,7 +179,8 @@ class ModelCore:
         self.axis_coords: dict[str, np.ndarray] = {}
         if opts.axis_coords is not None:
             self.axis_coords = {
-                str(k): np.asarray(v, dtype=self.dtype) for k, v in opts.axis_coords.items()
+                str(k): np.asarray(v, dtype=self.dtype)
+                for k, v in opts.axis_coords.items()
             }
 
         self.current_step = 0
@@ -157,10 +189,11 @@ class ModelCore:
         self.current_state = np.zeros(self.state_shape, dtype=self.dtype)
 
         # Optional full history: (n_timesteps, *state_shape)
+        self.state_array: FloatArray | None
         if self.store_history:
-            self.state_array: np.ndarray | None = np.zeros(
-                (self.n_timesteps, *self.state_shape),
-                dtype=self.dtype,
+            self.state_array = cast(
+                "FloatArray",
+                np.zeros((self.n_timesteps, *self.state_shape), dtype=self.dtype),
             )
         else:
             self.state_array = None
@@ -171,10 +204,31 @@ class ModelCore:
 
     @property
     def state_ndim(self) -> int:
+        """
+        Number of state tensor dimensions (rank).
+
+        Args:
+            None.
+
+        Returns:
+            State tensor rank as an integer.
+        """
         return len(self.state_shape)
 
     def axis_index(self, axis: str | int) -> int:
-        """Resolve an axis name or integer into an axis index."""
+        """
+        Resolve an axis name or integer into an axis index.
+
+        Args:
+            axis: Axis name or index.
+
+        Raises:
+            IndexError: if axis index is out of bounds.
+            ValueError: if axis name is unknown.
+
+        Returns:
+            Axis index as an integer.
+        """
         if isinstance(axis, int):
             if not (0 <= axis < self.state_ndim):
                 raise IndexError(_AXIS_INDEX_OOB_ERROR.format(axis=axis))
@@ -186,20 +240,39 @@ class ModelCore:
             raise ValueError(_AXIS_UNKNOWN_ERROR.format(axis=axis)) from exc
 
     def get_axis_coords(self, axis: str | int) -> np.ndarray | None:
+        """
+        Return coordinate array for a given axis, or None if not set.
+
+        Args:
+            axis: Axis name or index.
+
+        Returns:
+            Coordinate array for the axis, or None if not set.
+        """
         idx = self.axis_index(axis)
         name = self.axis_names[idx]
         return self.axis_coords.get(name)
 
     def validate_state_shape(self, arr: np.ndarray, *, msg: str | None = None) -> None:
-        """Validate that arr has state_shape.
+        """
+        Validate that arr has state_shape.
 
         This is intentionally small and solver-friendly; higher layers can reuse it
         to avoid duplicating shape checks for intermediate/stage states.
+
+        Args:
+            arr: Array to validate.
+            msg: Optional custom error message prefix.
+
+        Raises:
+            ValueError: if arr does not have shape state_shape.
         """
         arr_shape = np.asarray(arr).shape
         if arr_shape != self.state_shape:
             raise ValueError(
-                (msg or _NEXT_STATE_SHAPE_ERROR).format(actual=arr_shape, expected=self.state_shape)
+                (msg or _NEXT_STATE_SHAPE_ERROR).format(
+                    actual=arr_shape, expected=self.state_shape
+                )
             )
 
     def reshape_for_axis_solve(
@@ -209,8 +282,15 @@ class ModelCore:
     ) -> tuple[np.ndarray, tuple[int, ...], int]:
         """Reshape a state-like tensor into 2D for an axis-local operator solve.
 
+        Args:
+            x: State-like tensor of shape state_shape.
+            axis: Axis name or index along which to reshape.
+
         Returns:
             (x2d, original_shape, axis_index)
+
+        Raises:
+            ValueError: if x does not have shape state_shape.
 
         Contract:
             - x2d has shape (axis_len, batch)
@@ -220,7 +300,9 @@ class ModelCore:
         x_arr = np.asarray(x, dtype=self.dtype)
         if x_arr.shape != self.state_shape:
             raise ValueError(
-                _NEXT_STATE_SHAPE_ERROR.format(actual=x_arr.shape, expected=self.state_shape)
+                _NEXT_STATE_SHAPE_ERROR.format(
+                    actual=x_arr.shape, expected=self.state_shape
+                )
             )
 
         original_shape = x_arr.shape
@@ -237,7 +319,17 @@ class ModelCore:
         original_shape: tuple[int, ...],
         axis: str | int,
     ) -> np.ndarray:
-        """Inverse of reshape_for_axis_solve."""
+        """
+        Inverse of reshape_for_axis_solve.
+
+        Args:
+            x2d: 2D array of shape (axis_len, batch).
+            original_shape: Original full shape before reshape.
+            axis: Axis name or index along which the reshape was done.
+
+        Returns:
+            Reconstructed array of shape original_shape.
+        """
         axis_idx = self.axis_index(axis)
         axis_len = int(original_shape[axis_idx])
 
@@ -252,17 +344,47 @@ class ModelCore:
 
     @property
     def current_time(self) -> float:
-        """Current simulation time t = time_grid[current_step]."""
+        """
+        Current simulation time t = time_grid[current_step].
+
+        Args:
+            None.
+
+        Returns:
+            Current time as a float.
+        """
         return float(self.time_grid[self.current_step])
 
     def get_time_at(self, step_idx: int) -> float:
-        """Return time at a given step index."""
+        """
+        Return time at a given step index.
+
+        Args:
+            step_idx: Timestep index in [0, n_timesteps).
+
+        Raises:
+            IndexError: if step_idx is out of bounds.
+
+        Returns:
+            Time as a float.
+        """
         if not (0 <= step_idx < self.n_timesteps):
             raise IndexError(_TIME_INDEX_OOB_ERROR.format(idx=step_idx))
         return float(self.time_grid[step_idx])
 
     def get_dt(self, step_idx: int) -> float:
-        """Return dt for the step [t_step_idx, t_step_idx+1]."""
+        """
+        Return dt for the step [t_step_idx, t_step_idx+1].
+
+        Args:
+            step_idx: Timestep index in [0, n_timesteps - 1].
+
+        Raises:
+            IndexError: if step_idx is out of bounds.
+
+        Returns:
+            dt as a float.
+        """
         if self.n_timesteps <= 1:
             return 0.0
         if not (0 <= step_idx < self.n_timesteps - 1):
@@ -274,6 +396,15 @@ class ModelCore:
     # ------------------------------------------------------------------
 
     def set_initial_state(self, initial_state: np.ndarray) -> None:
+        """
+        Set the initial state at time_grid[0].
+
+        Args:
+            initial_state: Initial state, shape state_shape.
+
+        Raises:
+            ValueError: if initial_state has incorrect shape.
+        """
         initial_state_arr = np.asarray(initial_state, dtype=self.dtype)
         if initial_state_arr.shape != self.state_shape:
             raise ValueError(
@@ -291,16 +422,40 @@ class ModelCore:
         self.current_step = 0
 
     def get_current_state(self) -> np.ndarray:
+        """
+        Retrun the current state.
+
+        Args:
+            None.
+
+        Returns:
+            Current state, shape state_shape.
+        """
         return self.current_state
 
-    def get_state_at(self, step: int) -> np.ndarray:
+    def get_state_at(self, step: int) -> FloatArray:
+        """
+        Return the state at a given timestep from history.
+
+        Args:
+            step: Timestep index in [0, n_timesteps).
+
+        Returns:
+            State at the given timestep, shape state_shape.
+
+        Raises:
+            RuntimeError: if history is not stored.
+            IndexError: if step is out of bounds.
+        """
         if not self.store_history or self.state_array is None:
             raise RuntimeError(_HISTORY_NOT_STORED_ERROR)
 
         if not (0 <= step < self.n_timesteps):
             raise IndexError(_STEP_OOB_ERROR)
 
-        return self.state_array[step]
+        # NumPy typing stubs often type ndarray.__getitem__ as Any under mypy,
+        # which triggers --strict [no-any-return] without an explicit cast.
+        return cast("FloatArray", self.state_array[step])
 
     # ------------------------------------------------------------------
     # Stepping / updates
@@ -311,10 +466,24 @@ class ModelCore:
             raise RuntimeError(_FINAL_TIMESTEP_ERROR)
 
     def apply_deltas(self, deltas: np.ndarray) -> None:
+        """
+        Apply state deltas, advancing the timestep.
+
+        Supports alternate solver implementations (e.g., splitting updates,
+        additive increments) without forcing allocation of y_next.
+
+        Args:
+            deltas: State deltas to apply, shape state_shape.
+
+        Raises:
+            ValueError: if deltas has incorrect shape.
+        """
         deltas_arr = np.asarray(deltas, dtype=self.dtype)
         if deltas_arr.shape != self.state_shape:
             raise ValueError(
-                _DELTAS_SHAPE_ERROR.format(actual=deltas_arr.shape, expected=self.state_shape)
+                _DELTAS_SHAPE_ERROR.format(
+                    actual=deltas_arr.shape, expected=self.state_shape
+                )
             )
 
         self._check_can_advance()
@@ -326,10 +495,21 @@ class ModelCore:
             self.state_array[self.current_step] = self.current_state
 
     def apply_next_state(self, next_state: np.ndarray) -> None:
+        """
+        Set the next state directly, advancing the timestep.
+
+        Args:
+            next_state: State at the next timestep, shape state_shape.
+
+        Raises:
+            ValueError: if next_state has incorrect shape.
+        """
         next_state_arr = np.asarray(next_state, dtype=self.dtype)
         if next_state_arr.shape != self.state_shape:
             raise ValueError(
-                _NEXT_STATE_SHAPE_ERROR.format(actual=next_state_arr.shape, expected=self.state_shape)
+                _NEXT_STATE_SHAPE_ERROR.format(
+                    actual=next_state_arr.shape, expected=self.state_shape
+                )
             )
 
         self._check_can_advance()

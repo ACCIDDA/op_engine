@@ -19,7 +19,6 @@ import pytest
 
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
-
 # -------------------------------------------------------------------
 # Time grid / dt
 # -------------------------------------------------------------------
@@ -390,7 +389,7 @@ def test_reshape_for_axis_solve_wrong_shape_raises() -> None:
 
 
 def test_unreshape_from_axis_solve_respects_axis_position() -> None:
-    """unreshape_from_axis_solve reconstructs the correct layout for a non-leading axis."""
+    """unreshape_from_axis_solve reconstructs the correct layout for a non-lead axis."""
     time_grid = np.array([0.0, 1.0], dtype=float)
     opts = ModelCoreOptions(other_axes=(2,))  # shape (state, subgroup, axis2)
     core = ModelCore(n_states=3, n_subgroups=4, time_grid=time_grid, options=opts)
@@ -427,7 +426,7 @@ def test_get_current_state_is_view() -> None:
 
 
 def test_dtype_propagation() -> None:
-    """dtype is applied to internal arrays and dt_grid."""
+    """Dtype is applied to internal arrays and dt_grid."""
     time_grid = np.array([0.0, 0.25, 1.0], dtype=float)
     opts = ModelCoreOptions(dtype=np.float32)
     core = ModelCore(n_states=1, n_subgroups=2, time_grid=time_grid, options=opts)

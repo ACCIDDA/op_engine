@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .core_solver import CoreSolver, ReactionRHSFunction, RHSFunction
+from .core_solver import CoreSolver
 from .matrix_ops import (
     DiffusionConfig,
     GridGeometry,
@@ -31,8 +31,6 @@ __all__ = [
     "GridGeometry",
     "ModelCore",
     "Operator",
-    "RHSFunction",
-    "ReactionRHSFunction",
     "build_crank_nicolson_operator",
     "build_laplacian_tridiag",
     "build_predictor_corrector",

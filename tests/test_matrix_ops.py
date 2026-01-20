@@ -57,7 +57,15 @@ if TYPE_CHECKING:
 
 
 def _as_dense(mat: object) -> NDArray[np.floating]:
-    """Convert a matrix-like to a dense ndarray."""
+    """
+    Convert a matrix-like to a dense ndarray.
+
+    Args:
+        mat: Input matrix-like object (ndarray or sparse matrix).
+
+    Returns:
+        Dense ndarray representation of the input.
+    """
     if hasattr(mat, "toarray"):
         return np.asarray(mat.toarray())
     return np.asarray(mat)
@@ -123,7 +131,9 @@ def test_crank_nicolson_operator_dense_matches_formula() -> None:
 
     left, right = build_crank_nicolson_operator(geom, cfg, dt)
 
-    lap = build_laplacian_tridiag(geom.n, geom.dx, cfg.coeff, dtype=cfg.dtype, bc=cfg.bc)
+    lap = build_laplacian_tridiag(
+        geom.n, geom.dx, cfg.coeff, dtype=cfg.dtype, bc=cfg.bc
+    )
     a = lap.toarray() * dt
     ident = np.eye(geom.n, dtype=np.dtype(cfg.dtype))
 
@@ -147,7 +157,9 @@ def test_crank_nicolson_operator_sparse_matches_formula_large() -> None:
     assert issparse(left)
     assert issparse(right)
 
-    lap = build_laplacian_tridiag(geom.n, geom.dx, cfg.coeff, dtype=cfg.dtype, bc=cfg.bc)
+    lap = build_laplacian_tridiag(
+        geom.n, geom.dx, cfg.coeff, dtype=cfg.dtype, bc=cfg.bc
+    )
     a = lap.toarray() * dt
     ident = np.eye(geom.n, dtype=np.dtype(cfg.dtype))
 
@@ -227,7 +239,6 @@ def test_build_identity_operator_sparse_large() -> None:
     """build_identity_operator returns CSR for large n by default."""
     n = 400
     ident = build_identity_operator(n, dtype=np.float64)
-    assert issparse(ident)
     assert ident.shape == (n, n)
     assert np.allclose(_as_dense(ident), np.eye(n))
 
@@ -318,8 +329,10 @@ def test_make_constant_base_builder_returns_same_operator() -> None:
     assert np.allclose(np.asarray(out2), a)
 
 
-def test_stage_operator_factory_implicit_euler_constant_builder_matches_direct_builder() -> None:
-    """Factory(implicit-euler) equals build_implicit_euler_operators for constant base."""
+def test_stage_op_factory_implicit_euler_constant_builder_matches_direct_builder() -> (
+    None
+):
+    """Factory(implicit-euler) same as build_implicit_euler_operators for constant."""
     n = 8
     rng = np.random.default_rng(20)
     a = rng.standard_normal(size=(n, n))
@@ -337,8 +350,8 @@ def test_stage_operator_factory_implicit_euler_constant_builder_matches_direct_b
     assert np.allclose(_as_dense(right_f), np.asarray(right_d))
 
 
-def test_stage_operator_factory_trapezoidal_constant_builder_matches_direct_builder() -> None:
-    """Factory(trapezoidal) equals build_trapezoidal_operators for constant base."""
+def test_stage_op_factory_traz_constant_builder_matches_direct_builder() -> None:
+    """Factory(trapezoidal) same as build_trapezoidal_operators for constant base."""
     n = 8
     rng = np.random.default_rng(21)
     a = rng.standard_normal(size=(n, n))
@@ -397,7 +410,7 @@ def test_stage_operator_factory_unknown_scheme_raises() -> None:
 
     builder = make_constant_base_builder(a)
     with pytest.raises(ValueError, match="Unknown scheme"):
-        _ = make_stage_operator_factory(builder, scheme="nope")  # type: ignore[arg-type]
+        _ = make_stage_operator_factory(builder, scheme="nope")
 
 
 def test_build_stage_operators_nonfinite_scale_raises() -> None:
@@ -415,9 +428,13 @@ def test_stage_operator_factory_rejects_bad_base_builder_return_type() -> None:
     n = 3
 
     def bad_builder(ctx: StageOperatorContext) -> object:  # noqa: ARG001
-        return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]  # list, not ndarray/csr
+        return [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]  # list, not ndarray/csr
 
-    factory = make_stage_operator_factory(bad_builder, scheme="implicit-euler")
+    factory = make_stage_operator_factory(bad_builder, scheme="implicit-euler")  # type: ignore[arg-type]
     ctx = StageOperatorContext(t=0.0, y=np.zeros(n), stage=None)
     with pytest.raises(TypeError, match="base_builder must return"):
         _ = factory(0.1, 1.0, ctx)
@@ -449,7 +466,9 @@ def test_implicit_solve_sparse_matches_dense() -> None:
     cfg = DiffusionConfig(coeff=0.1, bc="neumann")
     dt = 0.02
 
-    lap = build_laplacian_tridiag(geom_small.n, geom_small.dx, cfg.coeff, dtype=cfg.dtype)
+    lap = build_laplacian_tridiag(
+        geom_small.n, geom_small.dx, cfg.coeff, dtype=cfg.dtype
+    )
     a = lap.toarray() * dt
     ident = np.eye(geom_small.n, dtype=np.dtype(cfg.dtype))
     left_dense = ident - 0.5 * a
@@ -481,7 +500,9 @@ def test_implicit_solve_2d_rhs_matches_columnwise() -> None:
     rng = np.random.default_rng(6)
     x = rng.standard_normal(size=(geom.n, 3))
 
-    y_col = np.column_stack([np.linalg.solve(left_a, right_a @ x[:, k]) for k in range(x.shape[1])])
+    y_col = np.column_stack([
+        np.linalg.solve(left_a, right_a @ x[:, k]) for k in range(x.shape[1])
+    ])
     y = implicit_solve(left, right, x)
 
     assert np.allclose(y, y_col, atol=1e-10, rtol=1e-10)

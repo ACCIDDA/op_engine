@@ -1,49 +1,61 @@
+# op_engine/examples/biogeochemical_network.py
 """
-Example: Size-structured phytoplankton–zooplankton network
-using op_engine's ModelCore/CoreSolver + matrix_ops utilities.
+Example: Size-structured phytoplankton-zooplankton network using op_engine.
 
-UPDATED to leverage:
-- ModelCore axis helpers + reshape conventions
-- CoreSolver TR-BDF2 staging
-- matrix_ops stage-operator factories with StageOperatorContext
-- optional time-varying and stage/state-dependent implicit operators
+This example is designed to be both a correctness/comparison demo (vs SciPy
+solve_ivp) and an API showcase for CoreSolver.run(...).
 
-We run solver configurations and compare against SciPy solve_ivp:
+It demonstrates all five op_engine methods with adaptive=True:
+- euler
+- heun
+- imex-euler
+- imex-heun-tr
+- imex-trbdf2
 
-A) op_engine baseline: IMEX with A=0  -> pure explicit Heun (run_imex with operators=None)
-B) op_engine TR-BDF2 split A (dissipative diagonal damping)
-C) op_engine TR-BDF2 split B (diagonal + grazing sink on P, damping on Z)
-D) op_engine TR-BDF2 split C (dense cross-coupled, dissipative-by-construction)
-E) SciPy solve_ivp: RK45
-F) SciPy solve_ivp: BDF
+It also runs SciPy comparators on the same output grid:
+- solve_ivp RK45
+- solve_ivp BDF
 
-Operator modes (choose one):
-- "frozen": A built once from y0 (and t0) and reused for all stages
-- "time":   A depends on stage time t (simple seasonal modulation of damping)
-- "stage_state": A depends on stage time t and stage state y (relinearize per stage)
+IMEX splits (A/B/C) are implemented via StageOperatorContext-aware operator
+factories. Operator modes control whether the implicit operator is frozen,
+time-dependent, or relinearized per stage state.
 
-Outputs:
-    - outputs/biogeochemical_network.png
-    - outputs/biogeochemical_network_bins_P.png
-    - outputs/biogeochemical_network_bins_Z.png
-    - outputs/biogeochemical_network_runtime.png
-    - outputs/biogeochemical_network_runtime.txt
+Outputs are saved under:
+    examples/output/biogeochemical/
+
+Figures:
+1) biogeo_explicit_bins.png
+   - Bin detail: op_engine heun vs SciPy RK45
+
+2) biogeo_imex1_bins.png
+   - Bin detail: op_engine imex-euler split B vs SciPy BDF
+
+3) biogeo_imex2_bins.png
+   - Bin detail: op_engine imex-trbdf2 split B vs SciPy BDF
+
+4) biogeo_runtime.png
+   - Wall time vs output-grid dt (log-log)
+
+Text outputs:
+- biogeo_runtime.txt
+- biogeo_runtime.csv
+- biogeo_manifest.json
 """
 
 from __future__ import annotations
 
-import math
+import json
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Literal
+from typing import TYPE_CHECKING, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.special import erfc
 
-from op_engine.core_solver import CoreSolver, ReactionRHSFunction
+from op_engine.core_solver import CoreSolver
 from op_engine.matrix_ops import (
     StageOperatorContext,
     make_constant_base_builder,
@@ -51,39 +63,54 @@ from op_engine.matrix_ops import (
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 # =============================================================================
-# Configuration knobs for the example
+# User knobs
 # =============================================================================
 
 OperatorMode = Literal["frozen", "time", "stage_state"]
+OPERATOR_MODE: OperatorMode = "stage_state"
 
-# Choose how the implicit operator A is constructed during TR-BDF2 stages:
-OPERATOR_MODE: OperatorMode = "time"
-
-# Split-C cross coupling scaling (kept small for robustness)
-ETA_CROSS: float = 0.10
-
-# Example-only hygiene
+ETA_CROSS: float = 0.10  # Split C cross-coupling strength (keep small)
 CLIP_NONNEGATIVE: bool = True
 FAIL_FAST_ON_NONFINITE: bool = True
 
-# Solver tolerances for SciPy reference
-SCIPY_RTOL: float = 1e-6
-SCIPY_ATOL: float = 1e-9
+# SciPy reference tolerances
+SCIPY_RTOL: float = 1e-4
+SCIPY_ATOL: float = 1e-6
+
+# CoreSolver tolerances (adaptive stepping)
+OPE_RTOL: float = 1e-4
+OPE_ATOL: float = 1e-6
+
+# Output layout
+_OUTPUT_DIR = Path("examples") / "output" / "biogeochemical"
+
+# Constants (exception messages)
+_DT_POSITIVE_ERROR = "dt_days must be positive"
+_SPLIT_REQUIRED_ERROR = "split is required for IMEX methods in this example"
+_STATE_ARRAY_NONE_ERROR = "store_history=True but core.state_array is None"
+_SOLVEIVP_FAILED_ERROR = "solve_ivp({method}) failed: {message}"
+_STAGE_STATE_SIZE_ERROR = "Stage state size mismatch: got {got}, expected {expected}"
+_EXPECTED_TRAJ_ERROR = "Expected trajectory for plot: {name}"
 
 
 # =============================================================================
-# Parameters / helpers
+# Parameters / data containers
 # =============================================================================
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ParamsA:
-    N_T: float = 10.0
+    """Model parameters for the phytoplankton-zooplankton network."""
+
+    n_t: float = 10.0
     gamma: float = 0.5
-    r_G: float = 10.0
-    sigma_G: float = 0.5
+    r_g: float = 10.0
+    sigma_g: float = 0.5
     mu_a: float = 2.0
     mu_b: float = 0.3
     k_a: float = 0.25
@@ -96,8 +123,90 @@ class ParamsA:
     sea: float = 0.3
 
 
+SplitName = Literal["A", "B", "C"]
+
+
+@dataclass(frozen=True, slots=True)
+class ModelSpec:
+    """Precomputed model objects for fast RHS/operator evaluation."""
+
+    params: ParamsA
+    prd: np.ndarray
+    zrd: np.ndarray
+    n_bins: int
+
+
+@dataclass(frozen=True, slots=True)
+class RunSpec:
+    """Run configuration (output grid + initial state + RHS callables)."""
+
+    time_grid: np.ndarray
+    y0_flat: np.ndarray
+    rhs_tensor: Callable[[float, np.ndarray], np.ndarray]
+    rhs_flat: Callable[[float, np.ndarray], np.ndarray]
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorSpecs:
+    """Operator factories passed into CoreSolver.run for IMEX methods."""
+
+    default: object | None = None
+    tr: object | None = None
+    bdf2: object | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeReportSpec:
+    """Bundle arguments for runtime report writers (keeps signatures small)."""
+
+    operator_mode: str
+    main_timings: dict[str, float]
+    scipy_infos: dict[str, dict[str, object]]
+    dt_days: np.ndarray
+    sweep_timings: dict[str, np.ndarray]
+
+
+@dataclass(frozen=True, slots=True)
+class Manifest:
+    """Machine-readable metadata for outputs and settings."""
+
+    operator_mode: str
+    eta_cross: float
+    clip_nonnegative: bool
+    fail_fast_on_nonfinite: bool
+    scipy_rtol: float
+    scipy_atol: float
+    ope_rtol: float
+    ope_atol: float
+    n_bins: int
+    dt_out_main_days: float
+    total_time_days: float
+    sweep_total_days: float
+    dt_sweep_days: list[float]
+    outputs: dict[str, str]
+
+
+# =============================================================================
+# Helpers
+# =============================================================================
+
+
+def ensure_output_dir() -> Path:
+    """Ensure examples/output/biogeochemical exists.
+
+    Returns:
+        Output directory path.
+    """
+    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return _OUTPUT_DIR
+
+
 def _size_bins(n_bins: int) -> tuple[np.ndarray, np.ndarray]:
-    """Phytoplankton and zooplankton diameter-based size bins."""
+    """Phytoplankton and zooplankton diameter-based size bins.
+
+    Returns:
+        (prd, zrd) arrays, each shape (n_bins,).
+    """
     prd = np.linspace(np.emath.logn(4, 1), np.emath.logn(4, 100), n_bins)
     prd = 4**prd
     zrd = 10.0 * prd
@@ -105,52 +214,89 @@ def _size_bins(n_bins: int) -> tuple[np.ndarray, np.ndarray]:
 
 
 def mu_maxes(a: float, b: float, p: np.ndarray) -> np.ndarray:
+    """mu_max(p) = a * p^{-b}.
+
+    Returns:
+        Array of mu_max values, shape p.shape.
+    """
     return a * (p ** (-b))
 
 
-def KNs(a: float, b: float, p: np.ndarray) -> np.ndarray:
+def kns(a: float, b: float, p: np.ndarray) -> np.ndarray:
+    """Half-saturation KN(p) = a * p^{b}.
+
+    Returns:
+        Array of KN values, shape p.shape.
+    """
     return a * (p**b)
 
 
 def gs(a: float, b: float, z: np.ndarray) -> np.ndarray:
+    """Grazing coefficient g(z) = a * z^{-b}.
+
+    Returns:
+        Array of grazing coefficients, shape z.shape.
+    """
     return a * (z ** (-b))
 
 
 def deltas(a: float, b: float, z: np.ndarray) -> np.ndarray:
+    """Mortality delta(z) = a * z^{-b}.
+
+    Returns:
+        Array of mortality coefficients, shape z.shape.
+    """
     return a * (z ** (-b))
 
 
 def rho(r: float, sigma: float, p: np.ndarray, z: np.ndarray) -> np.ndarray:
-    """
-    Feeding kernel (vectorized).
-    Returns erfc(|z/p - r| / (sqrt(2) * sigma * r)).
-    Broadcasting-friendly:
-        p shape (..., np_)
-        z shape (..., nz_)
+    """Feeding kernel (vectorized), broadcasting-friendly.
+
+    Returns:
+        Kernel matrix with shape broadcast(p, z).
     """
     y = np.abs(z / p - r) / (np.sqrt(2.0) * (sigma * r))
     return erfc(y)
 
 
 def unpack_flat_state(u: np.ndarray, n_bins: int) -> tuple[np.ndarray, np.ndarray]:
-    """u: shape (2*n_bins,) -> returns (P, Z) each shape (n_bins,)"""
+    """Map flat u shape (2*n_bins,) -> (p, z), each shape (n_bins,).
+
+    Returns:
+        (p, z) arrays, each shape (n_bins,).
+    """
     p = u[:n_bins]
     z = u[n_bins:]
     return p, z
 
 
 def pack_flat_state(p: np.ndarray, z: np.ndarray) -> np.ndarray:
-    """p, z: shape (n_bins,) -> flat shape (2*n_bins,)"""
-    return np.concatenate([np.asarray(p, dtype=float), np.asarray(z, dtype=float)], axis=0)
+    """Map (p, z) each shape (n_bins,) -> flat u shape (2*n_bins,).
+
+    Returns:
+        Flat state vector, shape (2*n_bins,).
+    """
+    return np.concatenate(
+        [np.asarray(p, dtype=float), np.asarray(z, dtype=float)],
+        axis=0,
+    )
 
 
 def tensor_from_flat(u: np.ndarray) -> np.ndarray:
-    """Flat (2n,) -> tensor (2n, 1) for ModelCore."""
+    """Convert flat (2n,) -> tensor (2n, 1) for ModelCore.
+
+    Returns:
+        Tensor state, shape (2n, 1).
+    """
     return np.asarray(u, dtype=float).reshape(-1, 1)
 
 
 def flat_from_tensor(state: np.ndarray) -> np.ndarray:
-    """Tensor (2n, 1) -> flat (2n,)."""
+    """Convert tensor (2n, 1) -> flat (2n,).
+
+    Returns:
+        Flat state vector, shape (2n,).
+    """
     return np.asarray(state, dtype=float).reshape(-1)
 
 
@@ -166,41 +312,66 @@ def _assert_finite(name: str, arr: np.ndarray, *, t: float | None = None) -> Non
         return
     if not FAIL_FAST_ON_NONFINITE:
         return
+
     idx = _first_bad_index(arr)
     mn = float(np.nanmin(arr))
     mx = float(np.nanmax(arr))
     t_msg = "" if t is None else f" at t={t:.6g}"
-    raise FloatingPointError(
-        f"{name} contains inf/NaN{t_msg}. min={mn:.6g}, max={mx:.6g}, first_bad_index={idx}"
+    msg = (
+        f"{name} contains inf/NaN{t_msg}. min={mn:.6g}, max={mx:.6g}, "
+        f"first_bad_index={idx}"
     )
+    raise FloatingPointError(msg)
 
 
 def _seasonal_factor(params: ParamsA, t_days: float) -> float:
-    """Always-positive seasonal modulation factor."""
+    """Always-positive seasonal modulation factor.
+
+    Returns:
+        Seasonal multiplier (scalar).
+    """
     return float(1.0 + params.sea * np.sin(2.0 * np.pi * t_days / 365.0))
 
 
+def _sanitize_flat(u_flat: np.ndarray, n_bins: int) -> np.ndarray:
+    u = np.asarray(u_flat, dtype=float).reshape(-1)
+    if CLIP_NONNEGATIVE:
+        p, z = unpack_flat_state(u, n_bins)
+        p = np.clip(p, 0.0, None)
+        z = np.clip(z, 0.0, None)
+        return pack_flat_state(p, z)
+    return u
+
+
+def _season_scalar_for_mode(params: ParamsA, t: float) -> float:
+    if OPERATOR_MODE in {"time", "stage_state"}:
+        return _seasonal_factor(params, t)
+    return 1.0
+
+
 # =============================================================================
-# Model A reaction term (tensor wrapper for op_engine)
+# Reaction RHS for op_engine (tensor form) and SciPy (flat form)
 # =============================================================================
 
 
-def make_reaction_A_flat_tensor(
-    params: ParamsA,
-    prd: np.ndarray,
-    zrd: np.ndarray,
-) -> ReactionRHSFunction:
+def make_reaction_tensor(
+    model: ModelSpec,
+) -> Callable[[float, np.ndarray], np.ndarray]:
+    """Build RHS for CoreSolver.run(...), tensor in/out.
+
+    Returns:
+        Callable f(t, y_tensor)->dy_tensor with y_tensor shape (2n,1).
     """
-    Reaction RHS for op_engine, operating on ModelCore tensor state (2*n_bins, 1),
-    returning tensor RHS (2*n_bins, 1).
-    """
+    params = model.params
+    prd = model.prd
+    zrd = model.zrd
+    n_bins = model.n_bins
+
     mu_max_ = mu_maxes(params.mu_a, params.mu_b, prd)
-    kn_ = KNs(params.k_a, params.k_b, prd)
+    kn_ = kns(params.k_a, params.k_b, prd)
     g_ = gs(params.g_a, params.g_b, zrd)
     delta_ = deltas(params.delta_a, params.delta_b, zrd)
-    K = rho(params.r_G, params.sigma_G, prd[:, None], zrd[None, :])
-
-    n_bins = int(prd.size)
+    kern = rho(params.r_g, params.sigma_g, prd[:, None], zrd[None, :])
 
     def reaction(t: float, state_tensor: np.ndarray) -> np.ndarray:
         u = flat_from_tensor(state_tensor)
@@ -212,17 +383,17 @@ def make_reaction_A_flat_tensor(
             z = np.clip(z, 0.0, None)
 
         total = float(p.sum() + z.sum())
-        avail = params.N_T - total
+        avail = params.n_t - total
 
         season = _seasonal_factor(params, t)
         frac = avail / (kn_ + avail)
 
         growth = season * mu_max_ * frac * p
         loss_lin = params.lam * p
-        graze = p * (K @ (g_ * z))
+        graze = p * (kern @ (g_ * z))
         dp = growth - loss_lin - graze
 
-        intake = (K.T @ p)
+        intake = kern.T @ p
         dz = z * g_ * (params.gamma * intake) - delta_ * z
 
         out = pack_flat_state(dp, dz)
@@ -232,49 +403,47 @@ def make_reaction_A_flat_tensor(
     return reaction
 
 
-# =============================================================================
-# SciPy RHS (flat vector form)
-# =============================================================================
+def make_rhs_flat(model: ModelSpec) -> Callable[[float, np.ndarray], np.ndarray]:
+    """Build RHS for SciPy solve_ivp, flat in/out.
 
+    Returns:
+        Callable f(t, u_flat)->du_flat with u_flat shape (2n,).
+    """
+    params = model.params
+    prd = model.prd
+    zrd = model.zrd
+    n_bins = model.n_bins
 
-def make_rhs_A_flat(
-    params: ParamsA,
-    prd: np.ndarray,
-    zrd: np.ndarray,
-) -> Callable[[float, np.ndarray], np.ndarray]:
     mu_max_ = mu_maxes(params.mu_a, params.mu_b, prd)
-    kn_ = KNs(params.k_a, params.k_b, prd)
+    kn_ = kns(params.k_a, params.k_b, prd)
     g_ = gs(params.g_a, params.g_b, zrd)
     delta_ = deltas(params.delta_a, params.delta_b, zrd)
-    K = rho(params.r_G, params.sigma_G, prd[:, None], zrd[None, :])
-
-    n = int(prd.size)
+    kern = rho(params.r_g, params.sigma_g, prd[:, None], zrd[None, :])
 
     def rhs(t: float, u: np.ndarray) -> np.ndarray:
         _assert_finite("state", u, t=t)
-        p = u[:n]
-        z = u[n:]
+        p, z = unpack_flat_state(u, n_bins)
         if CLIP_NONNEGATIVE:
             p = np.clip(p, 0.0, None)
             z = np.clip(z, 0.0, None)
 
         total = float(p.sum() + z.sum())
-        avail = params.N_T - total
+        avail = params.n_t - total
 
         season = _seasonal_factor(params, t)
         frac = avail / (kn_ + avail)
 
         growth = season * mu_max_ * frac * p
         loss_lin = params.lam * p
-        graze = p * (K @ (g_ * z))
+        graze = p * (kern @ (g_ * z))
         dp = growth - loss_lin - graze
 
-        intake = (K.T @ p)
+        intake = kern.T @ p
         dz = z * g_ * (params.gamma * intake) - delta_ * z
 
         out = np.empty_like(u)
-        out[:n] = dp
-        out[n:] = dz
+        out[:n_bins] = dp
+        out[n_bins:] = dz
         _assert_finite("rhs(u)", out, t=t)
         return out
 
@@ -282,276 +451,334 @@ def make_rhs_A_flat(
 
 
 # =============================================================================
-# Split operators A / B / C as functions of (t, y_stage)
+# IMEX split operators A/B/C: build A(t, y_stage) as a 2n x 2n matrix
 # =============================================================================
 
 
-def _sanitize_stage_state(u_flat: np.ndarray, n_bins: int) -> np.ndarray:
-    u = np.asarray(u_flat, dtype=float).reshape(-1)
-    if CLIP_NONNEGATIVE:
-        p, z = unpack_flat_state(u, n_bins)
-        p = np.clip(p, 0.0, None)
-        z = np.clip(z, 0.0, None)
-        return pack_flat_state(p, z)
-    return u
+def split_a_matrix(model: ModelSpec, *, t: float, y_flat: np.ndarray) -> np.ndarray:
+    """Split A: diagonal damping only.
 
-
-def A_split_A(params: ParamsA, prd: np.ndarray, zrd: np.ndarray, *, t: float, y: np.ndarray) -> np.ndarray:
+    Returns:
+        A matrix, shape (2n, 2n).
     """
-    Split A: dissipative diagonal linear damping only:
-        dp includes -lam * p
-        dz includes -delta(zbin) * z
+    _ = y_flat
+    params = model.params
+    zrd = model.zrd
+    n = model.n_bins
 
-    In "time" / "stage_state" modes, we apply a mild seasonal modulation to
-    damping (still dissipative).
-    """
-    n = int(prd.size)
-    season = _seasonal_factor(params, t) if OPERATOR_MODE in ("time", "stage_state") else 1.0
-
+    season = _season_scalar_for_mode(params, t)
     delta_ = deltas(params.delta_a, params.delta_b, zrd)
+
     lam_eff = float(params.lam * season)
     delta_eff = delta_ * season
 
-    A = np.zeros((2 * n, 2 * n), dtype=float)
-    A[:n, :n] = -lam_eff * np.eye(n, dtype=float)
-    A[n:, n:] = -np.diag(delta_eff)
-    return A
+    a_mat = np.zeros((2 * n, 2 * n), dtype=float)
+    a_mat[:n, :n] = -lam_eff * np.eye(n, dtype=float)
+    a_mat[n:, n:] = -np.diag(delta_eff)
+    return a_mat
 
 
-def A_split_B(params: ParamsA, prd: np.ndarray, zrd: np.ndarray, *, t: float, y: np.ndarray) -> np.ndarray:
+def split_b_matrix(model: ModelSpec, *, t: float, y_flat: np.ndarray) -> np.ndarray:
+    """Split B: diagonal damping + grazing sink on P (state-dependent).
+
+    Returns:
+        A matrix, shape (2n, 2n).
     """
-    Split B: diagonal-only, stronger damping using grazing sink on P:
+    params = model.params
+    prd = model.prd
+    zrd = model.zrd
+    n = model.n_bins
 
-      dp has -lam*p - G*p   where G_i = (K @ (g*z))_i
-      dz has -delta*z       (kept purely damping for robustness)
+    u = _sanitize_flat(y_flat, n)
+    _, z = unpack_flat_state(u, n)
 
-    Time modulation (if enabled) scales lam/delta; grazing sink is state-derived.
-    """
-    n = int(prd.size)
-    u = _sanitize_stage_state(y, n)
-
-    p, z = unpack_flat_state(u, n)
     g_ = gs(params.g_a, params.g_b, zrd)
     delta_ = deltas(params.delta_a, params.delta_b, zrd)
-    K = rho(params.r_G, params.sigma_G, prd[:, None], zrd[None, :])
+    kern = rho(params.r_g, params.sigma_g, prd[:, None], zrd[None, :])
 
-    season = _seasonal_factor(params, t) if OPERATOR_MODE in ("time", "stage_state") else 1.0
+    season = _season_scalar_for_mode(params, t)
     lam_eff = float(params.lam * season)
     delta_eff = delta_ * season
 
-    G = K @ (g_ * z)  # (n,)
+    g_sink = kern @ (g_ * z)  # (n,)
 
-    A = np.zeros((2 * n, 2 * n), dtype=float)
-    A[:n, :n] = -np.diag(lam_eff + G)
-    A[n:, n:] = -np.diag(delta_eff)
-    return A
+    a_mat = np.zeros((2 * n, 2 * n), dtype=float)
+    a_mat[:n, :n] = -np.diag(lam_eff + g_sink)
+    a_mat[n:, n:] = -np.diag(delta_eff)
+    return a_mat
 
 
-def A_split_C(
-    params: ParamsA,
-    prd: np.ndarray,
-    zrd: np.ndarray,
+def _split_c_blocks(
+    model: ModelSpec,
     *,
     t: float,
-    y: np.ndarray,
-    eta_cross: float = ETA_CROSS,
-) -> np.ndarray:
-    """
-    Split C: dense cross-coupled frozen/dynamic linear part, dissipative by construction.
+    y_flat: np.ndarray,
+    eta_cross: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    params = model.params
+    prd = model.prd
+    zrd = model.zrd
+    n = model.n_bins
 
-    Key robustness choices:
-      - Keep Z block as pure damping: A_zz = -diag(delta)
-      - Keep P block dissipative: A_pp = -lam*I - diag(G)
-      - Scale cross blocks by eta_cross
-
-    If time-varying is enabled, lam/delta are seasonally modulated (still positive).
-    """
-    n = int(prd.size)
-    u = _sanitize_stage_state(y, n)
-
+    u = _sanitize_flat(y_flat, n)
     p, z = unpack_flat_state(u, n)
 
     g_ = gs(params.g_a, params.g_b, zrd)
     delta_ = deltas(params.delta_a, params.delta_b, zrd)
-    K = rho(params.r_G, params.sigma_G, prd[:, None], zrd[None, :])
+    kern = rho(params.r_g, params.sigma_g, prd[:, None], zrd[None, :])
 
-    season = _seasonal_factor(params, t) if OPERATOR_MODE in ("time", "stage_state") else 1.0
+    season = _season_scalar_for_mode(params, t)
     lam_eff = float(params.lam * season)
     delta_eff = delta_ * season
 
-    # Damping capture for P from grazing sink
-    G = K @ (g_ * z)  # (n,)
+    g_sink = kern @ (g_ * z)  # (n,)
 
-    # Dissipative diagonal blocks
-    A_pp = -lam_eff * np.eye(n, dtype=float) - np.diag(G)
-    A_zz = -np.diag(delta_eff)
+    a_pp = -lam_eff * np.eye(n, dtype=float) - np.diag(g_sink)
+    a_zz = -np.diag(delta_eff)
 
-    # Cross blocks (scaled)
-    A_pz = -(np.diag(p) @ (K @ np.diag(g_)))
-    A_zp = (np.diag(z * g_ * params.gamma) @ K.T)
+    a_pz = -(np.diag(p) @ (kern @ np.diag(g_)))
+    a_zp = np.diag(z * g_ * params.gamma) @ kern.T
 
-    A = np.zeros((2 * n, 2 * n), dtype=float)
-    A[:n, :n] = A_pp
-    A[n:, n:] = A_zz
-    A[:n, n:] = float(eta_cross) * A_pz
-    A[n:, :n] = float(eta_cross) * A_zp
-    return A
+    scale = float(eta_cross)
+    return a_pp, a_zz, scale * a_pz, scale * a_zp
+
+
+def split_c_matrix(
+    model: ModelSpec,
+    *,
+    t: float,
+    y_flat: np.ndarray,
+    eta_cross: float = ETA_CROSS,
+) -> np.ndarray:
+    """Split C: dissipative diagonal blocks + small cross-coupling.
+
+    Returns:
+        A matrix, shape (2n, 2n).
+    """
+    n = model.n_bins
+    a_pp, a_zz, a_pz, a_zp = _split_c_blocks(
+        model, t=t, y_flat=y_flat, eta_cross=eta_cross
+    )
+
+    a_mat = np.zeros((2 * n, 2 * n), dtype=float)
+    a_mat[:n, :n] = a_pp
+    a_mat[n:, n:] = a_zz
+    a_mat[:n, n:] = a_pz
+    a_mat[n:, :n] = a_zp
+    return a_mat
+
+
+def make_base_builder_for_split(
+    split: SplitName,
+    *,
+    model: ModelSpec,
+    y0_flat: np.ndarray,
+    eta_cross: float = ETA_CROSS,
+) -> Callable[[StageOperatorContext], np.ndarray]:
+    """Return base_builder(ctx)->A matrix, honoring OPERATOR_MODE.
+
+    Returns:
+        A StageOperatorContext-aware operator builder.
+    """
+    n_bins = model.n_bins
+    y0_sanitized = _sanitize_flat(y0_flat, n_bins)
+
+    def ctx_y_to_flat(ctx: StageOperatorContext) -> np.ndarray:
+        y_tensor = np.asarray(ctx.y, dtype=float)
+        y_flat_local = flat_from_tensor(y_tensor)
+        expected = 2 * n_bins
+        if y_flat_local.size != expected:
+            msg = _STAGE_STATE_SIZE_ERROR.format(
+                got=y_flat_local.size, expected=expected
+            )
+            raise ValueError(msg)
+        return y_flat_local
+
+    def build_for(
+        split_name: SplitName, *, t: float, y_flat_local: np.ndarray
+    ) -> np.ndarray:
+        if split_name == "A":
+            return split_a_matrix(model, t=t, y_flat=y_flat_local)
+        if split_name == "B":
+            return split_b_matrix(model, t=t, y_flat=y_flat_local)
+        return split_c_matrix(model, t=t, y_flat=y_flat_local, eta_cross=eta_cross)
+
+    if OPERATOR_MODE == "frozen":
+        a0 = build_for(split, t=0.0, y_flat_local=y0_sanitized)
+        return make_constant_base_builder(a0)
+
+    if OPERATOR_MODE == "time":
+
+        def builder(ctx: StageOperatorContext) -> np.ndarray:
+            return build_for(split, t=float(ctx.t), y_flat_local=y0_sanitized)
+
+        return builder
+
+    def builder(ctx: StageOperatorContext) -> np.ndarray:
+        y_flat_local = _sanitize_flat(ctx_y_to_flat(ctx), n_bins)
+        return build_for(split, t=float(ctx.t), y_flat_local=y_flat_local)
+
+    return builder
 
 
 # =============================================================================
-# op_engine runs
+# CoreSolver / SciPy runners
 # =============================================================================
 
 
-def _make_core_flat(time_grid: np.ndarray, n_state: int) -> ModelCore:
+def build_uniform_time_grid_days(total_time_days: float, dt_days: float) -> np.ndarray:
+    """Build a uniform time grid in days.
+
+    Args:
+        total_time_days: End time in days.
+        dt_days: Output-grid spacing in days.
+
+    Returns:
+        1D numpy array of output times in days.
+
+    Raises:
+        ValueError: If dt_days is not positive.
+    """
+    dt = float(dt_days)
+    if dt <= 0.0:
+        msg = _DT_POSITIVE_ERROR
+        raise ValueError(msg)
+    return np.arange(0.0, total_time_days + 0.5 * dt, dt, dtype=float)
+
+
+def make_core(time_grid: np.ndarray, n_state: int, *, store_history: bool) -> ModelCore:
+    """Construct a ModelCore for this example.
+
+    Returns:
+        Initialized ModelCore instance.
+    """
     opts = ModelCoreOptions(
         other_axes=(),
         axis_names=("state", "subgroup"),
-        store_history=True,
+        store_history=store_history,
         dtype=np.float64,
     )
     return ModelCore(n_states=n_state, n_subgroups=1, time_grid=time_grid, options=opts)
 
 
-def run_op_engine_baseline_heun_A0(
-    time_grid: np.ndarray,
-    y0_flat: np.ndarray,
-    reaction_tensor: ReactionRHSFunction,
-) -> np.ndarray:
-    n_state = int(y0_flat.size)
-    core = _make_core_flat(time_grid, n_state)
-    core.set_initial_state(tensor_from_flat(y0_flat))
+def run_op_engine(
+    *,
+    method: str,
+    run: RunSpec,
+    model: ModelSpec,
+    split: SplitName | None = None,
+    store_history: bool = True,
+) -> tuple[np.ndarray | None, float]:
+    """Run CoreSolver.run(...) with adaptive=True.
+
+    Args:
+        method: One of "euler", "heun", "imex-euler", "imex-heun-tr", "imex-trbdf2".
+        run: RunSpec containing time_grid, y0, and RHS functions.
+        model: ModelSpec (params + bins).
+        split: "A"|"B"|"C" for IMEX methods.
+        store_history: If True, return full trajectory; if False, timing only.
+
+    Returns:
+        (states_flat_over_time, wall_s). If store_history is False, states is None.
+
+    Raises:
+        ValueError: If an IMEX method is selected without split.
+        RuntimeError: If store_history=True but core.state_array is None.
+    """
+    n_state = int(run.y0_flat.size)
+    core = make_core(run.time_grid, n_state, store_history=store_history)
+    core.set_initial_state(tensor_from_flat(run.y0_flat))
 
     solver = CoreSolver(core, operators=None, operator_axis="state")
-    solver.run_imex(reaction_tensor)
 
-    assert core.state_array is not None
-    return np.asarray(core.state_array[:, :, 0], dtype=float)  # (T, 2n)
+    operators = OperatorSpecs(default=None, tr=None, bdf2=None)
 
+    if method in {"imex-euler", "imex-heun-tr", "imex-trbdf2"}:
+        if split is None:
+            msg = _SPLIT_REQUIRED_ERROR
+            raise ValueError(msg)
 
-def _make_base_builder_for_split(
-    split: Literal["A", "B", "C"],
-    *,
-    params: ParamsA,
-    prd: np.ndarray,
-    zrd: np.ndarray,
-    y0_flat: np.ndarray,
-    eta_cross: float = ETA_CROSS,
-) -> Callable[[StageOperatorContext], np.ndarray]:
-    n_bins = int(prd.size)
-    y0_sanitized = _sanitize_stage_state(y0_flat, n_bins)
+        base_builder = make_base_builder_for_split(
+            split, model=model, y0_flat=run.y0_flat
+        )
 
-    def _ctx_to_y(ctx: StageOperatorContext) -> np.ndarray:
-        # ctx.y is expected to already be the flattened operator-axis state (1D).
-        y = np.asarray(ctx.y, dtype=float).reshape(-1)
-        if y.size != 2 * n_bins:
-            # Be defensive: if someone changes ModelCore layout, fail loudly.
-            raise ValueError(f"Stage state size mismatch: got {y.size}, expected {2*n_bins}")
-        return y
-
-    if OPERATOR_MODE == "frozen":
-        t0 = float(0.0)
-        if split == "A":
-            A0 = A_split_A(params, prd, zrd, t=t0, y=y0_sanitized)
-        elif split == "B":
-            A0 = A_split_B(params, prd, zrd, t=t0, y=y0_sanitized)
+        if method == "imex-euler":
+            operators = OperatorSpecs(
+                default=make_stage_operator_factory(
+                    base_builder, scheme="implicit-euler"
+                ),
+            )
+        elif method == "imex-heun-tr":
+            operators = OperatorSpecs(
+                default=make_stage_operator_factory(base_builder, scheme="trapezoidal"),
+            )
         else:
-            A0 = A_split_C(params, prd, zrd, t=t0, y=y0_sanitized, eta_cross=eta_cross)
-        return make_constant_base_builder(A0)
+            operators = OperatorSpecs(
+                tr=make_stage_operator_factory(base_builder, scheme="trapezoidal"),
+                bdf2=make_stage_operator_factory(base_builder, scheme="implicit-euler"),
+            )
 
-    if OPERATOR_MODE == "time":
-
-        def _builder(ctx: StageOperatorContext) -> np.ndarray:
-            t = float(ctx.t)
-            # In time mode, use y0 for any state dependence.
-            y = y0_sanitized
-            if split == "A":
-                return A_split_A(params, prd, zrd, t=t, y=y)
-            if split == "B":
-                return A_split_B(params, prd, zrd, t=t, y=y)
-            return A_split_C(params, prd, zrd, t=t, y=y, eta_cross=eta_cross)
-
-        return _builder
-
-    # OPERATOR_MODE == "stage_state"
-    def _builder(ctx: StageOperatorContext) -> np.ndarray:
-        t = float(ctx.t)
-        y = _sanitize_stage_state(_ctx_to_y(ctx), n_bins)
-        if split == "A":
-            return A_split_A(params, prd, zrd, t=t, y=y)
-        if split == "B":
-            return A_split_B(params, prd, zrd, t=t, y=y)
-        return A_split_C(params, prd, zrd, t=t, y=y, eta_cross=eta_cross)
-
-    return _builder
-
-
-def run_op_engine_trbdf2(
-    time_grid: np.ndarray,
-    y0_flat: np.ndarray,
-    reaction_tensor: ReactionRHSFunction,
-    *,
-    params: ParamsA,
-    prd: np.ndarray,
-    zrd: np.ndarray,
-    split: Literal["A", "B", "C"],
-    eta_cross: float = ETA_CROSS,
-) -> np.ndarray:
-    n_state = int(y0_flat.size)
-    core = _make_core_flat(time_grid, n_state)
-    core.set_initial_state(tensor_from_flat(y0_flat))
-
-    base_builder = _make_base_builder_for_split(
-        split,
-        params=params,
-        prd=prd,
-        zrd=zrd,
-        y0_flat=y0_flat,
-        eta_cross=eta_cross,
+    kw: dict[str, object] = dict(
+        method=method,
+        adaptive=True,
+        rtol=OPE_RTOL,
+        atol=OPE_ATOL,
+        strict=True,
     )
 
-    tr_factory = make_stage_operator_factory(base_builder, scheme="trapezoidal")
-    be_factory = make_stage_operator_factory(base_builder, scheme="implicit-euler")
+    # Only pass operator kwargs that exist for the selected method.
+    if operators.default is not None:
+        kw["operators"] = operators.default
+    if operators.tr is not None:
+        kw["operators_tr"] = operators.tr
+    if operators.bdf2 is not None:
+        kw["operators_bdf2"] = operators.bdf2
 
-    solver = CoreSolver(core, operators=None, operator_axis="state")
-    solver.run_imex_trbdf2(
-        reaction_tensor,
-        operators_tr=tr_factory,
-        operators_bdf2=be_factory,
-    )
+    t0 = time.perf_counter()
+    solver.run(run.rhs_tensor, **kw)
+    wall = time.perf_counter() - t0
 
-    assert core.state_array is not None
-    return np.asarray(core.state_array[:, :, 0], dtype=float)  # (T, 2n)
+    if not store_history:
+        return None, wall
 
+    if core.state_array is None:
+        msg = _STATE_ARRAY_NONE_ERROR
+        raise RuntimeError(msg)
 
-# =============================================================================
-# SciPy runs
-# =============================================================================
+    states = np.asarray(core.state_array[:, :, 0], dtype=float)  # (T, 2n)
+    return states, wall
 
 
 def run_scipy(
+    *,
     method: str,
-    time_grid: np.ndarray,
-    y0_flat: np.ndarray,
-    rhs: Callable[[float, np.ndarray], np.ndarray],
-) -> tuple[np.ndarray, dict]:
-    t0 = float(time_grid[0])
-    t1 = float(time_grid[-1])
+    run: RunSpec,
+) -> tuple[np.ndarray, dict[str, object]]:
+    """Run solve_ivp on the full RHS.
+
+    Returns:
+        (y, info) where y has shape (T, 2n) and info is a dict of solver stats.
+
+    Raises:
+        RuntimeError: If solve_ivp reports failure.
+    """
+    t0 = float(run.time_grid[0])
+    t1 = float(run.time_grid[-1])
 
     start = time.perf_counter()
     sol = solve_ivp(
-        fun=rhs,
+        fun=run.rhs_flat,
         t_span=(t0, t1),
-        y0=y0_flat,
+        y0=run.y0_flat,
         method=method,
-        t_eval=time_grid,
+        t_eval=run.time_grid,
         rtol=SCIPY_RTOL,
         atol=SCIPY_ATOL,
         vectorized=False,
     )
     wall = time.perf_counter() - start
 
-    info = {
+    info: dict[str, object] = {
         "success": sol.success,
         "message": sol.message,
         "nfev": sol.nfev,
@@ -561,134 +788,75 @@ def run_scipy(
     }
 
     if not sol.success:
-        raise RuntimeError(f"solve_ivp({method}) failed: {sol.message}")
+        msg = _SOLVEIVP_FAILED_ERROR.format(method=method, message=sol.message)
+        raise RuntimeError(msg)
 
-    y = sol.y.T
-    return np.asarray(y, dtype=float), info
+    return np.asarray(sol.y.T, dtype=float), info
 
 
 # =============================================================================
-# Plotting / reporting
+# Plotting
 # =============================================================================
 
 
-def _totals_PZ(arr: np.ndarray, n_bins: int) -> tuple[np.ndarray, np.ndarray]:
-    p = arr[:, :n_bins].sum(axis=-1)
-    z = arr[:, n_bins:].sum(axis=-1)
-    return p, z
-
-
-def _extract_bins(arr: np.ndarray, n_bins: int) -> tuple[np.ndarray, np.ndarray]:
-    p = arr[:, :n_bins]
-    z = arr[:, n_bins:]
-    return p, z
-
-
-def save_bin_overlay_figures(
-    time_grid_days: np.ndarray,
-    results: dict[str, np.ndarray],
-    n_bins: int,
-    out_png_p: Path,
-    out_png_z: Path,
-) -> None:
-    t_years = np.asarray(time_grid_days, dtype=float) / 365.0
-
-    fig_p, axes_p = plt.subplots(
-        nrows=n_bins,
-        ncols=1,
-        figsize=(14, 1.1 * n_bins),
-        sharex=True,
-        constrained_layout=True,
-    )
-    if n_bins == 1:
-        axes_p = [axes_p]
-
-    for bin_idx in range(n_bins):
-        ax = axes_p[bin_idx]
-        for name, arr in results.items():
-            p_bins, _ = _extract_bins(arr, n_bins)
-            ax.plot(t_years, p_bins[:, bin_idx], label=name)
-        ax.grid(True)
-        ax.set_ylabel(f"bin {bin_idx}", rotation=0, labelpad=25, va="center")
-
-    axes_p[0].set_title("P by size bin (solvers overlaid)")
-    axes_p[-1].set_xlabel("Time (years)")
-
-    handles, labels = axes_p[0].get_legend_handles_labels()
-    fig_p.legend(handles, labels, loc="upper center", ncol=3, fontsize=9, frameon=True)
-    fig_p.savefig(out_png_p, dpi=200)
-    plt.close(fig_p)
-
-    fig_z, axes_z = plt.subplots(
-        nrows=n_bins,
-        ncols=1,
-        figsize=(14, 1.1 * n_bins),
-        sharex=True,
-        constrained_layout=True,
-    )
-    if n_bins == 1:
-        axes_z = [axes_z]
-
-    for bin_idx in range(n_bins):
-        ax = axes_z[bin_idx]
-        for name, arr in results.items():
-            _, z_bins = _extract_bins(arr, n_bins)
-            ax.plot(t_years, z_bins[:, bin_idx], label=name)
-        ax.grid(True)
-        ax.set_ylabel(f"bin {bin_idx}", rotation=0, labelpad=25, va="center")
-
-    axes_z[0].set_title("Z by size bin (solvers overlaid)")
-    axes_z[-1].set_xlabel("Time (years)")
-
-    handles, labels = axes_z[0].get_legend_handles_labels()
-    fig_z.legend(handles, labels, loc="upper center", ncol=3, fontsize=9, frameon=True)
-    fig_z.savefig(out_png_z, dpi=200)
-    plt.close(fig_z)
-
-
-def save_plots_one_panel_per_solver(
-    time_grid_days: np.ndarray,
-    results: dict[str, np.ndarray],
-    n_bins: int,
+def save_bins_figure(
     out_png: Path,
+    time_days: np.ndarray,
+    n_bins: int,
+    *,
+    main_name: str,
+    main_arr: np.ndarray,
+    scipy_name: str,
+    scipy_arr: np.ndarray,
 ) -> None:
-    t_years = np.asarray(time_grid_days, dtype=float) / 365.0
-
-    names = list(results.keys())
-    n = len(names)
-
-    ncols = min(3, n)
-    nrows = int(math.ceil(n / ncols))
+    """Bin detail plot for one op_engine run + SciPy overlay."""
+    t_years = np.asarray(time_days, dtype=float) / 365.0
 
     fig, axes = plt.subplots(
-        nrows=nrows,
-        ncols=ncols,
-        figsize=(6.2 * ncols, 3.6 * nrows),
-        constrained_layout=True,
+        nrows=n_bins,
+        ncols=2,
+        figsize=(14.0, 1.35 * n_bins),
         sharex=True,
-        sharey=False,
+        constrained_layout=True,
     )
 
-    if isinstance(axes, np.ndarray):
-        ax_list = axes.ravel().tolist()
-    else:
-        ax_list = [axes]
+    p_main = main_arr[:, :n_bins]
+    z_main = main_arr[:, n_bins:]
+    p_ref = scipy_arr[:, :n_bins]
+    z_ref = scipy_arr[:, n_bins:]
 
-    for ax, name in zip(ax_list, names):
-        arr = results[name]
-        p, z = _totals_PZ(arr, n_bins)
+    for i in range(n_bins):
+        axp = axes[i, 0]
+        axz = axes[i, 1]
 
-        ax.plot(t_years, p, label="P total")
-        ax.plot(t_years, z, label="Z total", linestyle="--")
+        axp.plot(t_years, p_main[:, i], label=main_name if i == 0 else None)
+        axp.plot(
+            t_years,
+            p_ref[:, i],
+            label=scipy_name if i == 0 else None,
+            linewidth=1.0,
+            alpha=0.5,
+        )
+        axp.grid(visible=True)
+        axp.set_ylabel(f"bin {i}", rotation=0, labelpad=25, va="center")
 
-        ax.set_title(name)
-        ax.set_xlabel("Time (years)")
-        ax.set_ylabel("Total biomass")
-        ax.grid(True)
-        ax.legend(fontsize=9, loc="best")
+        axz.plot(t_years, z_main[:, i], label=main_name if i == 0 else None)
+        axz.plot(
+            t_years,
+            z_ref[:, i],
+            label=scipy_name if i == 0 else None,
+            linewidth=1.0,
+            alpha=0.5,
+        )
+        axz.grid(visible=True)
 
-    for ax in ax_list[len(names) :]:
-        ax.set_visible(False)
+    axes[0, 0].set_title("P bins")
+    axes[0, 1].set_title("Z bins")
+    axes[-1, 0].set_xlabel("Time (years)")
+    axes[-1, 1].set_xlabel("Time (years)")
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=2, fontsize=9, frameon=True)
 
     fig.savefig(out_png, dpi=200)
     plt.close(fig)
@@ -697,246 +865,395 @@ def save_plots_one_panel_per_solver(
 def save_runtime_sweep_plot(
     out_png: Path,
     dt_days: np.ndarray,
-    runtime_by_method: dict[str, np.ndarray],
+    runtime_by_key: dict[str, np.ndarray],
 ) -> None:
-    fig, ax = plt.subplots(figsize=(10.5, 5.5), constrained_layout=True)
+    """Plot wall time vs dt in log-log scale."""
 
-    for name, times in runtime_by_method.items():
-        ax.plot(dt_days, times, marker="o", label=name)
+    def marker_for_key(key: str) -> str:
+        if "split A" in key:
+            return "o"
+        if "split B" in key:
+            return "s"
+        if "split C" in key:
+            return "^"
+        return "x"
+
+    fig, ax = plt.subplots(figsize=(10.5, 5.5), constrained_layout=True)
+    for name, times in runtime_by_key.items():
+        ax.plot(dt_days, times, marker=marker_for_key(name), label=name)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("dt (days)")
+    ax.set_xlabel("Output dt (days)")
     ax.set_ylabel("Wall time (s)")
-    ax.set_title("Wall time vs dt (log-log)")
-    ax.grid(True, which="both")
-    ax.legend(fontsize=9, loc="best")
+    ax.set_title("Wall time vs output dt (log-log)")
+    ax.grid(visible=True, which="both")
+    ax.legend(fontsize=8, loc="best")
 
     fig.savefig(out_png, dpi=200)
     plt.close(fig)
 
 
-def save_runtime_report(
+def write_runtime_reports(
     out_txt: Path,
-    timings: dict[str, float],
-    scipy_infos: dict[str, dict],
-    *,
-    operator_mode: str,
-    sweep_dt_days: np.ndarray | None = None,
-    sweep_results: dict[str, np.ndarray] | None = None,
+    out_csv: Path,
+    report: RuntimeReportSpec,
 ) -> None:
+    """Write runtime summaries to a text report and a CSV table."""
     lines: list[str] = []
-    lines.append("Timing / solver stats")
-    lines.append("")
-    lines.append(f"Operator mode: {operator_mode}")
-    lines.append("")
+    lines.extend([
+        "Timing / solver stats",
+        "",
+        f"Operator mode: {report.operator_mode}",
+        "",
+        "Main run wall times:",
+    ])
 
-    lines.append("Main run wall times:")
-    for k, v in timings.items():
-        lines.append(f"{k:45s} {v:.6f} s")
+    lines.extend([f"{k:45s} {v:.6f} s" for k, v in report.main_timings.items()])
 
-    lines.append("")
-    lines.append("SciPy solve_ivp details (main run):")
-    for name, info in scipy_infos.items():
+    lines.extend(["", "SciPy solve_ivp details (main run):"])
+    for name, info in report.scipy_infos.items():
         lines.append(f"  {name}")
-        for kk in ("success", "message", "nfev", "njev", "nlu", "wall_s"):
-            lines.append(f"    {kk:8s}: {info.get(kk)}")
+        keys = ("success", "message", "nfev", "njev", "nlu", "wall_s")
+        lines.extend([f"    {kk:8s}: {info.get(kk)}" for kk in keys])
         lines.append("")
 
-    if sweep_dt_days is not None and sweep_results is not None:
-        lines.append("")
-        lines.append("dt sweep wall times:")
-        header = "dt_days," + ",".join(sweep_results.keys())
-        lines.append(header)
-        for i, dt in enumerate(sweep_dt_days):
-            row = [f"{float(dt):.10g}"]
-            for name in sweep_results.keys():
-                row.append(f"{float(sweep_results[name][i]):.10g}")
-            lines.append(",".join(row))
+    keys = list(report.sweep_timings.keys())
+    header = "dt_days," + ",".join(keys)
+    csv_lines: list[str] = [header]
+
+    for i, dt in enumerate(report.dt_days):
+        row = [f"{float(dt):.10g}"]
+        row.extend([f"{float(report.sweep_timings[k][i]):.10g}" for k in keys])
+        csv_lines.append(",".join(row))
 
     out_txt.write_text("\n".join(lines), encoding="utf-8")
+    out_csv.write_text("\n".join(csv_lines), encoding="utf-8")
+
+
+def write_manifest(out_json: Path, manifest: Manifest) -> None:
+    """Write a JSON manifest describing outputs and settings."""
+    out_json.write_text(
+        json.dumps(asdict(manifest), indent=2, sort_keys=True), encoding="utf-8"
+    )
 
 
 # =============================================================================
-# Time-grid utilities
+# Canonical runs + sweep orchestration
 # =============================================================================
 
 
-def build_uniform_time_grid_days(total_time_days: float, dt_days: float) -> np.ndarray:
-    dt = float(dt_days)
-    n = int(math.floor(total_time_days / dt + 0.5)) + 1
-    t = dt * np.arange(n, dtype=float)
-    if abs(t[-1] - total_time_days) > 0.5 * dt:
-        t = np.arange(0.0, total_time_days + 0.5 * dt, dt, dtype=float)
-    else:
-        t[-1] = float(total_time_days)
-    return t
+def build_model_and_run_spec(
+    *, seed: int = 123
+) -> tuple[ModelSpec, RunSpec, float, float, int]:
+    """Build ModelSpec and RunSpec for this example.
 
-
-# =============================================================================
-# Main: build, perturb, run, compare, sweep
-# =============================================================================
-
-
-def main() -> None:
-    out_dir = Path("outputs")
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    out_png = out_dir / "biogeochemical_network.png"
-    out_png_p = out_dir / "biogeochemical_network_bins_P.png"
-    out_png_z = out_dir / "biogeochemical_network_bins_Z.png"
-    out_png_runtime = out_dir / "biogeochemical_network_runtime.png"
-    out_txt = out_dir / "biogeochemical_network_runtime.txt"
-
-    # Model setup
+    Returns:
+        (model, run, dt_out_main_days, total_time_days, n_bins)
+    """
     n_bins = 8
     prd, zrd = _size_bins(n_bins)
     params = ParamsA()
 
+    # Initial condition: small random perturbation
     u0 = np.full(2 * n_bins, 0.1, dtype=float)
-    rng = np.random.default_rng(123)
+    rng = np.random.default_rng(seed)
     perturb_scale = 0.2
-    y0_flat = np.clip(u0 * (1.0 + perturb_scale * rng.standard_normal(u0.shape)), 0.0, None)
+    y0_flat = np.clip(
+        u0 * (1.0 + perturb_scale * rng.standard_normal(u0.shape)), 0.0, None
+    )
 
-    # Horizon
-    total_time_days = 365.0 * 20.0
+    total_time_days = 365.0 * 1.0
+    dt_out_main_days = 5.0
+    time_grid = build_uniform_time_grid_days(total_time_days, dt_out_main_days)
 
-    # Keep dt fineness consistent with prior 10y/10001 grid:
-    dt_target = (365.0 * 10.0) / 10000.0
-    time_grid = build_uniform_time_grid_days(total_time_days, dt_target)
-    dt0 = float(time_grid[1] - time_grid[0])
+    model = ModelSpec(params=params, prd=prd, zrd=zrd, n_bins=n_bins)
+    run = RunSpec(
+        time_grid=time_grid,
+        y0_flat=y0_flat,
+        rhs_tensor=make_reaction_tensor(model),
+        rhs_flat=make_rhs_flat(model),
+    )
+    return model, run, dt_out_main_days, total_time_days, n_bins
 
-    # RHS for op_engine + SciPy
-    reaction_tensor = make_reaction_A_flat_tensor(params, prd, zrd)
-    rhs_flat = make_rhs_A_flat(params, prd, zrd)
 
-    # -------------------------------------------------------------------------
-    # Main runs
-    # -------------------------------------------------------------------------
+def run_and_save_canonical_plots(
+    *,
+    out_dir: Path,
+    model: ModelSpec,
+    run: RunSpec,
+    default_split_for_plots: SplitName = "B",
+) -> tuple[dict[str, float], dict[str, dict[str, object]], dict[str, Path]]:
+    """Run and save the three canonical comparison plots.
+
+    Returns:
+        (timings, scipy_infos, output_paths)
+
+    Raises:
+        RuntimeError: If a required trajectory for plotting is missing.
+    """
+    out_bins_explicit = out_dir / "biogeo_explicit_bins.png"
+    out_bins_imex1 = out_dir / "biogeo_imex1_bins.png"
+    out_bins_imex2 = out_dir / "biogeo_imex2_bins.png"
+
     timings: dict[str, float] = {}
-    scipy_infos: dict[str, dict] = {}
+    scipy_infos: dict[str, dict[str, object]] = {}
 
-    start = time.perf_counter()
-    out_heun = run_op_engine_baseline_heun_A0(time_grid, y0_flat, reaction_tensor)
-    timings["op_engine: Heun (A=0)"] = time.perf_counter() - start
-
-    start = time.perf_counter()
-    out_tr_a = run_op_engine_trbdf2(
-        time_grid,
-        y0_flat,
-        reaction_tensor,
-        params=params,
-        prd=prd,
-        zrd=zrd,
-        split="A",
-    )
-    timings["op_engine: TR-BDF2 split A"] = time.perf_counter() - start
-
-    start = time.perf_counter()
-    out_tr_b = run_op_engine_trbdf2(
-        time_grid,
-        y0_flat,
-        reaction_tensor,
-        params=params,
-        prd=prd,
-        zrd=zrd,
-        split="B",
-    )
-    timings["op_engine: TR-BDF2 split B"] = time.perf_counter() - start
-
-    start = time.perf_counter()
-    out_tr_c = run_op_engine_trbdf2(
-        time_grid,
-        y0_flat,
-        reaction_tensor,
-        params=params,
-        prd=prd,
-        zrd=zrd,
-        split="C",
-        eta_cross=ETA_CROSS,
-    )
-    timings["op_engine: TR-BDF2 split C (dissipative)"] = time.perf_counter() - start
-
-    out_rk45, info_rk45 = run_scipy("RK45", time_grid, y0_flat, rhs_flat)
+    # SciPy references (needed for overlays)
+    y_rk45, info_rk45 = run_scipy(method="RK45", run=run)
+    y_bdf, info_bdf = run_scipy(method="BDF", run=run)
     scipy_infos["solve_ivp: RK45"] = info_rk45
-    timings["solve_ivp: RK45"] = float(info_rk45["wall_s"])
-
-    out_bdf, info_bdf = run_scipy("BDF", time_grid, y0_flat, rhs_flat)
     scipy_infos["solve_ivp: BDF"] = info_bdf
+    timings["solve_ivp: RK45"] = float(info_rk45["wall_s"])
     timings["solve_ivp: BDF"] = float(info_bdf["wall_s"])
 
-    results_main = {
-        "op_engine: Heun (A=0)": out_heun,
-        "op_engine: TR-BDF2 split A": out_tr_a,
-        "op_engine: TR-BDF2 split B": out_tr_b,
-        "op_engine: TR-BDF2 split C": out_tr_c,
-        "solve_ivp: RK45": out_rk45,
-        "solve_ivp: BDF": out_bdf,
-    }
+    # Plot 1: Explicit (heun) vs RK45
+    y_heun, wall = run_op_engine(
+        method="heun", run=run, model=model, store_history=True
+    )
+    timings["op_engine: heun (adaptive)"] = wall
+    if y_heun is None:
+        msg = _EXPECTED_TRAJ_ERROR.format(name="heun")
+        raise RuntimeError(msg)
 
-    # Plots
-    save_plots_one_panel_per_solver(time_grid, results_main, n_bins=n_bins, out_png=out_png)
-    save_bin_overlay_figures(
-        time_grid_days=time_grid,
-        results=results_main,
-        n_bins=n_bins,
-        out_png_p=out_png_p,
-        out_png_z=out_png_z,
+    save_bins_figure(
+        out_bins_explicit,
+        run.time_grid,
+        model.n_bins,
+        main_name="op_engine heun (adaptive)",
+        main_arr=y_heun,
+        scipy_name="SciPy RK45",
+        scipy_arr=y_rk45,
     )
 
-    # -------------------------------------------------------------------------
-    # dt sweep (wall time vs dt)
-    # -------------------------------------------------------------------------
-    factors = np.array([0.25, 0.5, 1.0, 2.0], dtype=float)
-    sweep_dt_days = dt0 * factors
+    # Plot 2: IMEX 1st-order (imex-euler split B) vs BDF
+    y_imex_euler_b, wall = run_op_engine(
+        method="imex-euler",
+        run=run,
+        model=model,
+        split=default_split_for_plots,
+        store_history=True,
+    )
+    timings[f"op_engine: imex-euler split {default_split_for_plots} (adaptive)"] = wall
+    if y_imex_euler_b is None:
+        msg = _EXPECTED_TRAJ_ERROR.format(name="imex-euler")
+        raise RuntimeError(msg)
 
-    sweep_methods = [
-        "op_engine: Heun (A=0)",
-        "op_engine: TR-BDF2 split A",
-        "op_engine: TR-BDF2 split B",
-        "op_engine: TR-BDF2 split C",
+    save_bins_figure(
+        out_bins_imex1,
+        run.time_grid,
+        model.n_bins,
+        main_name=f"op_engine imex-euler split {default_split_for_plots} (adaptive)",
+        main_arr=y_imex_euler_b,
+        scipy_name="SciPy BDF",
+        scipy_arr=y_bdf,
+    )
+
+    # Plot 3: IMEX 2nd-order (imex-trbdf2 split B) vs BDF
+    y_trbdf2_b, wall = run_op_engine(
+        method="imex-trbdf2",
+        run=run,
+        model=model,
+        split=default_split_for_plots,
+        store_history=True,
+    )
+    timings[f"op_engine: imex-trbdf2 split {default_split_for_plots} (adaptive)"] = wall
+    if y_trbdf2_b is None:
+        msg = _EXPECTED_TRAJ_ERROR.format(name="imex-trbdf2")
+        raise RuntimeError(msg)
+
+    save_bins_figure(
+        out_bins_imex2,
+        run.time_grid,
+        model.n_bins,
+        main_name=f"op_engine imex-trbdf2 split {default_split_for_plots} (adaptive)",
+        main_arr=y_trbdf2_b,
+        scipy_name="SciPy BDF",
+        scipy_arr=y_bdf,
+    )
+
+    # Time (no-history) the remaining op_engine cases on the main grid
+    timings["op_engine: euler (adaptive)"] = run_op_engine(
+        method="euler",
+        run=run,
+        model=model,
+        store_history=False,
+    )[1]
+
+    for split in ("A", "B", "C"):
+        for meth in ("imex-euler", "imex-heun-tr", "imex-trbdf2"):
+            if split == default_split_for_plots and meth in {
+                "imex-euler",
+                "imex-trbdf2",
+            }:
+                continue
+            key = f"op_engine: {meth} split {split} (adaptive)"
+            timings[key] = run_op_engine(
+                method=meth,
+                run=run,
+                model=model,
+                split=split,  # type: ignore[arg-type]
+                store_history=False,
+            )[1]
+
+    output_paths = {
+        "biogeo_explicit_bins": out_bins_explicit,
+        "biogeo_imex1_bins": out_bins_imex1,
+        "biogeo_imex2_bins": out_bins_imex2,
+    }
+    return timings, scipy_infos, output_paths
+
+
+def run_dt_sweep(
+    *,
+    model: ModelSpec,
+    run: RunSpec,
+    dt_days: np.ndarray,
+    sweep_total_days: float,
+    default_split_for_plots: SplitName,
+) -> dict[str, np.ndarray]:
+    """Run a dt sweep, storing only wall times (no trajectories).
+
+    Returns:
+        Mapping key -> wall time array, each shape dt_days.shape.
+    """
+    sweep_timings: dict[str, np.ndarray] = {}
+
+    keys: list[str] = [
+        "op_engine: euler",
+        "op_engine: heun",
         "solve_ivp: RK45",
         "solve_ivp: BDF",
     ]
-    sweep_results: dict[str, np.ndarray] = {name: np.zeros_like(sweep_dt_days) for name in sweep_methods}
+    for split in ("A", "B", "C"):
+        for meth in ("imex-euler", "imex-heun-tr", "imex-trbdf2"):
+            keys.append(f"op_engine: {meth} split {split}")
 
-    for i, dt_days in enumerate(sweep_dt_days):
-        tg = build_uniform_time_grid_days(total_time_days, float(dt_days))
+    for k in keys:
+        sweep_timings[k] = np.zeros(dt_days.shape, dtype=float)
 
-        t0 = time.perf_counter()
-        _ = run_op_engine_baseline_heun_A0(tg, y0_flat, reaction_tensor)
-        sweep_results["op_engine: Heun (A=0)"][i] = time.perf_counter() - t0
-
-        t0 = time.perf_counter()
-        _ = run_op_engine_trbdf2(tg, y0_flat, reaction_tensor, params=params, prd=prd, zrd=zrd, split="A")
-        sweep_results["op_engine: TR-BDF2 split A"][i] = time.perf_counter() - t0
-
-        t0 = time.perf_counter()
-        _ = run_op_engine_trbdf2(tg, y0_flat, reaction_tensor, params=params, prd=prd, zrd=zrd, split="B")
-        sweep_results["op_engine: TR-BDF2 split B"][i] = time.perf_counter() - t0
-
-        t0 = time.perf_counter()
-        _ = run_op_engine_trbdf2(
-            tg, y0_flat, reaction_tensor, params=params, prd=prd, zrd=zrd, split="C", eta_cross=ETA_CROSS
+    # Use the same y0 and RHS, but regenerate time_grid each iteration.
+    for i, dt in enumerate(dt_days):
+        tg = build_uniform_time_grid_days(sweep_total_days, float(dt))
+        run_i = RunSpec(
+            time_grid=tg,
+            y0_flat=run.y0_flat,
+            rhs_tensor=run.rhs_tensor,
+            rhs_flat=run.rhs_flat,
         )
-        sweep_results["op_engine: TR-BDF2 split C"][i] = time.perf_counter() - t0
 
-        _, info = run_scipy("RK45", tg, y0_flat, rhs_flat)
-        sweep_results["solve_ivp: RK45"][i] = float(info["wall_s"])
+        sweep_timings["op_engine: euler"][i] = run_op_engine(
+            method="euler",
+            run=run_i,
+            model=model,
+            store_history=False,
+        )[1]
 
-        _, info = run_scipy("BDF", tg, y0_flat, rhs_flat)
-        sweep_results["solve_ivp: BDF"][i] = float(info["wall_s"])
+        sweep_timings["op_engine: heun"][i] = run_op_engine(
+            method="heun",
+            run=run_i,
+            model=model,
+            store_history=False,
+        )[1]
 
-    save_runtime_sweep_plot(out_png_runtime, sweep_dt_days, sweep_results)
+        for split in ("A", "B", "C"):
+            for meth in ("imex-euler", "imex-heun-tr", "imex-trbdf2"):
+                key = f"op_engine: {meth} split {split}"
+                sweep_timings[key][i] = run_op_engine(
+                    method=meth,
+                    run=run_i,
+                    model=model,
+                    split=split,  # type: ignore[arg-type]
+                    store_history=False,
+                )[1]
 
-    save_runtime_report(
-        out_txt,
-        timings=timings,
-        scipy_infos=scipy_infos,
-        operator_mode=OPERATOR_MODE,
-        sweep_dt_days=sweep_dt_days,
-        sweep_results=sweep_results,
+        y_rk, info_rk = run_scipy(method="RK45", run=run_i)
+        _ = y_rk
+        sweep_timings["solve_ivp: RK45"][i] = float(info_rk["wall_s"])
+
+        y_bdf, info_bdf = run_scipy(method="BDF", run=run_i)
+        _ = y_bdf
+        sweep_timings["solve_ivp: BDF"][i] = float(info_bdf["wall_s"])
+
+    # Ensure the main plotted IMEX keys exist (nice legend consistency).
+    _ = default_split_for_plots
+    return sweep_timings
+
+
+# =============================================================================
+# Main
+# =============================================================================
+
+
+def main() -> None:
+    """Run the three canonical comparison plots and a dt runtime sweep."""
+    out_dir = ensure_output_dir()
+
+    model, run, dt_out_main_days, total_time_days, n_bins = build_model_and_run_spec()
+
+    out_runtime = out_dir / "biogeo_runtime.png"
+    out_txt = out_dir / "biogeo_runtime.txt"
+    out_csv = out_dir / "biogeo_runtime.csv"
+    out_manifest = out_dir / "biogeo_manifest.json"
+
+    default_split_for_plots: SplitName = "B"
+
+    timings, scipy_infos, plot_paths = run_and_save_canonical_plots(
+        out_dir=out_dir,
+        model=model,
+        run=run,
+        default_split_for_plots=default_split_for_plots,
     )
+
+    sweep_total_days = 365.0 * 1.0
+    dt_days = np.asarray(
+        dt_out_main_days * np.array([0.25, 0.5, 1.0, 2.0, 4.0], dtype=float),
+        dtype=float,
+    )
+
+    sweep_timings = run_dt_sweep(
+        model=model,
+        run=run,
+        dt_days=dt_days,
+        sweep_total_days=sweep_total_days,
+        default_split_for_plots=default_split_for_plots,
+    )
+
+    save_runtime_sweep_plot(out_runtime, dt_days, sweep_timings)
+
+    report = RuntimeReportSpec(
+        operator_mode=OPERATOR_MODE,
+        main_timings=timings,
+        scipy_infos=scipy_infos,
+        dt_days=dt_days,
+        sweep_timings=sweep_timings,
+    )
+    write_runtime_reports(out_txt, out_csv, report)
+
+    outputs = {
+        **{k: str(v) for k, v in plot_paths.items()},
+        "biogeo_runtime": str(out_runtime),
+        "biogeo_runtime_txt": str(out_txt),
+        "biogeo_runtime_csv": str(out_csv),
+    }
+
+    manifest = Manifest(
+        operator_mode=OPERATOR_MODE,
+        eta_cross=ETA_CROSS,
+        clip_nonnegative=CLIP_NONNEGATIVE,
+        fail_fast_on_nonfinite=FAIL_FAST_ON_NONFINITE,
+        scipy_rtol=SCIPY_RTOL,
+        scipy_atol=SCIPY_ATOL,
+        ope_rtol=OPE_RTOL,
+        ope_atol=OPE_ATOL,
+        n_bins=n_bins,
+        dt_out_main_days=float(dt_out_main_days),
+        total_time_days=float(total_time_days),
+        sweep_total_days=float(sweep_total_days),
+        dt_sweep_days=[float(x) for x in dt_days],
+        outputs=outputs,
+    )
+    write_manifest(out_manifest, manifest)
 
 
 if __name__ == "__main__":
