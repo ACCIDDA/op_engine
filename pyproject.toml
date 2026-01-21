@@ -1,7 +1,7 @@
 [project]
 name = "op_engine"
 version = "0.1.0"
-description = "Multiphysics integration engine for ODEs and PDEs using implicit–explicit operator splitting"
+description = "Multiphysics integration engine for ODEs and PDEs using implicit-explicit operator splitting"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 license = { file = "LICENSE" }
@@ -15,7 +15,6 @@ dependencies = [
     "scipy>=1.11",
 ]
 
-# Recommended for PyPI discoverability and tooling.
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -35,9 +34,19 @@ data = [
     "pyarrow>=16.0",
 ]
 
+# Make pydantic explicit because op_engine.flepimop2 imports it (config models).
+flepimop2 = [
+    "pydantic>=2.0,<3",
+    "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# REQUIRED for hatchling to accept git/direct URL dependencies in optional-dependencies
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [dependency-groups]
 dev = [
@@ -54,6 +63,9 @@ testpaths = [
     "docs/",
     "src/op_engine/",
     "tests/",
+]
+markers = [
+    "flepimop2: tests requiring the op_engine[flepimop2] extra",
 ]
 
 [tool.ruff.format]
@@ -79,8 +91,6 @@ convention = "google"
 [tool.mypy]
 exclude = ["examples/"]
 
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/op_engine"]
 include = ["src/op_engine/py.typed"]
-
