@@ -9,48 +9,6 @@ import pytest
 from flepimop2.engine.op_engine import errors
 
 
-def _flepimop2_is_installed() -> bool:
-    """Return True if flepimop2 appears importable in this environment."""
-    return find_spec("flepimop2") is not None
-
-
-def test_check_flepimop2_available_matches_environment() -> None:
-    """check_flepimop2_available should reflect whether flepimop2 is importable."""
-    status = errors.check_flepimop2_available()
-    assert status.package == "flepimop2"
-    assert status.is_available == _flepimop2_is_installed()
-    if status.is_available:
-        assert status.detail is None
-    else:
-        assert isinstance(status.detail, str)
-        assert "spec" in status.detail.lower() or "not found" in status.detail.lower()
-
-
-def test_check_flepimop2_available_forced_missing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """check_flepimop2_available should report unavailable if find_spec returns None."""
-    monkeypatch.setattr(errors, "find_spec", lambda _name: None)
-
-    status = errors.check_flepimop2_available()
-    assert status.package == "flepimop2"
-    assert status.is_available is False
-    assert status.detail == "Module spec not found"
-
-
-def test_check_flepimop2_available_forced_present(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """check_flepimop2_available should report available if find_spec returns a spec."""
-    sentinel = object()
-    monkeypatch.setattr(errors, "find_spec", lambda _name: sentinel)
-
-    status = errors.check_flepimop2_available()
-    assert status.package == "flepimop2"
-    assert status.is_available is True
-    assert status.detail is None
-
-
 def test_require_flepimop2_raises_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     """require_flepimop2 raises OptionalDependencyMissingError when unavailable."""
     monkeypatch.setattr(errors, "find_spec", lambda _name: None)
@@ -69,8 +27,20 @@ def test_require_flepimop2_raises_when_missing(monkeypatch: pytest.MonkeyPatch) 
 
 def test_require_flepimop2_noop_when_present(monkeypatch: pytest.MonkeyPatch) -> None:
     """require_flepimop2 should not raise when flepimop2 is available."""
-    monkeypatch.setattr(errors, "find_spec", lambda _name: object())
+    sentinel = object()
+    monkeypatch.setattr(errors, "find_spec", lambda _name: sentinel)
     errors.require_flepimop2()
+
+
+def test_require_flepimop2_matches_environment() -> None:
+    """require_flepimop2 should raise iff flepimop2 is not importable."""
+    installed = find_spec("flepimop2") is not None
+
+    if installed:
+        errors.require_flepimop2()
+    else:
+        with pytest.raises(errors.OptionalDependencyMissingError):
+            errors.require_flepimop2()
 
 
 def test_raise_unsupported_imex_raises_with_reason_and_code() -> None:
@@ -143,15 +113,16 @@ def test_raise_state_shape_error_includes_name_expected_got_and_code() -> None:
 
 def test_raise_parameter_error_raises_typeerror_and_code() -> None:
     """raise_parameter_error should raise TypeError and chain a coded cause."""
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(TypeError, match=r"Invalid parameters for op_engine\.flepimop2"):
         errors.raise_parameter_error(detail="dt_init must be positive")
 
-    exc = excinfo.value
-    msg = str(exc)
+    try:
+        errors.raise_parameter_error(detail="dt_init must be positive")
+    except TypeError as exc:
+        msg = str(exc)
+        assert "invalid parameters" in msg.lower()
+        assert "dt_init must be positive" in msg
 
-    assert "invalid parameters" in msg.lower()
-    assert "dt_init must be positive" in msg
-
-    cause = exc.__cause__
-    assert isinstance(cause, errors.OpEngineFlepimop2Error)
-    assert cause.code == errors.ErrorCode.INVALID_PARAMETERS
+        cause = exc.__cause__
+        assert isinstance(cause, errors.OpEngineFlepimop2Error)
+        assert cause.code == errors.ErrorCode.INVALID_PARAMETERS

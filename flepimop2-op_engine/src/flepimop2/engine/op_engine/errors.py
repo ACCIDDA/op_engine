@@ -8,7 +8,6 @@ Design intent:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import StrEnum
 from importlib.util import find_spec
 from typing import Final
@@ -62,48 +61,22 @@ class EngineConfigError(OpEngineFlepimop2Error, ValueError):
     """Raised when a flepimop2 engine config is invalid or incomplete."""
 
 
-@dataclass(frozen=True, slots=True)
-class DependencyStatus:
-    """Structured description of optional dependency availability."""
-
-    package: str
-    is_available: bool
-    detail: str | None = None
-
-
-def check_flepimop2_available() -> DependencyStatus:
-    """
-    Check whether flepimop2 is importable.
-
-    Returns:
-        DependencyStatus describing flepimop2 availability.
-    """
-    spec = find_spec("flepimop2")
-    if spec is None:
-        return DependencyStatus(
-            package="flepimop2",
-            is_available=False,
-            detail="Module spec not found",
-        )
-    return DependencyStatus(package="flepimop2", is_available=True, detail=None)
-
-
 def require_flepimop2() -> None:
     """Require that flepimop2 is importable.
 
     Raises:
         OptionalDependencyMissingError: If flepimop2 cannot be imported.
     """
-    status = check_flepimop2_available()
-    if status.is_available:
+    if find_spec("flepimop2") is not None:
         return
 
     msg = (
         "The op_engine.flepimop2 integration requires flepimop2, but it is not "
         "available in this environment.\n\n"
-        f"Import detail: {status.detail}\n\n"
+        "Import detail: Module spec not found\n\n"
         f"{_FLEPIMOP2_EXTRA_INSTALL_MSG}"
     )
+
     raise OptionalDependencyMissingError(
         msg, code=ErrorCode.OPTIONAL_DEPENDENCY_MISSING
     )
