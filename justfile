@@ -1,5 +1,6 @@
+
 # Run all default tasks for local development
-default: format check pytest mypy
+default: format check pytest mypy docs
 
 # -------------------------------------------------
 # Formatting
@@ -31,12 +32,10 @@ pytest-core:
 	uv run pytest --doctest-modules
 
 # Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
-pytest-provider:
+pytest-provider: provider-sync
 	cd flepimop2-op_engine && .venv/bin/python -m pytest --doctest-modules
 
-pytest:
-	just pytest-core
-	just pytest-provider
+pytest: pytest-core pytest-provider
 
 
 # -------------------------------------------------
@@ -47,7 +46,7 @@ mypy-core:
 	uv run mypy --strict src/op_engine
 
 # Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
-mypy-provider:
+mypy-provider: provider-sync
 	cd flepimop2-op_engine && .venv/bin/python -m mypy --strict src/flepimop2
 
 mypy:
@@ -72,14 +71,22 @@ ci:
 # -------------------------------------------------
 
 clean:
+	rm -rf site
 	rm -f uv.lock
-	rm -rf .*_cache
 	rm -rf .venv
-	rm -rf flepimop2-op_engine/.venv
+	rm -rf .*_cache
 	rm -f flepimop2-op_engine/uv.lock
+	rm -rf flepimop2-op_engine/.venv
+	rm -rf flepimop2-op_engine/.*_cache
 
-docs:
+# Build API reference for the documentation using `mkdocstrings`
+api-reference:
+    uv run scripts/api-reference.py
+
+# Build the documentation using `mkdocs`
+docs: api-reference
 	uv run mkdocs build --verbose --strict
 
-serve:
+# Serve the documentation locally using `mkdocs`
+serve: api-reference
 	uv run mkdocs serve

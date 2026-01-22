@@ -1,6 +1,51 @@
 ---
-site_name: "OP Engine Documentation"
+# Site information
+site_name: op_engine Documentation
+site_url: https://accidda.github.io/op_engine/
+
+# Repository information
+repo_name: ACCIDDA/op_engine
+repo_url: https://github.com/ACCIDDA/op_engine
+edit_uri: ''
+
+# Theme information
+theme:
+  name: material
+  custom_dir: overrides
+
+# Plugins
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            merge_init_into_class: true
+            heading_level: 2
+
+# Extras
+extra:
+  version:
+    provider: mike
+
+# Markdown extensions
+markdown_extensions:
+  - toc:
+      permalink: true
+      toc_depth: 4
+  - attr_list
+
+# Navigation structure
 nav:
-  - Home: "index.md"
+  - Home: index.md
   - Guides:
-      - Getting Started: "guides/getting-started.md"
+      - Getting Started: guides/getting-started.md
+  - API Reference:
+      - Core Solver: api-reference/core_solver.md
+      - Matrix Ops: api-reference/matrix_ops.md
+      - Model Core: api-reference/model_core.md

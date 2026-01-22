@@ -1,0 +1,80 @@
+---
+name: 'GitHub Pages Documentation'
+
+'on':
+  push:
+    branches:
+      - 'main'
+  release:
+    types:
+      - 'published'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: 'read'
+
+jobs:
+  deploy:
+    name: 'Deploy Documentation to GitHub Pages'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        python-version:
+          - '3.12'
+    permissions:
+      contents: 'write'  # Needed to push to gh-pages
+    steps:
+      - name: 'Install just'
+        run: 'sudo apt install just'
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v6'
+        with:
+          ref: 'main'
+          persist-credentials: true
+      - name: 'Fetch gh-pages branch'
+        run: |
+          git fetch origin gh-pages:gh-pages --depth=1
+          git config --global user.name "${ACTOR}"
+          git config --global user.email "${ACTOR}@users.noreply.github.com"
+        env:
+          ACTOR: "${{ github.actor }}"
+      - name: 'Setup uv with python ${{ matrix.python-version }}'
+        uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'pyproject.toml'
+          python-version: '${{ matrix.python-version }}'
+      - name: 'Extract flepimop2 version'
+        id: extract-version
+        run: |
+          cat > version.py << EOF
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          version = data['project']['version']
+          version = '.'.join(version.split('.')[:2])
+          print(f"version={version}")
+          EOF
+          uv run -qq python version.py >> $GITHUB_OUTPUT
+          rm version.py
+      - name: 'Build API Reference'
+        run: 'just reference'
+      - name: 'Deploy to GitHub Pages'
+        run: |
+          uv run mike set-default latest
+          if [ "${EVENT_NAME}" == "release" ] || [[ $VERSION == 0* ]]; then
+            ALIAS=latest
+          else
+            ALIAS=dev
+          fi
+          uv run mike deploy \
+            --push --update-aliases \
+            ${VERSION} ${ALIAS}
+        env:
+          EVENT_NAME: "${{ github.event_name }}"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          VERSION: "${{ steps.extract-version.outputs.version }}"
