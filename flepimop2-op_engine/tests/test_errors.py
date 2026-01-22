@@ -42,7 +42,6 @@ def test_check_flepimop2_available_forced_present(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """check_flepimop2_available should report available if find_spec returns a spec."""
-    # We do not need a real spec object; any non-None sentinel is sufficient.
     sentinel = object()
     monkeypatch.setattr(errors, "find_spec", lambda _name: sentinel)
 
@@ -59,33 +58,41 @@ def test_require_flepimop2_raises_when_missing(monkeypatch: pytest.MonkeyPatch) 
     with pytest.raises(errors.OptionalDependencyMissingError) as excinfo:
         errors.require_flepimop2()
 
-    msg = str(excinfo.value)
-    # Message should be actionable and mention the extra.
+    exc = excinfo.value
+    msg = str(exc)
+
     assert "requires flepimop2" in msg.lower()
     assert "op_engine[flepimop2]" in msg
     assert "import detail" in msg.lower()
+    assert getattr(exc, "code", None) == errors.ErrorCode.OPTIONAL_DEPENDENCY_MISSING
 
 
 def test_require_flepimop2_noop_when_present(monkeypatch: pytest.MonkeyPatch) -> None:
     """require_flepimop2 should not raise when flepimop2 is available."""
     monkeypatch.setattr(errors, "find_spec", lambda _name: object())
-
-    # Should not raise.
     errors.require_flepimop2()
 
 
-def test_raise_unsupported_imex_raises_with_reason() -> None:
-    """raise_unsupported_imex raises UnsupportedMethodError with method and reason."""
+def test_raise_unsupported_imex_raises_with_reason_and_code() -> None:
+    """raise_unsupported_imex raises ValueError and chains an OpEngineFlepimop2Error."""
     method = "imex-euler"
     reason = "operators.default is missing"
 
-    with pytest.raises(errors.UnsupportedMethodError) as excinfo:
+    with pytest.raises(
+        ValueError, match=r"Method 'imex-euler' is not supported"
+    ) as excinfo:
         errors.raise_unsupported_imex(method, reason=reason)
 
-    msg = str(excinfo.value)
+    exc = excinfo.value
+    msg = str(exc)
+
     assert method in msg
     assert reason in msg
     assert "imex methods require operator specifications" in msg.lower()
+
+    cause = exc.__cause__
+    assert isinstance(cause, errors.OpEngineFlepimop2Error)
+    assert cause.code == errors.ErrorCode.UNSUPPORTED_METHOD
 
 
 def test_raise_invalid_engine_config_includes_missing_and_detail() -> None:
@@ -96,11 +103,13 @@ def test_raise_invalid_engine_config_includes_missing_and_detail() -> None:
             detail="Bad config shape",
         )
 
-    msg = str(excinfo.value)
+    exc = excinfo.value
+    msg = str(exc)
+
     assert "invalid op_engine.flepimop2 engine configuration" in msg.lower()
-    # Should sort/dedup.
     assert "['method', 'operators']" in msg
     assert "detail: bad config shape" in msg.lower()
+    assert getattr(exc, "code", None) == errors.ErrorCode.INVALID_ENGINE_CONFIG
 
 
 def test_raise_invalid_engine_config_minimal_message() -> None:
@@ -108,16 +117,41 @@ def test_raise_invalid_engine_config_minimal_message() -> None:
     with pytest.raises(errors.EngineConfigError) as excinfo:
         errors.raise_invalid_engine_config()
 
-    msg = str(excinfo.value)
+    exc = excinfo.value
+    msg = str(exc)
+
     assert "invalid op_engine.flepimop2 engine configuration" in msg.lower()
+    assert getattr(exc, "code", None) == errors.ErrorCode.INVALID_ENGINE_CONFIG
 
 
-def test_raise_state_shape_error_includes_name_expected_got() -> None:
+def test_raise_state_shape_error_includes_name_expected_got_and_code() -> None:
     """raise_state_shape_error should surface name/expected/got clearly."""
-    with pytest.raises(errors.StateShapeError) as excinfo:
+    with pytest.raises(ValueError, match=r"y0 has an invalid shape/value") as excinfo:
         errors.raise_state_shape_error(name="y0", expected="(n_state,)", got=(3, 7))
 
-    msg = str(excinfo.value)
+    exc = excinfo.value
+    msg = str(exc)
+
     assert "y0" in msg
     assert "expected (n_state,)" in msg.lower()
     assert "(3, 7)" in msg
+
+    cause = exc.__cause__
+    assert isinstance(cause, errors.OpEngineFlepimop2Error)
+    assert cause.code == errors.ErrorCode.INVALID_STATE_SHAPE
+
+
+def test_raise_parameter_error_raises_typeerror_and_code() -> None:
+    """raise_parameter_error should raise TypeError and chain a coded cause."""
+    with pytest.raises(TypeError) as excinfo:
+        errors.raise_parameter_error(detail="dt_init must be positive")
+
+    exc = excinfo.value
+    msg = str(exc)
+
+    assert "invalid parameters" in msg.lower()
+    assert "dt_init must be positive" in msg
+
+    cause = exc.__cause__
+    assert isinstance(cause, errors.OpEngineFlepimop2Error)
+    assert cause.code == errors.ErrorCode.INVALID_PARAMETERS

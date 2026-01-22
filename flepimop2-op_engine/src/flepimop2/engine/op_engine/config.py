@@ -1,4 +1,3 @@
-# src/op_engine/flepimop2/config.py
 """Configuration models for the op_engine.flepimop2 engine adapter.
 
 This module defines the pydantic-facing configuration objects used by flepimop2
@@ -65,10 +64,15 @@ class OpEngineEngineConfig(BaseModel):
     )
 
     # Adaptive stepping controls
+    # rtol is relative tolerance; atol is absolute tolerance
     rtol: float = Field(default=1e-6, ge=0.0)
     atol: float = Field(default=1e-9, ge=0.0)
 
     # dt controller controls
+    # dt_min and dt_max set bounds on step size
+    # safety, fac_min, and fac_max control step size adaptation behavior
+    # safety is a scaling factor applied to suggested step sizes
+    # fac_min and fac_max bound the step size change factor
     dt_min: float = Field(default=0.0, ge=0.0)
     dt_max: float = Field(default=float("inf"), gt=0.0)
     safety: float = Field(default=0.9, gt=0.0)

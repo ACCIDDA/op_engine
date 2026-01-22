@@ -1,4 +1,3 @@
-# src/op_engine/flepimop2/types.py
 """Type definitions for the op_engine.flepimop2 integration layer.
 
 This module intentionally avoids runtime imports from flepimop2 so op_engine

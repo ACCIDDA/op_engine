@@ -1,18 +1,15 @@
-# src/op_engine/flepimop2/errors.py
 """Error types and dependency-guard utilities for op_engine.flepimop2.
-
-This module centralizes:
-- explicit error classes with actionable messages, and
-- small helpers to guard optional flepimop2 imports.
 
 Design intent:
 - op_engine can be installed without flepimop2
-- op_engine.flepimop2 fails fast with a clear message if used without the extra
+- op_engine.flepimop2 fails fast with clear, actionable messages if used without
+  the optional extra dependencies.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from importlib.util import find_spec
 from typing import Final
 
@@ -24,8 +21,37 @@ _FLEPIMOP2_EXTRA_INSTALL_MSG: Final[str] = (
 )
 
 
+class ErrorCode(StrEnum):
+    """Machine-readable classification for op_engine.flepimop2 failures.
+
+    Use these codes to support consistent logging and (optional) programmatic
+    recovery without requiring many custom exception subclasses.
+    """
+
+    OPTIONAL_DEPENDENCY_MISSING = "optional_dependency_missing"
+    INVALID_ENGINE_CONFIG = "invalid_engine_config"
+    UNSUPPORTED_METHOD = "unsupported_method"
+    INVALID_STATE_SHAPE = "invalid_state_shape"
+    INVALID_PARAMETERS = "invalid_parameters"
+
+
 class OpEngineFlepimop2Error(Exception):
-    """Base exception for op_engine.flepimop2 integration errors."""
+    """Base exception for op_engine.flepimop2 integration errors.
+
+    This exists so callers can catch integration-layer failures explicitly
+    without depending on a wide taxonomy of custom subclasses.
+    """
+
+    def __init__(self, message: str, *, code: ErrorCode | None = None) -> None:
+        """
+        Initialize an OpEngineFlepimop2Error.
+
+        Args:
+            message: Human-readable error message.
+            code: Optional machine-readable error code classifying the error.
+        """
+        super().__init__(message)
+        self.code: ErrorCode | None = code
 
 
 class OptionalDependencyMissingError(OpEngineFlepimop2Error, ImportError):
@@ -34,18 +60,6 @@ class OptionalDependencyMissingError(OpEngineFlepimop2Error, ImportError):
 
 class EngineConfigError(OpEngineFlepimop2Error, ValueError):
     """Raised when a flepimop2 engine config is invalid or incomplete."""
-
-
-class UnsupportedMethodError(OpEngineFlepimop2Error, ValueError):
-    """Raised when an op_engine method cannot run under current engine config."""
-
-
-class StateShapeError(OpEngineFlepimop2Error, ValueError):
-    """Raised when state/time array shapes are incompatible with the engine adapter."""
-
-
-class ParameterError(OpEngineFlepimop2Error, TypeError):
-    """Raised when parameters passed from flepimop2 are invalid for op_engine."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,7 +72,8 @@ class DependencyStatus:
 
 
 def check_flepimop2_available() -> DependencyStatus:
-    """Check whether flepimop2 is importable.
+    """
+    Check whether flepimop2 is importable.
 
     Returns:
         DependencyStatus describing flepimop2 availability.
@@ -89,18 +104,21 @@ def require_flepimop2() -> None:
         f"Import detail: {status.detail}\n\n"
         f"{_FLEPIMOP2_EXTRA_INSTALL_MSG}"
     )
-    raise OptionalDependencyMissingError(msg)
+    raise OptionalDependencyMissingError(
+        msg, code=ErrorCode.OPTIONAL_DEPENDENCY_MISSING
+    )
 
 
 def raise_unsupported_imex(method: str, *, reason: str) -> None:
-    """Raise a standardized UnsupportedMethodError for IMEX configuration issues.
+    """
+    Raise a standardized error for IMEX configuration issues.
 
     Args:
-        method: Requested method name (for example, "imex-euler").
-        reason: Human-readable reason the method cannot run.
+        method: Name of the IMEX method.
+        reason: Explanation of why the method is unsupported.
 
     Raises:
-        UnsupportedMethodError: Always.
+        ValueError: Always.
     """
     msg = (
         f"Method '{method}' is not supported under the current flepimop2 engine "
@@ -109,7 +127,9 @@ def raise_unsupported_imex(method: str, *, reason: str) -> None:
         "IMEX methods require operator specifications that provide an implicit "
         "linear operator A (or factories for dt-dependent operators)."
     )
-    raise UnsupportedMethodError(msg)
+    raise ValueError(msg) from OpEngineFlepimop2Error(
+        msg, code=ErrorCode.UNSUPPORTED_METHOD
+    )
 
 
 def raise_invalid_engine_config(
@@ -117,11 +137,12 @@ def raise_invalid_engine_config(
     missing: list[str] | None = None,
     detail: str | None = None,
 ) -> None:
-    """Raise a standardized EngineConfigError.
+    """
+    Raise a standardized engine configuration error.
 
     Args:
-        missing: Required config keys that are missing.
-        detail: Optional additional context.
+        missing: List of missing required fields, if any.
+        detail: Additional detail about the configuration issue.
 
     Raises:
         EngineConfigError: Always.
@@ -131,19 +152,40 @@ def raise_invalid_engine_config(
         parts.append(f"Missing required field(s): {sorted(set(missing))}.")
     if detail:
         parts.append(f"Detail: {detail}")
-    raise EngineConfigError(" ".join(parts))
+    msg = " ".join(parts)
+
+    raise EngineConfigError(msg, code=ErrorCode.INVALID_ENGINE_CONFIG)
 
 
 def raise_state_shape_error(*, name: str, expected: str, got: object) -> None:
-    """Raise a standardized StateShapeError.
+    """
+    Raise a standardized state/time array shape error.
 
     Args:
-        name: Name of the object with the shape issue.
-        expected: Human-readable expected shape description.
-        got: Actual observed shape/value.
+        name: Name of the array (for error messages).
+        expected: Description of the expected shape/value.
+        got: Actual value received.
 
     Raises:
-        StateShapeError: Always.
+        ValueError: Always.
     """
     msg = f"{name} has an invalid shape/value. Expected {expected}. Got: {got!r}."
-    raise StateShapeError(msg)
+    raise ValueError(msg) from OpEngineFlepimop2Error(
+        msg, code=ErrorCode.INVALID_STATE_SHAPE
+    )
+
+
+def raise_parameter_error(*, detail: str) -> None:
+    """
+    Raise a standardized parameter/type error.
+
+    Args:
+        detail: Detail text describing the parameter issue.
+
+    Raises:
+        TypeError: Always.
+    """
+    msg = f"Invalid parameters for op_engine.flepimop2 adapter: {detail}"
+    raise TypeError(msg) from OpEngineFlepimop2Error(
+        msg, code=ErrorCode.INVALID_PARAMETERS
+    )
