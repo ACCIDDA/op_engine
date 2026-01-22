@@ -27,9 +27,11 @@ from flepimop2.system.abc import SystemABC, SystemProtocol
 from pydantic import Field
 
 from op_engine.core_solver import CoreSolver
-from op_engine.flepimop2.config import OpEngineEngineConfig
-from op_engine.flepimop2.errors import raise_unsupported_imex
-from op_engine.flepimop2.types import (
+from op_engine.model_core import ModelCore, ModelCoreOptions
+
+from .config import OpEngineEngineConfig
+from .errors import raise_unsupported_imex
+from .types import (
     Float64Array,
     Float64Array2D,
     IdentifierString,
@@ -37,7 +39,6 @@ from op_engine.flepimop2.types import (
     as_float64_state,
     ensure_strictly_increasing_times,
 )
-from op_engine.model_core import ModelCore, ModelCoreOptions
 
 _RHS_BAD_SHAPE_MSG: Final[str] = (
     "RHS received unexpected state shape {actual}; expected {expected}."
@@ -169,7 +170,7 @@ def _make_core(times: Float64Array, y0: Float64Array) -> ModelCore:
     return core
 
 
-class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
+class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
     """
     flepimop2 engine adapter backed by op_engine.CoreSolver.
 
@@ -178,7 +179,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
         config: op_engine adapter configuration.
     """
 
-    module: Literal["op_engine.flepimop2.engine"] = "op_engine.flepimop2.engine"
+    module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
 
     def run(
@@ -240,18 +241,3 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
 
         out = np.column_stack((times, states))
         return np.asarray(out, dtype=np.float64)
-
-
-def build(config: dict[str, object] | ModuleModel) -> OpEngineFlepimop2Engine:
-    """
-    Build an OpEngineFlepimop2Engine from flepimop2 configuration input.
-
-    Args:
-        config: Configuration mapping or ModuleModel instance.
-
-    Returns:
-        Constructed OpEngineFlepimop2Engine instance.
-    """
-    cfg = config.model_dump() if isinstance(config, ModuleModel) else config
-
-    return OpEngineFlepimop2Engine.model_validate(cfg)

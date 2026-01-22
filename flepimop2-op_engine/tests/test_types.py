@@ -1,4 +1,4 @@
-# tests/flepimop2/test_types.py
+# tests/test_types.py
 """Unit tests for op_engine.flepimop2.types."""
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
-from op_engine.flepimop2.types import (
+from flepimop2.engine.op_engine.types import (
     EngineRunner,
     IdentifierString,
     SystemStepper,
@@ -21,8 +21,6 @@ from op_engine.flepimop2.types import (
     ensure_strictly_increasing_times,
     normalize_params,
 )
-
-pytestmark = pytest.mark.flepimop2
 
 
 class _GoodStepper:

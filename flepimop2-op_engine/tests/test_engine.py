@@ -1,5 +1,5 @@
-# tests/flepimop2/test_engine.py
-"""Unit tests for op_engine.flepimop2.engine."""
+# tests/test_engine.py
+"""Unit tests for flepimop2.engine.op_engine.engine."""
 
 from __future__ import annotations
 
@@ -8,15 +8,14 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from flepimop2.system.abc import SystemABC, SystemProtocol
 
-    from op_engine.flepimop2.types import IdentifierString
+    from flepimop2.engine.op_engine.types import IdentifierString
 
 import numpy as np
 import pytest
 
-from op_engine.flepimop2.engine import OpEngineFlepimop2Engine, build
-
-pytestmark = pytest.mark.flepimop2
-
+from flepimop2.engine.op_engine.engine import (
+    _OpEngineFlepimop2EngineImpl,  # noqa: PLC2701
+)
 
 # -----------------------------------------------------------------------------
 # Test helpers
@@ -56,14 +55,13 @@ class _BadSystem:
 # -----------------------------------------------------------------------------
 
 
-def test_build_from_dict() -> None:
-    """Engine can be constructed from a plain config dict."""
-    cfg: dict[str, object] = {"method": "heun"}
+def test_engine_default_config_constructs() -> None:
+    """Engine can be constructed with defaults."""
+    engine = _OpEngineFlepimop2EngineImpl()
 
-    engine = build(cfg)
-
-    assert isinstance(engine, OpEngineFlepimop2Engine)
-    assert engine.config.method == "heun"
+    assert isinstance(engine, _OpEngineFlepimop2EngineImpl)
+    # Default comes from OpEngineEngineConfig; we do not assert its exact value here.
+    assert engine.module == "flepimop2.engine.op_engine"
 
 
 # -----------------------------------------------------------------------------
@@ -73,7 +71,7 @@ def test_build_from_dict() -> None:
 
 def test_engine_run_basic_shape_and_dtype() -> None:
     """Engine returns correctly shaped float64 output array."""
-    engine = OpEngineFlepimop2Engine()
+    engine = _OpEngineFlepimop2EngineImpl()
     system = cast("SystemABC", _GoodSystem())
 
     times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
@@ -94,7 +92,7 @@ def test_engine_run_identity_rhs_behavior() -> None:
 
     This test validates wiring correctness, not numerical accuracy.
     """
-    engine = OpEngineFlepimop2Engine()
+    engine = _OpEngineFlepimop2EngineImpl()
     system = cast("SystemABC", _GoodSystem())
 
     times = np.array([0.0, 0.1, 0.2], dtype=np.float64)
@@ -116,7 +114,7 @@ def test_engine_run_identity_rhs_behavior() -> None:
 
 def test_engine_rejects_non_increasing_times() -> None:
     """Engine rejects non-strictly-increasing time grids."""
-    engine = OpEngineFlepimop2Engine()
+    engine = _OpEngineFlepimop2EngineImpl()
     system = cast("SystemABC", _GoodSystem())
 
     times = np.array([0.0, 0.0, 1.0], dtype=np.float64)
@@ -130,7 +128,7 @@ def test_engine_rejects_non_increasing_times() -> None:
 
 def test_engine_rejects_non_1d_initial_state() -> None:
     """Engine rejects non-1D initial state arrays."""
-    engine = OpEngineFlepimop2Engine()
+    engine = _OpEngineFlepimop2EngineImpl()
     system = cast("SystemABC", _GoodSystem())
 
     times = np.array([0.0, 1.0], dtype=np.float64)
@@ -144,7 +142,7 @@ def test_engine_rejects_non_1d_initial_state() -> None:
 
 def test_engine_rejects_missing_stepper() -> None:
     """Engine raises TypeError if system does not expose a valid stepper."""
-    engine = OpEngineFlepimop2Engine()
+    engine = _OpEngineFlepimop2EngineImpl()
     system = cast("SystemABC", _BadSystem())
 
     times = np.array([0.0, 1.0], dtype=np.float64)

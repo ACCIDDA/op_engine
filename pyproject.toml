@@ -34,19 +34,9 @@ data = [
     "pyarrow>=16.0",
 ]
 
-# Make pydantic explicit because op_engine.flepimop2 imports it (config models).
-flepimop2 = [
-    "pydantic>=2.0,<3",
-    "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git",
-]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-# REQUIRED for hatchling to accept git/direct URL dependencies in optional-dependencies
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [dependency-groups]
 dev = [
@@ -65,7 +55,7 @@ testpaths = [
     "tests/",
 ]
 markers = [
-    "flepimop2: tests requiring the op_engine[flepimop2] extra",
+    "flepimop2: (deprecated) marker previously used for op_engine.flepimop2 integration tests; move these to flepimop2-op_engine",
 ]
 
 [tool.ruff.format]

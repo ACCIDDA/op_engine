@@ -6,7 +6,7 @@ from importlib.util import find_spec
 
 import pytest
 
-from op_engine.flepimop2 import errors
+from flepimop2.engine.op_engine import errors
 
 
 def _flepimop2_is_installed() -> bool:
@@ -14,7 +14,6 @@ def _flepimop2_is_installed() -> bool:
     return find_spec("flepimop2") is not None
 
 
-@pytest.mark.flepimop2
 def test_check_flepimop2_available_matches_environment() -> None:
     """check_flepimop2_available should reflect whether flepimop2 is importable."""
     status = errors.check_flepimop2_available()
@@ -27,7 +26,6 @@ def test_check_flepimop2_available_matches_environment() -> None:
         assert "spec" in status.detail.lower() or "not found" in status.detail.lower()
 
 
-@pytest.mark.flepimop2
 def test_check_flepimop2_available_forced_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -40,7 +38,6 @@ def test_check_flepimop2_available_forced_missing(
     assert status.detail == "Module spec not found"
 
 
-@pytest.mark.flepimop2
 def test_check_flepimop2_available_forced_present(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -55,7 +52,6 @@ def test_check_flepimop2_available_forced_present(
     assert status.detail is None
 
 
-@pytest.mark.flepimop2
 def test_require_flepimop2_raises_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     """require_flepimop2 raises OptionalDependencyMissingError when unavailable."""
     monkeypatch.setattr(errors, "find_spec", lambda _name: None)
@@ -70,7 +66,6 @@ def test_require_flepimop2_raises_when_missing(monkeypatch: pytest.MonkeyPatch) 
     assert "import detail" in msg.lower()
 
 
-@pytest.mark.flepimop2
 def test_require_flepimop2_noop_when_present(monkeypatch: pytest.MonkeyPatch) -> None:
     """require_flepimop2 should not raise when flepimop2 is available."""
     monkeypatch.setattr(errors, "find_spec", lambda _name: object())
@@ -79,7 +74,6 @@ def test_require_flepimop2_noop_when_present(monkeypatch: pytest.MonkeyPatch) ->
     errors.require_flepimop2()
 
 
-@pytest.mark.flepimop2
 def test_raise_unsupported_imex_raises_with_reason() -> None:
     """raise_unsupported_imex raises UnsupportedMethodError with method and reason."""
     method = "imex-euler"
@@ -94,7 +88,6 @@ def test_raise_unsupported_imex_raises_with_reason() -> None:
     assert "imex methods require operator specifications" in msg.lower()
 
 
-@pytest.mark.flepimop2
 def test_raise_invalid_engine_config_includes_missing_and_detail() -> None:
     """raise_invalid_engine_config should include missing keys and detail text."""
     with pytest.raises(errors.EngineConfigError) as excinfo:
@@ -110,7 +103,6 @@ def test_raise_invalid_engine_config_includes_missing_and_detail() -> None:
     assert "detail: bad config shape" in msg.lower()
 
 
-@pytest.mark.flepimop2
 def test_raise_invalid_engine_config_minimal_message() -> None:
     """raise_invalid_engine_config should still raise with a minimal message."""
     with pytest.raises(errors.EngineConfigError) as excinfo:
@@ -120,7 +112,6 @@ def test_raise_invalid_engine_config_minimal_message() -> None:
     assert "invalid op_engine.flepimop2 engine configuration" in msg.lower()
 
 
-@pytest.mark.flepimop2
 def test_raise_state_shape_error_includes_name_expected_got() -> None:
     """raise_state_shape_error should surface name/expected/got clearly."""
     with pytest.raises(errors.StateShapeError) as excinfo:

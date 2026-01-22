@@ -6,12 +6,10 @@ from __future__ import annotations
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
+from op_engine.core_solver import RunConfig  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
-from op_engine.core_solver import RunConfig  # noqa: E402
-from op_engine.flepimop2.config import OpEngineEngineConfig  # noqa: E402
-
-pytestmark = pytest.mark.flepimop2
+from flepimop2.engine.op_engine.config import OpEngineEngineConfig  # noqa: E402
 
 
 def test_engine_config_defaults_to_run_config() -> None:
