@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Final, Literal, Protocol, TypeAlias, TypedDict, runtime_checkable
 
 import numpy as np
+from flepimop2.configuration import IdentifierString  # noqa: TC002
 from numpy.typing import NDArray
 
 # -----------------------------------------------------------------------------
@@ -27,8 +28,6 @@ Float64Array2D: TypeAlias = NDArray[np.float64]
 
 # Generic floating tensor used by internal solver interfaces.
 FloatArray: TypeAlias = NDArray[np.floating]
-
-IdentifierString: TypeAlias = str
 
 _TIME_NOT_1D_MSG: Final[str] = "{name} must be a 1D array"
 _TIME_NOT_INCREASING_MSG: Final[str] = "{name} must be strictly increasing"

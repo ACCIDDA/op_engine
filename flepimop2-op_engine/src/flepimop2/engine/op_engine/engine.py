@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 import numpy as np
-from flepimop2.configuration import ModuleModel
+from flepimop2.configuration import IdentifierString, ModuleModel
 from flepimop2.engine.abc import EngineABC
 from flepimop2.system.abc import SystemABC, SystemProtocol
 from pydantic import Field
@@ -34,7 +34,6 @@ from .errors import raise_unsupported_imex
 from .types import (
     Float64Array,
     Float64Array2D,
-    IdentifierString,
     as_float64_1d_times,
     as_float64_state,
     ensure_strictly_increasing_times,
