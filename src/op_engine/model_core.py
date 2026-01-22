@@ -207,9 +207,6 @@ class ModelCore:
         """
         Number of state tensor dimensions (rank).
 
-        Args:
-            None.
-
         Returns:
             State tensor rank as an integer.
         """
@@ -347,9 +344,6 @@ class ModelCore:
         """
         Current simulation time t = time_grid[current_step].
 
-        Args:
-            None.
-
         Returns:
             Current time as a float.
         """
@@ -424,9 +418,6 @@ class ModelCore:
     def get_current_state(self) -> np.ndarray:
         """
         Retrun the current state.
-
-        Args:
-            None.
 
         Returns:
             Current state, shape state_shape.
