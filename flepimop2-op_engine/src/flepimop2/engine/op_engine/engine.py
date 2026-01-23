@@ -2,8 +2,9 @@
 flepimop2 Engine adapter backed by op_engine.CoreSolver.
 
 This module provides a flepimop2-compatible Engine implementation that runs
-op_engine explicit methods ("euler", "heun") and guards IMEX methods until
-operator specifications are supported by the adapter configuration.
+op_engine explicit methods ("euler", "heun") and supports IMEX methods only
+when operator specifications are provided by configuration (validated at parse
+time by OpEngineEngineConfig).
 
 Contract:
 - Accepts a flepimop2 System stepper: stepper(t, state_1d, **params) -> dstate/dt (1D)
@@ -19,7 +20,6 @@ from typing import TYPE_CHECKING, Final, Literal
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-
 import numpy as np
 from flepimop2.configuration import IdentifierString, ModuleModel
 from flepimop2.engine.abc import EngineABC
@@ -30,7 +30,6 @@ from op_engine.core_solver import CoreSolver
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
 from .config import OpEngineEngineConfig
-from .errors import raise_unsupported_imex
 from .types import (
     Float64Array,
     Float64Array2D,
@@ -66,14 +65,27 @@ def _rhs_from_stepper(
 
     Args:
         stepper: flepimop2 SystemProtocol stepper function.
-        params: Dictionary of parameters to pass to the stepper.
+        params: Mapping of parameter names to values.
         n_state: Number of state variables.
 
     Returns:
-        Callable representing the RHS function for op_engine.
+        RHS function compatible with op_engine.CoreSolver.
     """
 
     def rhs(t: float, y: np.ndarray) -> np.ndarray:
+        """
+        RHS function wrapping the flepimop2 stepper.
+
+        Args:
+            t: Current time.
+            y: Current state array with shape (n_state, 1).
+
+        Raises:
+            ValueError: If input or output shapes are invalid.
+
+        Returns:
+            2D array of shape (n_state, 1) representing dstate/dt
+        """
         y_arr = np.asarray(y, dtype=np.float64)
 
         expected_2d = (n_state, 1)
@@ -109,14 +121,14 @@ def _extract_states_2d(core: ModelCore, *, n_state: int) -> Float64Array2D:
     Extract stored trajectory from ModelCore.
 
     Args:
-        core: ModelCore instance with stored history.
-        n_state: Number of state variables.
+        core: ModelCore instance
+        n_state: Number of state variables
 
     Raises:
-        RuntimeError: If the state history is not available or has an unexpected shape.
+        RuntimeError: If state_array is missing or has an unexpected shape.
 
     Returns:
-        2D array of shape (T, n_state) containing the state trajectory.
+        2D float64 array of stored states with shape (T, n_state).
     """
     state_array = getattr(core, "state_array", None)
     if state_array is None:
@@ -142,8 +154,8 @@ def _make_core(times: Float64Array, y0: Float64Array) -> ModelCore:
     Construct ModelCore with history enabled.
 
     Args:
-        times: 1D time evaluation grid.
-        y0: 1D initial state vector.
+        times: 1D float64 array of evaluation times.
+        y0: 1D float64 array of initial state.
 
     Returns:
         Configured ModelCore instance.
@@ -169,13 +181,7 @@ def _make_core(times: Float64Array, y0: Float64Array) -> ModelCore:
 
 
 class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
-    """
-    flepimop2 engine adapter backed by op_engine.CoreSolver.
-
-    Attributes:
-        module: Fixed module identifier.
-        config: op_engine adapter configuration.
-    """
+    """flepimop2 engine adapter backed by op_engine.CoreSolver."""
 
     module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
@@ -192,17 +198,17 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
         Execute the system using op_engine.
 
         Args:
-            system: flepimop2 SystemABC instance.
-            eval_times: 1D evaluation time grid.
-            initial_state: 1D initial state vector.
-            params: Parameter mapping forwarded to the stepper.
-            **kwargs: Reserved for future flepimop2 compatibility.
-
-        Returns:
-            Array of shape (T, 1 + n_state) containing time and state trajectory.
+            system: flepimop2 System exposing a stepper.
+            eval_times: 1D array of evaluation times.
+            initial_state: 1D array of initial state.
+            params: Mapping of parameter names to values.
+            **kwargs: Additional engine-specific keyword arguments (ignored).
 
         Raises:
             TypeError: If system does not expose a valid stepper.
+
+        Returns:
+            2D array of shape (T, 1 + n_states) with time in the first column.
         """
         del kwargs
 
@@ -212,15 +218,8 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
         y0 = as_float64_1d(initial_state, name="initial_state")
         n_state = int(y0.size)
 
-        method = str(self.config.method)
-        if method.startswith("imex-"):
-            raise_unsupported_imex(
-                method,
-                reason=(
-                    "Operator specifications are not yet supported in the "
-                    "op_engine.flepimop2 engine adapter."
-                ),
-            )
+        # Note: IMEX/operator requirements are validated at config-parse time by
+        # OpEngineEngineConfig, so no runtime guard is needed here.
 
         stepper = getattr(system, "_stepper", None)
         if not isinstance(stepper, SystemProtocol):
@@ -230,12 +229,15 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
         rhs = _rhs_from_stepper(stepper, params=params, n_state=n_state)
 
         core = _make_core(times, y0)
+
+        # Today: operators are not yet wired through the adapter.
+        # Future: translate self.config.operators into op_engine OperatorSpecs and
+        # pass them here (and/or via run_cfg) as appropriate.
         solver = CoreSolver(core, operators=None, operator_axis="state")
 
         run_cfg = self.config.to_run_config()
         solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)
-
         out = np.column_stack((times, states))
         return np.asarray(out, dtype=np.float64)

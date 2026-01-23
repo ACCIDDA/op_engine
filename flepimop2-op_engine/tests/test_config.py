@@ -6,10 +6,14 @@ from __future__ import annotations
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
-from op_engine.core_solver import RunConfig  # noqa: E402
+from op_engine.core_solver import OperatorSpecs, RunConfig  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
 from flepimop2.engine.op_engine.config import OpEngineEngineConfig  # noqa: E402
+
+
+def _has_any_operator_specs(specs: OperatorSpecs) -> bool:
+    return any(getattr(specs, name) is not None for name in ("default", "tr", "bdf2"))
 
 
 def test_engine_config_defaults_to_run_config() -> None:
@@ -33,10 +37,9 @@ def test_engine_config_defaults_to_run_config() -> None:
     assert run.dt_controller.fac_min == pytest.approx(0.2)
     assert run.dt_controller.fac_max == pytest.approx(5.0)
 
-    # Operators intentionally omitted for now
-    assert run.operators.default is None
-    assert run.operators.tr is None
-    assert run.operators.bdf2 is None
+    # Operators exist and are empty by default
+    assert isinstance(run.operators, OperatorSpecs)
+    assert not _has_any_operator_specs(run.operators)
 
     # Gamma defaults
     assert run.gamma is None
@@ -93,20 +96,65 @@ def test_engine_config_rejects_unknown_method() -> None:
 
 def test_engine_config_gamma_bounds_validation() -> None:
     """Engine config validates gamma bounds for imex-trbdf2 method."""
-    cfg = OpEngineEngineConfig(method="imex-trbdf2", gamma=0.6)
+    # IMEX requires operators at parse-time.
+    cfg = OpEngineEngineConfig(
+        method="imex-trbdf2",
+        gamma=0.6,
+        operators={"default": "sentinel"},
+    )
     run = cfg.to_run_config()
     assert run.method == "imex-trbdf2"
     assert run.gamma == pytest.approx(0.6)
 
     # invalid: gamma must be in (0, 1)
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-trbdf2", gamma=0.0)
+        OpEngineEngineConfig(
+            method="imex-trbdf2",
+            gamma=0.0,
+            operators={"default": "sentinel"},
+        )
 
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-trbdf2", gamma=1.0)
+        OpEngineEngineConfig(
+            method="imex-trbdf2",
+            gamma=1.0,
+            operators={"default": "sentinel"},
+        )
 
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-trbdf2", gamma=-0.1)
+        OpEngineEngineConfig(
+            method="imex-trbdf2",
+            gamma=-0.1,
+            operators={"default": "sentinel"},
+        )
 
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-trbdf2", gamma=1.1)
+        OpEngineEngineConfig(
+            method="imex-trbdf2",
+            gamma=1.1,
+            operators={"default": "sentinel"},
+        )
+
+
+def test_engine_config_imex_requires_operators() -> None:
+    """IMEX methods should require operator specifications at config-parse time."""
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(method="imex-euler")
+
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(method="imex-heun-tr")
+
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(method="imex-trbdf2", gamma=0.5)
+
+    # Providing operators should pass validation.
+    cfg = OpEngineEngineConfig(
+        method="imex-euler",
+        operators={"default": "sentinel"},
+    )
+    run = cfg.to_run_config()
+    assert run.method == "imex-euler"
+
+    # Current implementation does not translate self.operators into OperatorSpecs yet.
+    assert isinstance(run.operators, OperatorSpecs)
+    assert not _has_any_operator_specs(run.operators)
