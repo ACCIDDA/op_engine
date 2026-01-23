@@ -207,7 +207,7 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
         """
         del kwargs
 
-        times = as_float64_1d_times(eval_times, name="eval_times")
+        times = as_float64_1d(eval_times, name="eval_times")
         ensure_strictly_increasing_times(times, name="eval_times")
 
         y0 = as_float64_state(initial_state, name="initial_state")
