@@ -177,32 +177,6 @@ def as_float64_1d(x: object, *, name: str = "array") -> Float64Array:
     return np.ascontiguousarray(arr)
 
 
-def as_float64_1d_times(x: object, *, name: str = "times") -> Float64Array:
-    """Convert input to a contiguous float64 1D time array.
-
-    Args:
-        x: Input time array-like.
-        name: Name used in error messages.
-
-    Returns:
-        Contiguous float64 1D time array.
-    """
-    return as_float64_1d(x, name=name)
-
-
-def as_float64_state(x: object, *, name: str = "state") -> Float64Array:
-    """Convert input to a contiguous float64 1D state array.
-
-    Args:
-        x: Input state array-like.
-        name: Name used in error messages.
-
-    Returns:
-        Contiguous float64 1D state array.
-    """
-    return as_float64_1d(x, name=name)
-
-
 def ensure_strictly_increasing_times(
     times: Float64Array, *, name: str = "times"
 ) -> None:

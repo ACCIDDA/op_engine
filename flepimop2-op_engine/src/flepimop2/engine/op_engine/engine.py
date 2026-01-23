@@ -34,8 +34,7 @@ from .errors import raise_unsupported_imex
 from .types import (
     Float64Array,
     Float64Array2D,
-    as_float64_1d_times,
-    as_float64_state,
+    as_float64_1d,
     ensure_strictly_increasing_times,
 )
 
@@ -210,7 +209,7 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
         times = as_float64_1d(eval_times, name="eval_times")
         ensure_strictly_increasing_times(times, name="eval_times")
 
-        y0 = as_float64_state(initial_state, name="initial_state")
+        y0 = as_float64_1d(initial_state, name="initial_state")
         n_state = int(y0.size)
 
         method = str(self.config.method)

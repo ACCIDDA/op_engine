@@ -16,8 +16,6 @@ from flepimop2.engine.op_engine.types import (
     IdentifierString,
     SystemStepper,
     as_float64_1d,
-    as_float64_1d_times,
-    as_float64_state,
     ensure_strictly_increasing_times,
     normalize_params,
 )
@@ -100,24 +98,6 @@ def test_as_float64_1d_is_contiguous() -> None:
     assert out.shape == (6,)
 
 
-def test_as_float64_1d_times_converts() -> None:
-    """as_float64_1d_times converts input to float64 1D time array."""
-    x = [0, 1, 2, 3]
-    out = as_float64_1d_times(x, name="times")
-    assert out.dtype == np.float64
-    assert out.ndim == 1
-    np.testing.assert_allclose(out, np.array([0.0, 1.0, 2.0, 3.0], dtype=np.float64))
-
-
-def test_as_float64_state_converts() -> None:
-    """as_float64_state converts input to float64 1D state array."""
-    x = [10, 20, 30]
-    out = as_float64_state(x, name="state")
-    assert out.dtype == np.float64
-    assert out.ndim == 1
-    np.testing.assert_allclose(out, np.array([10.0, 20.0, 30.0], dtype=np.float64))
-
-
 def test_ensure_strictly_increasing_times_accepts_trivial() -> None:
     """ensure_strictly_increasing_times should accept empty/length-1 times."""
     ensure_strictly_increasing_times(np.array([], dtype=np.float64), name="times")
@@ -167,8 +147,8 @@ def test_good_runner_produces_time_by_state_array() -> None:
     runner = _GoodRunner()
     stepper = _GoodStepper()
 
-    times = as_float64_1d_times([0, 1, 2], name="times")
-    y0 = as_float64_state([1, 2, 3], name="y0")
+    times = as_float64_1d([0, 1, 2], name="times")
+    y0 = as_float64_1d([1, 2, 3], name="y0")
     params = normalize_params({"x": 1.0})
 
     res = runner(stepper, times, y0, params)
