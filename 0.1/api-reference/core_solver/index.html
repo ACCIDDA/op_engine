@@ -1,0 +1,3009 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.1/api-reference/core_solver/">
+      
+      
+        <link rel="prev" href="../../guides/getting-started/">
+      
+      
+        <link rel="next" href="../matrix_ops/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Core Solver - op_engine Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core-solver" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest version.
+  <a href="../../..">
+    <strong>Click here to go to latest.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            op_engine Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Core Solver
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    op_engine Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Solver
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#op_engine.core_solver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        core_solver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="core_solver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.AdaptiveAdvanceParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdaptiveAdvanceParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.AdaptiveConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdaptiveConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoreSolver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CoreSolver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.DtControllerConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DtControllerConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.ImexEulerOnceParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImexEulerOnceParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.ImplicitStageParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImplicitStageParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.OperatorLike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OperatorLike
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OperatorLike">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.OperatorLike.shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.OperatorSpecs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OperatorSpecs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.PredictorLike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PredictorLike
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PredictorLike">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.PredictorLike.__matmul__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __matmul__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.RunConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.RunPlan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunPlan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.StepIO" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StepIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.Trbdf2OnceParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trbdf2OnceParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../matrix_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Matrix Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model_core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#op_engine.core_solver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        core_solver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="core_solver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.AdaptiveAdvanceParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdaptiveAdvanceParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.AdaptiveConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdaptiveConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoreSolver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CoreSolver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.DtControllerConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DtControllerConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.ImexEulerOnceParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImexEulerOnceParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.ImplicitStageParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImplicitStageParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.OperatorLike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OperatorLike
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OperatorLike">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.OperatorLike.shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.OperatorSpecs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OperatorSpecs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.PredictorLike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PredictorLike
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PredictorLike">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.PredictorLike.__matmul__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __matmul__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.RunConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.RunPlan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunPlan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.StepIO" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StepIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.Trbdf2OnceParams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trbdf2OnceParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="core-solver">Core Solver<a class="headerlink" href="#core-solver" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="op_engine.core_solver" class="doc doc-heading">
+            <code>core_solver</code>
+
+
+<a href="#op_engine.core_solver" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Core semi-implicit solver for time-evolving models (ODE + IMEX multiphysics).</p>
+<p>This solver advances a :class:<code>op_engine.model_core.ModelCore</code> instance over its
+configured time grid. In the updated semantics, ModelCore.time_grid is treated
+as <em>output times</em>: the times at which the user wants a stored solution state.</p>
+<p>Between consecutive output times, the solver may take either:
+- exactly one step of size dt = t_{i+1} - t_i (adaptive=False), or
+- multiple internal adaptive substeps that land exactly on t_{i+1} (adaptive=True).</p>
+<p>Supported methods (keyword <code>method=</code>):
+    - "euler":        Explicit Euler (order 1), adaptive via step-doubling.
+    - "heun":         Explicit Heun / RK2 (order 2), embedded Euler estimator.
+    - "imex-euler":   IMEX Euler: explicit Euler on F(t,y), implicit Euler on A.
+                      Adaptive via step-doubling (IMEX step-doubling).
+    - "imex-heun-tr": IMEX Heun-Trapezoidal: Heun on F, trapezoidal/CN on A.
+                      Adaptive via embedded low/high (Euler vs Heun) mapped by the
+                      same implicit operator solve.
+    - "imex-trbdf2":  IMEX TR-BDF2 (order 2), adaptive via step-doubling.</p>
+
+
+<details class="imex-structure" open>
+  <summary>IMEX structure</summary>
+  <p>We assume a split system:
+    y' = A(t,y) y + F(t,y)
+where F is provided by rhs_func(t, y), and A is represented by linear operators
+applied along a single tensor axis. Operators may be:
+    - None (ODE-only / explicit-only behavior), or
+    - provided as tuples (predictor?, L, R), or
+    - provided as factories depending on dt, stage-scale, and context.</p>
+</details>
+
+<details class="operator-application" open>
+  <summary>Operator application</summary>
+  <p>Operators act along a configured axis (default "state"). All other axes are
+batched. The solve form is:
+    L @ y_next = R @ x
+optionally with a preprocessing predictor:
+    x_tilde = predictor @ x</p>
+</details>
+
+<details class="non-uniform-dt" open>
+  <summary>Non-uniform dt</summary>
+  <ul>
+<li>Explicit methods naturally support non-uniform dt.</li>
+<li>Implicit/IMEX methods require operator factories whenever dt varies across
+  steps (non-uniform output grid or adaptive stepping), because L/R depend on dt.</li>
+</ul>
+</details>
+
+<details class="performance-hygiene" open>
+  <summary>Performance hygiene</summary>
+  <ul>
+<li>All major scratch arrays are preallocated.</li>
+<li>Inner loops use in-place NumPy ops and np.copyto.</li>
+<li>Implicit solves are delegated to matrix_ops.implicit_solve (cached factorization).</li>
+</ul>
+</details>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.AdaptiveAdvanceParams" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">AdaptiveAdvanceParams</span><span class="p">(</span><span class="n">plan</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">adaptive_cfg</span><span class="p">,</span> <span class="n">dt_ctrl</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.AdaptiveAdvanceParams" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Bundle of parameters for adaptive advancement to an output time.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.plan">plan</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="RunPlan(method, gamma, op_default, op_tr, op_bdf2)
+
+  
+      dataclass
+   (op_engine.core_solver.RunPlan)" href="#op_engine.core_solver.RunPlan">RunPlan</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Resolved run plan.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.t0">t0</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Start time.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.t1">t1</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>End/output time.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.y0">y0</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Initial state at t0.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.adaptive_cfg">adaptive_cfg</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="AdaptiveConfig(rtol=1e-06, atol=1e-09, dt_init=None, max_reject=25, max_steps=1000000)
+
+  
+      dataclass
+   (op_engine.core_solver.AdaptiveConfig)" href="#op_engine.core_solver.AdaptiveConfig">AdaptiveConfig</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Adaptive stepping configuration.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.dt_ctrl">dt_ctrl</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="DtControllerConfig(dt_min=0.0, dt_max=float('inf'), safety=0.9, fac_min=0.2, fac_max=5.0)
+
+  
+      dataclass
+   (op_engine.core_solver.DtControllerConfig)" href="#op_engine.core_solver.DtControllerConfig">DtControllerConfig</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>dt controller configuration.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.AdaptiveConfig" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">AdaptiveConfig</span><span class="p">(</span><span class="n">rtol</span><span class="o">=</span><span class="mf">1e-06</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-09</span><span class="p">,</span> <span class="n">dt_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_reject</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">max_steps</span><span class="o">=</span><span class="mi">1000000</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.AdaptiveConfig" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Configuration for adaptive stepping.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveConfig.rtol">rtol</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Relative tolerance.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveConfig.atol">atol</span></code></td>
+            <td>
+                  <code><span title="float">float</span> | <span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Absolute tolerance (scalar or array-like).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveConfig.dt_init">dt_init</span></code></td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional initial dt guess; if None, use output dt.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveConfig.max_reject">max_reject</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum number of rejected attempts per accepted step.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.AdaptiveConfig.max_steps">max_steps</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum number of internal substeps per output interval.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.CoreSolver" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">CoreSolver</span><span class="p">(</span><span class="n">core</span><span class="p">,</span> <span class="n">operators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">operator_axis</span><span class="o">=</span><span class="s1">&#39;state&#39;</span><span class="p">)</span></code>
+
+<a href="#op_engine.core_solver.CoreSolver" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Semi-implicit solver operating on a ModelCore time/state grid.</p>
+
+        <p>Initialize CoreSolver.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>core</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ModelCore(n_states, n_subgroups, time_grid, *, options=None) (op_engine.model_core.ModelCore)" href="../model_core/#op_engine.model_core.ModelCore">ModelCore</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>ModelCore instance to solve.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>operators</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Default operator spec (tuple or factory) for implicit stages.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>operator_axis</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Axis along which operators act (name or index).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;state&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
+    <span class="n">operators</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">operator_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">=</span> <span class="s2">&quot;state&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize CoreSolver.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        core: ModelCore instance to solve.</span>
+<span class="sd">        operators: Default operator spec (tuple or factory) for implicit stages.</span>
+<span class="sd">        operator_axis: Axis along which operators act (name or index).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">core</span> <span class="o">=</span> <span class="n">core</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">state_shape</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state_ndim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">)</span>
+
+    <span class="c1"># Operator axis resolution</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_op_axis</span> <span class="o">=</span> <span class="n">operator_axis</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_op_axis_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_op_axis_len</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Default operator spec (tuple or factory or None)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_default_operator_spec</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">operators</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Preallocate buffers (full tensor shape)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_next_state_buffer</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+
+    <span class="c1"># Shared stepping buffers</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f_n</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f_pred</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_state_pred</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+
+    <span class="c1"># Adaptive buffers</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_full</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_half</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_two_half</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_low</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_err</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_scale</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_ratio</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+
+    <span class="c1"># Working state buffers (avoid allocating per substep)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_try</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+
+    <span class="c1"># TR-BDF2 additional buffers</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_y_stage1</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f_stage1</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f_extrap</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+
+    <span class="c1"># Validate operator sizes if default spec is a static tuple</span>
+    <span class="k">if</span> <span class="n">operators</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">operators</span><span class="p">):</span>
+        <span class="n">_predictor</span><span class="p">,</span> <span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_ops_tuple</span><span class="p">(</span><span class="n">operators</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">left_op</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right_op</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_operator_axis</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_operator_sizes</span><span class="p">(</span><span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.core_solver.CoreSolver.run" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#op_engine.core_solver.CoreSolver.run" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Advance the ModelCore state through its time grid.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>rhs_func</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.core_solver.RHSFunction">RHSFunction</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function computing the explicit RHS F(t, y).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>config</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), gamma=None)
+
+  
+      dataclass
+   (op_engine.core_solver.RunConfig)" href="#op_engine.core_solver.RunConfig">RunConfig</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional run configuration. If None, defaults are used.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If invalid parameters are provided.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1608</span>
+<span class="normal">1609</span>
+<span class="normal">1610</span>
+<span class="normal">1611</span>
+<span class="normal">1612</span>
+<span class="normal">1613</span>
+<span class="normal">1614</span>
+<span class="normal">1615</span>
+<span class="normal">1616</span>
+<span class="normal">1617</span>
+<span class="normal">1618</span>
+<span class="normal">1619</span>
+<span class="normal">1620</span>
+<span class="normal">1621</span>
+<span class="normal">1622</span>
+<span class="normal">1623</span>
+<span class="normal">1624</span>
+<span class="normal">1625</span>
+<span class="normal">1626</span>
+<span class="normal">1627</span>
+<span class="normal">1628</span>
+<span class="normal">1629</span>
+<span class="normal">1630</span>
+<span class="normal">1631</span>
+<span class="normal">1632</span>
+<span class="normal">1633</span>
+<span class="normal">1634</span>
+<span class="normal">1635</span>
+<span class="normal">1636</span>
+<span class="normal">1637</span>
+<span class="normal">1638</span>
+<span class="normal">1639</span>
+<span class="normal">1640</span>
+<span class="normal">1641</span>
+<span class="normal">1642</span>
+<span class="normal">1643</span>
+<span class="normal">1644</span>
+<span class="normal">1645</span>
+<span class="normal">1646</span>
+<span class="normal">1647</span>
+<span class="normal">1648</span>
+<span class="normal">1649</span>
+<span class="normal">1650</span>
+<span class="normal">1651</span>
+<span class="normal">1652</span>
+<span class="normal">1653</span>
+<span class="normal">1654</span>
+<span class="normal">1655</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Advance the ModelCore state through its time grid.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rhs_func: Function computing the explicit RHS F(t, y).</span>
+<span class="sd">        config: Optional run configuration. If None, defaults are used.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If invalid parameters are provided.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">RunConfig</span><span class="p">()</span>
+    <span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_run_plan</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+
+    <span class="n">time_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">time_grid</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">n_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_grid</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+        <span class="n">t1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_grid</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">t1</span> <span class="o">&lt;=</span> <span class="n">t0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_TIME_GRID_INCREASING_ERROR_MSG</span><span class="p">)</span>
+        <span class="n">dt_out</span> <span class="o">=</span> <span class="n">t1</span> <span class="o">-</span> <span class="n">t0</span>
+
+        <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cfg</span><span class="o">.</span><span class="n">adaptive</span><span class="p">:</span>
+            <span class="n">y_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_nonadaptive_to_time</span><span class="p">(</span>
+                <span class="n">rhs_func</span><span class="p">,</span>
+                <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
+                <span class="n">t0</span><span class="o">=</span><span class="n">t0</span><span class="p">,</span>
+                <span class="n">dt_out</span><span class="o">=</span><span class="n">dt_out</span><span class="p">,</span>
+                <span class="n">y0</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">advance_timestep</span><span class="p">(</span><span class="n">y_next</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="n">y_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_adaptive_to_time</span><span class="p">(</span>
+            <span class="n">rhs_func</span><span class="p">,</span>
+            <span class="n">AdaptiveAdvanceParams</span><span class="p">(</span>
+                <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
+                <span class="n">t0</span><span class="o">=</span><span class="n">t0</span><span class="p">,</span>
+                <span class="n">t1</span><span class="o">=</span><span class="n">t1</span><span class="p">,</span>
+                <span class="n">y0</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">,</span>
+                <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">adaptive_cfg</span><span class="p">,</span>
+                <span class="n">dt_ctrl</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">dt_controller</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">advance_timestep</span><span class="p">(</span><span class="n">y_end</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.DtControllerConfig" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">DtControllerConfig</span><span class="p">(</span><span class="n">dt_min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dt_max</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">safety</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">fac_min</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">fac_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.DtControllerConfig" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Configuration for adaptive timestep control.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.DtControllerConfig.dt_min">dt_min</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum allowed dt.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.DtControllerConfig.dt_max">dt_max</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum allowed dt.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.DtControllerConfig.safety">safety</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Safety factor applied to dt updates.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.DtControllerConfig.fac_min">fac_min</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum multiplicative change factor.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.DtControllerConfig.fac_max">fac_max</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum multiplicative change factor.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.ImexEulerOnceParams" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">ImexEulerOnceParams</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">op_spec</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.ImexEulerOnceParams" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Bundle of parameters for one IMEX Euler step (non-doubling).</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImexEulerOnceParams.t">t</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Current time.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImexEulerOnceParams.y">y</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Current state.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImexEulerOnceParams.dt">dt</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Step size.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImexEulerOnceParams.op_spec">op_spec</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Operator spec for implicit stage.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImexEulerOnceParams.out">out</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output state array (written in-place).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.ImplicitStageParams" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">ImplicitStageParams</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">t_stage</span><span class="p">,</span> <span class="n">y_stage</span><span class="p">,</span> <span class="n">stage</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.ImplicitStageParams" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Bundle of parameters for one implicit operator application.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.spec">spec</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Operator spec (tuple or factory) or None for identity.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.dt">dt</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Full-step dt for operator factory context.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.scale">scale</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stage scaling factor for dt-dependent operators.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.t_stage">t_stage</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stage time.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.y_stage">y_stage</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stage state proxy for operator factories.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.stage">stage</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stage label (e.g., "be", "tr", "bdf2").</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.x">x</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Input array to map.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.ImplicitStageParams.out">out</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output array (written in-place).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.OperatorLike" class="doc doc-heading">
+            <code>OperatorLike</code>
+
+
+<a href="#op_engine.core_solver.OperatorLike" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Minimal operator interface required by CoreSolver.</p>
+<p>Implementations are expected to behave like 2D linear operators suitable for
+implicit_solve(L, R, rhs2d). Only shape is required for validation.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="op_engine.core_solver.OperatorLike.shape" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">shape</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.OperatorLike.shape" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the operator shape.</p>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.OperatorSpecs" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">OperatorSpecs</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bdf2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.OperatorSpecs" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Operator specifications for implicit/IMEX methods.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.OperatorSpecs.default">default</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Default operator spec (tuple or factory) used by IMEX Euler/Heun-TR
+and as a fallback for TR/BDF2 stages.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.OperatorSpecs.tr">tr</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Operator spec for trapezoidal stage of TR-BDF2 (optional).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.OperatorSpecs.bdf2">bdf2</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Operator spec for BDF2 stage of TR-BDF2 (optional).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.PredictorLike" class="doc doc-heading">
+            <code>PredictorLike</code>
+
+
+<a href="#op_engine.core_solver.PredictorLike" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Minimal predictor interface required by CoreSolver.</p>
+
+
+<details class="the-predictor-is-an-optional-preprocessing-operator-applied-as" open>
+  <summary>The predictor is an optional preprocessing operator applied as</summary>
+  <p>rhs2d = predictor @ rhs2d</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.core_solver.PredictorLike.__matmul__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__matmul__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span></code>
+
+<a href="#op_engine.core_solver.PredictorLike.__matmul__" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply the predictor to a 2D array.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply the predictor to a 2D array.&quot;&quot;&quot;</span>
+    <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.RunConfig" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;heun&#39;</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.RunConfig" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Configuration for CoreSolver.run.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.method">method</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Method name.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.adaptive">adaptive</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to use adaptive substepping between output times.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.strict">strict</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, invalid configurations raise; otherwise warnings and
+method downshifts may occur.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.dt_controller">dt_controller</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="DtControllerConfig(dt_min=0.0, dt_max=float('inf'), safety=0.9, fac_min=0.2, fac_max=5.0)
+
+  
+      dataclass
+   (op_engine.core_solver.DtControllerConfig)" href="#op_engine.core_solver.DtControllerConfig">DtControllerConfig</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameters for dt controller when adaptive=True.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.adaptive_cfg">adaptive_cfg</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="AdaptiveConfig(rtol=1e-06, atol=1e-09, dt_init=None, max_reject=25, max_steps=1000000)
+
+  
+      dataclass
+   (op_engine.core_solver.AdaptiveConfig)" href="#op_engine.core_solver.AdaptiveConfig">AdaptiveConfig</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameters controlling error tolerances and limits.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.operators">operators</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="OperatorSpecs(default=None, tr=None, bdf2=None)
+
+  
+      dataclass
+   (op_engine.core_solver.OperatorSpecs)" href="#op_engine.core_solver.OperatorSpecs">OperatorSpecs</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Operator specifications for implicit/IMEX methods.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.gamma">gamma</span></code></td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional TR-BDF2 gamma (if None, uses default).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.RunPlan" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">RunPlan</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">op_default</span><span class="p">,</span> <span class="n">op_tr</span><span class="p">,</span> <span class="n">op_bdf2</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.RunPlan" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Resolved execution plan derived from RunConfig.</p>
+<p>This is the internal, validated form used by the stepping loops.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.method">method</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.MethodName">MethodName</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Final method after any strict=False downshifts.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.gamma">gamma</span></code></td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>TR-BDF2 gamma, or None for non-TR-BDF2 methods.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.op_default">op_default</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Operator spec for IMEX Euler/Heun-TR.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.op_tr">op_tr</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>TR-stage operator spec for TR-BDF2.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.op_bdf2">op_bdf2</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BDF2-stage operator spec for TR-BDF2.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.StepIO" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">StepIO</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">err_out</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.StepIO" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Bundle of per-step state for stepping kernels.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.StepIO.t">t</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Current time.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.StepIO.dt">dt</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Step size.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.StepIO.y">y</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Current state array (input).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.StepIO.out">out</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output state array (written in-place).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.StepIO.err_out">err_out</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Error estimate array (written in-place) for adaptive methods.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.Trbdf2OnceParams" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">Trbdf2OnceParams</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">operators_tr</span><span class="p">,</span> <span class="n">operators_bdf2</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.Trbdf2OnceParams" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Bundle of parameters for one TR-BDF2 step (non-doubling).</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.t">t</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Current time.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.y">y</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Current state.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.dt">dt</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Step size.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.operators_tr">operators_tr</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>TR stage operator spec.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.operators_bdf2">operators_bdf2</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.CoreOperators">CoreOperators</span> | <span title="op_engine.core_solver.StageOperatorFactory">StageOperatorFactory</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BDF2 stage operator spec.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.gamma">gamma</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>TR-BDF2 gamma.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.Trbdf2OnceParams.out">out</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output state array (written in-place).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
