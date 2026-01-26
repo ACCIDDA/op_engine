@@ -62,7 +62,7 @@ jobs:
           uv run -qq python version.py >> $GITHUB_OUTPUT
           rm version.py
       - name: 'Build API Reference'
-        run: 'just reference'
+        run: 'just api-reference'
       - name: 'Deploy to GitHub Pages'
         run: |
           uv run mike set-default latest
