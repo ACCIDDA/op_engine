@@ -1,39 +1,85 @@
 # Run all default tasks for local development
 default: format check pytest mypy
 
-# Format code using `ruff`
+# -------------------------------------------------
+# Formatting
+# -------------------------------------------------
+
 format:
-    uv run ruff format --preview
+	uv run ruff format --preview
 
-# Check code using `ruff`
 check:
-    uv run ruff check --preview --fix
+	uv run ruff check --preview --fix
 
-# Run tests using `pytest`
+
+# -------------------------------------------------
+# Provider venv + deps (explicit step)
+# -------------------------------------------------
+
+# Create/refresh the provider venv and install all deps (including dev group).
+# Run this once before running provider pytest/mypy if you aren't using `ci`.
+provider-sync:
+	cd flepimop2-op_engine && uv venv --clear
+	cd flepimop2-op_engine && uv sync --dev
+
+
+# -------------------------------------------------
+# Tests
+# -------------------------------------------------
+
+pytest-core:
+	uv run pytest --doctest-modules
+
+# Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
+pytest-provider:
+	cd flepimop2-op_engine && .venv/bin/python -m pytest --doctest-modules
+
 pytest:
-    uv run pytest --doctest-modules
+	just pytest-core
+	just pytest-provider
 
-# Type check using `mypy`
+
+# -------------------------------------------------
+# Type checking
+# -------------------------------------------------
+
+mypy-core:
+	uv run mypy --strict src/op_engine
+
+# Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
+mypy-provider:
+	cd flepimop2-op_engine && .venv/bin/python -m mypy --strict src/flepimop2
+
 mypy:
-    uv run mypy --strict .
+	just mypy-core
+	just mypy-provider
 
-# Run all CI checks
+
+# -------------------------------------------------
+# CI aggregate
+# -------------------------------------------------
+
 ci:
-    uv run ruff format --preview --check
-    uv run ruff check --preview --no-fix
-    uv run pytest --doctest-modules
-    uv run mypy --strict .
+	uv run ruff format --preview --check
+	uv run ruff check --preview --no-fix
+	just provider-sync
+	just pytest
+	just mypy
 
-# Clean up generated lock files, venvs, and caches
+
+# -------------------------------------------------
+# Utilities
+# -------------------------------------------------
+
 clean:
-    rm -f uv.lock
-    rm -rf .*_cache
-    rm -rf .venv
+	rm -f uv.lock
+	rm -rf .*_cache
+	rm -rf .venv
+	rm -rf flepimop2-op_engine/.venv
+	rm -f flepimop2-op_engine/uv.lock
 
-# Build the documentation using `mkdocs`
 docs:
-    uv run mkdocs build --verbose --strict
+	uv run mkdocs build --verbose --strict
 
-# Serve the documentation locally using `mkdocs`
 serve:
-    uv run mkdocs serve
+	uv run mkdocs serve

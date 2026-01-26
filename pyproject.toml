@@ -1,7 +1,7 @@
 [project]
 name = "op_engine"
 version = "0.1.0"
-description = "Multiphysics integration engine for ODEs and PDEs using implicit–explicit operator splitting"
+description = "Multiphysics integration engine for ODEs and PDEs using implicit-explicit operator splitting"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 license = { file = "LICENSE" }
@@ -15,7 +15,6 @@ dependencies = [
     "scipy>=1.11",
 ]
 
-# Recommended for PyPI discoverability and tooling.
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -55,6 +54,9 @@ testpaths = [
     "src/op_engine/",
     "tests/",
 ]
+markers = [
+    "flepimop2: (deprecated) marker previously used for op_engine.flepimop2 integration tests; move these to flepimop2-op_engine",
+]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -79,8 +81,6 @@ convention = "google"
 [tool.mypy]
 exclude = ["examples/"]
 
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/op_engine"]
 include = ["src/op_engine/py.typed"]
-
