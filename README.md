@@ -7,6 +7,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 - Strong typing, minimal dependencies (NumPy + SciPy for implicit paths).
 - Separates state/time management (`ModelCore`) from stepping logic (`CoreSolver`).
 - Optional adapters (e.g., flepimop2) without affecting the core API.
+- IMEX paths accept externally supplied operator tuples; defaults remain explicit-only.
 
 ## Installation
 
@@ -46,7 +47,7 @@ solution = core.state_array  # shape (n_timesteps, state, subgroup)
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
 - `CoreSolver`: explicit and IMEX stepping; methods: `euler`, `heun`, `imex-euler`, `imex-heun-tr`, `imex-trbdf2`.
 - Operator utilities (`matrix_ops`): Laplacian builders, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, grouped aggregation utilities.
-- Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package.
+- Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. Adapter merges any `mixing_kernels` exposed by op_system and will consume config-supplied IMEX operator tuples when provided.
 
 ## Development
 
