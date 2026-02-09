@@ -288,11 +288,6 @@ class ModelCore:
 
         Raises:
             ValueError: if x does not have shape state_shape.
-
-        Contract:
-            - x2d has shape (axis_len, batch)
-            - batch is the product of all non-axis dimensions
-            - unreshape_from_axis_solve(inverse) reconstructs exactly.
         """
         x_arr = np.asarray(x, dtype=self.dtype)
         if x_arr.shape != self.state_shape:

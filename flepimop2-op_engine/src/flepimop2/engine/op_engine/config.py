@@ -86,14 +86,16 @@ class OpEngineEngineConfig(BaseModel):
             fac_max=self.fac_max,
         )
 
-        # Today: keep operators empty/default; later you can translate self.operators
-        # into OperatorSpecs() here.
+        # Operators are validated for presence (for IMEX) but intentionally not
+        # translated yet; keep RunConfig operators empty until wiring is added.
+        op_specs: OperatorSpecs | None = None
+
         return RunConfig(
             method=self.method,
             adaptive=self.adaptive,
             strict=self.strict,
             adaptive_cfg=adaptive_cfg,
             dt_controller=dt_controller,
-            operators=OperatorSpecs(),
+            operators=op_specs or OperatorSpecs(),
             gamma=self.gamma,
         )

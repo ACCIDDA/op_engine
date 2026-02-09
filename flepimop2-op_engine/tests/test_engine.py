@@ -50,6 +50,34 @@ class _BadSystem:
         self._stepper: object = object()
 
 
+class _KernelStepper:
+    """Stepper that uses a kernel parameter to scale a constant RHS."""
+
+    def __call__(
+        self, time: np.float64, state: np.ndarray, **params: object
+    ) -> np.ndarray:
+        _ = time
+        _ = state
+        k = float(params.get("K", 0.0))
+        return np.asarray([k], dtype=np.float64)
+
+
+class _KernelSystem:
+    """System exposing a stepper and precomputed mixing_kernels."""
+
+    def __init__(self, k: float) -> None:
+        self._stepper: SystemProtocol = _KernelStepper()
+        self.mixing_kernels = {"K": k}
+
+
+class _ImexSystem:
+    """System exposing an identity stepper for IMEX tests."""
+
+    def __init__(self, n: int) -> None:
+        self._stepper: SystemProtocol = _GoodStepper()
+        self.n = n
+
+
 # -----------------------------------------------------------------------------
 # Engine construction
 # -----------------------------------------------------------------------------
@@ -105,6 +133,47 @@ def test_engine_run_identity_rhs_behavior() -> None:
     state_values = out[:, 1]
     assert state_values[1] >= state_values[0]
     assert state_values[2] >= state_values[1]
+
+
+def test_engine_passes_mixing_kernels_into_params() -> None:
+    """mixing_kernels from the system are merged into RHS params."""
+    engine = _OpEngineFlepimop2EngineImpl()
+    system = cast("SystemABC", _KernelSystem(k=2.5))
+
+    times = np.array([0.0, 1.0], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+
+    params: dict[IdentifierString, object] = {}
+
+    out = engine.run(system, times, y0, params)
+
+    # dy/dt = K = 2.5, Heun with dt=1.0 gives y1 = 1 + 0.5*(K+K) = 3.5
+    np.testing.assert_allclose(out[-1, 1], 3.5, rtol=1e-12, atol=0.0)
+
+
+def test_engine_imex_identity_with_identity_ops() -> None:
+    """IMEX path accepts operator specs and runs with identity operators."""
+    engine = _OpEngineFlepimop2EngineImpl(
+        config={
+            "method": "imex-euler",
+            "operators": {
+                "default": (np.eye(1, dtype=np.float64), np.eye(1, dtype=np.float64)),
+            },
+            "adaptive": False,
+        }
+    )
+    system = cast("SystemABC", _ImexSystem(n=1))
+
+    times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+
+    params: dict[IdentifierString, object] = {}
+
+    out = engine.run(system, times, y0, params)
+
+    assert out.shape == (3, 2)
+    # Identity RHS dy/dt = y; implicit Euler with identity L/R behaves like explicit.
+    assert np.all(np.isfinite(out))
 
 
 # -----------------------------------------------------------------------------
