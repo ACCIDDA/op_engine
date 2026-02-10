@@ -49,8 +49,7 @@ class OpEngineEngineConfig(BaseModel):
 
     gamma: float | None = Field(default=None, gt=0.0, lt=1.0)
 
-    # Future-facing: allow operator specs to be supplied via YAML, even if the
-    # adapter doesn't fully exploit them yet.
+    # Operator specs (default/tr/bdf2) for IMEX methods.
     operators: dict[str, Any] | None = Field(
         default=None,
         description=(
@@ -59,16 +58,32 @@ class OpEngineEngineConfig(BaseModel):
         ),
     )
 
+    operator_axis: str | int = Field(
+        default="state",
+        description="Axis along which implicit operators act (name or index).",
+    )
+
     @model_validator(mode="after")
     def _validate_imex_requirements(self) -> OpEngineEngineConfig:
         method = str(self.method)
-        if method.startswith("imex-") and not self.operators:
+        if method.startswith("imex-") and not self._has_any_operator_specs(
+            self.operators
+        ):
             msg = (
                 f"IMEX method '{method}' requires operator specifications, "
                 "but no operators were provided in the engine config."
             )
             raise ValueError(msg)
         return self
+
+    @staticmethod
+    def _has_any_operator_specs(operators: dict[str, Any] | None) -> bool:
+        """Return True if any operator spec is provided."""
+        if operators is None:
+            return False
+        return any(
+            operators.get(name) is not None for name in ("default", "tr", "bdf2")
+        )
 
     def to_run_config(self) -> RunConfig:
         """
@@ -86,9 +101,7 @@ class OpEngineEngineConfig(BaseModel):
             fac_max=self.fac_max,
         )
 
-        # Operators are validated for presence (for IMEX) but intentionally not
-        # translated yet; keep RunConfig operators empty until wiring is added.
-        op_specs: OperatorSpecs | None = None
+        op_specs = self._coerce_operator_specs(self.operators)
 
         return RunConfig(
             method=self.method,
@@ -96,6 +109,22 @@ class OpEngineEngineConfig(BaseModel):
             strict=self.strict,
             adaptive_cfg=adaptive_cfg,
             dt_controller=dt_controller,
-            operators=op_specs or OperatorSpecs(),
+            operators=op_specs,
             gamma=self.gamma,
+        )
+
+    @staticmethod
+    def _coerce_operator_specs(operators: dict[str, Any] | None) -> OperatorSpecs:
+        """
+        Normalize operator inputs into OperatorSpecs.
+
+        Returns:
+            OperatorSpecs with default/tr/bdf2 fields populated when provided.
+        """
+        if operators is None:
+            return OperatorSpecs()
+        return OperatorSpecs(
+            default=operators.get("default"),
+            tr=operators.get("tr"),
+            bdf2=operators.get("bdf2"),
         )

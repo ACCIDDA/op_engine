@@ -80,7 +80,7 @@ solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
 - `CoreSolver`: explicit and IMEX stepping; methods: `euler`, `heun`, `imex-euler`, `imex-heun-tr`, `imex-trbdf2`.
 - Operator utilities (`matrix_ops`): Laplacian builders, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.
-- Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. Adapter merges `mixing_kernels` exposed by op_system and consumes config-supplied IMEX operator tuples when provided; operator metadata in op_system is not auto-translated yet.
+- Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. The adapter merges any `mixing_kernels` already computed by op_system (no automatic generation) and consumes config-supplied IMEX operator specs (dict or `OperatorSpecs`), forwarding the chosen `operator_axis` to `CoreSolver`.
 
 ## Development
 

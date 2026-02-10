@@ -154,7 +154,21 @@ def test_engine_config_imex_requires_operators() -> None:
     )
     run = cfg.to_run_config()
     assert run.method == "imex-euler"
-
-    # Current implementation does not translate self.operators into OperatorSpecs yet.
     assert isinstance(run.operators, OperatorSpecs)
-    assert not _has_any_operator_specs(run.operators)
+    assert _has_any_operator_specs(run.operators)
+    assert run.operators.default == "sentinel"
+
+
+def test_engine_config_operator_dict_coerces_to_specs() -> None:
+    """Operator dict input is coerced into OperatorSpecs with stage keys."""
+    cfg = OpEngineEngineConfig(
+        method="imex-trbdf2",
+        operators={"default": 1, "tr": 2, "bdf2": 3},
+        gamma=0.6,
+    )
+    run = cfg.to_run_config()
+
+    assert isinstance(run.operators, OperatorSpecs)
+    assert run.operators.default == 1
+    assert run.operators.tr == 2
+    assert run.operators.bdf2 == 3
