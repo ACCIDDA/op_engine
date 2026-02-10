@@ -1,17 +1,16 @@
 
 # Run all default tasks for local development
-default: format check provider-sync pytest-core pytest-provider-nosync mypy-core mypy-provider-nosync
+default: format check pytest mypy docs
 
 # -------------------------------------------------
-# Formatting / linting
+# Formatting
 # -------------------------------------------------
 
-# Tool-only execution (does not require resolving project deps).
 format:
-	uvx ruff format --preview
+	uv run ruff format --preview
 
 check:
-	uvx ruff check --preview --fix
+	uv run ruff check --preview --fix
 
 
 # -------------------------------------------------
@@ -19,6 +18,7 @@ check:
 # -------------------------------------------------
 
 # Create/refresh the provider venv and install all deps (including dev group).
+# Run this once before running provider pytest/mypy if you aren't using `ci`.
 provider-sync:
 	cd flepimop2-op_engine && uv venv --clear
 	cd flepimop2-op_engine && uv sync --dev
@@ -31,18 +31,11 @@ provider-sync:
 pytest-core:
 	uv run pytest --doctest-modules
 
-# Ensure provider venv exists before running provider tests.
+# Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
 pytest-provider: provider-sync
 	cd flepimop2-op_engine && .venv/bin/python -m pytest --doctest-modules
 
-# Provider tests assuming the venv already exists (used by ci for speed).
-pytest-provider-nosync:
-	cd flepimop2-op_engine && .venv/bin/python -m pytest --doctest-modules
-
-pytest:
-	just provider-sync
-	just pytest-core
-	just pytest-provider-nosync
+pytest: pytest-core pytest-provider
 
 
 # -------------------------------------------------
@@ -52,18 +45,13 @@ pytest:
 mypy-core:
 	uv run mypy --strict src/op_engine
 
-# Ensure provider venv exists before running provider mypy.
+# Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
 mypy-provider: provider-sync
 	cd flepimop2-op_engine && .venv/bin/python -m mypy --strict src/flepimop2
 
-# Provider mypy assuming the venv already exists (used by ci for speed).
-mypy-provider-nosync:
-	cd flepimop2-op_engine && .venv/bin/python -m mypy --strict src/flepimop2
-
 mypy:
-	just provider-sync
 	just mypy-core
-	just mypy-provider-nosync
+	just mypy-provider
 
 
 # -------------------------------------------------
@@ -71,13 +59,11 @@ mypy:
 # -------------------------------------------------
 
 ci:
-	uvx ruff format --preview --check
-	uvx ruff check --preview --no-fix
+	uv run ruff format --preview --check
+	uv run ruff check --preview --no-fix
 	just provider-sync
-	just pytest-core
-	just pytest-provider-nosync
-	just mypy-core
-	just mypy-provider-nosync
+	just pytest
+	just mypy
 
 
 # -------------------------------------------------
@@ -95,7 +81,7 @@ clean:
 
 # Build API reference for the documentation using `mkdocstrings`
 api-reference:
-	uv run scripts/api-reference.py
+    uv run scripts/api-reference.py
 
 # Build the documentation using `mkdocs`
 docs: api-reference
