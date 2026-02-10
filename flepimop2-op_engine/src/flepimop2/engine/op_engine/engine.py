@@ -226,16 +226,24 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
             msg = "system does not expose a valid flepimop2 SystemProtocol stepper"
             raise TypeError(msg)
 
-        rhs = _rhs_from_stepper(stepper, params=params, n_state=n_state)
+        run_cfg = self.config.to_run_config()
+
+        # Merge any precomputed mixing kernels exposed by op_system connector
+        kernels = getattr(system, "mixing_kernels", {})
+        kernel_params = kernels if isinstance(kernels, dict) else {}
+        merged_params: dict[IdentifierString, object] = {**kernel_params, **params}
+
+        rhs = _rhs_from_stepper(stepper, params=merged_params, n_state=n_state)
 
         core = _make_core(times, y0)
 
-        # Today: operators are not yet wired through the adapter.
-        # Future: translate self.config.operators into op_engine OperatorSpecs and
-        # pass them here (and/or via run_cfg) as appropriate.
-        solver = CoreSolver(core, operators=None, operator_axis="state")
+        op_default = run_cfg.operators.default
 
-        run_cfg = self.config.to_run_config()
+        solver = CoreSolver(
+            core,
+            operators=op_default,
+            operator_axis=self.config.operator_axis,
+        )
         solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)

@@ -91,3 +91,6 @@ exclude = ["examples/"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/op_engine"]
 include = ["src/op_engine/py.typed"]
+
+[tool.uv]
+version = "0.4.17"
