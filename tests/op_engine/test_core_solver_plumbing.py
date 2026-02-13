@@ -320,3 +320,42 @@ def test_rhs_shape_mismatch_raises() -> None:
             bad_rhs,
             config=RunConfig(method="heun", adaptive=False),
         )
+
+
+# -----------------------------------------------------------------------------
+# F) Jacobian-driven implicit methods plumbing
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("method", ["implicit-euler", "trapezoidal", "bdf2", "ros2"])
+def test_implicit_methods_require_jacobian(method: str) -> None:
+    """Fully implicit / Rosenbrock methods require a Jacobian callable."""
+    tg = np.array([0.0, 0.25], dtype=float)
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=tg)
+    core.set_initial_state(np.array([[1.0]], dtype=float))
+
+    solver = CoreSolver(core, operators=None)
+
+    with pytest.raises(ValueError, match="requires a jacobian"):
+        solver.run(
+            _reaction_zero,
+            config=RunConfig(method=method, adaptive=False, strict=True),
+        )
+
+
+def test_bdf2_requires_uniform_grid() -> None:
+    """BDF2 rejects non-uniform output grids."""
+    tg = np.array([0.0, 0.1, 0.4], dtype=float)  # variable dt
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=tg)
+    core.set_initial_state(np.array([[1.0]], dtype=float))
+
+    solver = CoreSolver(core, operators=None)
+
+    def jac_const(_t: float, _y: FloatArray) -> FloatArray:
+        return np.array([[0.0]], dtype=float)
+
+    with pytest.raises(ValueError, match="requires a uniform output time grid"):
+        solver.run(
+            _reaction_zero,
+            config=RunConfig(method="bdf2", jacobian=jac_const, adaptive=False),
+        )
