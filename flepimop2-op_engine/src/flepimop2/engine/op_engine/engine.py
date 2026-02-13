@@ -2,9 +2,9 @@
 flepimop2 Engine adapter backed by op_engine.CoreSolver.
 
 This module provides a flepimop2-compatible Engine implementation that runs
-op_engine explicit methods ("euler", "heun") and supports IMEX methods only
-when operator specifications are provided by configuration (validated at parse
-time by OpEngineEngineConfig).
+op_engine explicit methods ("euler", "heun") and supports IMEX methods when
+operator specifications are provided either by configuration or via
+system-level hints (validated at runtime).
 
 Contract:
 - Accepts a flepimop2 System stepper: stepper(t, state_1d, **params) -> dstate/dt (1D)
@@ -15,6 +15,8 @@ Contract:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import replace
 from typing import TYPE_CHECKING, Final, Literal
 
 if TYPE_CHECKING:
@@ -26,7 +28,7 @@ from flepimop2.engine.abc import EngineABC
 from flepimop2.system.abc import SystemABC, SystemProtocol
 from pydantic import Field
 
-from op_engine.core_solver import CoreSolver
+from op_engine.core_solver import CoreSolver, OperatorSpecs
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
 from .config import OpEngineEngineConfig
@@ -52,6 +54,63 @@ _STATE_ARRAY_MISSING_MSG: Final[str] = (
 _STATE_ARRAY_BAD_SHAPE_MSG: Final[str] = (
     "Unexpected state shape {actual}; expected (T, {n_state}, 1) or (T, {n_state})."
 )
+
+_IMEX_OPERATORS_REQUIRED_MSG: Final[str] = (
+    "IMEX method '{method}' requires operators from config or system hints."
+)
+
+
+def _has_operator_specs(specs: OperatorSpecs | None) -> bool:
+    """Return True when any operator spec is populated."""
+    if specs is None:
+        return False
+    return any(getattr(specs, name) is not None for name in ("default", "tr", "bdf2"))
+
+
+def _coerce_operator_specs(specs: object) -> OperatorSpecs | None:
+    """Coerce various operator spec shapes into OperatorSpecs.
+
+    Returns:
+        OperatorSpecs if coercion succeeds; otherwise None.
+    """
+    if isinstance(specs, OperatorSpecs):
+        return specs
+    if isinstance(specs, Mapping):
+        mapping = dict(specs)
+        return OperatorSpecs(
+            default=mapping.get("default"),
+            tr=mapping.get("tr"),
+            bdf2=mapping.get("bdf2"),
+        )
+    return None
+
+
+def _resolve_operator_specs(
+    system: SystemABC, configured: OperatorSpecs
+) -> OperatorSpecs:
+    """Prefer configured operator specs, otherwise use system-provided hints.
+
+    Returns:
+        OperatorSpecs with any available stage specs populated.
+    """
+    if _has_operator_specs(configured):
+        return configured
+
+    candidates: list[object] = [
+        getattr(system, "operators", None),
+        getattr(system, "operator_specs", None),
+    ]
+
+    meta = getattr(system, "meta", None)
+    if isinstance(meta, Mapping):
+        candidates.append(meta.get("operators"))
+
+    for candidate in candidates:
+        coerced = _coerce_operator_specs(candidate)
+        if _has_operator_specs(coerced):
+            return coerced  # type: ignore[return-value]
+
+    return configured
 
 
 def _rhs_from_stepper(
@@ -206,6 +265,7 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
 
         Raises:
             TypeError: If system does not expose a valid stepper.
+            ValueError: If IMEX methods lack operator specifications.
 
         Returns:
             2D array of shape (T, 1 + n_states) with time in the first column.
@@ -218,30 +278,33 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
         y0 = as_float64_1d(initial_state, name="initial_state")
         n_state = int(y0.size)
 
-        # Note: IMEX/operator requirements are validated at config-parse time by
-        # OpEngineEngineConfig, so no runtime guard is needed here.
-
         stepper = getattr(system, "_stepper", None)
         if not isinstance(stepper, SystemProtocol):
             msg = "system does not expose a valid flepimop2 SystemProtocol stepper"
             raise TypeError(msg)
 
         run_cfg = self.config.to_run_config()
+        resolved_ops = _resolve_operator_specs(system, run_cfg.operators)
+        run_cfg = replace(run_cfg, operators=resolved_ops)
+
+        if run_cfg.method.startswith("imex-") and not _has_operator_specs(resolved_ops):
+            msg = _IMEX_OPERATORS_REQUIRED_MSG.format(method=run_cfg.method)
+            raise ValueError(msg)
 
         # Merge any precomputed mixing kernels exposed by op_system connector
-        kernels = getattr(system, "mixing_kernels", {})
-        kernel_params = kernels if isinstance(kernels, dict) else {}
-        merged_params: dict[IdentifierString, object] = {**kernel_params, **params}
+        kernel_params = getattr(system, "mixing_kernels", {})
+        merged_params: dict[IdentifierString, object] = {
+            **(kernel_params if isinstance(kernel_params, dict) else {}),
+            **params,
+        }
 
         rhs = _rhs_from_stepper(stepper, params=merged_params, n_state=n_state)
 
         core = _make_core(times, y0)
 
-        op_default = run_cfg.operators.default
-
         solver = CoreSolver(
             core,
-            operators=op_default,
+            operators=run_cfg.operators.default,
             operator_axis=self.config.operator_axis,
         )
         solver.run(rhs, config=run_cfg)

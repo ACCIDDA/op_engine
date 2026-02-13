@@ -78,6 +78,24 @@ class _ImexSystem:
         self.n = n
 
 
+class _ImexOperatorSystem:
+    """System exposing IMEX operator hints directly on the instance."""
+
+    def __init__(self, n: int) -> None:
+        self._stepper: SystemProtocol = _GoodStepper()
+        eye = np.eye(n, dtype=np.float64)
+        self.operators = {"default": (eye, eye)}
+
+
+class _ImexMetaOperatorSystem:
+    """System exposing IMEX operator hints via meta mapping."""
+
+    def __init__(self, n: int) -> None:
+        self._stepper: SystemProtocol = _GoodStepper()
+        eye = np.eye(n, dtype=np.float64)
+        self.meta = {"operators": {"default": (eye, eye)}}
+
+
 # -----------------------------------------------------------------------------
 # Engine construction
 # -----------------------------------------------------------------------------
@@ -173,6 +191,58 @@ def test_engine_imex_identity_with_identity_ops() -> None:
 
     assert out.shape == (3, 2)
     # Identity RHS dy/dt = y; implicit Euler with identity L/R behaves like explicit.
+    assert np.all(np.isfinite(out))
+
+
+def test_engine_imex_requires_operators_at_runtime_when_unset() -> None:
+    """IMEX methods should raise if neither config nor system provides operators."""
+    engine = _OpEngineFlepimop2EngineImpl(
+        config={"method": "imex-euler", "adaptive": False}
+    )
+    system = cast("SystemABC", _ImexSystem(n=1))
+
+    times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+
+    params: dict[IdentifierString, object] = {}
+
+    with pytest.raises(ValueError, match="requires operators"):
+        engine.run(system, times, y0, params)
+
+
+def test_engine_imex_uses_system_operator_hints() -> None:
+    """IMEX methods fall back to system-provided operator specs."""
+    engine = _OpEngineFlepimop2EngineImpl(
+        config={"method": "imex-euler", "adaptive": False}
+    )
+    system = cast("SystemABC", _ImexOperatorSystem(n=1))
+
+    times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+
+    params: dict[IdentifierString, object] = {}
+
+    out = engine.run(system, times, y0, params)
+
+    assert out.shape == (3, 2)
+    assert np.all(np.isfinite(out))
+
+
+def test_engine_imex_uses_meta_operator_hints() -> None:
+    """IMEX methods also honor operator specs exposed via system.meta."""
+    engine = _OpEngineFlepimop2EngineImpl(
+        config={"method": "imex-euler", "adaptive": False}
+    )
+    system = cast("SystemABC", _ImexMetaOperatorSystem(n=1))
+
+    times = np.array([0.0, 0.25, 0.5], dtype=np.float64)
+    y0 = np.array([2.0], dtype=np.float64)
+
+    params: dict[IdentifierString, object] = {}
+
+    out = engine.run(system, times, y0, params)
+
+    assert out.shape == (3, 2)
     assert np.all(np.isfinite(out))
 
 
