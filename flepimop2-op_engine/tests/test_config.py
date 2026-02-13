@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
+
 from op_engine.core_solver import OperatorSpecs, RunConfig  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
@@ -136,16 +137,20 @@ def test_engine_config_gamma_bounds_validation() -> None:
         )
 
 
-def test_engine_config_imex_requires_operators() -> None:
-    """IMEX methods should require operator specifications at config-parse time."""
-    with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-euler")
+def test_engine_config_imex_allows_deferred_operators() -> None:
+    """IMEX configs may omit operators to defer to system-provided specs."""
+    cfg = OpEngineEngineConfig(method="imex-euler")
+    run = cfg.to_run_config()
 
-    with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-heun-tr")
+    assert run.method == "imex-euler"
+    assert isinstance(run.operators, OperatorSpecs)
+    assert not _has_any_operator_specs(run.operators)
 
+
+def test_engine_config_imex_rejects_explicitly_empty_operator_block() -> None:
+    """Providing operators with no stages populated should raise."""
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-trbdf2", gamma=0.5)
+        OpEngineEngineConfig(method="imex-heun-tr", operators={})
 
     # Providing operators should pass validation.
     cfg = OpEngineEngineConfig(
