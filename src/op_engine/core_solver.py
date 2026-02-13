@@ -55,9 +55,14 @@ from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias, cast
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, identity
 
-from .matrix_ops import StageOperatorContext, implicit_solve
+from .matrix_ops import (
+    StageOperatorContext,
+    build_implicit_euler_operators,
+    build_trapezoidal_operators,
+    implicit_solve,
+)
 
 if TYPE_CHECKING:
     from .model_core import ModelCore
@@ -97,7 +102,18 @@ _UNSUPPORTED_OPERATOR_TYPE_MSG = (
 # =============================================================================
 
 RHSFunction = Callable[[float, NDArray[np.floating]], NDArray[np.floating]]
-MethodName = Literal["euler", "heun", "imex-euler", "imex-heun-tr", "imex-trbdf2"]
+JacobianFunction = Callable[[float, NDArray[np.floating]], "OperatorLike"]
+MethodName = Literal[
+    "euler",
+    "heun",
+    "imex-euler",
+    "imex-heun-tr",
+    "imex-trbdf2",
+    "implicit-euler",
+    "trapezoidal",
+    "bdf2",
+    "ros2",
+]
 
 
 class OperatorLike(Protocol):
@@ -205,6 +221,7 @@ class RunConfig:
         dt_controller: Parameters for dt controller when adaptive=True.
         adaptive_cfg: Parameters controlling error tolerances and limits.
         operators: Operator specifications for implicit/IMEX methods.
+        jacobian: Optional Jacobian function for fully implicit / Rosenbrock methods.
         gamma: Optional TR-BDF2 gamma (if None, uses default).
     """
 
@@ -214,6 +231,7 @@ class RunConfig:
     dt_controller: DtControllerConfig = DtControllerConfig()
     adaptive_cfg: AdaptiveConfig = AdaptiveConfig()
     operators: OperatorSpecs = OperatorSpecs()
+    jacobian: JacobianFunction | None = None
     gamma: float | None = None
 
 
@@ -229,6 +247,7 @@ class RunPlan:
         op_default: Operator spec for IMEX Euler/Heun-TR.
         op_tr: TR-stage operator spec for TR-BDF2.
         op_bdf2: BDF2-stage operator spec for TR-BDF2.
+        jacobian: Optional Jacobian function for fully implicit / Rosenbrock methods.
     """
 
     method: MethodName
@@ -236,6 +255,7 @@ class RunPlan:
     op_default: CoreOperators | StageOperatorFactory | None
     op_tr: CoreOperators | StageOperatorFactory | None
     op_bdf2: CoreOperators | StageOperatorFactory | None
+    jacobian: JacobianFunction | None
 
 
 @dataclass(slots=True)
@@ -248,6 +268,7 @@ class StepIO:
         y: Current state array (input).
         out: Output state array (written in-place).
         err_out: Error estimate array (written in-place) for adaptive methods.
+        y_prev: Optional previous state (for multistep methods).
     """
 
     t: float
@@ -255,6 +276,7 @@ class StepIO:
     y: NDArray[np.floating]
     out: NDArray[np.floating]
     err_out: NDArray[np.floating] | None = None
+    y_prev: NDArray[np.floating] | None = None
 
 
 @dataclass(slots=True)
@@ -411,6 +433,10 @@ class CoreSolver:
         self._y_stage1: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._f_stage1: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._f_extrap: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
+
+        # Previous-step cache (for multistep methods like BDF2)
+        self._prev_state_cache: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
+        self._has_prev_state = False
 
         # Validate operator sizes if default spec is a static tuple
         if operators is not None and not callable(operators):
@@ -571,6 +597,28 @@ class CoreSolver:
         out_arr = self._unreshape_after_solve(out2d, original_shape)
         np.copyto(out, out_arr)
 
+    def _apply_operator_matmul(
+        self,
+        op: OperatorLike,
+        x: NDArray[np.floating],
+        out: NDArray[np.floating],
+    ) -> None:
+        """Compute out = op @ x along the operator axis.
+
+        Args:
+            op: Operator acting along the configured axis.
+            x: Input state-like tensor.
+            out: Output array to write.
+        """
+        self._validate_operator_sizes(op, op)
+        x2d, original_shape = self._reshape_for_solve(x)
+        op_s = self._as_scipy_operator(op)
+        y2d = op_s @ x2d
+        y_arr = self._unreshape_after_solve(
+            np.asarray(y2d, dtype=self.dtype), original_shape
+        )
+        np.copyto(out, y_arr)
+
     @staticmethod
     def _normalize_ops_tuple(
         ops: CoreOperators,
@@ -620,6 +668,11 @@ class CoreSolver:
 
         resolved: CoreOperators = spec(dt, scale, ctx) if callable(spec) else spec
         return self._normalize_ops_tuple(resolved)
+
+    def _identity_operator(self) -> np.ndarray:
+        """Return a dense identity operator sized to the operator axis."""
+        n = self._require_op_axis_len()
+        return np.eye(n, dtype=self.dtype)
 
     def _apply_implicit(self, params: ImplicitStageParams) -> None:
         """Resolve operators from params.spec and apply implicit mapping.
@@ -682,6 +735,42 @@ class CoreSolver:
             )
         np.copyto(out, f)
 
+    @staticmethod
+    def _resolve_jacobian(
+        jacobian: JacobianFunction,
+        t: float,
+        y: NDArray[np.floating],
+    ) -> OperatorLike:
+        """Call the user-supplied Jacobian function.
+
+        Args:
+            jacobian: Jacobian function.
+            t: Time.
+            y: State.
+
+        Returns:
+            Operator-like object representing J(t, y).
+        """
+        return jacobian(float(t), y)
+
+    def _compute_linearized_residual(
+        self,
+        rhs_func: RHSFunction,
+        jacobian: JacobianFunction,
+        t: float,
+        y: NDArray[np.floating],
+    ) -> tuple[OperatorLike, NDArray[np.floating]]:
+        """Compute J(t, y) and residual r = f - J y for linearized solves.
+
+        Returns:
+            Tuple of (jacobian operator, residual array).
+        """
+        self._rhs_into(self._f_n, rhs_func, t, y)
+        jac = self._resolve_jacobian(jacobian, t, y)
+        self._apply_operator_matmul(jac, y, self._f_pred)
+        np.subtract(self._f_n, self._f_pred, out=self._f_extrap)
+        return jac, self._f_extrap
+
     # ------------------------------------------------------------------
     # dt variability checks / operator spec validation
     # ------------------------------------------------------------------
@@ -727,6 +816,30 @@ class CoreSolver:
         )
 
     @staticmethod
+    def _require_jacobian(
+        method: MethodName,
+        jacobian: JacobianFunction | None,
+    ) -> JacobianFunction:
+        """Ensure a Jacobian is provided for fully implicit methods.
+
+        Args:
+            method: Method name.
+            jacobian: Optional Jacobian function.
+
+        Raises:
+            ValueError: If Jacobian is missing.
+
+        Returns:
+            Jacobian function.
+        """
+        if jacobian is None:
+            msg = (
+                f"Method '{method}' requires a jacobian(t, y) callable; none provided."
+            )
+            raise ValueError(msg)
+        return jacobian
+
+    @staticmethod
     def _normalize_method(method: str) -> MethodName:
         """Normalize and validate method string.
 
@@ -740,12 +853,26 @@ class CoreSolver:
             Normalized method literal.
         """
         method_norm = str(method).strip().lower()
+
+        aliases: dict[str, str] = {
+            "cn": "trapezoidal",
+            "crank-nicolson": "trapezoidal",
+            "trap": "trapezoidal",
+            "rosenbrock": "ros2",
+            "rosenbrock-w": "ros2",
+        }
+        method_norm = aliases.get(method_norm, method_norm)
+
         allowed: tuple[str, ...] = (
             "euler",
             "heun",
             "imex-euler",
             "imex-heun-tr",
             "imex-trbdf2",
+            "implicit-euler",
+            "trapezoidal",
+            "bdf2",
+            "ros2",
         )
         if method_norm not in allowed:
             raise ValueError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
@@ -809,6 +936,7 @@ class CoreSolver:
             op_default=None,
             op_tr=None,
             op_bdf2=None,
+            jacobian=None,
         )
 
     def _plan_for_imex_single(
@@ -852,6 +980,7 @@ class CoreSolver:
                 op_default=None,
                 op_tr=None,
                 op_bdf2=None,
+                jacobian=None,
             )
 
         self._require_factory_if_variable_dt(
@@ -866,6 +995,7 @@ class CoreSolver:
             op_default=op_default,
             op_tr=None,
             op_bdf2=None,
+            jacobian=None,
         )
 
     def _plan_for_trbdf2(
@@ -922,6 +1052,7 @@ class CoreSolver:
                 op_default=None,
                 op_tr=None,
                 op_bdf2=None,
+                jacobian=None,
             )
 
         self._require_factory_if_variable_dt(
@@ -945,6 +1076,7 @@ class CoreSolver:
             op_default=None,
             op_tr=op_tr_eff,
             op_bdf2=op_bdf2_eff,
+            jacobian=None,
         )
 
     def _resolve_run_plan(self, cfg: RunConfig) -> RunPlan:
@@ -955,6 +1087,9 @@ class CoreSolver:
 
         Returns:
             Resolved plan.
+
+        Raises:
+            ValueError: If invalid parameters are provided.
         """
         method_in = self._normalize_method(cfg.method)
         gamma = self._resolve_gamma(method_in, cfg.gamma)
@@ -966,6 +1101,7 @@ class CoreSolver:
         )
         op_tr = cfg.operators.tr
         op_bdf2 = cfg.operators.bdf2
+        jacobian = cfg.jacobian
 
         strict = bool(cfg.strict)
         adaptive = bool(cfg.adaptive)
@@ -979,6 +1115,26 @@ class CoreSolver:
                 op_default,
                 strict=strict,
                 adaptive=adaptive,
+            )
+
+        if method_in in {"implicit-euler", "trapezoidal", "bdf2", "ros2"}:
+            jac_required = self._require_jacobian(method_in, jacobian)
+
+            if method_in == "bdf2":
+                if adaptive:
+                    msg = "Method 'bdf2' currently supports adaptive=False"
+                    raise ValueError(msg)
+                if not self._output_dt_is_uniform():
+                    msg = "Method 'bdf2' currently requires a uniform output time grid"
+                    raise ValueError(msg)
+
+            return RunPlan(
+                method=method_in,
+                gamma=None,
+                op_default=None,
+                op_tr=None,
+                op_bdf2=None,
+                jacobian=jac_required,
             )
 
         operators_trbdf2 = OperatorSpecs(
@@ -1429,10 +1585,269 @@ class CoreSolver:
         return 2
 
     # ------------------------------------------------------------------
+    # Fully implicit + Rosenbrock (linearly implicit) methods
+    # ------------------------------------------------------------------
+
+    def _implicit_euler_linearized_once(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        t: float,
+        y: NDArray[np.floating],
+        dt: float,
+        jacobian: JacobianFunction,
+        out: NDArray[np.floating],
+    ) -> None:
+        jac, residual = self._compute_linearized_residual(rhs_func, jacobian, t, y)
+        base_op = self._as_scipy_operator(jac)
+        left_op, right_op = build_implicit_euler_operators(base_op, dt_scale=dt)
+
+        np.copyto(self._rhs_buffer, y)
+        self._rhs_buffer += dt * residual
+
+        self._apply_operator_solve_with_ops(
+            self._rhs_buffer,
+            predictor=None,
+            left_op=left_op,
+            right_op=right_op,
+            out=out,
+        )
+
+    def _step_implicit_euler_linearized(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        step: StepIO,
+        jacobian: JacobianFunction,
+    ) -> int:
+        """Implicit Euler with linearization + step-doubling estimator.
+
+        Returns:
+            Method order (1).
+        """
+        err_out = self._require_err_out(step)
+
+        self._implicit_euler_linearized_once(
+            rhs_func,
+            t=step.t,
+            y=step.y,
+            dt=step.dt,
+            jacobian=jacobian,
+            out=self._y_full,
+        )
+
+        dt2 = 0.5 * step.dt
+        self._implicit_euler_linearized_once(
+            rhs_func,
+            t=step.t,
+            y=step.y,
+            dt=dt2,
+            jacobian=jacobian,
+            out=self._y_half,
+        )
+        self._implicit_euler_linearized_once(
+            rhs_func,
+            t=step.t + dt2,
+            y=self._y_half,
+            dt=dt2,
+            jacobian=jacobian,
+            out=self._y_two_half,
+        )
+
+        np.subtract(self._y_two_half, self._y_full, out=err_out)
+        np.copyto(step.out, self._y_two_half)
+        return 1
+
+    def _trapezoidal_linearized_step(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        step: StepIO,
+        jacobian: JacobianFunction,
+    ) -> int:
+        """Trapezoidal (Crank-Nicolson-style) with linearized residual.
+
+        Uses implicit Euler (linearized) as the embedded low-order estimator.
+
+        Returns:
+            Method order (2).
+        """
+        err_out = self._require_err_out(step)
+
+        jac, residual = self._compute_linearized_residual(
+            rhs_func, jacobian, step.t, step.y
+        )
+        base_op = self._as_scipy_operator(jac)
+        left_op, right_op = build_trapezoidal_operators(base_op, dt_scale=step.dt)
+
+        self._apply_operator_matmul(right_op, step.y, self._rhs_buffer)
+        self._rhs_buffer += step.dt * residual
+
+        self._apply_operator_solve_with_ops(
+            self._rhs_buffer,
+            predictor=None,
+            left_op=left_op,
+            right_op=self._identity_operator(),
+            out=step.out,
+        )
+
+        self._implicit_euler_linearized_once(
+            rhs_func,
+            t=step.t,
+            y=step.y,
+            dt=step.dt,
+            jacobian=jacobian,
+            out=self._y_full,
+        )
+        np.subtract(step.out, self._y_full, out=err_out)
+        return 2
+
+    def _step_bdf2_linearized(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        step: StepIO,
+        jacobian: JacobianFunction,
+    ) -> int:
+        """BDF2 with linearized residual (uniform dt, non-adaptive).
+
+        Returns:
+            Method order (2).
+        """
+        if step.y_prev is None:
+            err_out = self._require_err_out(step)
+            self._implicit_euler_linearized_once(
+                rhs_func,
+                t=step.t,
+                y=step.y,
+                dt=step.dt,
+                jacobian=jacobian,
+                out=step.out,
+            )
+            err_out.fill(0.0)
+            return 1
+
+        err_out = self._require_err_out(step)
+
+        jac, residual = self._compute_linearized_residual(
+            rhs_func, jacobian, step.t, step.y
+        )
+        jac_op = self._as_scipy_operator(jac)
+        n = self._require_op_axis_len()
+
+        left_op: OperatorLike
+        right_op: OperatorLike
+
+        if isinstance(jac_op, csr_matrix):
+            identity_op = identity(n, format="csr", dtype=jac_op.dtype)
+            left_op = (1.5 * identity_op - step.dt * jac_op).tocsr()
+            right_op = identity_op
+        else:
+            jac_arr = np.asarray(jac_op, dtype=self.dtype)
+            left_op = 1.5 * np.eye(n, dtype=self.dtype) - step.dt * jac_arr
+            right_op = np.eye(n, dtype=self.dtype)
+
+        np.copyto(self._rhs_buffer, step.y)
+        self._rhs_buffer *= 2.0
+        self._rhs_buffer -= 0.5 * step.y_prev
+        self._rhs_buffer += step.dt * residual
+
+        self._apply_operator_solve_with_ops(
+            self._rhs_buffer,
+            predictor=None,
+            left_op=left_op,
+            right_op=right_op,
+            out=step.out,
+        )
+
+        # Embedded implicit Euler (order 1) for error estimate
+        self._implicit_euler_linearized_once(
+            rhs_func,
+            t=step.t,
+            y=step.y,
+            dt=step.dt,
+            jacobian=jacobian,
+            out=self._y_full,
+        )
+        np.subtract(step.out, self._y_full, out=err_out)
+        return 2
+
+    def _step_rosenbrock_w2(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        step: StepIO,
+        jacobian: JacobianFunction,
+    ) -> int:
+        """Rosenbrock-W 2(1) pair (linearly implicit, stiff ODEs).
+
+        Returns:
+            Method order (2).
+        """
+        err_out = self._require_err_out(step)
+
+        self._rhs_into(self._f_n, rhs_func, step.t, step.y)
+        jac = self._resolve_jacobian(jacobian, step.t, step.y)
+        jac_op = self._as_scipy_operator(jac)
+
+        gamma = float(1.0 - 1.0 / np.sqrt(2.0))
+        c21 = -2.0 * gamma
+        left_op, right_op = build_implicit_euler_operators(
+            jac_op,
+            dt_scale=gamma * step.dt,
+        )
+
+        # k1 solve: (I - gamma h J) k1 = f_n
+        self._apply_operator_solve_with_ops(
+            self._f_n,
+            predictor=None,
+            left_op=left_op,
+            right_op=right_op,
+            out=self._y_half,
+        )
+
+        # Stage state y + a21 * h * k1 (a21 = gamma)
+        np.copyto(self._state_pred, step.y)
+        self._state_pred += gamma * step.dt * self._y_half
+
+        self._rhs_into(
+            self._f_pred,
+            rhs_func,
+            step.t + step.dt,
+            self._state_pred,
+        )
+
+        # k2 RHS: f(y + a21 h k1) + c21 * k1
+        np.copyto(self._rhs_buffer, self._f_pred)
+        self._rhs_buffer += c21 * self._y_half
+
+        self._apply_operator_solve_with_ops(
+            self._rhs_buffer,
+            predictor=None,
+            left_op=left_op,
+            right_op=right_op,
+            out=self._y_two_half,
+        )
+
+        # High-order update y + h*(b1 k1 + b2 k2) with b1=b2=0.5
+        np.copyto(self._rhs_buffer, self._y_half)
+        self._rhs_buffer += self._y_two_half
+        self._rhs_buffer *= 0.5 * step.dt
+        self._rhs_buffer += step.y
+        np.copyto(step.out, self._rhs_buffer)
+
+        # Embedded first-order: y + h*k1
+        np.copyto(err_out, step.y)
+        err_out += step.dt * self._y_half
+
+        np.subtract(step.out, err_out, out=err_out)
+        return 2
+
+    # ------------------------------------------------------------------
     # Dispatch helpers
     # ------------------------------------------------------------------
 
-    def _attempt_step(
+    def _attempt_step(  # noqa: C901, PLR0911, PLR0912
         self,
         rhs_func: RHSFunction,
         *,
@@ -1469,6 +1884,38 @@ class CoreSolver:
                 step=step,
                 op_spec=plan.op_default,
             )
+        if plan.method == "implicit-euler":
+            if plan.jacobian is None:
+                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
+            return self._step_implicit_euler_linearized(
+                rhs_func,
+                step=step,
+                jacobian=plan.jacobian,
+            )
+        if plan.method == "trapezoidal":
+            if plan.jacobian is None:
+                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
+            return self._trapezoidal_linearized_step(
+                rhs_func,
+                step=step,
+                jacobian=plan.jacobian,
+            )
+        if plan.method == "bdf2":
+            if plan.jacobian is None:
+                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
+            return self._step_bdf2_linearized(
+                rhs_func,
+                step=step,
+                jacobian=plan.jacobian,
+            )
+        if plan.method == "ros2":
+            if plan.jacobian is None:
+                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
+            return self._step_rosenbrock_w2(
+                rhs_func,
+                step=step,
+                jacobian=plan.jacobian,
+            )
         if plan.method != "imex-trbdf2":
             raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=plan.method))
         if plan.gamma is None:
@@ -1482,7 +1929,7 @@ class CoreSolver:
             gamma=plan.gamma,
         )
 
-    def _advance_nonadaptive_to_time(
+    def _advance_nonadaptive_to_time(  # noqa: PLR0913
         self,
         rhs_func: RHSFunction,
         *,
@@ -1490,6 +1937,7 @@ class CoreSolver:
         t0: float,
         dt_out: float,
         y0: NDArray[np.floating],
+        y_prev: NDArray[np.floating] | None,
     ) -> NDArray[np.floating]:
         """
         Advance exactly one step to the next output time.
@@ -1500,6 +1948,7 @@ class CoreSolver:
             t0: Initial time.
             dt_out: Output time step.
             y0: Initial state.
+            y_prev: Previous state (required for multistep methods).
 
         Returns:
             State at t0 + dt_out.
@@ -1510,6 +1959,7 @@ class CoreSolver:
             y=y0,
             out=self._y_try,
             err_out=self._err,
+            y_prev=y_prev,
         )
         _ = self._attempt_step(rhs_func, plan=plan, step=step)
         return self._y_try
@@ -1630,6 +2080,10 @@ class CoreSolver:
 
             np.copyto(self._y_curr, self.core.get_current_state())
 
+            y_prev: NDArray[np.floating] | None = (
+                self._prev_state_cache if self._has_prev_state else None
+            )
+
             if not cfg.adaptive:
                 y_next = self._advance_nonadaptive_to_time(
                     rhs_func,
@@ -1637,8 +2091,11 @@ class CoreSolver:
                     t0=t0,
                     dt_out=dt_out,
                     y0=self._y_curr,
+                    y_prev=y_prev,
                 )
                 self.core.advance_timestep(y_next)
+                self._has_prev_state = True
+                np.copyto(self._prev_state_cache, self._y_curr)
                 continue
 
             y_end = self._advance_adaptive_to_time(
@@ -1653,3 +2110,5 @@ class CoreSolver:
                 ),
             )
             self.core.advance_timestep(y_end)
+            self._has_prev_state = True
+            np.copyto(self._prev_state_cache, self._y_curr)
