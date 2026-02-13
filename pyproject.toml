@@ -93,4 +93,4 @@ packages = ["src/op_engine"]
 include = ["src/op_engine/py.typed"]
 
 [tool.uv]
-version = "0.4.17"
+required-version = ">=0.4.17"
