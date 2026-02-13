@@ -66,12 +66,14 @@ class OpEngineEngineConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_imex_requirements(self) -> OpEngineEngineConfig:
         method = str(self.method)
-        if method.startswith("imex-") and not self._has_any_operator_specs(
-            self.operators
+        if (
+            method.startswith("imex-")
+            and self.operators is not None
+            and not self._has_any_operator_specs(self.operators)
         ):
             msg = (
-                f"IMEX method '{method}' requires operator specifications, "
-                "but no operators were provided in the engine config."
+                f"IMEX method '{method}' received operators, but none were populated. "
+                "Omit operators to defer to system hints or provide at least one stage."
             )
             raise ValueError(msg)
         return self
