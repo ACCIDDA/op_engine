@@ -81,7 +81,7 @@ def test_model_core_single_step_dt_grid_empty_and_get_dt_is_zero() -> None:
     core = ModelCore(n_states=2, n_subgroups=2, time_grid=time_grid)
 
     assert core.n_timesteps == 1
-    assert core.dt == 0.0
+    assert np.isclose(core.dt, 0.0)
     assert core.dt_grid.shape == (0,)
     assert np.isclose(core.get_dt(0), 0.0)
 
@@ -422,7 +422,7 @@ def test_get_current_state_is_view() -> None:
     state_view = core.get_current_state()
     state_view[0, 0] = 42.0
 
-    assert core.current_state[0, 0] == 42.0
+    assert np.isclose(core.current_state[0, 0], 42.0)
 
 
 def test_dtype_propagation() -> None:
