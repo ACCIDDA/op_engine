@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from flepimop2.configuration import IdentifierString, ModuleModel
@@ -39,13 +39,6 @@ def _ensure_strictly_increasing(times: np.ndarray, *, name: str) -> None:
     if np.any(np.diff(times) <= 0.0):
         msg = f"{name} must be strictly increasing"
         raise ValueError(msg)
-
-
-def _option(module: object, name: str) -> object | None:
-    getter = getattr(module, "option", None)
-    if callable(getter):
-        return cast("object | None", getter(name, None))
-    return None
 
 
 def _rhs_from_stepper(
@@ -149,7 +142,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
 
         if is_imex and not _has_operator_specs(operators):
             operators = (
-                _coerce_operator_specs(_option(system, "operators")) or operators
+                _coerce_operator_specs(system.option("operators", None)) or operators
             )
         run_cfg = replace(run_cfg, operators=operators)
 
@@ -162,13 +155,13 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
 
         operator_axis = self.config.operator_axis
         if operator_axis == "state":
-            system_axis = _option(system, "operator_axis")
+            system_axis = system.option("operator_axis", None)
             if isinstance(system_axis, str | int):
                 operator_axis = system_axis
 
         stepper: SystemProtocol = system._stepper  # noqa: SLF001
 
-        mixing_kernels = _option(system, "mixing_kernels")
+        mixing_kernels = system.option("mixing_kernels", None)
         merged_params = {
             **(mixing_kernels if isinstance(mixing_kernels, dict) else {}),
             **params,
