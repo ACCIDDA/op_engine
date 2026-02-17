@@ -7,8 +7,8 @@ authors = [
   { name = "Joshua Macdonald", email = "jmacdo16@jh.edu" },
 ]
 dependencies = [
-  # Declare the dependency normally...
-  "op-engine>=0.1.0",
+  # op-engine is not in a registry yet, so keep it as a direct reference.
+  "op-engine @ git+https://github.com/ACCIDDA/op_engine.git@main",
 
   # flepimop2 is not in a registry, so keep it as a direct reference.
   "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git@main",
@@ -44,10 +44,6 @@ allow-direct-references = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/flepimop2"]
 
-# --- uv monorepo wiring: satisfy op-engine from the sibling directory ---
-[tool.uv.sources]
-op-engine = { path = ".." }
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
@@ -69,6 +65,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["INP001", "S101"]
+"src/flepimop2/engine/op_engine/__init__.py" = ["C901", "DOC201", "DOC501", "PLR0912", "PLR0913", "PLR0914", "PLR0915", "RUF067"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

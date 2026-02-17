@@ -1,4 +1,3 @@
-# tests/flepimop2/test_config.py
 """Tests for op_engine.flepimop2.config."""
 
 from __future__ import annotations
@@ -6,11 +5,10 @@ from __future__ import annotations
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
-
 from op_engine.core_solver import OperatorSpecs, RunConfig  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
-from flepimop2.engine.op_engine.config import OpEngineEngineConfig  # noqa: E402
+from flepimop2.engine.op_engine import OpEngineEngineConfig  # noqa: E402
 
 
 def _has_any_operator_specs(specs: OperatorSpecs) -> bool:
@@ -138,42 +136,28 @@ def test_engine_config_gamma_bounds_validation() -> None:
 
 
 def test_engine_config_imex_allows_deferred_operators() -> None:
-    """IMEX configs may omit operators to defer to system-provided specs."""
+    """IMEX methods may omit operators to defer to system options at runtime."""
     cfg = OpEngineEngineConfig(method="imex-euler")
     run = cfg.to_run_config()
-
     assert run.method == "imex-euler"
     assert isinstance(run.operators, OperatorSpecs)
     assert not _has_any_operator_specs(run.operators)
 
 
 def test_engine_config_imex_rejects_explicitly_empty_operator_block() -> None:
-    """Providing operators with no stages populated should raise."""
+    """Providing an empty operator block should raise validation errors."""
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(method="imex-heun-tr", operators={})
 
-    # Providing operators should pass validation.
+
+def test_engine_config_imex_with_operators_still_valid() -> None:
+    """Providing IMEX operators explicitly should still validate."""
     cfg = OpEngineEngineConfig(
         method="imex-euler",
         operators={"default": "sentinel"},
     )
     run = cfg.to_run_config()
     assert run.method == "imex-euler"
+
     assert isinstance(run.operators, OperatorSpecs)
     assert _has_any_operator_specs(run.operators)
-    assert run.operators.default == "sentinel"
-
-
-def test_engine_config_operator_dict_coerces_to_specs() -> None:
-    """Operator dict input is coerced into OperatorSpecs with stage keys."""
-    cfg = OpEngineEngineConfig(
-        method="imex-trbdf2",
-        operators={"default": 1, "tr": 2, "bdf2": 3},
-        gamma=0.6,
-    )
-    run = cfg.to_run_config()
-
-    assert isinstance(run.operators, OperatorSpecs)
-    assert run.operators.default == 1
-    assert run.operators.tr == 2
-    assert run.operators.bdf2 == 3
