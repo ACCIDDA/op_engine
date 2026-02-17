@@ -3,28 +3,26 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 from flepimop2.configuration import IdentifierString, ModuleModel
 from flepimop2.engine.abc import EngineABC
 from flepimop2.exceptions import ValidationIssue
-from flepimop2.system.abc import SystemABC, SystemProtocol
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from flepimop2.typing import StateChangeEnum  # noqa: TC002
+from pydantic import Field
 
 from op_engine.core_solver import (
-    AdaptiveConfig,
     CoreSolver,
-    DtControllerConfig,
-    OperatorSpecs,
-    RunConfig,
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
+
+from .config import OpEngineEngineConfig, _coerce_operator_specs, _has_operator_specs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-StateChange = Literal["delta", "flow", "state"]
+    from flepimop2.system.abc import SystemABC, SystemProtocol
 
 
 def _as_float64_1d(x: object, *, name: str) -> np.ndarray:
@@ -41,24 +39,6 @@ def _ensure_strictly_increasing(times: np.ndarray, *, name: str) -> None:
     if np.any(np.diff(times) <= 0.0):
         msg = f"{name} must be strictly increasing"
         raise ValueError(msg)
-
-
-def _has_operator_specs(specs: OperatorSpecs | None) -> bool:
-    if specs is None:
-        return False
-    return any(getattr(specs, key) is not None for key in ("default", "tr", "bdf2"))
-
-
-def _coerce_operator_specs(specs: object) -> OperatorSpecs | None:
-    if isinstance(specs, OperatorSpecs):
-        return specs
-    if isinstance(specs, dict):
-        return OperatorSpecs(
-            default=specs.get("default"),
-            tr=specs.get("tr"),
-            bdf2=specs.get("bdf2"),
-        )
-    return None
 
 
 def _option(module: object, name: str) -> object | None:
@@ -125,78 +105,22 @@ def _make_core(times: np.ndarray, y0: np.ndarray) -> ModelCore:
     return core
 
 
-class OpEngineEngineConfig(BaseModel):
-    """Configuration schema for op_engine when used as a flepimop2 engine."""
-
-    model_config = ConfigDict(extra="allow")
-
-    method: Literal["euler", "heun", "imex-euler", "imex-heun-tr", "imex-trbdf2"] = (
-        "heun"
-    )
-    adaptive: bool = False
-    strict: bool = True
-    rtol: float = Field(default=1e-6, ge=0.0)
-    atol: float = Field(default=1e-9, ge=0.0)
-    dt_min: float = Field(default=0.0, ge=0.0)
-    dt_max: float = Field(default=float("inf"), gt=0.0)
-    safety: float = Field(default=0.9, gt=0.0)
-    fac_min: float = Field(default=0.2, gt=0.0)
-    fac_max: float = Field(default=5.0, gt=0.0)
-    gamma: float | None = Field(default=None, gt=0.0, lt=1.0)
-    operator_axis: str | int = "state"
-    operators: dict[str, Any] | None = None
-
-    @model_validator(mode="after")
-    def _validate_explicit_empty_operators(self) -> OpEngineEngineConfig:
-        if (
-            self.method.startswith("imex-")
-            and self.operators is not None
-            and not _has_operator_specs(_coerce_operator_specs(self.operators))
-        ):
-            msg = (
-                f"IMEX method '{self.method}' received operators, "
-                "but none were populated. Provide at least one stage "
-                "or omit operators to use system options."
-            )
-            raise ValueError(msg)
-        return self
-
-    def to_run_config(self) -> RunConfig:
-        """Convert this provider config to an op_engine `RunConfig`."""
-        return RunConfig(
-            method=self.method,
-            adaptive=self.adaptive,
-            strict=self.strict,
-            adaptive_cfg=AdaptiveConfig(rtol=self.rtol, atol=self.atol),
-            dt_controller=DtControllerConfig(
-                dt_min=self.dt_min,
-                dt_max=self.dt_max,
-                safety=self.safety,
-                fac_min=self.fac_min,
-                fac_max=self.fac_max,
-            ),
-            operators=_coerce_operator_specs(self.operators) or OperatorSpecs(),
-            gamma=self.gamma,
-        )
-
-
 class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
     """flepimop2 engine adapter backed by op_engine.CoreSolver."""
 
     module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
-    state_change: StateChange
+    state_change: StateChangeEnum
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
 
     def validate_system(self, system: SystemABC) -> list[ValidationIssue] | None:
         """Validate system compatibility against the engine state-change mode."""
-        system_state_change = getattr(system, "state_change", None)
-        if str(system_state_change) != str(self.state_change):
+        if system.state_change != self.state_change:
             return [
                 ValidationIssue(
                     msg=(
                         f"Engine state change type, '{self.state_change}', is not "
                         "compatible with system state change type "
-                        f"'{system_state_change}'."
+                        f"'{system.state_change}'."
                     ),
                     kind="incompatible_system",
                 )
@@ -242,10 +166,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
             if isinstance(system_axis, str | int):
                 operator_axis = system_axis
 
-        stepper = getattr(system, "_stepper", None)
-        if not isinstance(stepper, SystemProtocol):
-            msg = "system does not expose a valid flepimop2 SystemProtocol stepper"
-            raise TypeError(msg)
+        stepper: SystemProtocol = system._stepper  # noqa: SLF001
 
         mixing_kernels = _option(system, "mixing_kernels")
         merged_params = {
@@ -266,15 +187,4 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
         return np.asarray(np.column_stack((times, states)), dtype=np.float64)
 
 
-def build(config: dict[str, Any] | ModuleModel) -> OpEngineFlepimop2Engine:
-    """Build an op_engine-backed flepimop2 engine from configuration.
-
-    Returns:
-        A validated `OpEngineFlepimop2Engine` instance.
-    """
-    if isinstance(config, ModuleModel):
-        return OpEngineFlepimop2Engine.model_validate(config.model_dump())
-    return OpEngineFlepimop2Engine.model_validate(config)
-
-
-__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine", "build"]
+__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine"]

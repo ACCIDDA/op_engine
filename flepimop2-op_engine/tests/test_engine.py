@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from flepimop2.system.abc import SystemABC, SystemProtocol
+    from flepimop2.system.abc import SystemProtocol
 
 import numpy as np
 import pytest
+from flepimop2.system.abc import SystemABC
 
 from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
 
@@ -31,27 +32,27 @@ class _GoodStepper:
         return np.asarray(state, dtype=np.float64)
 
 
-class _GoodSystem:
-    """System-like object exposing a valid stepper via _stepper."""
+class _GoodSystem(SystemABC):
+    """SystemABC implementation exposing a valid stepper via _stepper."""
+
+    module = "flepimop2.system.test_good"
+    state_change = "flow"
 
     def __init__(self) -> None:
+        super().__init__()
         self._stepper: SystemProtocol = _GoodStepper()
-        self.state_change = "flow"
-
-    def option(self, name: str, default: object = None) -> object:  # noqa: PLR6301
-        if name == "operators":
-            return {
+        self.options = {
+            "operators": {
                 "default": (np.eye(1, dtype=np.float64), np.eye(1, dtype=np.float64))
             }
-        return default
+        }
 
 
-class _BadSystem:
-    """System-like object exposing an invalid _stepper."""
+class _DeltaSystem(_GoodSystem):
+    """SystemABC implementation with incompatible state_change."""
 
-    def __init__(self) -> None:
-        self._stepper: object = object()
-        self.state_change = "flow"
+    module = "flepimop2.system.test_delta"
+    state_change = "delta"
 
 
 # -----------------------------------------------------------------------------
@@ -75,7 +76,7 @@ def test_engine_default_config_constructs() -> None:
 def test_engine_run_basic_shape_and_dtype() -> None:
     """Engine returns correctly shaped float64 output array."""
     engine = OpEngineFlepimop2Engine(state_change="flow")
-    system = cast("SystemABC", _GoodSystem())
+    system = _GoodSystem()
 
     times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
     y0 = np.array([1.0, 2.0], dtype=np.float64)
@@ -96,7 +97,7 @@ def test_engine_run_identity_rhs_behavior() -> None:
     This test validates wiring correctness, not numerical accuracy.
     """
     engine = OpEngineFlepimop2Engine(state_change="flow")
-    system = cast("SystemABC", _GoodSystem())
+    system = _GoodSystem()
 
     times = np.array([0.0, 0.1, 0.2], dtype=np.float64)
     y0 = np.array([1.0], dtype=np.float64)
@@ -118,7 +119,7 @@ def test_engine_run_identity_rhs_behavior() -> None:
 def test_engine_rejects_non_increasing_times() -> None:
     """Engine rejects non-strictly-increasing time grids."""
     engine = OpEngineFlepimop2Engine(state_change="flow")
-    system = cast("SystemABC", _GoodSystem())
+    system = _GoodSystem()
 
     times = np.array([0.0, 0.0, 1.0], dtype=np.float64)
     y0 = np.array([1.0], dtype=np.float64)
@@ -132,7 +133,7 @@ def test_engine_rejects_non_increasing_times() -> None:
 def test_engine_rejects_non_1d_initial_state() -> None:
     """Engine rejects non-1D initial state arrays."""
     engine = OpEngineFlepimop2Engine(state_change="flow")
-    system = cast("SystemABC", _GoodSystem())
+    system = _GoodSystem()
 
     times = np.array([0.0, 1.0], dtype=np.float64)
     y0 = np.array([[1.0, 2.0]], dtype=np.float64)
@@ -143,28 +144,13 @@ def test_engine_rejects_non_1d_initial_state() -> None:
         engine.run(system, times, y0, params)
 
 
-def test_engine_rejects_missing_stepper() -> None:
-    """Engine raises TypeError if system does not expose a valid stepper."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
-    system = cast("SystemABC", _BadSystem())
-
-    times = np.array([0.0, 1.0], dtype=np.float64)
-    y0 = np.array([1.0], dtype=np.float64)
-
-    params: dict[str, object] = {}
-
-    with pytest.raises(TypeError, match="SystemProtocol"):
-        engine.run(system, times, y0, params)
-
-
 def test_validate_system_checks_state_change() -> None:
     """Engine validates state_change compatibility via validate_system."""
     engine = OpEngineFlepimop2Engine(state_change="flow")
-    good = cast("SystemABC", _GoodSystem())
+    good = _GoodSystem()
     assert engine.validate_system(good) is None
 
-    bad = cast("SystemABC", _GoodSystem())
-    bad.state_change = "delta"
+    bad = _DeltaSystem()
     issues = engine.validate_system(bad)
     assert issues is not None
     assert issues[0].kind == "incompatible_system"
