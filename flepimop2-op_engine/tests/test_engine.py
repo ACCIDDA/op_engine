@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from flepimop2.system.abc import SystemProtocol
-
 import numpy as np
 import pytest
-from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
 from flepimop2.system.abc import SystemABC
+
+from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
+
+if TYPE_CHECKING:
+    from flepimop2.system.abc import SystemProtocol
 
 # -----------------------------------------------------------------------------
 # Test helpers
@@ -61,7 +62,7 @@ class _DeltaSystem(_GoodSystem):
 
 def test_public_engine_wrapper_defines_module() -> None:
     """Public engine wrapper satisfies flepimop2's concrete module contract."""
-    engine = OpEngineFlepimop2Engine()
+    engine = OpEngineFlepimop2Engine(state_change="flow")
 
     assert isinstance(engine, OpEngineFlepimop2Engine)
     assert engine.module == "flepimop2.engine.op_engine"
