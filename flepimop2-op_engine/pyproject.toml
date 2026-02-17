@@ -11,7 +11,7 @@ dependencies = [
   "op-engine @ git+https://github.com/ACCIDDA/op_engine.git@main",
 
   # flepimop2 is not in a registry, so keep it as a direct reference.
-  "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git@main",
+  "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git@43143a652480f3db4480884a436dba9d2ffb31d3",
 
   "pydantic>=2.0,<3",
   "numpy>=1.26",
