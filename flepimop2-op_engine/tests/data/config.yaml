@@ -1,0 +1,34 @@
+---
+name: "example-provider"
+system:
+  - module: "wrapper"
+    state_change: "flow"
+    script: "external_provider/src/flepimop2/system/sir.py"
+engine:
+  - module: "op_engine"
+    state_change: "flow"
+    config:
+      method: "heun"
+      adaptive: false
+      strict: true
+backend:
+  - module: "csv"
+simulate:
+  demo:
+    times: "0.0:0.1:1"
+parameters:
+  beta:
+    module: "fixed"
+    value: 0.3
+  gamma:
+    module: "fixed"
+    value: 0.1
+  s0:
+    module: "fixed"
+    value: 999
+  i0:
+    module: "fixed"
+    value: 1
+  r0:
+    module: "fixed"
+    value: 0

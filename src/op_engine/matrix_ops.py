@@ -801,7 +801,7 @@ def _build_implicit_solver(
     if is_sparse:
         left_csr = cast("csr_matrix", left_op)
         right_csr = cast("csr_matrix", right_op)
-        solve_left = sparse_factorized(left_csr)
+        solve_left = sparse_factorized(left_csr.tocsc())
 
         def sparse_solver(x: NDArray[np.floating]) -> NDArray[np.floating]:
             x_arr = np.asarray(x, dtype=left_csr.dtype)
