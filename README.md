@@ -11,9 +11,25 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 
 ## Core surface
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
-- `CoreSolver`: explicit + IMEX methods (`euler`, `heun`, `imex-euler`, `imex-heun-tr`, `imex-trbdf2`); accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
+- `CoreSolver`: explicit + IMEX + stiff ODE methods (`euler`, `heun`, `imex-euler`, `imex-heun-tr`, `imex-trbdf2`, `implicit-euler`, `trapezoidal`, `bdf2`, `ros2`); accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, `OperatorSpecs`, and optional `jacobian`.
 - `matrix_ops`: Laplacian/Crank–Nicolson/implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
+
+## Which method to pick?
+- Explicit (`euler`, `heun`): non-stiff ODEs, small systems, cheap RHS; `heun` (default) is stable and second order.
+- IMEX (`imex-euler`, `imex-heun-tr`): moderately stiff when a linear operator can be implicit; works best when `(L, R)` are constant across steps.
+- IMEX TR-BDF2 (`imex-trbdf2`): higher stability/accuracy for mild/moderate stiffness; use stage-operator factories if dt changes.
+- Fully implicit (`implicit-euler`, `trapezoidal`, `bdf2`): stiff ODEs without a split operator; `implicit-euler` for robustness, `trapezoidal` for A-stable order 2, `bdf2` for smoother stiff flows.
+- Rosenbrock-W (`ros2`): linearly implicit stiff ODEs when you have a Jacobian and want a single linear solve per stage.
+
+Operator guidance:
+- Fixed dt and time-invariant operators → supply `(L, R)` tuples directly.
+- Variable dt or operator depends on `t`/`y` → provide a `StageOperatorFactory`.
+- Pick `operator_axis` to match the dimension your operators act on (default is `state`).
+
+Adaptive stepping:
+- Enable `adaptive=True` for smooth non-split RHS when you want automatic dt control.
+- Prefer fixed-step for IMEX/operator paths when operators are pre-built for a specific dt.
 
 ## Installation
 
@@ -54,6 +70,7 @@ solution = core.state_array  # shape (n_timesteps, state, subgroup)
 ```python
 import numpy as np
 from op_engine import CoreSolver, ModelCore, OperatorSpecs
+from op_engine.core_solver import RunConfig
 
 n = 4
 times = np.linspace(0.0, 1.0, 11)
@@ -69,18 +86,22 @@ def rhs(t, y):
     return -0.1 * y
 
 solver = CoreSolver(core, operators=ops.default, operator_axis="state")
-solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
-
-# For IMEX methods set method and operators via RunConfig:
-# from op_engine.core_solver import RunConfig, AdaptiveConfig, DtControllerConfig
+cfg = RunConfig(method="imex-heun-tr", operators=ops)
+solver.run(rhs, config=cfg)
 ```
 
 ## Public API
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
-- `CoreSolver`: explicit and IMEX stepping; methods: `euler`, `heun`, `imex-euler`, `imex-heun-tr`, `imex-trbdf2`.
+- `CoreSolver`: explicit, IMEX, and stiff ODE stepping; methods: `euler`, `heun`, `imex-euler`, `imex-heun-tr`, `imex-trbdf2`, `implicit-euler`, `trapezoidal`, `bdf2`, `ros2`.
 - Operator utilities (`matrix_ops`): Laplacian builders, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.
 - Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. The adapter merges any `mixing_kernels` already computed by op_system (no automatic generation) and consumes config-supplied IMEX operator specs (dict or `OperatorSpecs`), forwarding the chosen `operator_axis` to `CoreSolver`.
+
+## Model shapes at a glance
+- `n_states`: primary state dimension; `operator_axis` defaults here.
+- `n_subgroups`: second axis often used for populations/ensembles.
+- Extra axes: configure via `other_axes`/`axis_names` in `ModelCoreOptions`.
+- `store_history`: keep full time history (True) or final slice only (False) for memory savings.
 
 ## Development
 

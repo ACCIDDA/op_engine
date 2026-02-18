@@ -77,7 +77,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["INP001", "S101"]
+"tests/**/*" = ["INP001", "S101", "PLR0914"]
+"examples/**/*" = ["INP001", "S101", "PLR0914"]
 "scripts/**/*" = [
     "T201",  # `print` found
 ]
