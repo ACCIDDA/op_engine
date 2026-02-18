@@ -2,17 +2,16 @@
 """
 Example: Size-structured phytoplankton-zooplankton network using op_engine.
 
-This example is designed to be both a correctness/comparison demo (vs SciPy
-solve_ivp) and an API showcase for CoreSolver.run(...).
+This example is a correctness/comparison demo (vs SciPy solve_ivp) and an API
+showcase for CoreSolver.run(...).
 
-It demonstrates all five op_engine methods with adaptive=True:
-- euler
-- heun
-- imex-euler
-- imex-heun-tr
-- imex-trbdf2
+It exercises op_engine methods with adaptive=True:
+- euler, heun (explicit)
+- imex-euler, imex-heun-tr, imex-trbdf2 (split implicit)
+- implicit-euler, trapezoidal, bdf2 (fully implicit)
+- ros2 (Rosenbrock-W 2)
 
-It also runs SciPy comparators on the same output grid:
+SciPy comparators on the same output grid:
 - solve_ivp RK45
 - solve_ivp BDF
 
@@ -20,33 +19,20 @@ IMEX splits (A/B/C) are implemented via StageOperatorContext-aware operator
 factories. Operator modes control whether the implicit operator is frozen,
 time-dependent, or relinearized per stage state.
 
-Outputs are saved under:
-    examples/output/biogeochemical/
+Outputs are saved under examples/output/biogeochemical/:
+- biogeo_explicit_bins.png: op_engine heun vs SciPy RK45
+- biogeo_imex1_bins.png: op_engine imex-euler (split B) vs SciPy BDF
+- biogeo_imex2_bins.png: op_engine imex-trbdf2 (split B) vs SciPy BDF
 
-Figures:
-1) biogeo_explicit_bins.png
-   - Bin detail: op_engine heun vs SciPy RK45
-
-2) biogeo_imex1_bins.png
-   - Bin detail: op_engine imex-euler split B vs SciPy BDF
-
-3) biogeo_imex2_bins.png
-   - Bin detail: op_engine imex-trbdf2 split B vs SciPy BDF
-
-4) biogeo_runtime.png
-   - Wall time vs output-grid dt (log-log)
-
-Text outputs:
-- biogeo_runtime.txt
-- biogeo_runtime.csv
-- biogeo_manifest.json
+Recommendation for this model: split B with imex-trbdf2 balances stability and
+cost because the stiffest pieces are diagonal damping and grazing sinks that
+map naturally into the implicit operator.
 """
 
 from __future__ import annotations
 
-import json
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -85,12 +71,12 @@ CLIP_NONNEGATIVE: bool = True
 FAIL_FAST_ON_NONFINITE: bool = True
 
 # SciPy reference tolerances
-SCIPY_RTOL: float = 1e-4
-SCIPY_ATOL: float = 1e-6
+SCIPY_RTOL: float = 1e-6
+SCIPY_ATOL: float = 1e-8
 
 # CoreSolver tolerances (adaptive stepping)
-OPE_RTOL: float = 1e-4
-OPE_ATOL: float = 1e-6
+OPE_RTOL: float = 1e-6
+OPE_ATOL: float = 1e-8
 
 # Output layout
 _OUTPUT_DIR = Path("examples") / "output" / "biogeochemical"
@@ -113,7 +99,7 @@ _EXPECTED_TRAJ_ERROR = "Expected trajectory for plot: {name}"
 class ParamsA:
     """Model parameters for the phytoplankton-zooplankton network."""
 
-    n_t: float = 10.0
+    n_t: float = 5.0
     gamma: float = 0.5
     r_g: float = 10.0
     sigma_g: float = 0.5
@@ -126,7 +112,7 @@ class ParamsA:
     delta_a: float = 2.43
     delta_b: float = 0.48
     lam: float = 0.02
-    sea: float = 0.3
+    sea: float = 0.0
 
 
 SplitName = Literal["A", "B", "C"]
@@ -170,40 +156,13 @@ class BinsFigureSpec:
     scipy_arr: np.ndarray
 
 
-@dataclass(frozen=True, slots=True)
-class RuntimeReportSpec:
-    """Bundle arguments for runtime report writers (keeps signatures small)."""
-
-    operator_mode: str
-    main_timings: dict[str, float]
-    scipy_infos: dict[str, dict[str, object]]
-    dt_days: np.ndarray
-    sweep_timings: dict[str, np.ndarray]
-
-
-@dataclass(frozen=True, slots=True)
-class Manifest:
-    """Machine-readable metadata for outputs and settings."""
-
-    operator_mode: str
-    eta_cross: float
-    clip_nonnegative: bool
-    fail_fast_on_nonfinite: bool
-    scipy_rtol: float
-    scipy_atol: float
-    ope_rtol: float
-    ope_atol: float
-    n_bins: int
-    dt_out_main_days: float
-    total_time_days: float
-    sweep_total_days: float
-    dt_sweep_days: list[float]
-    outputs: dict[str, str]
-
-
 # =============================================================================
 # Helpers
 # =============================================================================
+
+
+def _log(msg: str) -> None:
+    print(f"[biogeo] {msg}")  # noqa: T201
 
 
 def ensure_output_dir() -> Path:
@@ -861,81 +820,8 @@ def save_bins_figure(spec: BinsFigureSpec) -> None:
     plt.close(fig)
 
 
-def save_runtime_sweep_plot(
-    out_png: Path,
-    dt_days: np.ndarray,
-    runtime_by_key: dict[str, np.ndarray],
-) -> None:
-    """Plot wall time vs dt in log-log scale."""
-
-    def marker_for_key(key: str) -> str:
-        if "split A" in key:
-            return "o"
-        if "split B" in key:
-            return "s"
-        if "split C" in key:
-            return "^"
-        return "x"
-
-    fig, ax = plt.subplots(figsize=(10.5, 5.5), constrained_layout=True)
-    for name, times in runtime_by_key.items():
-        ax.plot(dt_days, times, marker=marker_for_key(name), label=name)
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("Output dt (days)")
-    ax.set_ylabel("Wall time (s)")
-    ax.set_title("Wall time vs output dt (log-log)")
-    ax.grid(visible=True, which="both")
-    ax.legend(fontsize=8, loc="best")
-
-    fig.savefig(out_png, dpi=200)
-    plt.close(fig)
-
-
-def write_runtime_reports(
-    out_txt: Path, out_csv: Path, report: RuntimeReportSpec
-) -> None:
-    """Write runtime summaries to a text report and a CSV table."""
-    lines: list[str] = []
-    lines.extend([
-        "Timing / solver stats",
-        "",
-        f"Operator mode: {report.operator_mode}",
-        "",
-        "Main run wall times:",
-    ])
-    lines.extend([f"{k:45s} {v:.6f} s" for k, v in report.main_timings.items()])
-
-    lines.extend(["", "SciPy solve_ivp details (main run):"])
-    for name, info in report.scipy_infos.items():
-        lines.append(f"  {name}")
-        keys = ("success", "message", "nfev", "njev", "nlu", "wall_s")
-        lines.extend([f"    {kk:8s}: {info.get(kk)}" for kk in keys])
-        lines.append("")
-
-    keys = list(report.sweep_timings.keys())
-    header = "dt_days," + ",".join(keys)
-    csv_lines: list[str] = [header]
-
-    for i, dt in enumerate(report.dt_days):
-        row = [f"{float(dt):.10g}"]
-        row.extend([f"{float(report.sweep_timings[k][i]):.10g}" for k in keys])
-        csv_lines.append(",".join(row))
-
-    out_txt.write_text("\n".join(lines), encoding="utf-8")
-    out_csv.write_text("\n".join(csv_lines), encoding="utf-8")
-
-
-def write_manifest(out_json: Path, manifest: Manifest) -> None:
-    """Write a JSON manifest describing outputs and settings."""
-    out_json.write_text(
-        json.dumps(asdict(manifest), indent=2, sort_keys=True), encoding="utf-8"
-    )
-
-
 # =============================================================================
-# Canonical runs + sweep orchestration
+# Canonical runs
 # =============================================================================
 
 
@@ -998,7 +884,7 @@ def build_run_spec(
     )
 
 
-def run_canonical_plots(  # noqa: PLR0914
+def run_canonical_plots(
     *,
     out_dir: Path,
     model: ModelSpec,
@@ -1013,6 +899,7 @@ def run_canonical_plots(  # noqa: PLR0914
     Raises:
         RuntimeError: If a required trajectory for plotting is missing.
     """
+    _log("Running SciPy references (RK45, BDF) for comparison")
     out_bins_explicit = out_dir / "biogeo_explicit_bins.png"
     out_bins_imex1 = out_dir / "biogeo_imex1_bins.png"
     out_bins_imex2 = out_dir / "biogeo_imex2_bins.png"
@@ -1027,6 +914,7 @@ def run_canonical_plots(  # noqa: PLR0914
     timings["solve_ivp: RK45"] = float(info_rk45["wall_s"])
     timings["solve_ivp: BDF"] = float(info_bdf["wall_s"])
 
+    _log("Running op_engine explicit (heun) vs SciPy RK45 plot")
     y_heun, wall = run_op_engine(
         method="heun", run=run, model=model, store_history=True
     )
@@ -1047,6 +935,7 @@ def run_canonical_plots(  # noqa: PLR0914
         )
     )
 
+    _log(f"Running op_engine IMEX split {default_split_for_plots} plots")
     y_imex1, wall = run_op_engine(
         method="imex-euler",
         run=run,
@@ -1071,6 +960,7 @@ def run_canonical_plots(  # noqa: PLR0914
         )
     )
 
+    _log("Running op_engine IMEX/TRBDF2 plot")
     y_imex2, wall = run_op_engine(
         method="imex-trbdf2",
         run=run,
@@ -1095,6 +985,7 @@ def run_canonical_plots(  # noqa: PLR0914
         )
     )
 
+    _log("Collecting remaining adaptive method timings (no plots)")
     timings["op_engine: euler (adaptive)"] = run_op_engine(
         method="euler",
         run=run,
@@ -1118,6 +1009,14 @@ def run_canonical_plots(  # noqa: PLR0914
                 store_history=False,
             )[1]
 
+    for meth in ("implicit-euler", "trapezoidal", "bdf2", "ros2"):
+        timings[f"op_engine: {meth} (adaptive)"] = run_op_engine(
+            method=meth,
+            run=run,
+            model=model,
+            store_history=False,
+        )[1]
+
     output_paths = {
         "biogeo_explicit_bins": out_bins_explicit,
         "biogeo_imex1_bins": out_bins_imex1,
@@ -1126,121 +1025,26 @@ def run_canonical_plots(  # noqa: PLR0914
     return timings, scipy_infos, output_paths
 
 
-def run_dt_sweep(
-    *,
-    model: ModelSpec,
-    run: RunSpec,
-    dt_days: np.ndarray,
-    sweep_total_days: float,
-) -> dict[str, np.ndarray]:
-    """Run a dt sweep, storing only wall times (no trajectories).
-
-    Returns:
-        Mapping key -> wall time array, each shape dt_days.shape.
-    """
-    keys: list[str] = [
-        "op_engine: euler",
-        "op_engine: heun",
-        "solve_ivp: RK45",
-        "solve_ivp: BDF",
-    ]
-    keys.extend([
-        f"op_engine: {meth} split {split}"
-        for split in ("A", "B", "C")
-        for meth in ("imex-euler", "imex-heun-tr", "imex-trbdf2")
-    ])
-
-    sweep_timings = {k: np.zeros(dt_days.shape, dtype=float) for k in keys}
-
-    for i, dt in enumerate(dt_days):
-        tg = build_uniform_time_grid_days(sweep_total_days, float(dt))
-        run_i = RunSpec(
-            time_grid=tg,
-            y0_flat=run.y0_flat,
-            rhs_tensor=run.rhs_tensor,
-            rhs_flat=run.rhs_flat,
-        )
-
-        sweep_timings["op_engine: euler"][i] = run_op_engine(
-            method="euler",
-            run=run_i,
-            model=model,
-            store_history=False,
-        )[1]
-        sweep_timings["op_engine: heun"][i] = run_op_engine(
-            method="heun",
-            run=run_i,
-            model=model,
-            store_history=False,
-        )[1]
-
-        for split in ("A", "B", "C"):
-            for meth in ("imex-euler", "imex-heun-tr", "imex-trbdf2"):
-                key = f"op_engine: {meth} split {split}"
-                sweep_timings[key][i] = run_op_engine(
-                    method=meth,
-                    run=run_i,
-                    model=model,
-                    split=split,  # type: ignore[arg-type]
-                    store_history=False,
-                )[1]
-
-        _, info_rk = run_scipy(method="RK45", run=run_i)
-        sweep_timings["solve_ivp: RK45"][i] = float(info_rk["wall_s"])
-
-        _, info_bdf = run_scipy(method="BDF", run=run_i)
-        sweep_timings["solve_ivp: BDF"][i] = float(info_bdf["wall_s"])
-
-    return sweep_timings
-
-
-def assemble_manifest(  # noqa: PLR0913
-    *,
-    operator_mode: str,
-    dt_out_main_days: float,
-    total_time_days: float,
-    sweep_total_days: float,
-    dt_days: np.ndarray,
-    outputs: dict[str, str],
-    n_bins: int,
-) -> Manifest:
-    """Assemble the JSON manifest.
-
-    Returns:
-        Manifest instance.
-    """
-    return Manifest(
-        operator_mode=operator_mode,
-        eta_cross=ETA_CROSS,
-        clip_nonnegative=CLIP_NONNEGATIVE,
-        fail_fast_on_nonfinite=FAIL_FAST_ON_NONFINITE,
-        scipy_rtol=SCIPY_RTOL,
-        scipy_atol=SCIPY_ATOL,
-        ope_rtol=OPE_RTOL,
-        ope_atol=OPE_ATOL,
-        n_bins=n_bins,
-        dt_out_main_days=float(dt_out_main_days),
-        total_time_days=float(total_time_days),
-        sweep_total_days=float(sweep_total_days),
-        dt_sweep_days=[float(x) for x in dt_days],
-        outputs=outputs,
-    )
-
-
 # =============================================================================
 # Main
 # =============================================================================
 
 
-def main() -> None:  # noqa: PLR0914
-    """Run the three canonical comparison plots and a dt runtime sweep."""
+def main() -> None:
+    """Run the canonical comparison plots for the biogeochemical model."""
+    _log("Preparing output directory")
     out_dir = ensure_output_dir()
 
     n_bins = 8
+    _log(f"Building model with {n_bins} size bins (mode={OPERATOR_MODE})")
     model = build_model(n_bins=n_bins)
 
     total_time_days = 365.0 * 20.0
     dt_out_main_days = 5.0
+    _log(
+        "Constructing run spec: "
+        f"T={total_time_days:.1f} days, output dt={dt_out_main_days:.1f} days"
+    )
     run = build_run_spec(
         model=model,
         seed=123,
@@ -1248,12 +1052,8 @@ def main() -> None:  # noqa: PLR0914
         dt_out_main_days=dt_out_main_days,
     )
 
-    out_runtime = out_dir / "biogeo_runtime.png"
-    out_txt = out_dir / "biogeo_runtime.txt"
-    out_csv = out_dir / "biogeo_runtime.csv"
-    out_manifest = out_dir / "biogeo_manifest.json"
-
     default_split_for_plots: SplitName = "B"
+    _log(f"Default IMEX split for plots: {default_split_for_plots}")
 
     timings, scipy_infos, plot_paths = run_canonical_plots(
         out_dir=out_dir,
@@ -1262,42 +1062,21 @@ def main() -> None:  # noqa: PLR0914
         default_split_for_plots=default_split_for_plots,
     )
 
-    sweep_total_days = 365.0 * 1.0
-    dt_days = np.asarray(
-        dt_out_main_days * np.array([0.25, 0.5, 1.0, 2.0, 4.0], dtype=float),
-        dtype=float,
-    )
-    sweep_timings = run_dt_sweep(
-        model=model, run=run, dt_days=dt_days, sweep_total_days=sweep_total_days
-    )
+    timings_path = out_dir / "biogeo_timings.txt"
+    lines = [
+        f"Wall times (adaptive runs, output dt={dt_out_main_days:.3g} days):",
+        f"Operator mode: {OPERATOR_MODE}",
+        "",
+    ]
+    lines.extend(f"{k:50s} {v:.6f} s" for k, v in sorted(timings.items()))
+    timings_path.write_text("\n".join(lines), encoding="utf-8")
 
-    save_runtime_sweep_plot(out_runtime, dt_days, sweep_timings)
+    _log("Wrote plot outputs:")
+    for name, path in plot_paths.items():
+        _log(f"  {name}: {path}")
+    _log(f"Recorded timings to {timings_path}")
 
-    report = RuntimeReportSpec(
-        operator_mode=OPERATOR_MODE,
-        main_timings=timings,
-        scipy_infos=scipy_infos,
-        dt_days=dt_days,
-        sweep_timings=sweep_timings,
-    )
-    write_runtime_reports(out_txt, out_csv, report)
-
-    outputs = {
-        **{k: str(v) for k, v in plot_paths.items()},
-        "biogeo_runtime": str(out_runtime),
-        "biogeo_runtime_txt": str(out_txt),
-        "biogeo_runtime_csv": str(out_csv),
-    }
-    manifest = assemble_manifest(
-        operator_mode=OPERATOR_MODE,
-        dt_out_main_days=dt_out_main_days,
-        total_time_days=total_time_days,
-        sweep_total_days=sweep_total_days,
-        dt_days=dt_days,
-        outputs=outputs,
-        n_bins=n_bins,
-    )
-    write_manifest(out_manifest, manifest)
+    _ = scipy_infos  # retained for potential future logging
 
 
 if __name__ == "__main__":
