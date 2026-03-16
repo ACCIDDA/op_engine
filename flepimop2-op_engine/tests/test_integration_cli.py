@@ -44,7 +44,13 @@ def _write_config(config_path: Path) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     cfg = {
         "name": "SIR_op_engine",
-        "system": [{"module": "wrapper", "script": "model_input/plugins/SIR.py"}],
+        "system": [
+            {
+                "module": "wrapper",
+                "state_change": "flow",
+                "script": "model_input/plugins/SIR.py",
+            }
+        ],
         "engine": [
             {
                 "module": "op_engine",
