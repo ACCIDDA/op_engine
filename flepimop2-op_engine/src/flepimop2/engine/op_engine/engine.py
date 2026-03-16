@@ -80,11 +80,11 @@ def _rhs_from_stepper(
             t: Current time.
             y: Current state array with shape (n_state, 1).
 
-        Raises:
-            ValueError: If input or output shapes are invalid.
-
         Returns:
             2D array of shape (n_state, 1) representing dstate/dt
+
+        Raises:
+            ValueError: If input or output shapes are invalid.
         """
         y_arr = np.asarray(y, dtype=np.float64)
 
@@ -124,11 +124,11 @@ def _extract_states_2d(core: ModelCore, *, n_state: int) -> Float64Array2D:
         core: ModelCore instance
         n_state: Number of state variables
 
-    Raises:
-        RuntimeError: If state_array is missing or has an unexpected shape.
-
     Returns:
         2D float64 array of stored states with shape (T, n_state).
+
+    Raises:
+        RuntimeError: If state_array is missing or has an unexpected shape.
     """
     state_array = getattr(core, "state_array", None)
     if state_array is None:
@@ -204,11 +204,11 @@ class _OpEngineFlepimop2EngineImpl(ModuleModel, EngineABC):
             params: Mapping of parameter names to values.
             **kwargs: Additional engine-specific keyword arguments (ignored).
 
-        Raises:
-            TypeError: If system does not expose a valid stepper.
-
         Returns:
             2D array of shape (T, 1 + n_states) with time in the first column.
+
+        Raises:
+            TypeError: If system does not expose a valid stepper.
         """
         del kwargs
 

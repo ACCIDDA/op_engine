@@ -192,11 +192,11 @@ def build_laplacian_tridiag(
         dtype: Floating dtype (e.g. np.float64).
         bc: Boundary condition; either "neumann" or "absorbing".
 
-    Raises:
-        ValueError: If an unknown boundary condition is provided.
-
     Returns:
         Sparse CSR matrix representing the Laplacian operator.
+
+    Raises:
+        ValueError: If an unknown boundary condition is provided.
     """
     dtype_obj = np.dtype(dtype)
     factor = coeff / dx**2
@@ -456,11 +456,11 @@ def build_implicit_euler_operators(
         base_op: Base linear operator A.
         dt_scale: Time-step scaling factor (dt * scale).
 
-    Raises:
-        ValueError: If dt_scale is not finite.
-
     Returns:
         Tuple of (L, R) operators for implicit Euler scheme.
+
+    Raises:
+        ValueError: If dt_scale is not finite.
     """
     if not np.isfinite(dt_scale):
         raise ValueError(_OPERATOR_SCALE_ERROR.format(scale=dt_scale))
@@ -491,11 +491,11 @@ def build_trapezoidal_operators(
         base_op: Base linear operator A.
         dt_scale: Time-step scaling factor (dt * scale).
 
-    Raises:
-        ValueError: If dt_scale is not finite.
-
     Returns:
         Tuple of (L, R) operators for trapezoidal scheme.
+
+    Raises:
+        ValueError: If dt_scale is not finite.
     """
     if not np.isfinite(dt_scale):
         raise ValueError(_OPERATOR_SCALE_ERROR.format(scale=dt_scale))
@@ -537,11 +537,11 @@ def make_stage_operator_factory(
         base_builder: Function that builds a base operator given stage context.
         scheme: Implicit scheme; either "implicit-euler" or "trapezoidal".
 
-    Raises:
-        ValueError: If an unknown scheme is provided.
-
     Returns:
         A StageOperatorFactory that builds (L, R) operators for the given scheme.
+
+    Raises:
+        ValueError: If an unknown scheme is provided.
     """
     scheme_norm = str(scheme).strip().lower()
 
@@ -620,12 +620,12 @@ def kron_sum(ops: list[Operator]) -> Operator:
     Args:
         ops: List of 2D square operators.
 
+    Returns:
+        The Kronecker sum operator.
+
     Raises:
         ValueError: If ops is empty or if operators are not square or
             have incompatible shapes.
-
-    Returns:
-        The Kronecker sum operator.
     """
     if not ops:
         raise ValueError(_KRON_EMPTY_ERROR)
@@ -1050,13 +1050,13 @@ def grouped_sum_ids_2d(
         group_ids: 1D array of integer group IDs of length N.
         n_groups: Total number of groups.
 
-    Raises:
-        ValueError: If values is not 2D or if group_ids length does not match
-            the number of items in values.
-
     Returns:
         A 2D array of shape (n_groups, K) where each row contains the sum of values
         for the corresponding group ID.
+
+    Raises:
+        ValueError: If values is not 2D or if group_ids length does not match
+            the number of items in values.
     """
     values_arr = np.asarray(values)
     group_ids_arr = np.asarray(group_ids, dtype=np.int64)

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
+from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
 from flepimop2.engine.op_engine.engine import (
     _OpEngineFlepimop2EngineImpl,  # noqa: PLC2701
 )
@@ -83,12 +84,11 @@ class _ImexSystem:
 # -----------------------------------------------------------------------------
 
 
-def test_engine_default_config_constructs() -> None:
-    """Engine can be constructed with defaults."""
-    engine = _OpEngineFlepimop2EngineImpl()
+def test_public_engine_wrapper_defines_module() -> None:
+    """Public engine wrapper satisfies flepimop2's concrete module contract."""
+    engine = OpEngineFlepimop2Engine()
 
     assert isinstance(engine, _OpEngineFlepimop2EngineImpl)
-    # Default comes from OpEngineEngineConfig; we do not assert its exact value here.
     assert engine.module == "flepimop2.engine.op_engine"
 
 

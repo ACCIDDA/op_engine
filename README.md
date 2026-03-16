@@ -33,11 +33,13 @@ pip install "op_engine[flepimop2]"
 import numpy as np
 from op_engine import ModelCore, CoreSolver
 
+
 # Define RHS
 def rhs(t, y):
     s, i, r = y
     beta, gamma = 0.3, 0.1
-    return np.array([-beta*s*i, beta*s*i - gamma*i, gamma*i])
+    return np.array([-beta * s * i, beta * s * i - gamma * i, gamma * i])
+
 
 # Time grid and state
 core = ModelCore(n_states=3, n_subgroups=1, time_grid=np.linspace(0, 10, 101))
@@ -65,8 +67,10 @@ L = np.eye(n)
 R = np.eye(n)
 ops = OperatorSpecs(default=(L, R))
 
+
 def rhs(t, y):
     return -0.1 * y
+
 
 solver = CoreSolver(core, operators=ops.default, operator_axis="state")
 solver.run(rhs, config=None)  # defaults: method="heun" (explicit)

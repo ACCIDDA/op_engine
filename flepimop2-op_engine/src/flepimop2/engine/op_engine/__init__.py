@@ -11,11 +11,15 @@ Why:
 
 from __future__ import annotations
 
+from typing import Literal
+
 from .engine import _OpEngineFlepimop2EngineImpl
 
 
 class OpEngineFlepimop2Engine(_OpEngineFlepimop2EngineImpl):  # noqa: RUF067
     """Public op_engine-backed flepimop2 Engine (default-build enabled)."""
+
+    module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
 
 
 __all__ = ["OpEngineFlepimop2Engine"]
