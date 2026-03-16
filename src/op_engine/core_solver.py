@@ -485,11 +485,11 @@ class CoreSolver:
         Args:
             op: Operator-like object.
 
-        Raises:
-            TypeError: If op is not a supported operator type for this backend.
-
         Returns:
             Operator as a supported SciPy/NumPy operator type.
+
+        Raises:
+            TypeError: If op is not a supported operator type for this backend.
         """
         if isinstance(op, np.ndarray):
             return cast("NDArray[np.floating]", op)
@@ -581,11 +581,11 @@ class CoreSolver:
         Args:
             ops: Operator spec tuple.
 
-        Raises:
-            ValueError: If ops is not a 2- or 3-tuple.
-
         Returns:
             Tuple of (predictor, L, R) operators.
+
+        Raises:
+            ValueError: If ops is not a 2- or 3-tuple.
         """
         if len(ops) == 2:
             left_op, right_op = ops
@@ -733,11 +733,11 @@ class CoreSolver:
         Args:
             method: User-provided method string.
 
-        Raises:
-            ValueError: If method is unknown.
-
         Returns:
             Normalized method literal.
+
+        Raises:
+            ValueError: If method is unknown.
         """
         method_norm = str(method).strip().lower()
         allowed: tuple[str, ...] = (
@@ -760,11 +760,11 @@ class CoreSolver:
             method: Method name.
             gamma: User-provided gamma (or None for default).
 
-        Raises:
-            ValueError: If gamma is out of range for TR-BDF2.
-
         Returns:
             Resolved gamma for TR-BDF2, or None for non-TR-BDF2 methods.
+
+        Raises:
+            ValueError: If gamma is out of range for TR-BDF2.
         """
         if method != "imex-trbdf2":
             return None
@@ -827,12 +827,12 @@ class CoreSolver:
             strict: If True, invalid configuration raises.
             adaptive: Whether adaptive stepping is enabled.
 
-        Raises:
-            ValueError: If required operators are missing.
-
         Returns:
             RunPlan for IMEX method, or an explicit fallback if strict=False and
             operators are missing.
+
+        Raises:
+            ValueError: If required operators are missing.
         """
         if op_default is None:
             if strict:
@@ -887,13 +887,13 @@ class CoreSolver:
             strict: If True, invalid configuration raises.
             adaptive: Whether adaptive stepping is enabled.
 
-        Raises:
-            RuntimeError: If method_in is not "imex-trbdf2".
-            ValueError: If required operators are missing.
-
         Returns:
             RunPlan for TR-BDF2, or a Heun fallback if strict=False and operators are
             missing.
+
+        Raises:
+            RuntimeError: If method_in is not "imex-trbdf2".
+            ValueError: If required operators are missing.
         """
         if method_in != "imex-trbdf2":
             raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method_in))
@@ -1083,11 +1083,11 @@ class CoreSolver:
         Args:
             step: Step bundle.
 
-        Raises:
-            RuntimeError: If err_out is None.
-
         Returns:
             err_out array.
+
+        Raises:
+            RuntimeError: If err_out is None.
         """
         if step.err_out is None:
             raise RuntimeError(_INTERNAL_ERROR_ERR_OUT_MSG)
@@ -1447,11 +1447,11 @@ class CoreSolver:
             plan: Run plan.
             step: Step bundle.
 
-        Raises:
-            RuntimeError: If an unknown method is encountered or internal errors occur.
-
         Returns:
             Method order.
+
+        Raises:
+            RuntimeError: If an unknown method is encountered or internal errors occur.
         """
         if plan.method == "euler":
             return self._step_euler_doubling(rhs_func, step)
@@ -1525,11 +1525,11 @@ class CoreSolver:
             rhs_func: RHS function.
             params: Adaptive advance parameters.
 
-        Raises:
-            RuntimeError: If step rejection limits or dt bounds are violated.
-
         Returns:
             State at params.t1.
+
+        Raises:
+            RuntimeError: If step rejection limits or dt bounds are violated.
         """
         t0 = float(params.t0)
         t1 = float(params.t1)

@@ -219,12 +219,12 @@ class ModelCore:
         Args:
             axis: Axis name or index.
 
+        Returns:
+            Axis index as an integer.
+
         Raises:
             IndexError: if axis index is out of bounds.
             ValueError: if axis name is unknown.
-
-        Returns:
-            Axis index as an integer.
         """
         if isinstance(axis, int):
             if not (0 <= axis < self.state_ndim):
@@ -351,11 +351,11 @@ class ModelCore:
         Args:
             step_idx: Timestep index in [0, n_timesteps).
 
-        Raises:
-            IndexError: if step_idx is out of bounds.
-
         Returns:
             Time as a float.
+
+        Raises:
+            IndexError: if step_idx is out of bounds.
         """
         if not (0 <= step_idx < self.n_timesteps):
             raise IndexError(_TIME_INDEX_OOB_ERROR.format(idx=step_idx))
@@ -368,11 +368,11 @@ class ModelCore:
         Args:
             step_idx: Timestep index in [0, n_timesteps - 1].
 
-        Raises:
-            IndexError: if step_idx is out of bounds.
-
         Returns:
             dt as a float.
+
+        Raises:
+            IndexError: if step_idx is out of bounds.
         """
         if self.n_timesteps <= 1:
             return 0.0

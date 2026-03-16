@@ -129,11 +129,11 @@ def _run_sir(
         initial_infected: Initial infected fraction.
         config: Run configuration for CoreSolver.
 
-    Raises:
-        RuntimeError: If the state history is not available after the run.
-
     Returns:
         State history array of shape (n_steps, 3, 1).
+
+    Raises:
+        RuntimeError: If the state history is not available after the run.
     """
     opts = ModelCoreOptions(store_history=True, dtype=np.float64)
     core = ModelCore(n_states=3, n_subgroups=1, time_grid=time_grid, options=opts)
