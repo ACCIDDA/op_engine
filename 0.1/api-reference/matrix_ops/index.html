@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1858,29 +1858,6 @@ always return a dense operator; if None, autodispatch based on n.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="ValueError">ValueError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If dt_scale is not finite.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -1897,6 +1874,29 @@ always return a dense operator; if None, autodispatch based on n.</p>
             <td>
               <div class="doc-md-description">
                 <p>Tuple of (L, R) operators for implicit Euler scheme.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If dt_scale is not finite.</p>
               </div>
             </td>
           </tr>
@@ -1948,11 +1948,11 @@ always return a dense operator; if None, autodispatch based on n.</p>
 <span class="sd">        base_op: Base linear operator A.</span>
 <span class="sd">        dt_scale: Time-step scaling factor (dt * scale).</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If dt_scale is not finite.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple of (L, R) operators for implicit Euler scheme.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If dt_scale is not finite.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">dt_scale</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_OPERATOR_SCALE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">dt_scale</span><span class="p">))</span>
@@ -2090,29 +2090,6 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="ValueError">ValueError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If an unknown boundary condition is provided.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -2129,6 +2106,29 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
             <td>
               <div class="doc-md-description">
                 <p>Sparse CSR matrix representing the Laplacian operator.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If an unknown boundary condition is provided.</p>
               </div>
             </td>
           </tr>
@@ -2210,11 +2210,11 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 <span class="sd">        dtype: Floating dtype (e.g. np.float64).</span>
 <span class="sd">        bc: Boundary condition; either &quot;neumann&quot; or &quot;absorbing&quot;.</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If an unknown boundary condition is provided.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        Sparse CSR matrix representing the Laplacian operator.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If an unknown boundary condition is provided.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">dtype_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">factor</span> <span class="o">=</span> <span class="n">coeff</span> <span class="o">/</span> <span class="n">dx</span><span class="o">**</span><span class="mi">2</span>
@@ -2427,29 +2427,6 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="ValueError">ValueError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If dt_scale is not finite.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -2466,6 +2443,29 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
             <td>
               <div class="doc-md-description">
                 <p>Tuple of (L, R) operators for trapezoidal scheme.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If dt_scale is not finite.</p>
               </div>
             </td>
           </tr>
@@ -2518,11 +2518,11 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 <span class="sd">        base_op: Base linear operator A.</span>
 <span class="sd">        dt_scale: Time-step scaling factor (dt * scale).</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If dt_scale is not finite.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple of (L, R) operators for trapezoidal scheme.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If dt_scale is not finite.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">dt_scale</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_OPERATOR_SCALE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">dt_scale</span><span class="p">))</span>
@@ -3132,30 +3132,6 @@ return a dense array; if None, autodispatch based on n_groups.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="ValueError">ValueError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If values is not 2D or if group_ids length does not match
-the number of items in values.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -3182,6 +3158,30 @@ the number of items in values.</p>
             <td>
               <div class="doc-md-description">
                 <p>for the corresponding group ID.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If values is not 2D or if group_ids length does not match
+the number of items in values.</p>
               </div>
             </td>
           </tr>
@@ -3242,13 +3242,13 @@ the number of items in values.</p>
 <span class="sd">        group_ids: 1D array of integer group IDs of length N.</span>
 <span class="sd">        n_groups: Total number of groups.</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If values is not 2D or if group_ids length does not match</span>
-<span class="sd">            the number of items in values.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        A 2D array of shape (n_groups, K) where each row contains the sum of values</span>
 <span class="sd">        for the corresponding group ID.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If values is not 2D or if group_ids length does not match</span>
+<span class="sd">            the number of items in values.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">values_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
     <span class="n">group_ids_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
@@ -3623,6 +3623,29 @@ the number of items in values.</p>
     </table>
 
 
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="op_engine.matrix_ops.Operator">Operator</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The Kronecker sum operator.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
 <p><span class="doc-section-title">Raises:</span></p>
     <table>
       <thead>
@@ -3640,29 +3663,6 @@ the number of items in values.</p>
               <div class="doc-md-description">
                 <p>If ops is empty or if operators are not square or
 have incompatible shapes.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    <p><span class="doc-section-title">Returns:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="op_engine.matrix_ops.Operator">Operator</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The Kronecker sum operator.</p>
               </div>
             </td>
           </tr>
@@ -3727,12 +3727,12 @@ have incompatible shapes.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        ops: List of 2D square operators.</span>
 
+<span class="sd">    Returns:</span>
+<span class="sd">        The Kronecker sum operator.</span>
+
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If ops is empty or if operators are not square or</span>
 <span class="sd">            have incompatible shapes.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        The Kronecker sum operator.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_KRON_EMPTY_ERROR</span><span class="p">)</span>
@@ -3943,29 +3943,6 @@ have incompatible shapes.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="ValueError">ValueError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If an unknown scheme is provided.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -3982,6 +3959,29 @@ have incompatible shapes.</p>
             <td>
               <div class="doc-md-description">
                 <p>A StageOperatorFactory that builds (L, R) operators for the given scheme.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If an unknown scheme is provided.</p>
               </div>
             </td>
           </tr>
@@ -4043,11 +4043,11 @@ have incompatible shapes.</p>
 <span class="sd">        base_builder: Function that builds a base operator given stage context.</span>
 <span class="sd">        scheme: Implicit scheme; either &quot;implicit-euler&quot; or &quot;trapezoidal&quot;.</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If an unknown scheme is provided.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        A StageOperatorFactory that builds (L, R) operators for the given scheme.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If an unknown scheme is provided.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">scheme_norm</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">scheme</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
 

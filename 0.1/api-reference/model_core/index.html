@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1976,6 +1976,29 @@ additive increments) without forcing allocation of y_next.</p>
     </table>
 
 
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Axis index as an integer.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
 <p><span class="doc-section-title">Raises:</span></p>
     <table>
       <thead>
@@ -2002,29 +2025,6 @@ additive increments) without forcing allocation of y_next.</p>
             <td>
               <div class="doc-md-description">
                 <p>if axis name is unknown.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    <p><span class="doc-section-title">Returns:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="int">int</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Axis index as an integer.</p>
               </div>
             </td>
           </tr>
@@ -2063,12 +2063,12 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        axis: Axis name or index.</span>
 
+<span class="sd">    Returns:</span>
+<span class="sd">        Axis index as an integer.</span>
+
 <span class="sd">    Raises:</span>
 <span class="sd">        IndexError: if axis index is out of bounds.</span>
 <span class="sd">        ValueError: if axis name is unknown.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Axis index as an integer.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">axis</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_ndim</span><span class="p">):</span>
@@ -2291,29 +2291,6 @@ additive increments) without forcing allocation of y_next.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="IndexError">IndexError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>if step_idx is out of bounds.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -2330,6 +2307,29 @@ additive increments) without forcing allocation of y_next.</p>
             <td>
               <div class="doc-md-description">
                 <p>dt as a float.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="IndexError">IndexError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>if step_idx is out of bounds.</p>
               </div>
             </td>
           </tr>
@@ -2363,11 +2363,11 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        step_idx: Timestep index in [0, n_timesteps - 1].</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        IndexError: if step_idx is out of bounds.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        dt as a float.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        IndexError: if step_idx is out of bounds.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="mf">0.0</span>
@@ -2579,29 +2579,6 @@ additive increments) without forcing allocation of y_next.</p>
     </table>
 
 
-<p><span class="doc-section-title">Raises:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="IndexError">IndexError</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>if step_idx is out of bounds.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -2618,6 +2595,29 @@ additive increments) without forcing allocation of y_next.</p>
             <td>
               <div class="doc-md-description">
                 <p>Time as a float.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="IndexError">IndexError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>if step_idx is out of bounds.</p>
               </div>
             </td>
           </tr>
@@ -2649,11 +2649,11 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        step_idx: Timestep index in [0, n_timesteps).</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        IndexError: if step_idx is out of bounds.</span>
-
 <span class="sd">    Returns:</span>
 <span class="sd">        Time as a float.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        IndexError: if step_idx is out of bounds.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">step_idx</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="n">_TIME_INDEX_OOB_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idx</span><span class="o">=</span><span class="n">step_idx</span><span class="p">))</span>
