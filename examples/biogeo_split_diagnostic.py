@@ -167,7 +167,7 @@ def _make_base_builder(
     return builder
 
 
-def run_op_engine_custom(
+def run_op_engine_custom(  # noqa: PLR0913
     *,
     method: str,
     run: bio.RunSpec,
