@@ -826,11 +826,11 @@ class CoreSolver:
             method: Method name.
             jacobian: Optional Jacobian function.
 
-        Raises:
-            ValueError: If Jacobian is missing.
-
         Returns:
             Jacobian function.
+
+        Raises:
+            ValueError: If Jacobian is missing.
         """
         if jacobian is None:
             msg = (
