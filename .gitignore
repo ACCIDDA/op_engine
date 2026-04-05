@@ -126,6 +126,7 @@ venv.bak/
 # ================================
 # IDEs / Editors
 # ================================
+.vscode/
 .spyderproject
 .spyproject
 .ropeproject
@@ -163,6 +164,7 @@ __marimo__/
 .Trashes
 .VolumeIcon.icns
 .fseventsd
+.Rhistory
 
 # ================================
 # Example output artifacts
