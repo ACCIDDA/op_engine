@@ -1117,7 +1117,7 @@ optionally with a preprocessing predictor:
           <tr class="doc-section-item">
             <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.plan">plan</span></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunPlan(method, gamma, op_default, op_tr, op_bdf2)
+                  <code><a class="autorefs autorefs-internal" title="RunPlan(method, gamma, op_default, op_tr, op_bdf2, jacobian)
 
   
       dataclass
@@ -1432,29 +1432,7 @@ optionally with a preprocessing predictor:
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">356</span>
-<span class="normal">357</span>
-<span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
-<span class="normal">370</span>
-<span class="normal">371</span>
-<span class="normal">372</span>
-<span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">378</span>
 <span class="normal">379</span>
 <span class="normal">380</span>
 <span class="normal">381</span>
@@ -1496,7 +1474,33 @@ optionally with a preprocessing predictor:
 <span class="normal">417</span>
 <span class="normal">418</span>
 <span class="normal">419</span>
-<span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">operators</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1554,6 +1558,10 @@ optionally with a preprocessing predictor:
     <span class="bp">self</span><span class="o">.</span><span class="n">_y_stage1</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_f_stage1</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_f_extrap</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+
+    <span class="c1"># Previous-step cache (for multistep methods like BDF2)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_prev_state_cache</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_has_prev_state</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="c1"># Validate operator sizes if default spec is a static tuple</span>
     <span class="k">if</span> <span class="n">operators</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">operators</span><span class="p">):</span>
@@ -1623,7 +1631,7 @@ optionally with a preprocessing predictor:
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), gamma=None)
+                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, gamma=None)
 
   
       dataclass
@@ -1667,54 +1675,63 @@ optionally with a preprocessing predictor:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1608</span>
-<span class="normal">1609</span>
-<span class="normal">1610</span>
-<span class="normal">1611</span>
-<span class="normal">1612</span>
-<span class="normal">1613</span>
-<span class="normal">1614</span>
-<span class="normal">1615</span>
-<span class="normal">1616</span>
-<span class="normal">1617</span>
-<span class="normal">1618</span>
-<span class="normal">1619</span>
-<span class="normal">1620</span>
-<span class="normal">1621</span>
-<span class="normal">1622</span>
-<span class="normal">1623</span>
-<span class="normal">1624</span>
-<span class="normal">1625</span>
-<span class="normal">1626</span>
-<span class="normal">1627</span>
-<span class="normal">1628</span>
-<span class="normal">1629</span>
-<span class="normal">1630</span>
-<span class="normal">1631</span>
-<span class="normal">1632</span>
-<span class="normal">1633</span>
-<span class="normal">1634</span>
-<span class="normal">1635</span>
-<span class="normal">1636</span>
-<span class="normal">1637</span>
-<span class="normal">1638</span>
-<span class="normal">1639</span>
-<span class="normal">1640</span>
-<span class="normal">1641</span>
-<span class="normal">1642</span>
-<span class="normal">1643</span>
-<span class="normal">1644</span>
-<span class="normal">1645</span>
-<span class="normal">1646</span>
-<span class="normal">1647</span>
-<span class="normal">1648</span>
-<span class="normal">1649</span>
-<span class="normal">1650</span>
-<span class="normal">1651</span>
-<span class="normal">1652</span>
-<span class="normal">1653</span>
-<span class="normal">1654</span>
-<span class="normal">1655</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2037</span>
+<span class="normal">2038</span>
+<span class="normal">2039</span>
+<span class="normal">2040</span>
+<span class="normal">2041</span>
+<span class="normal">2042</span>
+<span class="normal">2043</span>
+<span class="normal">2044</span>
+<span class="normal">2045</span>
+<span class="normal">2046</span>
+<span class="normal">2047</span>
+<span class="normal">2048</span>
+<span class="normal">2049</span>
+<span class="normal">2050</span>
+<span class="normal">2051</span>
+<span class="normal">2052</span>
+<span class="normal">2053</span>
+<span class="normal">2054</span>
+<span class="normal">2055</span>
+<span class="normal">2056</span>
+<span class="normal">2057</span>
+<span class="normal">2058</span>
+<span class="normal">2059</span>
+<span class="normal">2060</span>
+<span class="normal">2061</span>
+<span class="normal">2062</span>
+<span class="normal">2063</span>
+<span class="normal">2064</span>
+<span class="normal">2065</span>
+<span class="normal">2066</span>
+<span class="normal">2067</span>
+<span class="normal">2068</span>
+<span class="normal">2069</span>
+<span class="normal">2070</span>
+<span class="normal">2071</span>
+<span class="normal">2072</span>
+<span class="normal">2073</span>
+<span class="normal">2074</span>
+<span class="normal">2075</span>
+<span class="normal">2076</span>
+<span class="normal">2077</span>
+<span class="normal">2078</span>
+<span class="normal">2079</span>
+<span class="normal">2080</span>
+<span class="normal">2081</span>
+<span class="normal">2082</span>
+<span class="normal">2083</span>
+<span class="normal">2084</span>
+<span class="normal">2085</span>
+<span class="normal">2086</span>
+<span class="normal">2087</span>
+<span class="normal">2088</span>
+<span class="normal">2089</span>
+<span class="normal">2090</span>
+<span class="normal">2091</span>
+<span class="normal">2092</span>
+<span class="normal">2093</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Advance the ModelCore state through its time grid.</span>
 
 <span class="sd">    Args:</span>
@@ -1739,6 +1756,10 @@ optionally with a preprocessing predictor:
 
         <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">())</span>
 
+        <span class="n">y_prev</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prev_state_cache</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_prev_state</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">cfg</span><span class="o">.</span><span class="n">adaptive</span><span class="p">:</span>
             <span class="n">y_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_nonadaptive_to_time</span><span class="p">(</span>
                 <span class="n">rhs_func</span><span class="p">,</span>
@@ -1746,8 +1767,11 @@ optionally with a preprocessing predictor:
                 <span class="n">t0</span><span class="o">=</span><span class="n">t0</span><span class="p">,</span>
                 <span class="n">dt_out</span><span class="o">=</span><span class="n">dt_out</span><span class="p">,</span>
                 <span class="n">y0</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">,</span>
+                <span class="n">y_prev</span><span class="o">=</span><span class="n">y_prev</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">advance_timestep</span><span class="p">(</span><span class="n">y_next</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_has_prev_state</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prev_state_cache</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">)</span>
             <span class="k">continue</span>
 
         <span class="n">y_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_adaptive_to_time</span><span class="p">(</span>
@@ -1762,6 +1786,8 @@ optionally with a preprocessing predictor:
             <span class="p">),</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">advance_timestep</span><span class="p">(</span><span class="n">y_end</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_has_prev_state</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prev_state_cache</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2393,9 +2419,9 @@ and as a fallback for TR/BDF2 stages.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">123</span>
-<span class="normal">124</span>
-<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply the predictor to a 2D array.&quot;&quot;&quot;</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
@@ -2417,7 +2443,7 @@ and as a fallback for TR/BDF2 stages.</p>
 
 
 <h3 id="op_engine.core_solver.RunConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;heun&#39;</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;heun&#39;</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -2523,6 +2549,17 @@ method downshifts may occur.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.jacobian">jacobian</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.JacobianFunction">JacobianFunction</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional Jacobian function for fully implicit / Rosenbrock methods.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code><span title="op_engine.core_solver.RunConfig.gamma">gamma</span></code></td>
             <td>
                   <code><span title="float">float</span> | None</code>
@@ -2570,7 +2607,7 @@ method downshifts may occur.</p>
 
 
 <h3 id="op_engine.core_solver.RunPlan" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">RunPlan</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">op_default</span><span class="p">,</span> <span class="n">op_tr</span><span class="p">,</span> <span class="n">op_bdf2</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">RunPlan</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">op_default</span><span class="p">,</span> <span class="n">op_tr</span><span class="p">,</span> <span class="n">op_bdf2</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -2652,6 +2689,17 @@ method downshifts may occur.</p>
               </div>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.jacobian">jacobian</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.JacobianFunction">JacobianFunction</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional Jacobian function for fully implicit / Rosenbrock methods.</p>
+              </div>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2689,7 +2737,7 @@ method downshifts may occur.</p>
 
 
 <h3 id="op_engine.core_solver.StepIO" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">StepIO</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">err_out</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">StepIO</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">err_out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y_prev</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -2767,6 +2815,17 @@ method downshifts may occur.</p>
             <td>
               <div class="doc-md-description">
                 <p>Error estimate array (written in-place) for adaptive methods.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.StepIO.y_prev">y_prev</span></code></td>
+            <td>
+                  <code><span title="numpy.typing.NDArray">NDArray</span>[<span title="numpy.floating">floating</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional previous state (for multistep methods).</p>
               </div>
             </td>
           </tr>
