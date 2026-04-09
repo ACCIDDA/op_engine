@@ -159,7 +159,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
             if isinstance(system_axis, str | int):
                 operator_axis = system_axis
 
-        stepper: SystemProtocol = system._stepper  # noqa: SLF001
+        stepper: SystemProtocol = system.bind()
 
         mixing_kernels = system.option("mixing_kernels", None)
         merged_params = {

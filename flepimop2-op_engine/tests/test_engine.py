@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import functools
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -11,7 +12,7 @@ from flepimop2.system.abc import SystemABC
 from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
 
 if TYPE_CHECKING:
-    from flepimop2.system.abc import SystemProtocol
+    from flepimop2.typing import IdentifierString, SystemProtocol
 
 # -----------------------------------------------------------------------------
 # Test helpers
@@ -33,7 +34,7 @@ class _GoodStepper:
 
 
 class _GoodSystem(SystemABC):
-    """SystemABC implementation exposing a valid stepper via _stepper."""
+    """SystemABC implementation exposing a valid stepper via bind()."""
 
     module = "flepimop2.system.test_good"
     state_change = "flow"
@@ -46,6 +47,11 @@ class _GoodSystem(SystemABC):
                 "default": (np.eye(1, dtype=np.float64), np.eye(1, dtype=np.float64))
             }
         }
+
+    def _bind_impl(
+        self, params: dict[IdentifierString, Any] | None = None
+    ) -> SystemProtocol:
+        return functools.partial(self._stepper, **(params or {}))
 
 
 class _DeltaSystem(_GoodSystem):
