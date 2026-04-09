@@ -2,7 +2,7 @@
 name = "op_engine"
 version = "0.1.0"
 description = "Multiphysics integration engine for ODEs and PDEs using implicit-explicit operator splitting"
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11,<3.15"
 license = { file = "LICENSE" }
 authors = [
@@ -10,6 +10,7 @@ authors = [
     { name = "Carl Pearson", email = "cap1024@unc.edu" },
     { name = "Timothy Willard", email = "twillard@unc.edu" },
 ]
+keywords = ["multiphysics", "ODE", "PDE", "IMEX", "operator-splitting", "solver"]
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
@@ -28,11 +29,10 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 
-[project.optional-dependencies]
-data = [
-    "pandas>=2.2",
-    "pyarrow>=16.0",
-]
+[project.urls]
+Repository = "https://github.com/ACCIDDA/op_engine"
+Documentation = "https://accidda.github.io/op_engine/"
+Issues = "https://github.com/ACCIDDA/op_engine/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -42,14 +42,14 @@ build-backend = "hatchling.build"
 dev = [
     "mkdocs>=1.6.1",
     "mypy>=1.18.2",
+    "matplotlib>=3.8",
     "pytest>=8.4.2",
     "ruff>=0.13.3",
-    "sybil[pytest]>=9.2.0",
-    "scipy-stubs>=0.5.0",
     "mike>=2.1.3",
     "mkdocs-material>=9.7.1",
     "mkdocstrings[python]>=1.0.1",
     "mkdocs-autorefs>=1.4.3",
+    "scipy-stubs>=1.17.1.3",
 ]
 
 [tool.pytest.ini_options]
