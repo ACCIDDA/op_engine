@@ -193,6 +193,11 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
             )
             raise ValueError(msg)
 
+        if run_cfg.method in self._IMPLICIT_METHODS:
+            jacobian = system.option("jacobian", None)
+            if callable(jacobian):
+                run_cfg = replace(run_cfg, jacobian=jacobian)
+
         operator_axis = self.config.operator_axis
         if operator_axis == "state":
             system_axis = system.option("operator_axis", None)
