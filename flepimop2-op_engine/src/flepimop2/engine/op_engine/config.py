@@ -37,9 +37,17 @@ class OpEngineEngineConfig(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    method: Literal["euler", "heun", "imex-euler", "imex-heun-tr", "imex-trbdf2"] = (
-        "heun"
-    )
+    method: Literal[
+        "euler",
+        "heun",
+        "imex-euler",
+        "imex-heun-tr",
+        "imex-trbdf2",
+        "implicit-euler",
+        "trapezoidal",
+        "bdf2",
+        "ros2",
+    ] = "heun"
     adaptive: bool = False
     strict: bool = True
     rtol: float = Field(default=1e-6, ge=0.0)

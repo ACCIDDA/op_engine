@@ -105,10 +105,16 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
     state_change: StateChangeEnum
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
 
+    _IMPLICIT_METHODS: frozenset[str] = frozenset(
+        {"implicit-euler", "trapezoidal", "bdf2", "ros2"},
+    )
+
     def validate_system(self, system: SystemABC) -> list[ValidationIssue] | None:
-        """Validate system compatibility against the engine state-change mode."""
+        """Validate system compatibility with engine config."""
+        issues: list[ValidationIssue] = []
+
         if system.state_change != self.state_change:
-            return [
+            issues.append(
                 ValidationIssue(
                     msg=(
                         f"Engine state change type, '{self.state_change}', is not "
@@ -116,9 +122,43 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
                         f"'{system.state_change}'."
                     ),
                     kind="incompatible_system",
+                ),
+            )
+
+        method = self.config.method
+        is_imex = method.startswith("imex-")
+
+        if is_imex and not _has_operator_specs(
+            _coerce_operator_specs(self.config.operators),
+        ):
+            sys_ops = system.option("operators", None)
+            if not _has_operator_specs(_coerce_operator_specs(sys_ops)):
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"IMEX method '{method}' requires operator matrices, "
+                            "but neither the engine config nor "
+                            "system.option('operators') provides them."
+                        ),
+                        kind="missing_operators",
+                    ),
                 )
-            ]
-        return None
+
+        if method in self._IMPLICIT_METHODS:
+            jac = system.option("jacobian", None)
+            if jac is None:
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"Implicit/Rosenbrock method '{method}' requires a "
+                            "Jacobian callable, but system.option('jacobian') "
+                            "is not provided."
+                        ),
+                        kind="missing_jacobian",
+                    ),
+                )
+
+        return issues or None
 
     def run(
         self,
