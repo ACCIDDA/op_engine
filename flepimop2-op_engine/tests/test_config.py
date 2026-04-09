@@ -8,7 +8,7 @@ pydantic = pytest.importorskip("pydantic")
 from op_engine.core_solver import OperatorSpecs, RunConfig  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
-from flepimop2.engine.op_engine import OpEngineEngineConfig  # noqa: E402
+from flepimop2.engine.op_engine import OpEngineEngineConfig, SolverMethod  # noqa: E402
 
 
 def _has_any_operator_specs(specs: OperatorSpecs) -> bool:
@@ -47,7 +47,7 @@ def test_engine_config_defaults_to_run_config() -> None:
 def test_engine_config_round_trips_selected_fields() -> None:
     """Engine config round-trips selected fields correctly."""
     cfg = OpEngineEngineConfig(
-        method="euler",
+        method=SolverMethod.EULER,
         adaptive=True,
         strict=False,
         rtol=1e-4,
@@ -77,7 +77,7 @@ def test_engine_config_round_trips_selected_fields() -> None:
 def test_engine_config_allows_unknown_fields() -> None:
     """Engine config should allow unknown fields without error."""
     cfg = OpEngineEngineConfig(  # type: ignore[call-arg]
-        method="heun",
+        method=SolverMethod.HEUN,
         adaptive=False,
         some_unknown_key=123,
         nested_unknown={"a": 1},
@@ -97,7 +97,7 @@ def test_engine_config_gamma_bounds_validation() -> None:
     """Engine config validates gamma bounds for imex-trbdf2 method."""
     # IMEX requires operators at parse-time.
     cfg = OpEngineEngineConfig(
-        method="imex-trbdf2",
+        method=SolverMethod.IMEX_TRBDF2,
         gamma=0.6,
         operators={"default": "sentinel"},
     )
@@ -108,28 +108,28 @@ def test_engine_config_gamma_bounds_validation() -> None:
     # invalid: gamma must be in (0, 1)
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(
-            method="imex-trbdf2",
+            method=SolverMethod.IMEX_TRBDF2,
             gamma=0.0,
             operators={"default": "sentinel"},
         )
 
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(
-            method="imex-trbdf2",
+            method=SolverMethod.IMEX_TRBDF2,
             gamma=1.0,
             operators={"default": "sentinel"},
         )
 
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(
-            method="imex-trbdf2",
+            method=SolverMethod.IMEX_TRBDF2,
             gamma=-0.1,
             operators={"default": "sentinel"},
         )
 
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(
-            method="imex-trbdf2",
+            method=SolverMethod.IMEX_TRBDF2,
             gamma=1.1,
             operators={"default": "sentinel"},
         )
@@ -137,7 +137,7 @@ def test_engine_config_gamma_bounds_validation() -> None:
 
 def test_engine_config_imex_allows_deferred_operators() -> None:
     """IMEX methods may omit operators to defer to system options at runtime."""
-    cfg = OpEngineEngineConfig(method="imex-euler")
+    cfg = OpEngineEngineConfig(method=SolverMethod.IMEX_EULER)
     run = cfg.to_run_config()
     assert run.method == "imex-euler"
     assert isinstance(run.operators, OperatorSpecs)
@@ -147,13 +147,13 @@ def test_engine_config_imex_allows_deferred_operators() -> None:
 def test_engine_config_imex_rejects_explicitly_empty_operator_block() -> None:
     """Providing an empty operator block should raise validation errors."""
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="imex-heun-tr", operators={})
+        OpEngineEngineConfig(method=SolverMethod.IMEX_HEUN_TR, operators={})
 
 
 def test_engine_config_imex_with_operators_still_valid() -> None:
     """Providing IMEX operators explicitly should still validate."""
     cfg = OpEngineEngineConfig(
-        method="imex-euler",
+        method=SolverMethod.IMEX_EULER,
         operators={"default": "sentinel"},
     )
     run = cfg.to_run_config()

@@ -17,7 +17,12 @@ from op_engine.core_solver import (
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
-from .config import OpEngineEngineConfig, _coerce_operator_specs, _has_operator_specs
+from .config import (
+    OpEngineEngineConfig,
+    SolverMethod,
+    _coerce_operator_specs,
+    _has_operator_specs,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -105,10 +110,6 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
     state_change: StateChangeEnum
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
 
-    _IMPLICIT_METHODS: frozenset[str] = frozenset(
-        {"implicit-euler", "trapezoidal", "bdf2", "ros2"},
-    )
-
     def validate_system(self, system: SystemABC) -> list[ValidationIssue] | None:
         """Validate system compatibility with engine config."""
         issues: list[ValidationIssue] = []
@@ -126,7 +127,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
             )
 
         method = self.config.method
-        is_imex = method.startswith("imex-")
+        is_imex = method.is_imex
 
         if is_imex and not _has_operator_specs(
             _coerce_operator_specs(self.config.operators),
@@ -144,7 +145,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
                     ),
                 )
 
-        if method in self._IMPLICIT_METHODS:
+        if method.is_implicit:
             jac = system.option("jacobian", None)
             if jac is None:
                 issues.append(
@@ -177,7 +178,8 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
         n_state = int(y0.size)
 
         run_cfg = self.config.to_run_config()
-        is_imex = run_cfg.method.startswith("imex-")
+        method = self.config.method
+        is_imex = method.is_imex
         operators = run_cfg.operators
 
         if is_imex and not _has_operator_specs(operators):
@@ -193,7 +195,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
             )
             raise ValueError(msg)
 
-        if run_cfg.method in self._IMPLICIT_METHODS:
+        if method.is_implicit:
             jacobian = system.option("jacobian", None)
             if callable(jacobian):
                 run_cfg = replace(run_cfg, jacobian=jacobian)
@@ -225,4 +227,4 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
         return np.asarray(np.column_stack((times, states)), dtype=np.float64)
 
 
-__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine"]
+__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine", "SolverMethod"]

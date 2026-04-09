@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -32,22 +33,46 @@ def _coerce_operator_specs(specs: object) -> OperatorSpecs | None:
     return None
 
 
+class SolverMethod(StrEnum):
+    """Solver method identifiers for op_engine integration."""
+
+    EULER = "euler"
+    HEUN = "heun"
+    IMEX_EULER = "imex-euler"
+    IMEX_HEUN_TR = "imex-heun-tr"
+    IMEX_TRBDF2 = "imex-trbdf2"
+    IMPLICIT_EULER = "implicit-euler"
+    TRAPEZOIDAL = "trapezoidal"
+    BDF2 = "bdf2"
+    ROS2 = "ros2"
+
+    @property
+    def is_imex(self) -> bool:
+        """Whether this method is an IMEX method."""
+        return self.value.startswith("imex-")
+
+    @property
+    def is_implicit(self) -> bool:
+        """Whether this method requires a Jacobian."""
+        return self in _IMPLICIT_METHODS
+
+
+_IMPLICIT_METHODS: frozenset[SolverMethod] = frozenset(
+    {
+        SolverMethod.IMPLICIT_EULER,
+        SolverMethod.TRAPEZOIDAL,
+        SolverMethod.BDF2,
+        SolverMethod.ROS2,
+    },
+)
+
+
 class OpEngineEngineConfig(BaseModel):
     """Configuration schema for op_engine when used as a flepimop2 engine."""
 
     model_config = ConfigDict(extra="allow")
 
-    method: Literal[
-        "euler",
-        "heun",
-        "imex-euler",
-        "imex-heun-tr",
-        "imex-trbdf2",
-        "implicit-euler",
-        "trapezoidal",
-        "bdf2",
-        "ros2",
-    ] = "heun"
+    method: SolverMethod = SolverMethod.HEUN
     adaptive: bool = False
     strict: bool = True
     rtol: float = Field(default=1e-6, ge=0.0)
@@ -99,4 +124,9 @@ class OpEngineEngineConfig(BaseModel):
         )
 
 
-__all__ = ["OpEngineEngineConfig", "_coerce_operator_specs", "_has_operator_specs"]
+__all__ = [
+    "OpEngineEngineConfig",
+    "SolverMethod",
+    "_coerce_operator_specs",
+    "_has_operator_specs",
+]

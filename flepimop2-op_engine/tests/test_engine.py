@@ -10,7 +10,11 @@ import pytest
 from flepimop2.system.abc import SystemABC
 from flepimop2.typing import StateChangeEnum
 
-from flepimop2.engine.op_engine import OpEngineEngineConfig, OpEngineFlepimop2Engine
+from flepimop2.engine.op_engine import (
+    OpEngineEngineConfig,
+    OpEngineFlepimop2Engine,
+    SolverMethod,
+)
 
 if TYPE_CHECKING:
     from flepimop2.typing import IdentifierString, SystemProtocol
@@ -172,7 +176,7 @@ def test_validate_imex_missing_operators() -> None:
     """IMEX method without operators in config or system → missing_operators."""
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
-        config=OpEngineEngineConfig(method="imex-euler"),
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
     )
     system = _GoodSystem()
     system.options = {}
@@ -187,7 +191,7 @@ def test_validate_imex_system_provides_operators() -> None:
     """IMEX method + system.option('operators') provided → no operator warning."""
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
-        config=OpEngineEngineConfig(method="imex-euler"),
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
     )
     system = _GoodSystem()
     # _GoodSystem already has operators in options
@@ -201,7 +205,7 @@ def test_validate_imex_config_provides_operators() -> None:
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
         config=OpEngineEngineConfig(
-            method="imex-euler",
+            method=SolverMethod.IMEX_EULER,
             operators={
                 "default": [np.eye(1).tolist(), np.eye(1).tolist()],
             },
@@ -221,13 +225,18 @@ def test_validate_imex_config_provides_operators() -> None:
 
 @pytest.mark.parametrize(
     "method",
-    ["implicit-euler", "trapezoidal", "bdf2", "ros2"],
+    [
+        SolverMethod.IMPLICIT_EULER,
+        SolverMethod.TRAPEZOIDAL,
+        SolverMethod.BDF2,
+        SolverMethod.ROS2,
+    ],
 )
-def test_validate_implicit_missing_jacobian(method: str) -> None:
+def test_validate_implicit_missing_jacobian(method: SolverMethod) -> None:
     """Implicit/Rosenbrock method without system jacobian → missing_jacobian."""
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
-        config=OpEngineEngineConfig(method=method),  # type: ignore[arg-type]
+        config=OpEngineEngineConfig(method=method),
     )
     system = _GoodSystem()
     # no "jacobian" in system.options
@@ -240,13 +249,18 @@ def test_validate_implicit_missing_jacobian(method: str) -> None:
 
 @pytest.mark.parametrize(
     "method",
-    ["implicit-euler", "trapezoidal", "bdf2", "ros2"],
+    [
+        SolverMethod.IMPLICIT_EULER,
+        SolverMethod.TRAPEZOIDAL,
+        SolverMethod.BDF2,
+        SolverMethod.ROS2,
+    ],
 )
-def test_validate_implicit_with_jacobian(method: str) -> None:
+def test_validate_implicit_with_jacobian(method: SolverMethod) -> None:
     """Implicit/Rosenbrock method + system provides jacobian → no warning."""
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
-        config=OpEngineEngineConfig(method=method),  # type: ignore[arg-type]
+        config=OpEngineEngineConfig(method=method),
     )
     system = _GoodSystem()
     system.options = {
@@ -260,7 +274,7 @@ def test_validate_implicit_with_jacobian(method: str) -> None:
 
 def test_validate_explicit_no_extra_issues() -> None:
     """Explicit methods do not trigger operator or jacobian warnings."""
-    for method in ("euler", "heun"):
+    for method in (SolverMethod.EULER, SolverMethod.HEUN):
         engine = OpEngineFlepimop2Engine(
             state_change=StateChangeEnum.FLOW,
             config=OpEngineEngineConfig(method=method),
@@ -307,7 +321,7 @@ def test_run_implicit_method_uses_system_jacobian() -> None:
     """Implicit method retrieves jacobian from system.option and runs."""
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
-        config=OpEngineEngineConfig(method="implicit-euler"),
+        config=OpEngineEngineConfig(method=SolverMethod.IMPLICIT_EULER),
     )
     system = _GoodSystem()
 
