@@ -160,3 +160,31 @@ def test_validate_system_checks_state_change() -> None:
     issues = engine.validate_system(bad)
     assert issues is not None
     assert issues[0].kind == "incompatible_system"
+
+
+# -----------------------------------------------------------------------------
+# Bind API integration
+# -----------------------------------------------------------------------------
+
+
+def test_engine_uses_bind_not_stepper() -> None:
+    """Engine calls system.bind() rather than accessing system._stepper."""
+    engine = OpEngineFlepimop2Engine(state_change="flow")
+    system = _GoodSystem()
+    bind_called = False
+    original_bind = system.bind
+
+    def tracking_bind(
+        params: dict[IdentifierString, Any] | None = None, **kwargs: object
+    ) -> SystemProtocol:
+        nonlocal bind_called
+        bind_called = True
+        return original_bind(params, **kwargs)
+
+    system.bind = tracking_bind  # type: ignore[assignment]
+
+    times = np.array([0.0, 0.1], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+    engine.run(system, times, y0, {})
+
+    assert bind_called, "Engine should call system.bind()"
