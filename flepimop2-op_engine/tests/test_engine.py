@@ -163,6 +163,113 @@ def test_validate_system_checks_state_change() -> None:
 
 
 # -----------------------------------------------------------------------------
+# validate_system: IMEX + missing operators
+# -----------------------------------------------------------------------------
+
+
+def test_validate_imex_missing_operators() -> None:
+    """IMEX method without operators in config or system → missing_operators."""
+    engine = OpEngineFlepimop2Engine(
+        state_change="flow",
+        config={"method": "imex-euler"},
+    )
+    system = _GoodSystem()
+    system.options = {}
+
+    issues = engine.validate_system(system)
+    assert issues is not None
+    kinds = [i.kind for i in issues]
+    assert "missing_operators" in kinds
+
+
+def test_validate_imex_system_provides_operators() -> None:
+    """IMEX method + system.option('operators') provided → no operator warning."""
+    engine = OpEngineFlepimop2Engine(
+        state_change="flow",
+        config={"method": "imex-euler"},
+    )
+    system = _GoodSystem()
+    # _GoodSystem already has operators in options
+
+    issues = engine.validate_system(system)
+    assert issues is None
+
+
+def test_validate_imex_config_provides_operators() -> None:
+    """IMEX method + operators in engine config → no operator warning."""
+    engine = OpEngineFlepimop2Engine(
+        state_change="flow",
+        config={
+            "method": "imex-euler",
+            "operators": {
+                "default": [np.eye(1).tolist(), np.eye(1).tolist()],
+            },
+        },
+    )
+    system = _GoodSystem()
+    system.options = {}
+
+    issues = engine.validate_system(system)
+    assert issues is None
+
+
+# -----------------------------------------------------------------------------
+# validate_system: implicit/Rosenbrock + missing jacobian
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["implicit-euler", "trapezoidal", "bdf2", "ros2"],
+)
+def test_validate_implicit_missing_jacobian(method: str) -> None:
+    """Implicit/Rosenbrock method without system jacobian → missing_jacobian."""
+    engine = OpEngineFlepimop2Engine(
+        state_change="flow",
+        config={"method": method},
+    )
+    system = _GoodSystem()
+    # no "jacobian" in system.options
+
+    issues = engine.validate_system(system)
+    assert issues is not None
+    kinds = [i.kind for i in issues]
+    assert "missing_jacobian" in kinds
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["implicit-euler", "trapezoidal", "bdf2", "ros2"],
+)
+def test_validate_implicit_with_jacobian(method: str) -> None:
+    """Implicit/Rosenbrock method + system provides jacobian → no warning."""
+    engine = OpEngineFlepimop2Engine(
+        state_change="flow",
+        config={"method": method},
+    )
+    system = _GoodSystem()
+    system.options = {
+        **(system.options or {}),
+        "jacobian": lambda _t, y: -np.eye(len(y)),
+    }
+
+    issues = engine.validate_system(system)
+    assert issues is None
+
+
+def test_validate_explicit_no_extra_issues() -> None:
+    """Explicit methods do not trigger operator or jacobian warnings."""
+    for method in ("euler", "heun"):
+        engine = OpEngineFlepimop2Engine(
+            state_change="flow",
+            config={"method": method},
+        )
+        system = _GoodSystem()
+        system.options = {}
+        assert engine.validate_system(system) is None
+
+
+# -----------------------------------------------------------------------------
 # Bind API integration
 # -----------------------------------------------------------------------------
 
@@ -188,3 +295,30 @@ def test_engine_uses_bind_not_stepper() -> None:
     engine.run(system, times, y0, {})
 
     assert bind_called, "Engine should call system.bind()"
+
+
+# -----------------------------------------------------------------------------
+# Jacobian wiring for implicit methods
+# -----------------------------------------------------------------------------
+
+
+def test_run_implicit_method_uses_system_jacobian() -> None:
+    """Implicit method retrieves jacobian from system.option and runs."""
+    engine = OpEngineFlepimop2Engine(
+        state_change="flow",
+        config={"method": "implicit-euler"},
+    )
+    system = _GoodSystem()
+
+    def neg_identity_jac(_t: float, y: np.ndarray) -> np.ndarray:
+        return -np.eye(len(y), dtype=np.float64)
+
+    system.options = {**(system.options or {}), "jacobian": neg_identity_jac}
+
+    times = np.array([0.0, 0.1, 0.2], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+
+    out = engine.run(system, times, y0, {})
+
+    assert out.shape == (3, 2)
+    assert out.dtype == np.float64
