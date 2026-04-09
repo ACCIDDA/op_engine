@@ -6,10 +6,10 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
-from flepimop2.configuration import IdentifierString, ModuleModel
+from flepimop2.configuration import ModuleModel
 from flepimop2.engine.abc import EngineABC
 from flepimop2.exceptions import ValidationIssue
-from flepimop2.typing import StateChangeEnum  # noqa: TC002
+from flepimop2.typing import IdentifierString, StateChangeEnum  # noqa: TC002
 from pydantic import Field
 
 from op_engine.core_solver import (
@@ -159,7 +159,7 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
             if isinstance(system_axis, str | int):
                 operator_axis = system_axis
 
-        stepper: SystemProtocol = system._stepper  # noqa: SLF001
+        stepper: SystemProtocol = system.bind()
 
         mixing_kernels = system.option("mixing_kernels", None)
         merged_params = {

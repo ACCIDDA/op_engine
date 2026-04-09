@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import functools
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -11,7 +12,7 @@ from flepimop2.system.abc import SystemABC
 from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
 
 if TYPE_CHECKING:
-    from flepimop2.system.abc import SystemProtocol
+    from flepimop2.typing import IdentifierString, SystemProtocol
 
 # -----------------------------------------------------------------------------
 # Test helpers
@@ -33,7 +34,7 @@ class _GoodStepper:
 
 
 class _GoodSystem(SystemABC):
-    """SystemABC implementation exposing a valid stepper via _stepper."""
+    """SystemABC implementation exposing a valid stepper via bind()."""
 
     module = "flepimop2.system.test_good"
     state_change = "flow"
@@ -46,6 +47,11 @@ class _GoodSystem(SystemABC):
                 "default": (np.eye(1, dtype=np.float64), np.eye(1, dtype=np.float64))
             }
         }
+
+    def _bind_impl(
+        self, params: dict[IdentifierString, Any] | None = None
+    ) -> SystemProtocol:
+        return functools.partial(self._stepper, **(params or {}))
 
 
 class _DeltaSystem(_GoodSystem):
@@ -154,3 +160,31 @@ def test_validate_system_checks_state_change() -> None:
     issues = engine.validate_system(bad)
     assert issues is not None
     assert issues[0].kind == "incompatible_system"
+
+
+# -----------------------------------------------------------------------------
+# Bind API integration
+# -----------------------------------------------------------------------------
+
+
+def test_engine_uses_bind_not_stepper() -> None:
+    """Engine calls system.bind() rather than accessing system._stepper."""
+    engine = OpEngineFlepimop2Engine(state_change="flow")
+    system = _GoodSystem()
+    bind_called = False
+    original_bind = system.bind
+
+    def tracking_bind(
+        params: dict[IdentifierString, Any] | None = None, **kwargs: object
+    ) -> SystemProtocol:
+        nonlocal bind_called
+        bind_called = True
+        return original_bind(params, **kwargs)
+
+    system.bind = tracking_bind  # type: ignore[assignment]
+
+    times = np.array([0.0, 0.1], dtype=np.float64)
+    y0 = np.array([1.0], dtype=np.float64)
+    engine.run(system, times, y0, {})
+
+    assert bind_called, "Engine should call system.bind()"
