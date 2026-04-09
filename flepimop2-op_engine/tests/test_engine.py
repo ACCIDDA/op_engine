@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 from flepimop2.system.abc import SystemABC
+from flepimop2.typing import StateChangeEnum
 
-from flepimop2.engine.op_engine import OpEngineFlepimop2Engine
+from flepimop2.engine.op_engine import OpEngineEngineConfig, OpEngineFlepimop2Engine
 
 if TYPE_CHECKING:
     from flepimop2.typing import IdentifierString, SystemProtocol
@@ -37,7 +38,7 @@ class _GoodSystem(SystemABC):
     """SystemABC implementation exposing a valid stepper via bind()."""
 
     module = "flepimop2.system.test_good"
-    state_change = "flow"
+    state_change = StateChangeEnum.FLOW
 
     def __init__(self) -> None:
         super().__init__()
@@ -58,7 +59,7 @@ class _DeltaSystem(_GoodSystem):
     """SystemABC implementation with incompatible state_change."""
 
     module = "flepimop2.system.test_delta"
-    state_change = "delta"
+    state_change = StateChangeEnum.DELTA
 
 
 # -----------------------------------------------------------------------------
@@ -68,7 +69,7 @@ class _DeltaSystem(_GoodSystem):
 
 def test_public_engine_wrapper_defines_module() -> None:
     """Public engine wrapper satisfies flepimop2's concrete module contract."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
 
     assert isinstance(engine, OpEngineFlepimop2Engine)
     assert engine.module == "flepimop2.engine.op_engine"
@@ -81,7 +82,7 @@ def test_public_engine_wrapper_defines_module() -> None:
 
 def test_engine_run_basic_shape_and_dtype() -> None:
     """Engine returns correctly shaped float64 output array."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     system = _GoodSystem()
 
     times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
@@ -102,7 +103,7 @@ def test_engine_run_identity_rhs_behavior() -> None:
 
     This test validates wiring correctness, not numerical accuracy.
     """
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     system = _GoodSystem()
 
     times = np.array([0.0, 0.1, 0.2], dtype=np.float64)
@@ -124,7 +125,7 @@ def test_engine_run_identity_rhs_behavior() -> None:
 
 def test_engine_rejects_non_increasing_times() -> None:
     """Engine rejects non-strictly-increasing time grids."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     system = _GoodSystem()
 
     times = np.array([0.0, 0.0, 1.0], dtype=np.float64)
@@ -138,7 +139,7 @@ def test_engine_rejects_non_increasing_times() -> None:
 
 def test_engine_rejects_non_1d_initial_state() -> None:
     """Engine rejects non-1D initial state arrays."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     system = _GoodSystem()
 
     times = np.array([0.0, 1.0], dtype=np.float64)
@@ -152,7 +153,7 @@ def test_engine_rejects_non_1d_initial_state() -> None:
 
 def test_validate_system_checks_state_change() -> None:
     """Engine validates state_change compatibility via validate_system."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     good = _GoodSystem()
     assert engine.validate_system(good) is None
 
@@ -170,8 +171,8 @@ def test_validate_system_checks_state_change() -> None:
 def test_validate_imex_missing_operators() -> None:
     """IMEX method without operators in config or system → missing_operators."""
     engine = OpEngineFlepimop2Engine(
-        state_change="flow",
-        config={"method": "imex-euler"},
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method="imex-euler"),
     )
     system = _GoodSystem()
     system.options = {}
@@ -185,8 +186,8 @@ def test_validate_imex_missing_operators() -> None:
 def test_validate_imex_system_provides_operators() -> None:
     """IMEX method + system.option('operators') provided → no operator warning."""
     engine = OpEngineFlepimop2Engine(
-        state_change="flow",
-        config={"method": "imex-euler"},
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method="imex-euler"),
     )
     system = _GoodSystem()
     # _GoodSystem already has operators in options
@@ -198,13 +199,13 @@ def test_validate_imex_system_provides_operators() -> None:
 def test_validate_imex_config_provides_operators() -> None:
     """IMEX method + operators in engine config → no operator warning."""
     engine = OpEngineFlepimop2Engine(
-        state_change="flow",
-        config={
-            "method": "imex-euler",
-            "operators": {
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method="imex-euler",
+            operators={
                 "default": [np.eye(1).tolist(), np.eye(1).tolist()],
             },
-        },
+        ),
     )
     system = _GoodSystem()
     system.options = {}
@@ -225,8 +226,8 @@ def test_validate_imex_config_provides_operators() -> None:
 def test_validate_implicit_missing_jacobian(method: str) -> None:
     """Implicit/Rosenbrock method without system jacobian → missing_jacobian."""
     engine = OpEngineFlepimop2Engine(
-        state_change="flow",
-        config={"method": method},
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=method),  # type: ignore[arg-type]
     )
     system = _GoodSystem()
     # no "jacobian" in system.options
@@ -244,8 +245,8 @@ def test_validate_implicit_missing_jacobian(method: str) -> None:
 def test_validate_implicit_with_jacobian(method: str) -> None:
     """Implicit/Rosenbrock method + system provides jacobian → no warning."""
     engine = OpEngineFlepimop2Engine(
-        state_change="flow",
-        config={"method": method},
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=method),  # type: ignore[arg-type]
     )
     system = _GoodSystem()
     system.options = {
@@ -261,8 +262,8 @@ def test_validate_explicit_no_extra_issues() -> None:
     """Explicit methods do not trigger operator or jacobian warnings."""
     for method in ("euler", "heun"):
         engine = OpEngineFlepimop2Engine(
-            state_change="flow",
-            config={"method": method},
+            state_change=StateChangeEnum.FLOW,
+            config=OpEngineEngineConfig(method=method),
         )
         system = _GoodSystem()
         system.options = {}
@@ -276,7 +277,7 @@ def test_validate_explicit_no_extra_issues() -> None:
 
 def test_engine_uses_bind_not_stepper() -> None:
     """Engine calls system.bind() rather than accessing system._stepper."""
-    engine = OpEngineFlepimop2Engine(state_change="flow")
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     system = _GoodSystem()
     bind_called = False
     original_bind = system.bind
@@ -288,7 +289,7 @@ def test_engine_uses_bind_not_stepper() -> None:
         bind_called = True
         return original_bind(params, **kwargs)
 
-    system.bind = tracking_bind  # type: ignore[assignment]
+    system.bind = tracking_bind  # type: ignore[method-assign]
 
     times = np.array([0.0, 0.1], dtype=np.float64)
     y0 = np.array([1.0], dtype=np.float64)
@@ -305,8 +306,8 @@ def test_engine_uses_bind_not_stepper() -> None:
 def test_run_implicit_method_uses_system_jacobian() -> None:
     """Implicit method retrieves jacobian from system.option and runs."""
     engine = OpEngineFlepimop2Engine(
-        state_change="flow",
-        config={"method": "implicit-euler"},
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method="implicit-euler"),
     )
     system = _GoodSystem()
 
