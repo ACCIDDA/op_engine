@@ -17,7 +17,12 @@ from op_engine.core_solver import (
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
-from .config import OpEngineEngineConfig, _coerce_operator_specs, _has_operator_specs
+from .config import (
+    OpEngineEngineConfig,
+    SolverMethod,
+    _coerce_operator_specs,
+    _has_operator_specs,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -106,9 +111,11 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
 
     def validate_system(self, system: SystemABC) -> list[ValidationIssue] | None:
-        """Validate system compatibility against the engine state-change mode."""
+        """Validate system compatibility with engine config."""
+        issues: list[ValidationIssue] = []
+
         if system.state_change != self.state_change:
-            return [
+            issues.append(
                 ValidationIssue(
                     msg=(
                         f"Engine state change type, '{self.state_change}', is not "
@@ -116,9 +123,43 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
                         f"'{system.state_change}'."
                     ),
                     kind="incompatible_system",
+                ),
+            )
+
+        method = self.config.method
+        is_imex = method.is_imex
+
+        if is_imex and not _has_operator_specs(
+            _coerce_operator_specs(self.config.operators),
+        ):
+            sys_ops = system.option("operators", None)
+            if not _has_operator_specs(_coerce_operator_specs(sys_ops)):
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"IMEX method '{method}' requires operator matrices, "
+                            "but neither the engine config nor "
+                            "system.option('operators') provides them."
+                        ),
+                        kind="missing_operators",
+                    ),
                 )
-            ]
-        return None
+
+        if method.is_implicit:
+            jac = system.option("jacobian", None)
+            if jac is None:
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"Implicit/Rosenbrock method '{method}' requires a "
+                            "Jacobian callable, but system.option('jacobian') "
+                            "is not provided."
+                        ),
+                        kind="missing_jacobian",
+                    ),
+                )
+
+        return issues or None
 
     def run(
         self,
@@ -137,7 +178,8 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
         n_state = int(y0.size)
 
         run_cfg = self.config.to_run_config()
-        is_imex = run_cfg.method.startswith("imex-")
+        method = self.config.method
+        is_imex = method.is_imex
         operators = run_cfg.operators
 
         if is_imex and not _has_operator_specs(operators):
@@ -152,6 +194,11 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
                 "or system option 'operators'."
             )
             raise ValueError(msg)
+
+        if method.is_implicit:
+            jacobian = system.option("jacobian", None)
+            if callable(jacobian):
+                run_cfg = replace(run_cfg, jacobian=jacobian)
 
         operator_axis = self.config.operator_axis
         if operator_axis == "state":
@@ -180,4 +227,4 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
         return np.asarray(np.column_stack((times, states)), dtype=np.float64)
 
 
-__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine"]
+__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine", "SolverMethod"]
