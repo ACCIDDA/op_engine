@@ -2,6 +2,7 @@
 name = "flepimop2-op_engine"
 version = "0.1.0"
 description = "flepimop2 engine provider package for op_engine"
+readme = "README.md"
 requires-python = ">=3.11,<3.15"
 authors = [
   { name = "Joshua Macdonald", email = "jmacdo16@jh.edu" },

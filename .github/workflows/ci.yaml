@@ -15,6 +15,30 @@ permissions:
   contents: 'read'
 
 jobs:
+  build-check:
+    name: 'Build Check (${{ matrix.python-version }})'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        python-version:
+          - '3.12'
+    steps:
+      - name: 'Install just'
+        run: 'sudo apt install just'
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - name: 'Setup uv with python ${{ matrix.python-version }}'
+        uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'pyproject.toml'
+          python-version: '${{ matrix.python-version }}'
+      - name: 'Run Build Check'
+        run: 'just build-check'
+        env:
+          UV_PYTHON_VERSION: '${{ matrix.python-version }}'
   ci:
     name: 'CI (${{ matrix.python-version }})'
     runs-on: 'ubuntu-latest'

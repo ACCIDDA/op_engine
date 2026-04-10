@@ -67,6 +67,69 @@ ci:
 
 
 # -------------------------------------------------
+# Build validations
+# -------------------------------------------------
+
+build-check-core:
+	rm -rf dist
+	uv run --with build --with twine python -m build --wheel
+	uv run --with twine python -m twine check --strict dist/*
+
+build-check-provider:
+	cd flepimop2-op_engine && rm -rf dist
+	cd flepimop2-op_engine && uv run --with build --with twine python -m build --wheel
+	cd flepimop2-op_engine && uv run --with twine python -m twine check --strict dist/*
+
+build-check: build-check-core build-check-provider
+
+build-test-core:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	CLEANROOM="$(mktemp -d)"
+	trap 'rm -rf "${CLEANROOM}"' EXIT
+	uv export --frozen --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
+	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/dist"
+	uv venv --python "${UV_PYTHON_VERSION:-3.12}" "${CLEANROOM}/venv"
+	uv pip install --python "${CLEANROOM}/venv/bin/python" "${CLEANROOM}/dist"/*.whl
+	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
+	cp pyproject.toml "${CLEANROOM}/pyproject.toml"
+	cp -R tests "${CLEANROOM}/tests"
+	cd "${CLEANROOM}"
+	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
+
+build-test-provider:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	CLEANROOM="$(mktemp -d)"
+	trap 'rm -rf "${CLEANROOM}"' EXIT
+	cd flepimop2-op_engine
+	uv export --frozen --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
+	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/provider-dist"
+	cd ..
+	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/core-dist"
+	uv venv --python "${UV_PYTHON_VERSION:-3.12}" "${CLEANROOM}/venv"
+	uv pip install --python "${CLEANROOM}/venv/bin/python" "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git@main"
+	uv pip install --python "${CLEANROOM}/venv/bin/python" "${CLEANROOM}/core-dist"/*.whl
+	uv pip install --python "${CLEANROOM}/venv/bin/python" --no-deps "${CLEANROOM}/provider-dist"/*.whl
+	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
+	cp flepimop2-op_engine/pyproject.toml "${CLEANROOM}/pyproject.toml"
+	cp flepimop2-op_engine/README.md "${CLEANROOM}/README.md"
+	cp -R flepimop2-op_engine/src "${CLEANROOM}/src"
+	cp -R flepimop2-op_engine/tests "${CLEANROOM}/tests"
+	cd "${CLEANROOM}"
+	export PATH="${CLEANROOM}/venv/bin:${PATH}"
+	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
+
+build-test: build-test-core build-test-provider
+
+build-all-core: build-check-core build-test-core
+
+build-all-provider: build-check-provider build-test-provider
+
+build-all: build-all-core build-all-provider
+
+
+# -------------------------------------------------
 # Utilities
 # -------------------------------------------------
 
