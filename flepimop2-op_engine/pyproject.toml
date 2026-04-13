@@ -1,12 +1,15 @@
 [project]
 name = "flepimop2-op_engine"
 version = "0.1.0"
+readme = { file = "README.md", content-type = "text/markdown" }
 description = "flepimop2 engine provider package for op_engine"
-readme = "README.md"
 requires-python = ">=3.11,<3.15"
 authors = [
   { name = "Joshua Macdonald", email = "jmacdo16@jh.edu" },
+  { name = "Carl Pearson", email = "cap1024@unc.edu" },
+  { name = "Timothy Willard", email = "twillard@unc.edu" },
 ]
+keywords = ["flepimop2", "op_engine", "engine", "provider"]
 dependencies = [
   # op-engine is not in a registry yet, so keep it as a direct reference.
   "op-engine @ git+https://github.com/ACCIDDA/op_engine.git@main",
@@ -32,6 +35,8 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/ACCIDDA/op_engine"
+Documentation = "https://accidda.github.io/op_engine/"
+Issues = "https://github.com/ACCIDDA/op_engine/issues"
 
 [build-system]
 requires = ["hatchling"]
