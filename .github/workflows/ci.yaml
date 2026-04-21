@@ -24,7 +24,7 @@ jobs:
           - '3.12'
     steps:
       - name: 'Install just'
-        run: 'sudo apt install just'
+        uses: 'extractions/setup-just@v3'
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
         with:
@@ -41,6 +41,9 @@ jobs:
           UV_PYTHON_VERSION: '${{ matrix.python-version }}'
   ci:
     name: 'CI (${{ matrix.python-version }})'
+    needs:
+      - 'docs'
+      - 'build-check'
     runs-on: 'ubuntu-latest'
     strategy:
       matrix:
@@ -51,7 +54,7 @@ jobs:
           - '3.14'
     steps:
       - name: 'Install just'
-        run: 'sudo apt install just'
+        uses: 'extractions/setup-just@v3'
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
         with:
@@ -75,7 +78,7 @@ jobs:
           - '3.12'
     steps:
       - name: 'Install just'
-        run: 'sudo apt install just'
+        uses: 'extractions/setup-just@v3'
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
         with:

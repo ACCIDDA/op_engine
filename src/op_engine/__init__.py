@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from importlib.metadata import version as _metadata_version
+
 from .core_solver import CoreSolver
 from .matrix_ops import (
     DiffusionConfig,
@@ -48,4 +50,4 @@ __all__ = [
     "smooth",
 ]
 
-__version__ = "0.1.0"
+__version__ = _metadata_version("op_engine")

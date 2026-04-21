@@ -5,10 +5,23 @@ name: 'GitHub Pages Documentation'
   push:
     branches:
       - 'main'
-  release:
-    types:
-      - 'published'
+  workflow_call:
+    inputs:
+      deploy-mode:
+        description: 'Deployment mode used to determine docs aliases'
+        required: false
+        default: 'push'
+        type: 'string'
   workflow_dispatch:
+    inputs:
+      deploy-mode:
+        description: 'Deployment mode used to determine docs aliases'
+        required: false
+        default: 'push'
+        type: 'choice'
+        options:
+          - 'push'
+          - 'release'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,7 +42,7 @@ jobs:
       contents: 'write'  # Needed to push to gh-pages
     steps:
       - name: 'Install just'
-        run: 'sudo apt install just'
+        uses: 'extractions/setup-just@v3'
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
         with:
@@ -48,7 +61,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: 'pyproject.toml'
           python-version: '${{ matrix.python-version }}'
-      - name: 'Extract flepimop2 version'
+      - name: 'Extract op_engine version'
         id: extract-version
         run: |
           cat > version.py << EOF
@@ -63,10 +76,25 @@ jobs:
           rm version.py
       - name: 'Build API Reference'
         run: 'just api-reference'
+      - name: 'Determine deploy mode'
+        id: determine-mode
+        run: |
+          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+            echo "deploy-mode=${CALL_MODE}" >> "${GITHUB_OUTPUT}"
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ] \
+            && [ -n "${DISPATCH_MODE}" ]; then
+            echo "deploy-mode=${DISPATCH_MODE}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "deploy-mode=push" >> "${GITHUB_OUTPUT}"
+          fi
+        env:
+          CALL_MODE: '${{ inputs.deploy-mode }}'
+          DISPATCH_MODE: '${{ github.event.inputs.deploy-mode }}'
+          EVENT_NAME: '${{ github.event_name }}'
       - name: 'Deploy to GitHub Pages'
         run: |
           uv run mike set-default latest
-          if [ "${EVENT_NAME}" == "release" ] || [[ $VERSION == 0* ]]; then
+          if [ "${DEPLOY_MODE}" = "release" ] || [[ $VERSION == 0* ]]; then
             ALIAS=latest
           else
             ALIAS=dev
@@ -75,6 +103,6 @@ jobs:
             --push --update-aliases \
             ${VERSION} ${ALIAS}
         env:
-          EVENT_NAME: "${{ github.event_name }}"
+          DEPLOY_MODE: "${{ steps.determine-mode.outputs.deploy-mode }}"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           VERSION: "${{ steps.extract-version.outputs.version }}"
