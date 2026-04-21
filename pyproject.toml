@@ -79,6 +79,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["INP001", "S101"]
 "scripts/**/*" = [
+    "N999",  # Invalid module name
     "T201",  # `print` found
 ]
 

@@ -43,6 +43,8 @@ markdown_extensions:
 # Navigation structure
 nav:
   - Home: index.md
+  - Development:
+      - Creating A Release: development/creating-a-release.md
   - Guides:
       - Getting Started: guides/getting-started.md
   - API Reference:

@@ -114,6 +114,7 @@ build-test-provider:
 	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
 	cp flepimop2-op_engine/pyproject.toml "${CLEANROOM}/pyproject.toml"
 	cp flepimop2-op_engine/README.md "${CLEANROOM}/README.md"
+	cp flepimop2-op_engine/LICENSE "${CLEANROOM}/LICENSE"
 	cp -R flepimop2-op_engine/src "${CLEANROOM}/src"
 	cp -R flepimop2-op_engine/tests "${CLEANROOM}/tests"
 	cd "${CLEANROOM}"
@@ -127,6 +128,16 @@ build-all-core: build-check-core build-test-core
 build-all-provider: build-check-provider build-test-provider
 
 build-all: build-all-core build-all-provider
+
+
+# -------------------------------------------------
+# Release validation
+# -------------------------------------------------
+
+release-check:
+	uv run python scripts/release_validate.py
+
+release-validate: release-check build-all
 
 
 # -------------------------------------------------
