@@ -95,4 +95,4 @@ just ci
 
 ## License
 
-GPL-3.0
+MIT License
