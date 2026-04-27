@@ -481,10 +481,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-current-packaging-note" class="md-nav__link">
+  <a href="#6-package-metadata" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Current Packaging Note
+        6. Package Metadata
       
     </span>
   </a>
@@ -859,10 +859,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-current-packaging-note" class="md-nav__link">
+  <a href="#6-package-metadata" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Current Packaging Note
+        6. Package Metadata
       
     </span>
   </a>
@@ -910,6 +910,7 @@
 <li><code>flepimop2-op_engine/pyproject.toml</code></li>
 </ul>
 <p>If any of them differ, the <code>validate</code> job fails immediately.</p>
+<p>The workflow also validates that <code>flepimop2-op_engine</code> depends on the exact matching <code>op-engine</code> release version. For example, release <code>0.2.0</code> must declare <code>op-engine==0.2.0</code>.</p>
 <h2 id="2-run-the-local-release-preflight">2. Run The Local Release Preflight<a class="headerlink" href="#2-run-the-local-release-preflight" title="Permanent link">&para;</a></h2>
 <p>Use the local pre-release target before dispatching the release workflow:</p>
 <pre><code class="language-shell">just release-validate
@@ -977,8 +978,8 @@
 </ul>
 <p>For <code>publish-target=pypi</code>, configure the PyPI trusted publisher entry for the same repository and workflow file.</p>
 <p>Because this repository publishes two distributions from one workflow, the same trusted publisher setup must be allowed to publish both package names on the selected index.</p>
-<h2 id="6-current-packaging-note">6. Current Packaging Note<a class="headerlink" href="#6-current-packaging-note" title="Permanent link">&para;</a></h2>
-<p>The release workflow now handles the mechanics of validating, building, and sequencing both distributions together. Package-index acceptance still depends on the metadata inside each built distribution, so publishing <code>flepimop2-op_engine</code> to a public index may still require follow-up packaging changes outside the workflow itself.</p>
+<h2 id="6-package-metadata">6. Package Metadata<a class="headerlink" href="#6-package-metadata" title="Permanent link">&para;</a></h2>
+<p>Published package metadata must use registry-compatible dependencies. The provider package must not declare direct URL dependencies, because PyPI rejects distributions that require them.</p>
 
 
 
