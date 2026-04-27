@@ -68,8 +68,8 @@ jobs:
         run: |
           mkdir -p release-dist/flepimop2-op_engine
           cd flepimop2-op_engine
-          uv run --with build --with twine python -m build --outdir ../release-dist/flepimop2-op_engine
-          uv run --with twine python -m twine check --strict ../release-dist/flepimop2-op_engine/*
+          uv run --no-project --with build --with twine python -m build --outdir ../release-dist/flepimop2-op_engine
+          uv run --no-project --with twine python -m twine check --strict ../release-dist/flepimop2-op_engine/*
       - name: 'Upload core package artifacts'
         uses: 'actions/upload-artifact@v7'
         with:

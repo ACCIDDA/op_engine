@@ -33,7 +33,15 @@ pytest-core:
 
 # Assumes `flepimop2-op_engine/.venv` already exists (run `just provider-sync` or `just ci` first).
 pytest-provider: provider-sync
-	cd flepimop2-op_engine && .venv/bin/python -m pytest --doctest-modules
+	#!/usr/bin/env bash
+	set -euo pipefail
+	CORE_DIST="$(mktemp -d)"
+	trap 'rm -rf "${CORE_DIST}"' EXIT
+	uv run --with build python -m build --wheel --outdir "${CORE_DIST}"
+	cd flepimop2-op_engine
+	export PATH="${PWD}/.venv/bin:${PATH}"
+	export PIP_FIND_LINKS="${CORE_DIST}"
+	.venv/bin/python -m pytest --doctest-modules
 
 pytest: pytest-core pytest-provider
 
@@ -77,8 +85,8 @@ build-check-core:
 
 build-check-provider:
 	cd flepimop2-op_engine && rm -rf dist
-	cd flepimop2-op_engine && uv run --with build --with twine python -m build --wheel
-	cd flepimop2-op_engine && uv run --with twine python -m twine check --strict dist/*
+	cd flepimop2-op_engine && uv run --no-project --with build --with twine python -m build --wheel
+	cd flepimop2-op_engine && uv run --no-project --with twine python -m twine check --strict dist/*
 
 build-check: build-check-core build-check-provider
 
@@ -104,7 +112,7 @@ build-test-provider:
 	trap 'rm -rf "${CLEANROOM}"' EXIT
 	cd flepimop2-op_engine
 	uv export --frozen --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
-	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/provider-dist"
+	uv run --no-project --with build python -m build --wheel --outdir "${CLEANROOM}/provider-dist"
 	cd ..
 	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/core-dist"
 	uv venv --python "${UV_PYTHON_VERSION:-3.12}" "${CLEANROOM}/venv"
@@ -119,6 +127,7 @@ build-test-provider:
 	cp -R flepimop2-op_engine/tests "${CLEANROOM}/tests"
 	cd "${CLEANROOM}"
 	export PATH="${CLEANROOM}/venv/bin:${PATH}"
+	export PIP_FIND_LINKS="${CLEANROOM}/core-dist"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
 
 build-test: build-test-core build-test-provider

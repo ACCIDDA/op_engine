@@ -27,6 +27,8 @@ Today that means these two files must contain the same semantic version:
 
 If any of them differ, the `validate` job fails immediately.
 
+The workflow also validates that `flepimop2-op_engine` depends on the exact matching `op-engine` release version. For example, release `0.2.0` must declare `op-engine==0.2.0`.
+
 ## 2. Run The Local Release Preflight
 
 Use the local pre-release target before dispatching the release workflow:
@@ -124,6 +126,6 @@ For `publish-target=pypi`, configure the PyPI trusted publisher entry for the sa
 
 Because this repository publishes two distributions from one workflow, the same trusted publisher setup must be allowed to publish both package names on the selected index.
 
-## 6. Current Packaging Note
+## 6. Package Metadata
 
-The release workflow now handles the mechanics of validating, building, and sequencing both distributions together. Package-index acceptance still depends on the metadata inside each built distribution, so publishing `flepimop2-op_engine` to a public index may still require follow-up packaging changes outside the workflow itself.
+Published package metadata must use registry-compatible dependencies. The provider package must not declare direct URL dependencies, because PyPI rejects distributions that require them.
