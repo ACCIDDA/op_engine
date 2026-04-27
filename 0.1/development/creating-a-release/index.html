@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://accidda.github.io/op_engine/0.1/guides/getting-started/">
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.1/development/creating-a-release/">
       
       
-        <link rel="prev" href="../../development/creating-a-release/">
+        <link rel="prev" href="../..">
       
       
-        <link rel="next" href="../../api-reference/core_solver/">
+        <link rel="next" href="../../guides/getting-started/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Getting Started - op_engine Documentation</title>
+        <title>Creating A Release - op_engine Documentation</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#creating-a-release" class="md-skip">
           Skip to content
         </a>
       
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Creating A Release
             
           </span>
         </div>
@@ -264,18 +264,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
@@ -296,96 +298,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
     Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/creating-a-release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Creating A Release
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Guides
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guides
   
 
           </label>
@@ -407,7 +325,243 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating A Release
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating A Release
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-confirm-the-shared-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Confirm The Shared Version
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-run-the-local-release-preflight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Run The Local Release Preflight
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-run-the-release-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Run The Release Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Run The Release Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dry-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testpypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TestPyPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PyPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-documentation-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Documentation Deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-trusted-publishing-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Trusted Publishing Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-current-packaging-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Current Packaging Note
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
         
   
   
@@ -423,7 +577,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -594,6 +747,130 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-confirm-the-shared-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Confirm The Shared Version
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-run-the-local-release-preflight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Run The Local Release Preflight
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-run-the-release-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Run The Release Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Run The Release Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dry-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testpypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TestPyPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PyPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-documentation-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Documentation Deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-trusted-publishing-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Trusted Publishing Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-current-packaging-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Current Packaging Note
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -609,16 +886,99 @@
 
 
 
-<h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>A brief tutorial on how to get started with <code>OP Engine</code>.</p>
-<pre><code class="language-python">import math
-
-foo = 2 * math.pi
+<h1 id="creating-a-release">Creating A Release<a class="headerlink" href="#creating-a-release" title="Permanent link">&para;</a></h1>
+<p>This guide covers the <code>op_engine</code> release process for this repository's two Python distributions:</p>
+<ul>
+<li><code>op_engine</code></li>
+<li><code>flepimop2-op_engine</code></li>
+</ul>
+<p>The release workflow treats them as a single release unit. Both package versions must match, and the workflow publishes them sequentially under one GitHub release tag.</p>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<ul>
+<li>You have write access to the <a href="https://github.com/ACCIDDA/op_engine"><code>ACCIDDA/op_engine</code></a> repository.</li>
+<li>The release version has already been updated everywhere it is declared:</li>
+<li><code>pyproject.toml</code></li>
+<li><code>flepimop2-op_engine/pyproject.toml</code></li>
+<li>Your local environment is synced with a supported Python version.</li>
+<li>You have <a href="https://cli.github.com/">GitHub's <code>gh</code> CLI</a> installed and authenticated if you plan to dispatch workflows from the command line.</li>
+</ul>
+<h2 id="1-confirm-the-shared-version">1. Confirm The Shared Version<a class="headerlink" href="#1-confirm-the-shared-version" title="Permanent link">&para;</a></h2>
+<p>The release workflow validates that all version declarations match before it builds or publishes anything.</p>
+<p>Today that means these two files must contain the same semantic version:</p>
+<ul>
+<li><code>pyproject.toml</code></li>
+<li><code>flepimop2-op_engine/pyproject.toml</code></li>
+</ul>
+<p>If any of them differ, the <code>validate</code> job fails immediately.</p>
+<h2 id="2-run-the-local-release-preflight">2. Run The Local Release Preflight<a class="headerlink" href="#2-run-the-local-release-preflight" title="Permanent link">&para;</a></h2>
+<p>Use the local pre-release target before dispatching the release workflow:</p>
+<pre><code class="language-shell">just release-validate
 </code></pre>
-<p>And then</p>
-<pre><code class="language-python">&gt;&gt;&gt; foo
-6.283185307179586
+<p>That command does two things:</p>
+<ul>
+<li>Validates that the release version matches in:</li>
+<li><code>pyproject.toml</code></li>
+<li><code>flepimop2-op_engine/pyproject.toml</code></li>
+<li>Runs <code>just build-all</code> to execute the clean-room build and install tests for both packages.</li>
+</ul>
+<p>The release workflow runs the same validation again on GitHub Actions before publishing.</p>
+<h2 id="3-run-the-release-workflow">3. Run The Release Workflow<a class="headerlink" href="#3-run-the-release-workflow" title="Permanent link">&para;</a></h2>
+<p>Releases are created through the manual GitHub Actions workflow in <code>.github/workflows/release.yaml</code>.</p>
+<p>If you are testing the workflow before merging, add <code>--ref &lt;branch-name&gt;</code> to the <code>gh workflow run</code> command. Without <code>--ref</code>, GitHub dispatches the workflow definition from the repository's default branch.</p>
+<h3 id="dry-run">Dry Run<a class="headerlink" href="#dry-run" title="Permanent link">&para;</a></h3>
+<p>Use this to validate shared versioning, build both packages, and upload release artifacts without publishing anything:</p>
+<pre><code class="language-shell">gh workflow run release.yaml \
+  --repo ACCIDDA/op_engine \
+  --ref &lt;branch-name&gt; \
+  --field publish-target=none \
+  --field create-github-release=false \
+  --field deploy-docs=false
 </code></pre>
+<p>This runs the <code>validate</code>, <code>publish-core</code>, and <code>publish-provider</code> jobs, but the publish jobs become no-ops when <code>publish-target=none</code>.</p>
+<h3 id="testpypi">TestPyPI<a class="headerlink" href="#testpypi" title="Permanent link">&para;</a></h3>
+<p>Use this to publish both packages to TestPyPI without creating the GitHub release or deploying docs:</p>
+<pre><code class="language-shell">gh workflow run release.yaml \
+  --repo ACCIDDA/op_engine \
+  --ref &lt;branch-name&gt; \
+  --field publish-target=testpypi \
+  --field create-github-release=false \
+  --field deploy-docs=false
+</code></pre>
+<p>The workflow always publishes in dependency order:</p>
+<ol>
+<li><code>op_engine</code></li>
+<li><code>flepimop2-op_engine</code></li>
+</ol>
+<p>When testing from a branch, keep <code>create-github-release=false</code> and <code>deploy-docs=false</code>. The reusable docs workflow checks out <code>main</code>, so it is not intended for pre-merge branch testing.</p>
+<h3 id="pypi">PyPI<a class="headerlink" href="#pypi" title="Permanent link">&para;</a></h3>
+<p>Use this to publish both packages, create a GitHub release, and deploy the versioned documentation:</p>
+<pre><code class="language-shell">gh workflow run release.yaml \
+  --repo ACCIDDA/op_engine \
+  --field publish-target=pypi \
+  --field create-github-release=true \
+  --field deploy-docs=true
+</code></pre>
+<p>When <code>create-github-release=true</code>, the workflow creates a single <code>vX.Y.Z</code> GitHub release for the shared package version and uses GitHub's generated release notes.</p>
+<h2 id="4-documentation-deployment">4. Documentation Deployment<a class="headerlink" href="#4-documentation-deployment" title="Permanent link">&para;</a></h2>
+<p>The release workflow calls <code>.github/workflows/gh-pages.yaml</code> as a reusable workflow when <code>deploy-docs=true</code>.</p>
+<p>That workflow supports two deployment modes:</p>
+<ul>
+<li><code>push</code>: for normal <code>main</code> branch documentation updates</li>
+<li><code>release</code>: for a tagged release, which updates the release alias in <code>mike</code></li>
+</ul>
+<p>If you want to deploy docs manually without running a release, you can dispatch <code>gh-pages.yaml</code> directly and choose the deploy mode in the GitHub Actions UI.</p>
+<h2 id="5-trusted-publishing-setup">5. Trusted Publishing Setup<a class="headerlink" href="#5-trusted-publishing-setup" title="Permanent link">&para;</a></h2>
+<p>The publish jobs use PyPI Trusted Publishing rather than a stored API token.</p>
+<p>For <code>publish-target=testpypi</code>, configure the TestPyPI trusted publisher entry for:</p>
+<ul>
+<li>Owner: <code>ACCIDDA</code></li>
+<li>Repository: <code>op_engine</code></li>
+<li>Workflow file: <code>release.yaml</code></li>
+</ul>
+<p>For <code>publish-target=pypi</code>, configure the PyPI trusted publisher entry for the same repository and workflow file.</p>
+<p>Because this repository publishes two distributions from one workflow, the same trusted publisher setup must be allowed to publish both package names on the selected index.</p>
+<h2 id="6-current-packaging-note">6. Current Packaging Note<a class="headerlink" href="#6-current-packaging-note" title="Permanent link">&para;</a></h2>
+<p>The release workflow now handles the mechanics of validating, building, and sequencing both distributions together. Package-index acceptance still depends on the metadata inside each built distribution, so publishing <code>flepimop2-op_engine</code> to a public index may still require follow-up packaging changes outside the workflow itself.</p>
 
 
 
