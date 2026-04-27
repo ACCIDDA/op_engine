@@ -95,7 +95,7 @@ build-test-core:
 	set -euo pipefail
 	CLEANROOM="$(mktemp -d)"
 	trap 'rm -rf "${CLEANROOM}"' EXIT
-	uv export --frozen --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
+	uv export --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
 	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/dist"
 	uv venv --python "${UV_PYTHON_VERSION:-3.12}" "${CLEANROOM}/venv"
 	uv pip install --python "${CLEANROOM}/venv/bin/python" "${CLEANROOM}/dist"/*.whl
@@ -111,7 +111,7 @@ build-test-provider:
 	CLEANROOM="$(mktemp -d)"
 	trap 'rm -rf "${CLEANROOM}"' EXIT
 	cd flepimop2-op_engine
-	uv export --frozen --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
+	uv export --only-group dev --no-emit-project --format requirements.txt --no-hashes --output-file "${CLEANROOM}/dev-requirements.txt" >/dev/null
 	uv run --no-project --with build python -m build --wheel --outdir "${CLEANROOM}/provider-dist"
 	cd ..
 	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/core-dist"
