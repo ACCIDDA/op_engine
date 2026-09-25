@@ -26,6 +26,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix, identity, issparse
 
+from op_engine import matrix_ops
 from op_engine.matrix_ops import (
     DiffusionConfig,
     GridGeometry,
@@ -36,6 +37,7 @@ from op_engine.matrix_ops import (
     build_laplacian_tridiag,
     build_predictor_corrector,
     build_trapezoidal_operators,
+    clear_implicit_solver_cache,
     encode_groups,
     grouped_count_ids,
     grouped_sum_ids,
@@ -521,6 +523,27 @@ def test_implicit_solve_identity_operators_returns_x() -> None:
     x2 = rng.standard_normal(size=(n, 4))
     y2 = implicit_solve(ident, ident, x2)
     assert np.allclose(y2, x2)
+
+
+def test_scipy_sparse_factorization_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Repeated solves reuse the SciPy adapter's identity-keyed factorization."""
+    left = identity(4, format="csr", dtype=np.float64)
+    right = identity(4, format="csr", dtype=np.float64)
+    state = np.arange(4, dtype=np.float64)
+    calls = 0
+    original = matrix_ops.sparse_factorized
+
+    def counting_factorized(operator: object) -> object:
+        nonlocal calls
+        calls += 1
+        return original(operator)
+
+    monkeypatch.setattr(matrix_ops, "sparse_factorized", counting_factorized)
+    clear_implicit_solver_cache()
+    implicit_solve(left, right, state)
+    implicit_solve(left, right, state)
+
+    assert calls == 1
 
 
 # -------------------------------------------------------------------
