@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -1272,7 +1272,7 @@ where (L, R) follow schemes like implicit Euler or trapezoidal.
 
 
 <h3 id="op_engine.matrix_ops.DiffusionConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">DiffusionConfig</span><span class="p">(</span><span class="n">coeff</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">bc</span><span class="o">=</span><span class="s1">&#39;neumann&#39;</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">DiffusionConfig</span><span class="p">(</span><span class="n">coeff</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">bc</span><span class="o">=</span><span class="s1">'neumann'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -1689,7 +1689,7 @@ where (L, R) follow schemes like implicit Euler or trapezoidal.
     <span class="n">cfg</span><span class="p">:</span> <span class="n">DiffusionConfig</span><span class="p">,</span>
     <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Operator</span><span class="p">,</span> <span class="n">Operator</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Build Crank-Nicolson operators with dense/sparse autodispatch.</span>
 
 <span class="sd">    Args:</span>
@@ -1699,7 +1699,7 @@ where (L, R) follow schemes like implicit Euler or trapezoidal.
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple of (L, R) operators for Crank-Nicolson scheme.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">geom</span><span class="o">.</span><span class="n">n</span> <span class="o">&lt;</span> <span class="n">_DISPATCH_THRESHOLD</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_build_crank_nicolson_dense</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">_build_crank_nicolson_sparse</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
@@ -1848,7 +1848,7 @@ always return a dense operator; if None, autodispatch based on n.</p>
     <span class="n">dtype</span><span class="p">:</span> <span class="n">DTypeLike</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
     <span class="n">prefer_sparse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Build an identity operator with dense/sparse autodispatch.</span>
 
 <span class="sd">    Args:</span>
@@ -1859,20 +1859,20 @@ always return a dense operator; if None, autodispatch based on n.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Identity operator of shape (n, n) as either a dense ndarray or CSR matrix.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">dtype_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">prefer_sparse</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;csr&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"csr"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">prefer_sparse</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">))</span>
 
     <span class="c1"># Autodispatch</span>
     <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;=</span> <span class="n">_DISPATCH_THRESHOLD</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;csr&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"csr"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2024,7 +2024,7 @@ always return a dense operator; if None, autodispatch based on n.</p>
     <span class="n">base_op</span><span class="p">:</span> <span class="n">Operator</span><span class="p">,</span>
     <span class="n">dt_scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Operator</span><span class="p">,</span> <span class="n">Operator</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build implicit Euler operators for a time-scaled linear operator.</span>
+<span class="w">    </span><span class="sd">"""Build implicit Euler operators for a time-scaled linear operator.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        base_op: Base linear operator A.</span>
@@ -2035,7 +2035,7 @@ always return a dense operator; if None, autodispatch based on n.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If dt_scale is not finite.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">dt_scale</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_OPERATOR_SCALE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">dt_scale</span><span class="p">))</span>
 
@@ -2043,7 +2043,7 @@ always return a dense operator; if None, autodispatch based on n.</p>
 
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">base_op</span><span class="p">):</span>
         <span class="n">base_csr</span> <span class="o">=</span> <span class="n">base_op</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
-        <span class="n">identity_csr</span> <span class="o">=</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;csr&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">base_csr</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">identity_csr</span> <span class="o">=</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"csr"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">base_csr</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">left_csr</span> <span class="o">=</span> <span class="p">(</span><span class="n">identity_csr</span> <span class="o">-</span> <span class="p">(</span><span class="n">dt_scale</span> <span class="o">*</span> <span class="n">base_csr</span><span class="p">))</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
         <span class="n">right_csr</span> <span class="o">=</span> <span class="n">identity_csr</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">left_csr</span><span class="p">,</span> <span class="n">right_csr</span>
@@ -2052,7 +2052,7 @@ always return a dense operator; if None, autodispatch based on n.</p>
     <span class="n">identity_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">base_arr</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">left_arr</span> <span class="o">=</span> <span class="n">identity_arr</span> <span class="o">-</span> <span class="p">(</span><span class="n">dt_scale</span> <span class="o">*</span> <span class="n">base_arr</span><span class="p">)</span>
     <span class="n">right_arr</span> <span class="o">=</span> <span class="n">identity_arr</span>
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">left_arr</span><span class="p">),</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">right_arr</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">left_arr</span><span class="p">),</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">right_arr</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2063,7 +2063,7 @@ always return a dense operator; if None, autodispatch based on n.</p>
 
 
 <h3 id="op_engine.matrix_ops.build_laplacian_tridiag" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">build_laplacian_tridiag</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">coeff</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">bc</span><span class="o">=</span><span class="s1">&#39;neumann&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">build_laplacian_tridiag</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">coeff</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">bc</span><span class="o">=</span><span class="s1">'neumann'</span><span class="p">)</span></code>
 
 <a href="#op_engine.matrix_ops.build_laplacian_tridiag" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -2276,9 +2276,9 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
     <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">coeff</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="n">DTypeLike</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
-    <span class="n">bc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;neumann&quot;</span><span class="p">,</span>
+    <span class="n">bc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"neumann"</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">csr_matrix</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a Laplacian tridiagonal matrix for a given boundary condition.</span>
+<span class="w">    </span><span class="sd">"""Build a Laplacian tridiagonal matrix for a given boundary condition.</span>
 
 <span class="sd">    The resulting operator corresponds to `coeff * Δ_h`, where `Δ_h` is the</span>
 <span class="sd">    standard second-order central-difference Laplacian in 1D. No time-step</span>
@@ -2290,24 +2290,24 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 <span class="sd">        dx: Grid spacing.</span>
 <span class="sd">        coeff: Physical diffusion coefficient D (units length^2 / time).</span>
 <span class="sd">        dtype: Floating dtype (e.g. np.float64).</span>
-<span class="sd">        bc: Boundary condition; either &quot;neumann&quot; or &quot;absorbing&quot;.</span>
+<span class="sd">        bc: Boundary condition; either "neumann" or "absorbing".</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Sparse CSR matrix representing the Laplacian operator.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If an unknown boundary condition is provided.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">dtype_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">factor</span> <span class="o">=</span> <span class="n">coeff</span> <span class="o">/</span> <span class="n">dx</span><span class="o">**</span><span class="mi">2</span>
 
     <span class="n">main_diag</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
     <span class="n">off_diag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">bc</span> <span class="o">==</span> <span class="s2">&quot;neumann&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">bc</span> <span class="o">==</span> <span class="s2">"neumann"</span><span class="p">:</span>
         <span class="n">main_diag</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
         <span class="n">main_diag</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
-    <span class="k">elif</span> <span class="n">bc</span> <span class="o">==</span> <span class="s2">&quot;absorbing&quot;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">bc</span> <span class="o">==</span> <span class="s2">"absorbing"</span><span class="p">:</span>
         <span class="n">main_diag</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span>
         <span class="n">main_diag</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span>
     <span class="k">else</span><span class="p">:</span>
@@ -2423,7 +2423,7 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 <span class="normal">408</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_predictor_corrector</span><span class="p">(</span>
     <span class="n">base_matrix</span><span class="p">:</span> <span class="n">DenseOperator</span> <span class="o">|</span> <span class="n">csr_matrix</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Operator</span><span class="p">,</span> <span class="n">Operator</span><span class="p">,</span> <span class="n">Operator</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Build predictor-corrector matrices with dense/sparse autodispatch.</span>
 
 <span class="sd">    Args:</span>
@@ -2431,7 +2431,7 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple of (predictor, L, R) operators for predictor-corrector scheme.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">n</span> <span class="o">=</span> <span class="n">base_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">base_matrix</span><span class="p">)</span> <span class="ow">and</span> <span class="n">n</span> <span class="o">&gt;=</span> <span class="n">_DISPATCH_THRESHOLD</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_build_predictor_corrector_sparse</span><span class="p">(</span><span class="n">base_matrix</span><span class="p">)</span>
@@ -2441,7 +2441,7 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">dense_base</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">base_matrix</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">_build_predictor_corrector_dense</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">dense_base</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">_build_predictor_corrector_dense</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">dense_base</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2594,7 +2594,7 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
     <span class="n">base_op</span><span class="p">:</span> <span class="n">Operator</span><span class="p">,</span>
     <span class="n">dt_scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Operator</span><span class="p">,</span> <span class="n">Operator</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build trapezoidal operators for a time-scaled linear operator.</span>
+<span class="w">    </span><span class="sd">"""Build trapezoidal operators for a time-scaled linear operator.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        base_op: Base linear operator A.</span>
@@ -2605,7 +2605,7 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If dt_scale is not finite.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">dt_scale</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_OPERATOR_SCALE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">dt_scale</span><span class="p">))</span>
 
@@ -2614,16 +2614,16 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
 
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">base_op</span><span class="p">):</span>
         <span class="n">base_csr</span> <span class="o">=</span> <span class="n">base_op</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
-        <span class="n">identity_mat</span> <span class="o">=</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;csr&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">base_csr</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">identity_mat</span> <span class="o">=</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"csr"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">base_csr</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">left_csr</span> <span class="o">=</span> <span class="p">(</span><span class="n">identity_mat</span> <span class="o">-</span> <span class="p">(</span><span class="n">half</span> <span class="o">*</span> <span class="n">base_csr</span><span class="p">))</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
         <span class="n">right_csr</span> <span class="o">=</span> <span class="p">(</span><span class="n">identity_mat</span> <span class="o">+</span> <span class="p">(</span><span class="n">half</span> <span class="o">*</span> <span class="n">base_csr</span><span class="p">))</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;csr_matrix&quot;</span><span class="p">,</span> <span class="n">left_csr</span><span class="p">),</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;csr_matrix&quot;</span><span class="p">,</span> <span class="n">right_csr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">left_csr</span><span class="p">,</span> <span class="n">right_csr</span>
 
     <span class="n">base_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">base_op</span><span class="p">)</span>
     <span class="n">identity_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">base_arr</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">left_arr</span> <span class="o">=</span> <span class="n">identity_arr</span> <span class="o">-</span> <span class="p">(</span><span class="n">half</span> <span class="o">*</span> <span class="n">base_arr</span><span class="p">)</span>
     <span class="n">right_arr</span> <span class="o">=</span> <span class="n">identity_arr</span> <span class="o">+</span> <span class="p">(</span><span class="n">half</span> <span class="o">*</span> <span class="n">base_arr</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">left_arr</span><span class="p">),</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">right_arr</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">left_arr</span><span class="p">),</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">right_arr</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2649,7 +2649,7 @@ coefficient <code>D</code> or a generic spatial scaling.</p>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">672</span>
 <span class="normal">673</span>
 <span class="normal">674</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">clear_implicit_solver_cache</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Clear the internal implicit solver cache.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Clear the internal implicit solver cache."""</span>
     <span class="n">_IMPLICIT_SOLVER_CACHE</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2812,7 +2812,7 @@ return a dense array; if None, autodispatch based on n_groups.</p>
     <span class="n">prefer_sparse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="n">DTypeLike</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">csr_matrix</span> <span class="o">|</span> <span class="n">DenseOperator</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Encode group IDs into a one-hot group membership matrix.</span>
 
 <span class="sd">    Args:</span>
@@ -2824,7 +2824,7 @@ return a dense array; if None, autodispatch based on n_groups.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A (n_groups, n_items) one-hot encoded group membership matrix.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">group_ids_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">prefer_sparse</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
@@ -2958,7 +2958,7 @@ return a dense array; if None, autodispatch based on n_groups.</p>
     <span class="n">group_ids</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
     <span class="n">n_groups</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform grouped count using group IDs.</span>
 
 <span class="sd">    Args:</span>
@@ -2968,7 +2968,7 @@ return a dense array; if None, autodispatch based on n_groups.</p>
 <span class="sd">    Returns:</span>
 <span class="sd">        A 1D array of length n_groups where each element contains the count of</span>
 <span class="sd">        occurrences of the corresponding group ID.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">group_ids_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
     <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">group_ids_arr</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">n_groups</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">counts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
@@ -3115,7 +3115,7 @@ return a dense array; if None, autodispatch based on n_groups.</p>
     <span class="n">group_ids</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
     <span class="n">n_groups</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform grouped sum over 1D values array using group IDs.</span>
 
 <span class="sd">    Args:</span>
@@ -3126,7 +3126,7 @@ return a dense array; if None, autodispatch based on n_groups.</p>
 <span class="sd">    Returns:</span>
 <span class="sd">        A 1D array of length n_groups where each element contains the sum of values</span>
 <span class="sd">        for the corresponding group ID.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">values_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
     <span class="n">group_ids_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
     <span class="n">sums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">group_ids_arr</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">values_arr</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">n_groups</span><span class="p">)</span>
@@ -3316,7 +3316,7 @@ the number of items in values.</p>
     <span class="n">group_ids</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
     <span class="n">n_groups</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform grouped sum over 2D values array using group IDs.</span>
 
 <span class="sd">    Args:</span>
@@ -3331,7 +3331,7 @@ the number of items in values.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If values is not 2D or if group_ids length does not match</span>
 <span class="sd">            the number of items in values.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">values_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
     <span class="n">group_ids_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
 
@@ -3495,7 +3495,7 @@ the number of items in values.</p>
     <span class="n">right_op</span><span class="p">:</span> <span class="n">Operator</span><span class="p">,</span>
     <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform an implicit solve with dense/sparse dispatch and caching.</span>
 
 <span class="sd">    Args:</span>
@@ -3505,9 +3505,9 @@ the number of items in values.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A 1D or 2D array containing the solution vector(s) y.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">x_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-    <span class="n">_validate_solve_dimensions</span><span class="p">(</span><span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span><span class="p">,</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;NDArray[np.floating]&quot;</span><span class="p">,</span> <span class="n">x_arr</span><span class="p">))</span>
+    <span class="n">_validate_solve_dimensions</span><span class="p">(</span><span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span><span class="p">,</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"NDArray[np.floating]"</span><span class="p">,</span> <span class="n">x_arr</span><span class="p">))</span>
 
     <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">left_op</span><span class="p">),</span> <span class="nb">id</span><span class="p">(</span><span class="n">right_op</span><span class="p">))</span>
     <span class="n">meta</span> <span class="o">=</span> <span class="n">_operator_meta</span><span class="p">(</span><span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span><span class="p">)</span>
@@ -3518,11 +3518,11 @@ the number of items in values.</p>
         <span class="k">if</span> <span class="n">cached_meta</span> <span class="o">!=</span> <span class="n">meta</span><span class="p">:</span>
             <span class="n">solver</span> <span class="o">=</span> <span class="n">_build_implicit_solver</span><span class="p">(</span><span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span><span class="p">)</span>
             <span class="n">_IMPLICIT_SOLVER_CACHE</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">solver</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">solver</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;NDArray[np.floating]&quot;</span><span class="p">,</span> <span class="n">x_arr</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">solver</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"NDArray[np.floating]"</span><span class="p">,</span> <span class="n">x_arr</span><span class="p">))</span>
 
     <span class="n">solver</span> <span class="o">=</span> <span class="n">_build_implicit_solver</span><span class="p">(</span><span class="n">left_op</span><span class="p">,</span> <span class="n">right_op</span><span class="p">)</span>
     <span class="n">_IMPLICIT_SOLVER_CACHE</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">solver</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">solver</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;NDArray[np.floating]&quot;</span><span class="p">,</span> <span class="n">x_arr</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">solver</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"NDArray[np.floating]"</span><span class="p">,</span> <span class="n">x_arr</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3635,7 +3635,7 @@ the number of items in values.</p>
 <span class="normal">611</span>
 <span class="normal">612</span>
 <span class="normal">613</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">kron_prod</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">Operator</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">Operator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Compute the Kronecker product of two operators.</span>
 
 <span class="sd">    Args:</span>
@@ -3644,16 +3644,16 @@ the number of items in values.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        The Kronecker product operator.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">or</span> <span class="n">issparse</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>
         <span class="n">a_csr</span> <span class="o">=</span> <span class="n">a</span> <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">else</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
         <span class="n">b_csr</span> <span class="o">=</span> <span class="n">b</span> <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">else</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">kron</span><span class="p">(</span>
             <span class="n">a_csr</span><span class="p">,</span>
             <span class="n">b_csr</span><span class="p">,</span>
-            <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;csr&quot;</span><span class="p">,</span>
+            <span class="nb">format</span><span class="o">=</span><span class="s2">"csr"</span><span class="p">,</span>
         <span class="p">)</span>
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">b</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">b</span><span class="p">)))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3803,7 +3803,7 @@ have incompatible shapes.</p>
 <span class="normal">662</span>
 <span class="normal">663</span>
 <span class="normal">664</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">kron_sum</span><span class="p">(</span><span class="n">ops</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Operator</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Compute a Kronecker sum of square operators.</span>
 
 <span class="sd">    Args:</span>
@@ -3815,7 +3815,7 @@ have incompatible shapes.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If ops is empty or if operators are not square or</span>
 <span class="sd">            have incompatible shapes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_KRON_EMPTY_ERROR</span><span class="p">)</span>
 
@@ -3834,8 +3834,8 @@ have incompatible shapes.</p>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_eye</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">any_sparse</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;csr&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">identity</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"csr"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype_obj</span><span class="p">))</span>
 
     <span class="n">total</span><span class="p">:</span> <span class="n">Operator</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">n_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ops</span><span class="p">)</span>
@@ -3846,7 +3846,7 @@ have incompatible shapes.</p>
             <span class="n">term</span> <span class="o">=</span> <span class="n">kron_prod</span><span class="p">(</span><span class="n">_eye</span><span class="p">(</span><span class="n">sizes</span><span class="p">[</span><span class="n">j</span><span class="p">]),</span> <span class="n">term</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">):</span>
             <span class="n">term</span> <span class="o">=</span> <span class="n">kron_prod</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">_eye</span><span class="p">(</span><span class="n">sizes</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
-        <span class="n">total</span> <span class="o">=</span> <span class="n">term</span> <span class="k">if</span> <span class="n">total</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;Operator&quot;</span><span class="p">,</span> <span class="n">total</span> <span class="o">+</span> <span class="n">term</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">term</span> <span class="k">if</span> <span class="n">total</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Operator"</span><span class="p">,</span> <span class="n">total</span> <span class="o">+</span> <span class="n">term</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">total</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_KRON_EMPTY_ERROR</span><span class="p">)</span>
@@ -3943,7 +3943,7 @@ have incompatible shapes.</p>
 <span class="normal">584</span>
 <span class="normal">585</span>
 <span class="normal">586</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_constant_base_builder</span><span class="p">(</span><span class="n">operator</span><span class="p">:</span> <span class="n">Operator</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseOperatorBuilder</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Convenience: wrap a constant operator as a BaseOperatorBuilder.</span>
 
 <span class="sd">    Args:</span>
@@ -3951,7 +3951,7 @@ have incompatible shapes.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A BaseOperatorBuilder that always returns the given operator.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">operator_0</span> <span class="o">=</span> <span class="n">_ensure_operator_type</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_builder</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">StageOperatorContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>  <span class="c1"># noqa: ARG001</span>
@@ -3968,7 +3968,7 @@ have incompatible shapes.</p>
 
 
 <h3 id="op_engine.matrix_ops.make_stage_operator_factory" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">make_stage_operator_factory</span><span class="p">(</span><span class="n">base_builder</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scheme</span><span class="o">=</span><span class="s1">&#39;implicit-euler&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">make_stage_operator_factory</span><span class="p">(</span><span class="n">base_builder</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scheme</span><span class="o">=</span><span class="s1">'implicit-euler'</span><span class="p">)</span></code>
 
 <a href="#op_engine.matrix_ops.make_stage_operator_factory" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -4116,24 +4116,24 @@ have incompatible shapes.</p>
 <span class="normal">568</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_stage_operator_factory</span><span class="p">(</span>
     <span class="n">base_builder</span><span class="p">:</span> <span class="n">BaseOperatorBuilder</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
-    <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;implicit-euler&quot;</span><span class="p">,</span>
+    <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"implicit-euler"</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageOperatorFactory</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a stage operator factory supporting time/state dependent base ops.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        base_builder: Function that builds a base operator given stage context.</span>
-<span class="sd">        scheme: Implicit scheme; either &quot;implicit-euler&quot; or &quot;trapezoidal&quot;.</span>
+<span class="sd">        scheme: Implicit scheme; either "implicit-euler" or "trapezoidal".</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A StageOperatorFactory that builds (L, R) operators for the given scheme.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If an unknown scheme is provided.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">scheme_norm</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">scheme</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="n">scheme_norm</span> <span class="o">==</span> <span class="s2">&quot;implicit-euler&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">scheme_norm</span> <span class="o">==</span> <span class="s2">"implicit-euler"</span><span class="p">:</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">_factory</span><span class="p">(</span>
             <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">StageOperatorContext</span>
@@ -4143,7 +4143,7 @@ have incompatible shapes.</p>
 
         <span class="k">return</span> <span class="n">_factory</span>
 
-    <span class="k">if</span> <span class="n">scheme_norm</span> <span class="o">==</span> <span class="s2">&quot;trapezoidal&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">scheme_norm</span> <span class="o">==</span> <span class="s2">"trapezoidal"</span><span class="p">:</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">_factory</span><span class="p">(</span>
             <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">StageOperatorContext</span>
@@ -4252,7 +4252,7 @@ have incompatible shapes.</p>
 <span class="normal">951</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">matrix_grouped_count</span><span class="p">(</span>
     <span class="n">group_matrix</span><span class="p">:</span> <span class="n">csr_matrix</span> <span class="o">|</span> <span class="n">DenseOperator</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform grouped count using a group matrix.</span>
 
 <span class="sd">    Args:</span>
@@ -4260,7 +4260,7 @@ have incompatible shapes.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A 1D array containing the counts for each group.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">n_groups</span> <span class="o">=</span> <span class="n">group_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">group_matrix</span><span class="p">)</span> <span class="ow">and</span> <span class="n">n_groups</span> <span class="o">&gt;=</span> <span class="n">_DISPATCH_THRESHOLD</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_matrix_grouped_count_sparse</span><span class="p">(</span><span class="n">group_matrix</span><span class="p">)</span>
@@ -4268,7 +4268,7 @@ have incompatible shapes.</p>
         <span class="n">dense_matrix</span> <span class="o">=</span> <span class="n">group_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">dense_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_matrix</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">_matrix_grouped_count_dense</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">dense_matrix</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">_matrix_grouped_count_dense</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">dense_matrix</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4386,7 +4386,7 @@ have incompatible shapes.</p>
     <span class="n">group_matrix</span><span class="p">:</span> <span class="n">csr_matrix</span> <span class="o">|</span> <span class="n">DenseOperator</span><span class="p">,</span>
     <span class="n">values</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform grouped sum using a group matrix.</span>
 
 <span class="sd">    Args:</span>
@@ -4395,7 +4395,7 @@ have incompatible shapes.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A 1D array containing the grouped sums.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">n_groups</span> <span class="o">=</span> <span class="n">group_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">group_matrix</span><span class="p">)</span> <span class="ow">and</span> <span class="n">n_groups</span> <span class="o">&gt;=</span> <span class="n">_DISPATCH_THRESHOLD</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_matrix_grouped_sum_sparse</span><span class="p">(</span><span class="n">group_matrix</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
@@ -4403,7 +4403,7 @@ have incompatible shapes.</p>
         <span class="n">dense_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">())</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">dense_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">group_matrix</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">_matrix_grouped_sum_dense</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;DenseOperator&quot;</span><span class="p">,</span> <span class="n">dense_matrix</span><span class="p">),</span> <span class="n">values</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_matrix_grouped_sum_dense</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"DenseOperator"</span><span class="p">,</span> <span class="n">dense_matrix</span><span class="p">),</span> <span class="n">values</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4521,7 +4521,7 @@ have incompatible shapes.</p>
     <span class="n">mask_matrix</span><span class="p">:</span> <span class="n">csr_matrix</span> <span class="o">|</span> <span class="n">DenseOperator</span><span class="p">,</span>
     <span class="n">data</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Perform masked sum using a mask matrix and data array.</span>
 
 <span class="sd">    Args:</span>
@@ -4530,7 +4530,7 @@ have incompatible shapes.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A 1D or 2D array containing the masked sums.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">n_masks</span> <span class="o">=</span> <span class="n">mask_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">issparse</span><span class="p">(</span><span class="n">mask_matrix</span><span class="p">)</span> <span class="ow">and</span> <span class="n">n_masks</span> <span class="o">&gt;=</span> <span class="n">_DISPATCH_THRESHOLD</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_matrix_masked_sum_sparse</span><span class="p">(</span><span class="n">mask_matrix</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
@@ -4673,7 +4673,7 @@ have incompatible shapes.</p>
     <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span><span class="p">,</span>
     <span class="n">out</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Apply simple smoothing along the last axis.</span>
 
 <span class="sd">    Args:</span>
@@ -4683,13 +4683,13 @@ have incompatible shapes.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Smoothed array with the same shape as x.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">x_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
     <span class="n">smoothed</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">x_arr</span> <span class="o">+</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">x_arr</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">smoothed</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">out</span>
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;NDArray[np.floating]&quot;</span><span class="p">,</span> <span class="n">smoothed</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"NDArray[np.floating]"</span><span class="p">,</span> <span class="n">smoothed</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4755,7 +4755,7 @@ have incompatible shapes.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

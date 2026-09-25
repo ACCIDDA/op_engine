@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -1263,7 +1263,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
     <span class="n">x</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert input to an array of the backend type.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Convert input to an array of the backend type."""</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -1298,7 +1298,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
     <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a new array of given shape filled with zeros.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Return a new array of given shape filled with zeros."""</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -1542,7 +1542,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
     <span class="o">*</span><span class="p">,</span>
     <span class="n">options</span><span class="p">:</span> <span class="n">ModelCoreOptions</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Initialize ModelCore.</span>
 
 <span class="sd">    Args:</span>
@@ -1553,7 +1553,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if time_grid is invalid or any shapes mismatch.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">opts</span> <span class="o">=</span> <span class="n">options</span> <span class="ow">or</span> <span class="n">ModelCoreOptions</span><span class="p">()</span>
 
     <span class="c1"># Forward-compat hook; stored for later wiring. For now ModelCore remains</span>
@@ -1588,8 +1588,8 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
     <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">store_history</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">axis_names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="s2">&quot;subgroup&quot;</span><span class="p">]</span>
-        <span class="n">extra</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;axis</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">))]</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"state"</span><span class="p">,</span> <span class="s2">"subgroup"</span><span class="p">]</span>
+        <span class="n">extra</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"axis</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">))]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">axis_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">base</span> <span class="o">+</span> <span class="n">extra</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">axis_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">):</span>
@@ -1617,7 +1617,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
     <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">:</span> <span class="n">FloatArray</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
-            <span class="s2">&quot;FloatArray&quot;</span><span class="p">,</span>
+            <span class="s2">"FloatArray"</span><span class="p">,</span>
             <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1747,7 +1747,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">509</span>
 <span class="normal">510</span>
 <span class="normal">511</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">advance_timestep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">next_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Alias for apply_next_state, for solver-friendly naming.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Alias for apply_next_state, for solver-friendly naming."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">apply_next_state</span><span class="p">(</span><span class="n">next_state</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -1855,7 +1855,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">479</span>
 <span class="normal">480</span>
 <span class="normal">481</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_deltas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deltas</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Apply state deltas, advancing the timestep.</span>
 
 <span class="sd">    Supports alternate solver implementations (e.g., splitting updates,</span>
@@ -1866,7 +1866,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if deltas has incorrect shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">deltas_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">deltas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">deltas_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -1983,7 +1983,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">505</span>
 <span class="normal">506</span>
 <span class="normal">507</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_next_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">next_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the next state directly, advancing the timestep.</span>
 
 <span class="sd">    Args:</span>
@@ -1991,7 +1991,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if next_state has incorrect shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">next_state_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">next_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">next_state_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -2139,7 +2139,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">axis_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Resolve an axis name or integer into an axis index.</span>
 
 <span class="sd">    Args:</span>
@@ -2151,7 +2151,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        IndexError: if axis index is out of bounds.</span>
 <span class="sd">        ValueError: if axis name is unknown.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">axis</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_ndim</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="n">_AXIS_INDEX_OOB_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span>
@@ -2250,7 +2250,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_axis_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return coordinate array for a given axis, or None if not set.</span>
 
 <span class="sd">    Args:</span>
@@ -2258,7 +2258,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Coordinate array for the axis, or None if not set.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis_index</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis_names</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis_coords</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
@@ -2315,12 +2315,12 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">418</span>
 <span class="normal">419</span>
 <span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_current_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Retrun the current state.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Current state, shape state_shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2439,7 +2439,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">379</span>
 <span class="normal">380</span>
 <span class="normal">381</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_dt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return dt for the step [t_step_idx, t_step_idx+1].</span>
 
 <span class="sd">    Args:</span>
@@ -2450,7 +2450,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        IndexError: if step_idx is out of bounds.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="mf">0.0</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">step_idx</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
@@ -2588,7 +2588,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">442</span>
 <span class="normal">443</span>
 <span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_state_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FloatArray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return the state at a given timestep from history.</span>
 
 <span class="sd">    Args:</span>
@@ -2600,7 +2600,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        RuntimeError: if history is not stored.</span>
 <span class="sd">        IndexError: if step is out of bounds.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">_HISTORY_NOT_STORED_ERROR</span><span class="p">)</span>
 
@@ -2609,7 +2609,7 @@ additive increments) without forcing allocation of y_next.</p>
 
     <span class="c1"># NumPy typing stubs often type ndarray.__getitem__ as Any under mypy,</span>
     <span class="c1"># which triggers --strict [no-any-return] without an explicit cast.</span>
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;FloatArray&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">[</span><span class="n">step</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"FloatArray"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">[</span><span class="n">step</span><span class="p">])</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2725,7 +2725,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">360</span>
 <span class="normal">361</span>
 <span class="normal">362</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_time_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return time at a given step index.</span>
 
 <span class="sd">    Args:</span>
@@ -2736,7 +2736,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        IndexError: if step_idx is out of bounds.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">step_idx</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="n">_TIME_INDEX_OOB_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idx</span><span class="o">=</span><span class="n">step_idx</span><span class="p">))</span>
     <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_grid</span><span class="p">[</span><span class="n">step_idx</span><span class="p">])</span>
@@ -2891,7 +2891,7 @@ additive increments) without forcing allocation of y_next.</p>
     <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="nb">int</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reshape a state-like tensor into 2D for an axis-local operator solve.</span>
+<span class="w">    </span><span class="sd">"""Reshape a state-like tensor into 2D for an axis-local operator solve.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        x: State-like tensor of shape state_shape.</span>
@@ -2902,7 +2902,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if x does not have shape state_shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">x_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">x_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -3019,7 +3019,7 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the initial state at time_grid[0].</span>
 
 <span class="sd">    Args:</span>
@@ -3027,7 +3027,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if initial_state has incorrect shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">initial_state_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">initial_state_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -3180,7 +3180,7 @@ additive increments) without forcing allocation of y_next.</p>
     <span class="n">original_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
     <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Inverse of reshape_for_axis_solve.</span>
 
 <span class="sd">    Args:</span>
@@ -3190,7 +3190,7 @@ additive increments) without forcing allocation of y_next.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Reconstructed array of shape original_shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">axis_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis_index</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
     <span class="n">axis_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">original_shape</span><span class="p">[</span><span class="n">axis_idx</span><span class="p">])</span>
 
@@ -3313,7 +3313,7 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
 <span class="normal">271</span>
 <span class="normal">272</span>
 <span class="normal">273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">validate_state_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Validate that arr has state_shape.</span>
 
 <span class="sd">    This is intentionally small and solver-friendly; higher layers can reuse it</span>
@@ -3325,7 +3325,7 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if arr does not have shape state_shape.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">arr_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
     <span class="k">if</span> <span class="n">arr_shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -3545,7 +3545,7 @@ compatibility hook for GPU backends.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

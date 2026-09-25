@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -1429,7 +1429,7 @@ optionally with a preprocessing predictor:
 
 
 <h3 id="op_engine.core_solver.CoreSolver" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">CoreSolver</span><span class="p">(</span><span class="n">core</span><span class="p">,</span> <span class="n">operators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">operator_axis</span><span class="o">=</span><span class="s1">&#39;state&#39;</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">CoreSolver</span><span class="p">(</span><span class="n">core</span><span class="p">,</span> <span class="n">operators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">operator_axis</span><span class="o">=</span><span class="s1">'state'</span><span class="p">)</span></code>
 
 <a href="#op_engine.core_solver.CoreSolver" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -1587,15 +1587,15 @@ optionally with a preprocessing predictor:
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">operators</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
-    <span class="n">operator_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">=</span> <span class="s2">&quot;state&quot;</span><span class="p">,</span>
+    <span class="n">operator_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">=</span> <span class="s2">"state"</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize CoreSolver.</span>
+<span class="w">    </span><span class="sd">"""Initialize CoreSolver.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        core: ModelCore instance to solve.</span>
 <span class="sd">        operators: Default operator spec (tuple or factory) for implicit stages.</span>
 <span class="sd">        operator_axis: Axis along which operators act (name or index).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">core</span> <span class="o">=</span> <span class="n">core</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">dtype</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">state_shape</span>
@@ -1814,7 +1814,7 @@ optionally with a preprocessing predictor:
 <span class="normal">2091</span>
 <span class="normal">2092</span>
 <span class="normal">2093</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Advance the ModelCore state through its time grid.</span>
+<span class="w">    </span><span class="sd">"""Advance the ModelCore state through its time grid.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        rhs_func: Function computing the explicit RHS F(t, y).</span>
@@ -1822,7 +1822,7 @@ optionally with a preprocessing predictor:
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If invalid parameters are provided.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">RunConfig</span><span class="p">()</span>
     <span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_run_plan</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
@@ -1889,7 +1889,7 @@ optionally with a preprocessing predictor:
 
 
 <h3 id="op_engine.core_solver.DtControllerConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">DtControllerConfig</span><span class="p">(</span><span class="n">dt_min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dt_max</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">safety</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">fac_min</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">fac_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">DtControllerConfig</span><span class="p">(</span><span class="n">dt_min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dt_max</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">'inf'</span><span class="p">),</span> <span class="n">safety</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">fac_min</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">fac_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -2504,7 +2504,7 @@ and as a fallback for TR/BDF2 stages.</p>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">139</span>
 <span class="normal">140</span>
 <span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply the predictor to a 2D array.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Apply the predictor to a 2D array."""</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2525,7 +2525,7 @@ and as a fallback for TR/BDF2 stages.</p>
 
 
 <h3 id="op_engine.core_solver.RunConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;heun&#39;</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'heun'</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -3143,7 +3143,7 @@ method downshifts may occur.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
