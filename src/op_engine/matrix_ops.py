@@ -267,7 +267,7 @@ def _build_crank_nicolson_sparse(
             mat[-1, :] = 0.0
             mat[-1, -1] = 1.0
 
-    return cast("csr_matrix", left_op.tocsr()), cast("csr_matrix", right_op.tocsr())
+    return left_op.tocsr(), right_op.tocsr()
 
 
 def _build_crank_nicolson_dense(
@@ -508,7 +508,7 @@ def build_trapezoidal_operators(
         identity_mat = identity(n, format="csr", dtype=base_csr.dtype)
         left_csr = (identity_mat - (half * base_csr)).tocsr()
         right_csr = (identity_mat + (half * base_csr)).tocsr()
-        return cast("csr_matrix", left_csr), cast("csr_matrix", right_csr)
+        return left_csr, right_csr
 
     base_arr = np.asarray(base_op)
     identity_arr = np.eye(n, dtype=base_arr.dtype)
