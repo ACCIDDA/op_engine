@@ -606,45 +606,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#op_engine.model_core.ArrayBackend" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ArrayBackend
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ArrayBackend">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#op_engine.model_core.ArrayBackend.asarray" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        asarray
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#op_engine.model_core.ArrayBackend.zeros" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        zeros
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#op_engine.model_core.ModelCore" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -897,45 +858,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#op_engine.model_core.ArrayBackend" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ArrayBackend
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ArrayBackend">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#op_engine.model_core.ArrayBackend.asarray" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        asarray
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#op_engine.model_core.ArrayBackend.zeros" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        zeros
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#op_engine.model_core.ModelCore" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1172,7 +1094,7 @@ time-evolving models. It is designed to support:</p>
 <li>Non-uniform time grids via per-step dt accessors.</li>
 <li>Multi-axis state tensors (e.g., state x age x space x traits).</li>
 <li>Optional full history storage for post-analysis.</li>
-<li>A minimal backend hook to ease future NumPy-&gt;(JAX/CuPy) integration.</li>
+<li>Array-API namespace preservation for numerical state and history.</li>
 </ul>
 <p>The core intentionally does not build RHS functions or construct operators; it
 only manages state, time, and shape/axis metadata in a solver-friendly manner.</p>
@@ -1195,124 +1117,6 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
 
 
 
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="op_engine.model_core.ArrayBackend" class="doc doc-heading">
-            <code>ArrayBackend</code>
-
-
-<a href="#op_engine.model_core.ArrayBackend" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
-
-
-
-        <p>Minimal array backend interface for ModelCore numerical storage.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="op_engine.model_core.ArrayBackend.asarray" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-
-<a href="#op_engine.model_core.ArrayBackend.asarray" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Convert input to an array of the backend type.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">92</span>
-<span class="normal">93</span>
-<span class="normal">94</span>
-<span class="normal">95</span>
-<span class="normal">96</span>
-<span class="normal">97</span>
-<span class="normal">98</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">asarray</span><span class="p">(</span>
-    <span class="bp">self</span><span class="p">,</span>
-    <span class="n">x</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
-    <span class="n">dtype</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Convert input to an array of the backend type."""</span>
-    <span class="o">...</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="op_engine.model_core.ArrayBackend.zeros" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-
-<a href="#op_engine.model_core.ArrayBackend.zeros" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Return a new array of given shape filled with zeros.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">100</span>
-<span class="normal">101</span>
-<span class="normal">102</span>
-<span class="normal">103</span>
-<span class="normal">104</span>
-<span class="normal">105</span>
-<span class="normal">106</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">zeros</span><span class="p">(</span>
-    <span class="bp">self</span><span class="p">,</span>
-    <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
-    <span class="n">dtype</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Return a new array of given shape filled with zeros."""</span>
-    <span class="o">...</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
 
 <div class="doc doc-object doc-class">
 
@@ -1397,7 +1201,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
                 <code>options</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="ModelCoreOptions(other_axes=(), axis_names=None, axis_coords=None, store_history=True, dtype=np.float64, xp=np)
+                  <code><a class="autorefs autorefs-internal" title="ModelCoreOptions(other_axes=(), axis_names=None, axis_coords=None, store_history=True, dtype=np.float64)
 
   
       dataclass
@@ -1447,12 +1251,7 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
-<span class="normal">113</span>
-<span class="normal">114</span>
-<span class="normal">115</span>
-<span class="normal">116</span>
-<span class="normal">117</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">117</span>
 <span class="normal">118</span>
 <span class="normal">119</span>
 <span class="normal">120</span>
@@ -1534,7 +1333,8 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
-<span class="normal">199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">199</span>
+<span class="normal">200</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">n_states</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">n_subgroups</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -1555,10 +1355,6 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
 <span class="sd">        ValueError: if time_grid is invalid or any shapes mismatch.</span>
 <span class="sd">    """</span>
     <span class="n">opts</span> <span class="o">=</span> <span class="n">options</span> <span class="ow">or</span> <span class="n">ModelCoreOptions</span><span class="p">()</span>
-
-    <span class="c1"># Forward-compat hook; stored for later wiring. For now ModelCore remains</span>
-    <span class="c1"># NumPy-first; higher layers can decide how to allocate/convert.</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">xp</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">xp</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
@@ -1611,13 +1407,13 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
     <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
 
     <span class="c1"># Per-timestep working state (contiguous).</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">:</span> <span class="n">Array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="c1"># Optional full history: (n_timesteps, *state_shape)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">:</span> <span class="n">FloatArray</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">:</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
-            <span class="s2">"FloatArray"</span><span class="p">,</span>
+            <span class="s2">"Array"</span><span class="p">,</span>
             <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1744,9 +1540,9 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.</
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">advance_timestep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">next_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">advance_timestep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">next_state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Alias for apply_next_state, for solver-friendly naming."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">apply_next_state</span><span class="p">(</span><span class="n">next_state</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -1787,7 +1583,7 @@ additive increments) without forcing allocation of y_next.</p>
                 <code>deltas</code>
             </td>
             <td>
-                  <code><span title="numpy.ndarray">ndarray</span></code>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1827,34 +1623,39 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">454</span>
-<span class="normal">455</span>
-<span class="normal">456</span>
-<span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_deltas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deltas</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_deltas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deltas</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Apply state deltas, advancing the timestep.</span>
 
@@ -1867,7 +1668,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if deltas has incorrect shape.</span>
 <span class="sd">    """</span>
-    <span class="n">deltas_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">deltas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">_namespace_of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span>
+    <span class="n">deltas_arr</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">deltas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">deltas_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="n">_DELTAS_SHAPE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -1877,11 +1679,15 @@ additive increments) without forcing allocation of y_next.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_check_can_advance</span><span class="p">()</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span> <span class="o">+=</span> <span class="n">deltas_arr</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="n">deltas_arr</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span> <span class="o">+=</span> <span class="n">deltas_arr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">deltas_arr</span><span class="p">))</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_store_history_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -1918,7 +1724,7 @@ additive increments) without forcing allocation of y_next.</p>
                 <code>next_state</code>
             </td>
             <td>
-                  <code><span title="numpy.ndarray">ndarray</span></code>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1958,31 +1764,39 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
-<span class="normal">497</span>
-<span class="normal">498</span>
-<span class="normal">499</span>
-<span class="normal">500</span>
-<span class="normal">501</span>
-<span class="normal">502</span>
-<span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_next_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">next_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_next_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">next_state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the next state directly, advancing the timestep.</span>
 
@@ -1992,7 +1806,11 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if next_state has incorrect shape.</span>
 <span class="sd">    """</span>
-    <span class="n">next_state_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">next_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">_namespace_of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span>
+    <span class="n">next_state_arr</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+        <span class="s2">"Array"</span><span class="p">,</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">next_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
+    <span class="p">)</span>
     <span class="k">if</span> <span class="n">next_state_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="n">_NEXT_STATE_SHAPE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -2002,11 +1820,15 @@ additive increments) without forcing allocation of y_next.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_check_can_advance</span><span class="p">()</span>
 
-    <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">next_state_arr</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="n">next_state_arr</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">next_state_arr</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span> <span class="o">=</span> <span class="n">next_state_arr</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_store_history_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2116,8 +1938,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">215</span>
-<span class="normal">216</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">216</span>
 <span class="normal">217</span>
 <span class="normal">218</span>
 <span class="normal">219</span>
@@ -2138,7 +1959,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">234</span>
 <span class="normal">235</span>
 <span class="normal">236</span>
-<span class="normal">237</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">axis_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">237</span>
+<span class="normal">238</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">axis_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Resolve an axis name or integer into an axis index.</span>
 
@@ -2237,8 +2059,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
-<span class="normal">240</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
 <span class="normal">243</span>
@@ -2249,7 +2070,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">248</span>
 <span class="normal">249</span>
 <span class="normal">250</span>
-<span class="normal">251</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_axis_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">251</span>
+<span class="normal">252</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_axis_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return coordinate array for a given axis, or None if not set.</span>
 
@@ -2279,7 +2101,7 @@ additive increments) without forcing allocation of y_next.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Retrun the current state.</p>
+        <p>Return the current state.</p>
 
 
     <p><span class="doc-section-title">Returns:</span></p>
@@ -2293,7 +2115,7 @@ additive increments) without forcing allocation of y_next.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><span title="numpy.ndarray">ndarray</span></code>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2307,16 +2129,16 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">413</span>
-<span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span>
-<span class="normal">417</span>
-<span class="normal">418</span>
-<span class="normal">419</span>
-<span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_current_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_current_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Retrun the current state.</span>
+<span class="sd">    Return the current state.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Current state, shape state_shape.</span>
@@ -2421,8 +2243,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">364</span>
-<span class="normal">365</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
@@ -2438,7 +2259,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">378</span>
 <span class="normal">379</span>
 <span class="normal">380</span>
-<span class="normal">381</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_dt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="normal">381</span>
+<span class="normal">382</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_dt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return dt for the step [t_step_idx, t_step_idx+1].</span>
 
@@ -2518,7 +2340,7 @@ additive increments) without forcing allocation of y_next.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><span title="op_engine.model_core.FloatArray">FloatArray</span></code>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2565,29 +2387,27 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">422</span>
-<span class="normal">423</span>
-<span class="normal">424</span>
-<span class="normal">425</span>
-<span class="normal">426</span>
-<span class="normal">427</span>
-<span class="normal">428</span>
-<span class="normal">429</span>
-<span class="normal">430</span>
-<span class="normal">431</span>
-<span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
-<span class="normal">439</span>
-<span class="normal">440</span>
-<span class="normal">441</span>
-<span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_state_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FloatArray</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_state_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return the state at a given timestep from history.</span>
 
@@ -2607,9 +2427,7 @@ additive increments) without forcing allocation of y_next.</p>
     <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">step</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="n">_STEP_OOB_ERROR</span><span class="p">)</span>
 
-    <span class="c1"># NumPy typing stubs often type ndarray.__getitem__ as Any under mypy,</span>
-    <span class="c1"># which triggers --strict [no-any-return] without an explicit cast.</span>
-    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"FloatArray"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">[</span><span class="n">step</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">_array_slice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2709,8 +2527,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">347</span>
-<span class="normal">348</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">348</span>
 <span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
@@ -2724,7 +2541,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">359</span>
 <span class="normal">360</span>
 <span class="normal">361</span>
-<span class="normal">362</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_time_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="normal">362</span>
+<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_time_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Return time at a given step index.</span>
 
@@ -2855,8 +2673,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">275</span>
-<span class="normal">276</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">276</span>
 <span class="normal">277</span>
 <span class="normal">278</span>
 <span class="normal">279</span>
@@ -2886,7 +2703,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">303</span>
 <span class="normal">304</span>
 <span class="normal">305</span>
-<span class="normal">306</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">reshape_for_axis_solve</span><span class="p">(</span>
+<span class="normal">306</span>
+<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">reshape_for_axis_solve</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span>
@@ -2954,7 +2772,7 @@ additive increments) without forcing allocation of y_next.</p>
                 <code>initial_state</code>
             </td>
             <td>
-                  <code><span title="numpy.ndarray">ndarray</span></code>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2994,23 +2812,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
-<span class="normal">392</span>
-<span class="normal">393</span>
-<span class="normal">394</span>
-<span class="normal">395</span>
-<span class="normal">396</span>
-<span class="normal">397</span>
-<span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span>
-<span class="normal">401</span>
-<span class="normal">402</span>
-<span class="normal">403</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">403</span>
 <span class="normal">404</span>
 <span class="normal">405</span>
 <span class="normal">406</span>
@@ -3018,7 +2820,38 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
-<span class="normal">411</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the initial state at time_grid[0].</span>
 
@@ -3028,7 +2861,11 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if initial_state has incorrect shape.</span>
 <span class="sd">    """</span>
-    <span class="n">initial_state_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">_namespace_of</span><span class="p">(</span><span class="n">initial_state</span><span class="p">)</span>
+    <span class="n">initial_state_arr</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+        <span class="s2">"Array"</span><span class="p">,</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
+    <span class="p">)</span>
     <span class="k">if</span> <span class="n">initial_state_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="n">_INITIAL_STATE_SHAPE_ERROR</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -3037,10 +2874,21 @@ additive increments) without forcing allocation of y_next.</p>
             <span class="p">)</span>
         <span class="p">)</span>
 
-    <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">initial_state_arr</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="n">initial_state_arr</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span> <span class="n">initial_state_arr</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span> <span class="o">=</span> <span class="n">initial_state_arr</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_history</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_array</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="s2">"Array"</span><span class="p">,</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">initial_state_arr</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_store_history_value</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
 </code></pre></div></td></tr></table></div>
@@ -3151,8 +2999,7 @@ additive increments) without forcing allocation of y_next.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">308</span>
-<span class="normal">309</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">309</span>
 <span class="normal">310</span>
 <span class="normal">311</span>
 <span class="normal">312</span>
@@ -3174,7 +3021,8 @@ additive increments) without forcing allocation of y_next.</p>
 <span class="normal">328</span>
 <span class="normal">329</span>
 <span class="normal">330</span>
-<span class="normal">331</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unreshape_from_axis_solve</span><span class="p">(</span>
+<span class="normal">331</span>
+<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unreshape_from_axis_solve</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">x2d</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">original_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
@@ -3236,7 +3084,7 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
                 <code>arr</code>
             </td>
             <td>
-                  <code><span title="numpy.ndarray">ndarray</span></code>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3292,8 +3140,7 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/model_core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">253</span>
-<span class="normal">254</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">254</span>
 <span class="normal">255</span>
 <span class="normal">256</span>
 <span class="normal">257</span>
@@ -3312,7 +3159,8 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
 <span class="normal">270</span>
 <span class="normal">271</span>
 <span class="normal">272</span>
-<span class="normal">273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">validate_state_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">273</span>
+<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">validate_state_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Validate that arr has state_shape.</span>
 
@@ -3326,7 +3174,7 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: if arr does not have shape state_shape.</span>
 <span class="sd">    """</span>
-    <span class="n">arr_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">arr_shape</span> <span class="o">=</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span>
     <span class="k">if</span> <span class="n">arr_shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="p">(</span><span class="n">msg</span> <span class="ow">or</span> <span class="n">_NEXT_STATE_SHAPE_ERROR</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -3352,7 +3200,7 @@ to avoid duplicating shape checks for intermediate/stage states.</p>
 
 
 <h3 id="op_engine.model_core.ModelCoreOptions" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">ModelCoreOptions</span><span class="p">(</span><span class="n">other_axes</span><span class="o">=</span><span class="p">(),</span> <span class="n">axis_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">axis_coords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">store_history</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">xp</span><span class="o">=</span><span class="n">np</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">ModelCoreOptions</span><span class="p">(</span><span class="n">other_axes</span><span class="o">=</span><span class="p">(),</span> <span class="n">axis_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">axis_coords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">store_history</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -3438,18 +3286,6 @@ FV/FDM operator builders.</p>
             <td>
               <div class="doc-md-description">
                 <p>Floating-point dtype for internal arrays.</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="op_engine.model_core.ModelCoreOptions.xp">xp</span></code></td>
-            <td>
-                  <code><span title="object">object</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Array backend module (default NumPy). This is a forward-
-compatibility hook for GPU backends.</p>
               </div>
             </td>
           </tr>

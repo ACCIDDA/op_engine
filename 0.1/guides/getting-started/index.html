@@ -407,6 +407,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -423,6 +441,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#numpy-and-jax-explicit-solves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NumPy and JAX explicit solves
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -594,6 +642,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#numpy-and-jax-explicit-solves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NumPy and JAX explicit solves
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -610,15 +677,36 @@
 
 
 <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>A brief tutorial on how to get started with <code>OP Engine</code>.</p>
-<pre><code class="language-python">import math
+<p><code>ModelCore</code> owns a time grid and state history, while <code>CoreSolver</code> advances that
+state. Explicit solves infer their Array-API namespace from the initial state.</p>
+<pre><code class="language-python">import numpy as np
 
-foo = 2 * math.pi
+from op_engine import CoreSolver, ModelCore
+
+times = np.linspace(0.0, 2.0, 21)
+core = ModelCore(n_states=1, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[1.0]]))
+
+
+def decay(_time, state):
+    return -0.25 * state
+
+
+CoreSolver(core).run(decay)
+solution = core.state_array
 </code></pre>
-<p>And then</p>
-<pre><code class="language-python">&gt;&gt;&gt; foo
-6.283185307179586
+<h2 id="numpy-and-jax-explicit-solves">NumPy and JAX explicit solves<a class="headerlink" href="#numpy-and-jax-explicit-solves" title="Permanent link">&para;</a></h2>
+<p>NumPy 2 and JAX arrays implement <code>__array_namespace__()</code>. Passing either one to
+<code>set_initial_state</code> selects the namespace for state storage, history, Euler/Heun
+stages, and adaptive error control. No backend argument is needed. An RHS should
+derive operations from its state when it needs namespace functions:</p>
+<pre><code class="language-python">def portable_decay(_time, state):
+    xp = state.__array_namespace__()
+    return xp.multiply(state, -0.25)
 </code></pre>
+<p>The implicit and IMEX methods currently cross into SciPy sparse solves and
+therefore require NumPy state. They fail early with a boundary-specific error
+when given another namespace.</p>
 
 
 
