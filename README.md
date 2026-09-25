@@ -4,7 +4,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 
 ## Why use it?
 - Shared solver surface for ODEs and operator-split PDEs.
-- Strong typing and Array-API explicit paths; SciPy remains the implicit backend.
+- Strong typing and Array-API explicit and dense-implicit paths.
 - Separates state/time management (`ModelCore`) from stepping logic (`CoreSolver`).
 - Optional adapters (e.g., flepimop2) without affecting the core API.
 - IMEX paths accept externally supplied operator tuples; defaults remain explicit-only.
@@ -54,9 +54,9 @@ solution = core.state_array  # shape (n_timesteps, state, subgroup)
 ### Array namespaces
 
 `ModelCore` infers its numerical namespace from the initial state through
-`initial_state.__array_namespace__()`. The state, stored history, explicit Euler
-and Heun stages, and adaptive error control stay in that namespace. There is no
-`xp=` or backend option:
+`initial_state.__array_namespace__()`. The state, stored history, solver stages,
+and adaptive error control stay in that namespace. There is no `xp=` or backend
+option:
 
 ```python
 import jax.numpy as jnp
@@ -77,9 +77,12 @@ CoreSolver(core).run(decay)
 assert core.state_array.__array_namespace__() is jnp
 ```
 
-The RHS must return an array in the input state's namespace. The current
-implicit and IMEX methods still use SciPy and therefore require NumPy state;
-multi-backend implicit solves are tracked separately.
+The RHS must return an array in the input state's namespace. Dense implicit and
+IMEX operators use that namespace's Array-API `linalg.solve`, so the same
+methods work with NumPy and JAX arrays. Sparse operators use an acceleration
+registry: SciPy is included for NumPy state, and CuPy sparse support is enabled
+when the `cupy` extra is installed. A backend without a sparse adapter still has
+the dense correctness path.
 
 ### IMEX with operators (tuple form)
 

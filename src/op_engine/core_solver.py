@@ -41,9 +41,9 @@ Non-uniform dt:
       steps (non-uniform output grid or adaptive stepping), because L/R depend on dt.
 
 Performance hygiene:
-    - All major scratch arrays are preallocated.
-    - Inner loops use in-place NumPy ops and np.copyto.
-    - Implicit solves are delegated to matrix_ops.implicit_solve (cached factorization).
+    - NumPy paths retain preallocated scratch arrays and in-place operations.
+    - Immutable namespaces use functional stepping operations.
+    - Dense implicit solves use Array-API linalg; sparse adapters cache factors.
 """
 
 from __future__ import annotations
@@ -99,11 +99,6 @@ _UNSUPPORTED_OPERATOR_TYPE_MSG = (
 _ARRAY_API_ERROR_MSG = (
     "Explicit solver arrays must implement __array_namespace__(); got {type_name}."
 )
-_IMPLICIT_NUMPY_ONLY_ERROR_MSG = (
-    "Method '{method}' currently requires NumPy state arrays because it uses the "
-    "SciPy implicit-solve boundary; use 'euler' or 'heun' for other Array-API "
-    "namespaces."
-)
 
 
 # =============================================================================
@@ -111,7 +106,7 @@ _IMPLICIT_NUMPY_ONLY_ERROR_MSG = (
 # =============================================================================
 
 RHSFunction = Callable[..., Array]
-JacobianFunction = Callable[[float, NDArray[np.floating]], "OperatorLike"]
+JacobianFunction = Callable[..., "OperatorLike"]
 MethodName = Literal[
     "euler",
     "heun",
@@ -145,7 +140,7 @@ class PredictorLike(Protocol):
         rhs2d = predictor @ rhs2d
     """
 
-    def __matmul__(self, other: NDArray[np.floating]) -> NDArray[np.floating]:
+    def __matmul__(self, other: Array) -> Array:
         """Apply the predictor to a 2D array."""
         ...
 
@@ -723,6 +718,562 @@ class CoreSolver:
             right_op=right_op,
             out=params.out,
         )
+
+    def _reshape_array_for_solve(
+        self,
+        value: Array,
+    ) -> tuple[Array, tuple[int, ...], tuple[int, ...]]:
+        """Move the operator axis first and flatten the remaining axes.
+
+        Returns:
+            Two-dimensional value, original shape, and forward permutation.
+
+        Raises:
+            RuntimeError: If the configured operator axis cannot be resolved.
+        """
+        self._resolve_operator_axis()
+        if self._op_axis_idx is None:
+            raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
+
+        xp = _namespace_of(value)
+        original_shape = value.shape
+        axes = (
+            self._op_axis_idx,
+            *(
+                index
+                for index in range(len(original_shape))
+                if index != self._op_axis_idx
+            ),
+        )
+        moved = xp.permute_dims(value, axes)
+        reshaped = xp.reshape(moved, (original_shape[self._op_axis_idx], -1))
+        return cast("Array", reshaped), original_shape, axes
+
+    @staticmethod
+    def _unreshape_array_after_solve(
+        value: Array,
+        original_shape: tuple[int, ...],
+        axes: tuple[int, ...],
+    ) -> Array:
+        """Undo :meth:`_reshape_array_for_solve` in the active namespace.
+
+        Returns:
+            State tensor with ``original_shape``.
+        """
+        xp = _namespace_of(value)
+        moved_shape = (
+            original_shape[axes[0]],
+            *(original_shape[index] for index in axes[1:]),
+        )
+        moved = xp.reshape(value, moved_shape)
+        inverse = tuple(axes.index(index) for index in range(len(axes)))
+        return cast("Array", xp.permute_dims(moved, inverse))
+
+    @staticmethod
+    def _operator_array(op: object, reference: Array) -> Array:
+        """Convert a dense-capable operator to ``reference``'s namespace.
+
+        Returns:
+            Dense operator array in the reference namespace.
+        """
+        xp = _namespace_of(reference)
+        toarray = getattr(op, "toarray", None)
+        value = toarray() if callable(toarray) else op
+        return cast("Array", xp.asarray(value, dtype=reference.dtype))
+
+    def _apply_operator_matmul_array(self, op: OperatorLike, x: Array) -> Array:
+        """Apply an operator along the configured axis without host coercion.
+
+        Returns:
+            Operator product in ``x``'s namespace.
+        """
+        self._validate_operator_sizes(op, op)
+        xp = _namespace_of(x)
+        x2d, original_shape, axes = self._reshape_array_for_solve(x)
+        op_array = self._operator_array(op, x)
+        y2d = cast("Array", xp.matmul(op_array, x2d))
+        return self._unreshape_array_after_solve(y2d, original_shape, axes)
+
+    def _apply_operator_solve_array(
+        self,
+        x: Array,
+        *,
+        predictor: PredictorLike | None,
+        left_op: OperatorLike | None,
+        right_op: OperatorLike | None,
+    ) -> Array:
+        """Apply an implicit mapping in ``x``'s namespace.
+
+        Returns:
+            Mapped state tensor.
+        """
+        if left_op is None or right_op is None:
+            return x
+
+        self._validate_operator_sizes(left_op, right_op)
+        xp = _namespace_of(x)
+        x2d, original_shape, axes = self._reshape_array_for_solve(x)
+        if predictor is not None:
+            predictor_array = self._operator_array(predictor, x)
+            x2d = cast("Array", xp.matmul(predictor_array, x2d))
+
+        out2d = implicit_solve(left_op, right_op, x2d)
+        return self._unreshape_array_after_solve(out2d, original_shape, axes)
+
+    def _apply_implicit_array(  # noqa: PLR0913
+        self,
+        spec: CoreOperators | StageOperatorFactory | None,
+        *,
+        dt: float,
+        scale: float,
+        t_stage: float,
+        y_stage: Array,
+        stage: str,
+        x: Array,
+    ) -> Array:
+        """Resolve and apply an implicit stage without mutable scratch arrays.
+
+        Returns:
+            Stage result in ``x``'s namespace.
+        """
+        if spec is None:
+            return x
+
+        ctx = StageOperatorContext(t=float(t_stage), y=y_stage, stage=stage)
+        predictor, left_op, right_op = self._resolve_stage_operators(
+            spec,
+            dt=dt,
+            scale=scale,
+            ctx=ctx,
+        )
+        return self._apply_operator_solve_array(
+            x,
+            predictor=predictor,
+            left_op=left_op,
+            right_op=right_op,
+        )
+
+    def _identity_array(self, reference: Array) -> Array:
+        """Return an operator-axis identity in ``reference``'s namespace."""
+        xp = _namespace_of(reference)
+        return cast(
+            "Array",
+            xp.eye(self._require_op_axis_len(), dtype=reference.dtype),
+        )
+
+    def _build_dense_stage_operators(
+        self,
+        base_op: OperatorLike,
+        reference: Array,
+        *,
+        dt_scale: float,
+        trapezoidal: bool,
+    ) -> tuple[Array, Array]:
+        """Build implicit Euler or trapezoidal dense operators natively.
+
+        Returns:
+            Left and right stage operators.
+        """
+        xp = _namespace_of(reference)
+        base = self._operator_array(base_op, reference)
+        identity_op = self._identity_array(reference)
+        scale = 0.5 * dt_scale if trapezoidal else dt_scale
+        scaled = xp.multiply(base, scale)
+        left_op = cast("Array", xp.subtract(identity_op, scaled))
+        right_op = (
+            cast("Array", xp.add(identity_op, scaled)) if trapezoidal else identity_op
+        )
+        return left_op, right_op
+
+    def _linearized_residual_array(
+        self,
+        rhs_func: RHSFunction,
+        jacobian: JacobianFunction,
+        *,
+        t: float,
+        y: Array,
+    ) -> tuple[OperatorLike, Array]:
+        """Return a Jacobian and ``f(t, y) - J @ y`` natively.
+
+        Returns:
+            Jacobian operator and linearization residual.
+        """
+        xp = _namespace_of(y)
+        rhs = self._rhs_array(rhs_func, t, y)
+        jac = jacobian(float(t), y)
+        jac_y = self._apply_operator_matmul_array(jac, y)
+        residual = cast("Array", xp.subtract(rhs, jac_y))
+        return jac, residual
+
+    def _imex_euler_array_once(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        t: float,
+        dt: float,
+        y: Array,
+        op_spec: CoreOperators | StageOperatorFactory | None,
+    ) -> Array:
+        """Take one functional IMEX Euler step.
+
+        Returns:
+            Next state in ``y``'s namespace.
+        """
+        xp = _namespace_of(y)
+        rhs = self._rhs_array(rhs_func, t, y)
+        explicit = cast("Array", xp.add(y, xp.multiply(rhs, dt)))
+        return self._apply_implicit_array(
+            op_spec,
+            dt=dt,
+            scale=1.0,
+            t_stage=t + dt,
+            y_stage=y,
+            stage="be",
+            x=explicit,
+        )
+
+    def _imex_trbdf2_array_once(  # noqa: PLR0913, PLR0914
+        self,
+        rhs_func: RHSFunction,
+        *,
+        t: float,
+        dt: float,
+        y: Array,
+        operators_tr: CoreOperators | StageOperatorFactory | None,
+        operators_bdf2: CoreOperators | StageOperatorFactory | None,
+        gamma: float,
+    ) -> Array:
+        """Take one functional IMEX TR-BDF2 step.
+
+        Returns:
+            Next state in ``y``'s namespace.
+        """
+        xp = _namespace_of(y)
+        denom = 2.0 - gamma
+        d = (1.0 - gamma) / denom
+        a_y1 = 1.0 / (gamma * denom)
+        b_yn = -((1.0 - gamma) ** 2) / (gamma * denom)
+
+        f_n = self._rhs_array(rhs_func, t, y)
+        dt1 = gamma * dt
+        t1 = t + dt1
+        state_pred = cast("Array", xp.add(y, xp.multiply(f_n, dt1)))
+        f_pred = self._rhs_array(rhs_func, t1, state_pred)
+        average_rhs = xp.multiply(xp.add(f_n, f_pred), 0.5 * dt1)
+        stage_rhs = cast("Array", xp.add(y, average_rhs))
+        y_stage1 = self._apply_implicit_array(
+            operators_tr,
+            dt=dt,
+            scale=gamma,
+            t_stage=t1,
+            y_stage=state_pred,
+            stage="tr",
+            x=stage_rhs,
+        )
+
+        f_stage1 = self._rhs_array(rhs_func, t1, y_stage1)
+        extrapolated = xp.add(
+            xp.multiply(f_stage1, 1.0 / gamma),
+            xp.multiply(f_n, -((1.0 - gamma) / gamma)),
+        )
+        final_rhs = xp.add(
+            xp.add(
+                xp.multiply(y_stage1, a_y1),
+                xp.multiply(y, b_yn),
+            ),
+            xp.multiply(extrapolated, d * dt),
+        )
+        return self._apply_implicit_array(
+            operators_bdf2,
+            dt=dt,
+            scale=d,
+            t_stage=t + dt,
+            y_stage=y_stage1,
+            stage="bdf2",
+            x=cast("Array", final_rhs),
+        )
+
+    def _implicit_euler_array_once(
+        self,
+        rhs_func: RHSFunction,
+        jacobian: JacobianFunction,
+        *,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> Array:
+        """Take one linearly implicit Euler step natively.
+
+        Returns:
+            Next state in ``y``'s namespace.
+        """
+        xp = _namespace_of(y)
+        jac, residual = self._linearized_residual_array(
+            rhs_func,
+            jacobian,
+            t=t,
+            y=y,
+        )
+        left_op, right_op = self._build_dense_stage_operators(
+            jac,
+            y,
+            dt_scale=dt,
+            trapezoidal=False,
+        )
+        solve_rhs = cast("Array", xp.add(y, xp.multiply(residual, dt)))
+        return self._apply_operator_solve_array(
+            solve_rhs,
+            predictor=None,
+            left_op=left_op,
+            right_op=right_op,
+        )
+
+    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914, PLR0915
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        t: float,
+        dt: float,
+        y: Array,
+        y_prev: Array | None = None,
+    ) -> tuple[Array, Array, int]:
+        """Attempt any implicit/IMEX method with functional array operations.
+
+        Returns:
+            Candidate state, error estimate, and method order.
+
+        Raises:
+            RuntimeError: If the resolved plan is internally inconsistent.
+        """
+        xp = _namespace_of(y)
+
+        if plan.method == "imex-euler":
+            y_full = self._imex_euler_array_once(
+                rhs_func,
+                t=t,
+                dt=dt,
+                y=y,
+                op_spec=plan.op_default,
+            )
+            y_half = self._imex_euler_array_once(
+                rhs_func,
+                t=t,
+                dt=0.5 * dt,
+                y=y,
+                op_spec=plan.op_default,
+            )
+            y_two_half = self._imex_euler_array_once(
+                rhs_func,
+                t=t + 0.5 * dt,
+                dt=0.5 * dt,
+                y=y_half,
+                op_spec=plan.op_default,
+            )
+            error = cast("Array", xp.subtract(y_two_half, y_full))
+            return y_two_half, error, 1
+
+        if plan.method == "imex-heun-tr":
+            f_n = self._rhs_array(rhs_func, t, y)
+            state_pred = cast("Array", xp.add(y, xp.multiply(f_n, dt)))
+            f_pred = self._rhs_array(rhs_func, t + dt, state_pred)
+            high_rhs = cast(
+                "Array",
+                xp.add(y, xp.multiply(xp.add(f_n, f_pred), 0.5 * dt)),
+            )
+            y_low = self._apply_implicit_array(
+                plan.op_default,
+                dt=dt,
+                scale=1.0,
+                t_stage=t + dt,
+                y_stage=state_pred,
+                stage="tr",
+                x=state_pred,
+            )
+            y_high = self._apply_implicit_array(
+                plan.op_default,
+                dt=dt,
+                scale=1.0,
+                t_stage=t + dt,
+                y_stage=state_pred,
+                stage="tr",
+                x=high_rhs,
+            )
+            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+
+        if plan.method == "imex-trbdf2":
+            if plan.gamma is None:
+                raise RuntimeError(_INTERNAL_ERROR_GAMMA_MSG)
+            y_full = self._imex_trbdf2_array_once(
+                rhs_func,
+                t=t,
+                dt=dt,
+                y=y,
+                operators_tr=plan.op_tr,
+                operators_bdf2=plan.op_bdf2,
+                gamma=plan.gamma,
+            )
+            y_half = self._imex_trbdf2_array_once(
+                rhs_func,
+                t=t,
+                dt=0.5 * dt,
+                y=y,
+                operators_tr=plan.op_tr,
+                operators_bdf2=plan.op_bdf2,
+                gamma=plan.gamma,
+            )
+            y_two_half = self._imex_trbdf2_array_once(
+                rhs_func,
+                t=t + 0.5 * dt,
+                dt=0.5 * dt,
+                y=y_half,
+                operators_tr=plan.op_tr,
+                operators_bdf2=plan.op_bdf2,
+                gamma=plan.gamma,
+            )
+            return y_two_half, cast("Array", xp.subtract(y_two_half, y_full)), 2
+
+        if plan.jacobian is None:
+            raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
+
+        if plan.method == "implicit-euler":
+            y_full = self._implicit_euler_array_once(
+                rhs_func,
+                plan.jacobian,
+                t=t,
+                dt=dt,
+                y=y,
+            )
+            y_half = self._implicit_euler_array_once(
+                rhs_func,
+                plan.jacobian,
+                t=t,
+                dt=0.5 * dt,
+                y=y,
+            )
+            y_two_half = self._implicit_euler_array_once(
+                rhs_func,
+                plan.jacobian,
+                t=t + 0.5 * dt,
+                dt=0.5 * dt,
+                y=y_half,
+            )
+            return y_two_half, cast("Array", xp.subtract(y_two_half, y_full)), 1
+
+        if plan.method == "trapezoidal":
+            jac, residual = self._linearized_residual_array(
+                rhs_func,
+                plan.jacobian,
+                t=t,
+                y=y,
+            )
+            left_op, right_op = self._build_dense_stage_operators(
+                jac,
+                y,
+                dt_scale=dt,
+                trapezoidal=True,
+            )
+            mapped = self._apply_operator_matmul_array(right_op, y)
+            solve_rhs = cast("Array", xp.add(mapped, xp.multiply(residual, dt)))
+            y_high = self._apply_operator_solve_array(
+                solve_rhs,
+                predictor=None,
+                left_op=left_op,
+                right_op=self._identity_array(y),
+            )
+            y_low = self._implicit_euler_array_once(
+                rhs_func,
+                plan.jacobian,
+                t=t,
+                dt=dt,
+                y=y,
+            )
+            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+
+        if plan.method == "bdf2":
+            if y_prev is None:
+                y_next = self._implicit_euler_array_once(
+                    rhs_func,
+                    plan.jacobian,
+                    t=t,
+                    dt=dt,
+                    y=y,
+                )
+                return y_next, cast("Array", xp.zeros_like(y_next)), 1
+
+            jac, residual = self._linearized_residual_array(
+                rhs_func,
+                plan.jacobian,
+                t=t,
+                y=y,
+            )
+            jac_array = self._operator_array(jac, y)
+            identity_op = self._identity_array(y)
+            left_op = cast(
+                "Array",
+                xp.subtract(
+                    xp.multiply(identity_op, 1.5),
+                    xp.multiply(jac_array, dt),
+                ),
+            )
+            solve_rhs = xp.add(
+                xp.subtract(xp.multiply(y, 2.0), xp.multiply(y_prev, 0.5)),
+                xp.multiply(residual, dt),
+            )
+            y_high = self._apply_operator_solve_array(
+                cast("Array", solve_rhs),
+                predictor=None,
+                left_op=left_op,
+                right_op=identity_op,
+            )
+            y_low = self._implicit_euler_array_once(
+                rhs_func,
+                plan.jacobian,
+                t=t,
+                dt=dt,
+                y=y,
+            )
+            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+
+        if plan.method == "ros2":
+            f_n = self._rhs_array(rhs_func, t, y)
+            jac = plan.jacobian(float(t), y)
+            gamma = float(1.0 - 1.0 / np.sqrt(2.0))
+            left_op, right_op = self._build_dense_stage_operators(
+                jac,
+                y,
+                dt_scale=gamma * dt,
+                trapezoidal=False,
+            )
+            k1 = self._apply_operator_solve_array(
+                f_n,
+                predictor=None,
+                left_op=left_op,
+                right_op=right_op,
+            )
+            state_pred = cast(
+                "Array",
+                xp.add(y, xp.multiply(k1, gamma * dt)),
+            )
+            f_pred = self._rhs_array(rhs_func, t + dt, state_pred)
+            k2_rhs = cast(
+                "Array",
+                xp.add(f_pred, xp.multiply(k1, -2.0 * gamma)),
+            )
+            k2 = self._apply_operator_solve_array(
+                k2_rhs,
+                predictor=None,
+                left_op=left_op,
+                right_op=right_op,
+            )
+            y_high = cast(
+                "Array",
+                xp.add(y, xp.multiply(xp.add(k1, k2), 0.5 * dt)),
+            )
+            y_low = cast("Array", xp.add(y, xp.multiply(k1, dt)))
+            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+
+        raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=plan.method))
 
     # ------------------------------------------------------------------
     # RHS evaluation helper (shape + dtype enforcement)
@@ -2096,6 +2647,132 @@ class CoreSolver:
                 )
             self.core.advance_timestep(y_next)
 
+    def _advance_array_implicit_adaptive_to_time(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        t0: float,
+        t1: float,
+        y0: Array,
+        adaptive_cfg: AdaptiveConfig,
+        dt_ctrl: DtControllerConfig,
+    ) -> Array:
+        """Advance a non-NumPy implicit method with adaptive substeps.
+
+        Returns:
+            State at ``t1`` in the input namespace.
+
+        Raises:
+            RuntimeError: If rejection, minimum-dt, or step limits are exceeded.
+        """
+        t = float(t0)
+        target = float(t1)
+        dt_out = target - t
+        dt = (
+            float(adaptive_cfg.dt_init)
+            if (
+                adaptive_cfg.dt_init is not None
+                and np.isfinite(adaptive_cfg.dt_init)
+                and adaptive_cfg.dt_init > 0.0
+            )
+            else dt_out
+        )
+        dt = min(dt, dt_ctrl.dt_max)
+        if dt <= 0.0:
+            dt = dt_out
+
+        y_current = y0
+        n_internal = 0
+        while t < target:
+            if n_internal >= adaptive_cfg.max_steps:
+                raise RuntimeError(_MAX_STEPS_ERROR_MSG)
+
+            remaining = target - t
+            if remaining <= 0.0:
+                break
+            dt = min(dt, remaining)
+
+            rejects = 0
+            while True:
+                if rejects >= adaptive_cfg.max_reject:
+                    raise RuntimeError(_TOO_MANY_REJECTS_ERROR_MSG)
+
+                y_try, error, order = self._attempt_array_implicit_step(
+                    rhs_func,
+                    plan=plan,
+                    t=t,
+                    dt=dt,
+                    y=y_current,
+                )
+                error_norm = self._error_norm(
+                    error,
+                    y_try,
+                    y_current,
+                    rtol=adaptive_cfg.rtol,
+                    atol=adaptive_cfg.atol,
+                )
+                if error_norm <= 1.0:
+                    t += dt
+                    y_current = y_try
+                    dt = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
+                    break
+
+                dt_new = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
+                if dt_new <= dt_ctrl.dt_min and dt_ctrl.dt_min > 0.0:
+                    raise RuntimeError(_DT_UNDERFLOW_ERROR_MSG)
+                dt = dt_new
+                rejects += 1
+
+            n_internal += 1
+
+        return y_current
+
+    def _run_array_implicit(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        config: RunConfig,
+    ) -> None:
+        """Run an implicit/IMEX plan in a non-NumPy Array-API namespace.
+
+        Raises:
+            ValueError: If an output interval is not strictly increasing.
+        """
+        time_grid = np.asarray(self.core.time_grid, dtype=float)
+        previous_state: Array | None = None
+
+        for index in range(int(self.core.n_timesteps) - 1):
+            t0 = float(time_grid[index])
+            t1 = float(time_grid[index + 1])
+            if t1 <= t0:
+                raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
+
+            current_state = self.core.get_current_state()
+            if config.adaptive:
+                next_state = self._advance_array_implicit_adaptive_to_time(
+                    rhs_func,
+                    plan=plan,
+                    t0=t0,
+                    t1=t1,
+                    y0=current_state,
+                    adaptive_cfg=config.adaptive_cfg,
+                    dt_ctrl=config.dt_controller,
+                )
+            else:
+                next_state, _error, _order = self._attempt_array_implicit_step(
+                    rhs_func,
+                    plan=plan,
+                    t=t0,
+                    dt=t1 - t0,
+                    y=current_state,
+                    y_prev=previous_state,
+                )
+
+            self.core.advance_timestep(next_state)
+            previous_state = current_state
+
     def _advance_nonadaptive_to_time(  # noqa: PLR0913
         self,
         rhs_func: RHSFunction,
@@ -2230,7 +2907,7 @@ class CoreSolver:
             config: Optional run configuration. If None, defaults are used.
 
         Raises:
-            TypeError: If an implicit method receives non-NumPy state.
+            TypeError: If the state changes array ecosystems during a run.
             ValueError: If invalid parameters are provided.
         """
         cfg = config or RunConfig()
@@ -2242,9 +2919,8 @@ class CoreSolver:
 
         current_state = self.core.get_current_state()
         if not isinstance(current_state, np.ndarray):
-            raise TypeError(
-                _IMPLICIT_NUMPY_ONLY_ERROR_MSG.format(method=plan.method),
-            )
+            self._run_array_implicit(rhs_func, plan=plan, config=cfg)
+            return
 
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
@@ -2259,7 +2935,7 @@ class CoreSolver:
             state = self.core.get_current_state()
             if not isinstance(state, np.ndarray):
                 raise TypeError(
-                    _IMPLICIT_NUMPY_ONLY_ERROR_MSG.format(method=plan.method),
+                    _ARRAY_API_ERROR_MSG.format(type_name=type(state).__name__)
                 )
             np.copyto(self._y_curr, state)
 

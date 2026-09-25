@@ -10,13 +10,12 @@ multiphysics engines:
 - Optional Kronecker composition utilities for separable multi-axis operators.
 
 Design notes:
-    * CPU-first: dense paths rely on NumPy/SciPy BLAS/LAPACK; sparse paths rely
-      on SciPy sparse factorizations.
-    * Backend-friendly surface: public APIs operate on plain ndarrays or CSR
-      matrices and avoid leaking SciPy-specific solver objects.
-    * Cache semantics: implicit solver caching is keyed by (id(left_op),
-      id(right_op)). For caching to be effective, operator objects must be
-      constructed once and reused.
+    * Dense implicit solves use the input state's Array-API ``linalg.solve``.
+    * Sparse acceleration is selected structurally from a registry containing
+      SciPy and, when installed, CuPy adapters.
+    * Cache semantics: sparse factorizations are keyed by (id(left_op),
+      id(right_op)) within each ecosystem. For caching to be effective,
+      operator objects must be constructed once and reused.
 
 Stage operator factories (IMEX/TR-BDF2 support):
     TR-BDF2 and similar IMEX methods can require *stage-specific* implicit
@@ -39,17 +38,19 @@ Stage operator factories (IMEX/TR-BDF2 support):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
-from scipy.linalg import lu_factor, lu_solve
 from scipy.sparse import coo_matrix, csr_matrix, diags, identity, issparse, kron
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import factorized as sparse_factorized
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from ._typing import Array
 
 
 # =============================================================================
@@ -74,13 +75,13 @@ class StageOperatorContext:
 
     Attributes:
         t: Stage time.
-        y: Stage state as a 1D float array (flattened along solver operator axis).
+        y: Stage state in its runtime Array-API namespace.
         stage: Optional stage label (e.g. "tr", "bdf2").
         extra: Optional extra payload for future use (kept generic).
     """
 
     t: float
-    y: NDArray[np.floating]
+    y: Array
     stage: StageName = None
     extra: Any | None = None
 
@@ -137,13 +138,32 @@ _DISPATCH_THRESHOLD = 350
 # Implicit solver cache
 # =============================================================================
 
-# Cache for implicit solvers (factorized L, prepped R)
-# key = (id(L), id(R)) -> (meta, solver)
-# meta is used to guard against unsafe id reuse in long-lived processes.
+# Cache for sparse implicit factorizations. The public key semantics remain
+# ``(id(L), id(R))`` within each registered sparse ecosystem; metadata guards
+# against unsafe id reuse in long-lived processes.
 _SolverMeta = tuple[tuple[int, int], tuple[int, int], str, str, bool]
+
+
+@dataclass(frozen=True, slots=True)
+class SparseAdapter:
+    """Function bundle for one sparse-array ecosystem.
+
+    Sparse acceleration is optional: dense operators always fall back to the
+    input array's Array-API ``linalg.solve`` implementation. Adapters are
+    selected structurally with their own ``issparse`` predicate.
+    """
+
+    ecosystem_id: str
+    issparse: Callable[[object], bool]
+    factorize: Callable[[object], Any]
+    solve: Callable[[Any, object, Array], Array]
+    cache_key: Callable[[object, object], tuple[int, int]]
+
+
+_SPARSE_ADAPTERS: dict[str, SparseAdapter] = {}
 _IMPLICIT_SOLVER_CACHE: dict[
-    tuple[int, int],
-    tuple[_SolverMeta, Callable[[NDArray[np.floating]], NDArray[np.floating]]],
+    tuple[str, int, int],
+    tuple[_SolverMeta, Any],
 ] = {}
 
 
@@ -163,6 +183,13 @@ _OPERATOR_SCALE_ERROR = "scale must be a finite float; got {scale}"
 _UNKNOWN_SCHEME_ERROR = "Unknown scheme: {scheme}"
 _BASE_BUILDER_ERROR = (
     "base_builder must return a dense ndarray or csr_matrix; got {typ}"
+)
+_ARRAY_API_SOLVE_ERROR = (
+    "Dense implicit-solve inputs must implement __array_namespace__(); got {type_name}."
+)
+_SPARSE_ECOSYSTEM_ERROR = (
+    "Sparse operators from the '{ecosystem_id}' ecosystem require a compatible "
+    "state array; use dense operators for cross-backend fallback."
 )
 
 
@@ -675,8 +702,10 @@ def clear_implicit_solver_cache() -> None:
 
 
 def _operator_meta(
-    left_op: Operator,
-    right_op: Operator,
+    left_op: object,
+    right_op: object,
+    *,
+    sparse: bool,
 ) -> _SolverMeta:
     """
     Compute a metadata tuple used to validate cache hits.
@@ -684,59 +713,42 @@ def _operator_meta(
     Args:
         left_op: Left operator L in the equation L @ y = R @ x.
         right_op: Right operator R in the equation L @ y = R @ x.
+        sparse: Whether the selected implementation is sparse.
 
     Returns:
         A metadata tuple describing the operators.
     """
-    if issparse(left_op):
-        l_shape = left_op.shape
-        l_dtype = str(left_op.dtype)
-        l_sparse = True
-    else:
-        l_arr = np.asarray(left_op)
-        l_shape = l_arr.shape
-        l_dtype = str(l_arr.dtype)
-        l_sparse = False
-
-    if issparse(right_op):
-        r_shape = right_op.shape
-        r_dtype = str(right_op.dtype)
-        r_sparse = True
-    else:
-        r_arr = np.asarray(right_op)
-        r_shape = r_arr.shape
-        r_dtype = str(r_arr.dtype)
-        r_sparse = False
-
-    is_sparse = l_sparse and r_sparse
+    left = cast("Any", left_op)
+    right = cast("Any", right_op)
     return (
-        l_shape,
-        r_shape,
-        l_dtype,
-        r_dtype,
-        is_sparse,
+        cast("tuple[int, int]", left.shape),
+        cast("tuple[int, int]", right.shape),
+        str(left.dtype),
+        str(right.dtype),
+        sparse,
     )
 
 
-def _validate_square_operator(op: Operator) -> tuple[int, int]:
-    shape = cast("tuple[int, int]", op.shape)
+def _validate_square_operator(op: object) -> tuple[int, int]:
+    shape = cast("tuple[int, int]", cast("Any", op).shape)
     if shape[0] != shape[1]:
         raise ValueError(_OPERATORS_SQUARE_ERROR.format(shape=shape))
     return shape
 
 
 def _validate_solve_dimensions(
-    left_op: Operator,
-    right_op: Operator,
-    x: NDArray[np.floating],
+    left_op: object,
+    right_op: object,
+    x: Array,
 ) -> None:
     l_shape = _validate_square_operator(left_op)
     r_shape = _validate_square_operator(right_op)
     if l_shape != r_shape:
         raise ValueError(_OPERATORS_SQUARE_ERROR.format(shape=(l_shape, r_shape)))
 
-    if x.ndim not in {1, 2}:
-        raise ValueError(_X_NDIM_ERROR.format(ndim=x.ndim))
+    ndim = len(x.shape)
+    if ndim not in {1, 2}:
+        raise ValueError(_X_NDIM_ERROR.format(ndim=ndim))
 
     n = l_shape[0]
     if x.shape[0] != n:
@@ -782,72 +794,162 @@ def _as_linear_operator(op: Operator) -> LinearOperator:
     )
 
 
-def _build_implicit_solver(
-    left_op: Operator,
-    right_op: Operator,
-) -> Callable[[NDArray[np.floating]], NDArray[np.floating]]:
-    """
-    Build a reusable implicit solver for left_op @ y = right_op @ x.
-
-    Args:
-        left_op: Left operator L in the equation L @ y = R @ x.
-        right_op: Right operator R in the equation L @ y = R @ x.
+def _scipy_factorize(left_op: object) -> Any:  # noqa: ANN401
+    """Factorize a SciPy sparse left operator.
 
     Returns:
-        A callable that takes x and returns the solution y.
+        Callable factorized solver.
     """
-    is_sparse = issparse(left_op) and issparse(right_op)
+    return sparse_factorized(cast("csr_matrix", left_op).tocsc())
 
-    if is_sparse:
-        left_csr = cast("csr_matrix", left_op)
-        right_csr = cast("csr_matrix", right_op)
-        solve_left = sparse_factorized(left_csr.tocsc())
 
-        def sparse_solver(x: NDArray[np.floating]) -> NDArray[np.floating]:
-            x_arr = np.asarray(x, dtype=left_csr.dtype)
-            rhs = right_csr @ x_arr
+def _scipy_sparse_solve(factorization: Any, right_op: object, x: Array) -> Array:  # noqa: ANN401
+    """Apply a cached SciPy sparse factorization.
 
-            if rhs.ndim == 1:
-                out_1d = solve_left(rhs)
-                return np.asarray(out_1d, dtype=x_arr.dtype)
+    Returns:
+        Solved NumPy array.
 
-            n, k = rhs.shape
-            out = np.empty((n, k), dtype=x_arr.dtype)
-            for j in range(k):
-                out[:, j] = np.asarray(solve_left(rhs[:, j]), dtype=x_arr.dtype)
-            return out
+    Raises:
+        TypeError: If the state array is not NumPy-backed.
+    """
+    if not isinstance(x, np.ndarray):
+        raise TypeError(_SPARSE_ECOSYSTEM_ERROR.format(ecosystem_id="scipy"))
 
-        return sparse_solver
+    right_csr = cast("csr_matrix", right_op)
+    rhs = right_csr @ x
+    if rhs.ndim == 1:
+        return np.asarray(factorization(rhs), dtype=x.dtype)
 
-    left_dense = np.asarray(left_op)
-    right_dense = np.asarray(right_op)
-    lu, piv = lu_factor(left_dense)
+    n, k = rhs.shape
+    out = np.empty((n, k), dtype=x.dtype)
+    for column in range(k):
+        out[:, column] = np.asarray(factorization(rhs[:, column]), dtype=x.dtype)
+    return out
 
-    def dense_solver(x: NDArray[np.floating]) -> NDArray[np.floating]:
-        """
-        Perform a dense implicit solve using precomputed LU factorization.
 
-        Args:
-            x: 1D or 2D array representing the input vector(s).
+def _adapter_cache_key(left_op: object, right_op: object) -> tuple[int, int]:
+    """Return the historical identity-based implicit-solver cache key."""
+    return id(left_op), id(right_op)
 
-        Returns:
-            A 1D or 2D array containing the solution vector(s).
-        """
-        x_arr = np.asarray(x, dtype=left_dense.dtype)
-        rhs = right_dense @ x_arr
-        out = lu_solve((lu, piv), rhs)
-        return np.asarray(out, dtype=x_arr.dtype)
 
-    return dense_solver
+def _make_cupy_sparse_adapter() -> SparseAdapter | None:
+    """Build the optional CuPy adapter without importing CuPy eagerly.
+
+    Returns:
+        CuPy adapter when CuPy is installed, otherwise ``None``.
+    """
+    try:
+        cupy = import_module("cupy")
+        cupy_sparse = import_module("cupyx.scipy.sparse")
+        cupy_sparse_linalg = import_module("cupyx.scipy.sparse.linalg")
+    except ImportError:
+        return None
+
+    def factorize(left_op: object) -> Any:  # noqa: ANN401
+        return cupy_sparse_linalg.factorized(cast("Any", left_op).tocsc())
+
+    def solve(factorization: Any, right_op: object, x: Array) -> Array:  # noqa: ANN401
+        if not isinstance(x, cupy.ndarray):
+            raise TypeError(_SPARSE_ECOSYSTEM_ERROR.format(ecosystem_id="cupy"))
+
+        rhs = cast("Any", right_op) @ x
+        if rhs.ndim == 1:
+            return cast("Array", factorization(rhs))
+        columns = tuple(factorization(rhs[:, index]) for index in range(rhs.shape[1]))
+        return cast("Array", cupy.stack(columns, axis=1))
+
+    return SparseAdapter(
+        ecosystem_id="cupy",
+        issparse=cast("Callable[[object], bool]", cupy_sparse.issparse),
+        factorize=factorize,
+        solve=solve,
+        cache_key=_adapter_cache_key,
+    )
+
+
+def _register_builtin_sparse_adapters() -> None:
+    """Register sparse ecosystems available in the current environment."""
+    _SPARSE_ADAPTERS["scipy"] = SparseAdapter(
+        ecosystem_id="scipy",
+        issparse=issparse,
+        factorize=_scipy_factorize,
+        solve=_scipy_sparse_solve,
+        cache_key=_adapter_cache_key,
+    )
+    cupy_adapter = _make_cupy_sparse_adapter()
+    if cupy_adapter is not None:
+        _SPARSE_ADAPTERS[cupy_adapter.ecosystem_id] = cupy_adapter
+
+
+def _find_sparse_adapter(
+    left_op: object,
+    right_op: object,
+) -> SparseAdapter | None:
+    """Return the adapter whose own predicate recognizes both operators."""
+    for adapter in _SPARSE_ADAPTERS.values():
+        if adapter.issparse(left_op) and adapter.issparse(right_op):
+            return adapter
+    return None
+
+
+def _namespace_of(value: object) -> Any:  # noqa: ANN401
+    """Return the Array-API namespace for a dense solve input.
+
+    Raises:
+        TypeError: If the input does not advertise an Array-API namespace.
+    """
+    namespace = getattr(value, "__array_namespace__", None)
+    if namespace is None:
+        raise TypeError(
+            _ARRAY_API_SOLVE_ERROR.format(type_name=type(value).__name__),
+        )
+    return namespace()
+
+
+def _dense_operator_array(op: object, *, xp: Any, dtype: object) -> Array:  # noqa: ANN401
+    """Convert a dense operator into the input array's namespace.
+
+    Returns:
+        Dense operator array.
+    """
+    toarray = getattr(op, "toarray", None)
+    value = toarray() if callable(toarray) else op
+    return cast("Array", xp.asarray(value, dtype=dtype))
+
+
+def _sparse_implicit_solve(
+    adapter: SparseAdapter,
+    left_op: object,
+    right_op: object,
+    x: Array,
+) -> Array:
+    """Solve with a registered adapter and its factorization cache.
+
+    Returns:
+        Solution in the sparse adapter's array ecosystem.
+    """
+    left_id, right_id = adapter.cache_key(left_op, right_op)
+    key = (adapter.ecosystem_id, left_id, right_id)
+    meta = _operator_meta(left_op, right_op, sparse=True)
+    cached = _IMPLICIT_SOLVER_CACHE.get(key)
+    if cached is None or cached[0] != meta:
+        factorization = adapter.factorize(left_op)
+        _IMPLICIT_SOLVER_CACHE[key] = (meta, factorization)
+    else:
+        factorization = cached[1]
+    return adapter.solve(factorization, right_op, x)
+
+
+_register_builtin_sparse_adapters()
 
 
 def implicit_solve(
-    left_op: Operator,
-    right_op: Operator,
-    x: NDArray[np.floating],
-) -> NDArray[np.floating]:
+    left_op: object,
+    right_op: object,
+    x: Array,
+) -> Array:
     """
-    Perform an implicit solve with dense/sparse dispatch and caching.
+    Perform an implicit solve with dense fallback and cached sparse dispatch.
 
     Args:
         left_op: Left operator L in the equation L @ y = R @ x.
@@ -857,23 +959,17 @@ def implicit_solve(
     Returns:
         A 1D or 2D array containing the solution vector(s) y.
     """
-    x_arr = np.asarray(x)
-    _validate_solve_dimensions(left_op, right_op, cast("NDArray[np.floating]", x_arr))
+    _validate_solve_dimensions(left_op, right_op, x)
 
-    key = (id(left_op), id(right_op))
-    meta = _operator_meta(left_op, right_op)
+    adapter = _find_sparse_adapter(left_op, right_op)
+    if adapter is not None:
+        return _sparse_implicit_solve(adapter, left_op, right_op, x)
 
-    cached = _IMPLICIT_SOLVER_CACHE.get(key)
-    if cached is not None:
-        cached_meta, solver = cached
-        if cached_meta != meta:
-            solver = _build_implicit_solver(left_op, right_op)
-            _IMPLICIT_SOLVER_CACHE[key] = (meta, solver)
-        return solver(cast("NDArray[np.floating]", x_arr))
-
-    solver = _build_implicit_solver(left_op, right_op)
-    _IMPLICIT_SOLVER_CACHE[key] = (meta, solver)
-    return solver(cast("NDArray[np.floating]", x_arr))
+    xp = _namespace_of(x)
+    left_dense = _dense_operator_array(left_op, xp=xp, dtype=x.dtype)
+    right_dense = _dense_operator_array(right_op, xp=xp, dtype=x.dtype)
+    rhs = cast("Array", xp.matmul(right_dense, x))
+    return cast("Array", xp.linalg.solve(left_dense, rhs))
 
 
 # =============================================================================
