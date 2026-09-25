@@ -458,10 +458,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#numpy-and-jax-explicit-solves" class="md-nav__link">
+  <a href="#numpy-and-jax-solves" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NumPy and JAX explicit solves
+        NumPy and JAX solves
       
     </span>
   </a>
@@ -649,10 +649,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#numpy-and-jax-explicit-solves" class="md-nav__link">
+  <a href="#numpy-and-jax-solves" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NumPy and JAX explicit solves
+        NumPy and JAX solves
       
     </span>
   </a>
@@ -678,7 +678,7 @@
 
 <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
 <p><code>ModelCore</code> owns a time grid and state history, while <code>CoreSolver</code> advances that
-state. Explicit solves infer their Array-API namespace from the initial state.</p>
+state. Solves infer their Array-API namespace from the initial state.</p>
 <pre><code class="language-python">import numpy as np
 
 from op_engine import CoreSolver, ModelCore
@@ -695,18 +695,23 @@ def decay(_time, state):
 CoreSolver(core).run(decay)
 solution = core.state_array
 </code></pre>
-<h2 id="numpy-and-jax-explicit-solves">NumPy and JAX explicit solves<a class="headerlink" href="#numpy-and-jax-explicit-solves" title="Permanent link">&para;</a></h2>
+<h2 id="numpy-and-jax-solves">NumPy and JAX solves<a class="headerlink" href="#numpy-and-jax-solves" title="Permanent link">&para;</a></h2>
 <p>NumPy 2 and JAX arrays implement <code>__array_namespace__()</code>. Passing either one to
-<code>set_initial_state</code> selects the namespace for state storage, history, Euler/Heun
+<code>set_initial_state</code> selects the namespace for state storage, history, solver
 stages, and adaptive error control. No backend argument is needed. An RHS should
 derive operations from its state when it needs namespace functions:</p>
 <pre><code class="language-python">def portable_decay(_time, state):
     xp = state.__array_namespace__()
     return xp.multiply(state, -0.25)
 </code></pre>
-<p>The implicit and IMEX methods currently cross into SciPy sparse solves and
-therefore require NumPy state. They fail early with a boundary-specific error
-when given another namespace.</p>
+<p>Dense implicit and IMEX operators are converted into the state's namespace and
+solved with its Array-API <code>linalg.solve</code> implementation. This provides the
+portable correctness path for NumPy, JAX, and other conforming backends.</p>
+<p>Sparse acceleration is an optional second tier. SciPy sparse operators retain
+cached factorization for NumPy state. Installing <code>op-engine[cupy]</code> registers the
+matching <code>cupyx.scipy.sparse</code> adapter; CuPy is never imported when it is not
+installed. Each adapter detects only its own sparse objects. Backends without a
+registered sparse implementation can use dense operators without engine changes.</p>
 
 
 
