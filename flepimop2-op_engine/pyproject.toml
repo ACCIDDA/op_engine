@@ -76,6 +76,6 @@ convention = "google"
 [dependency-groups]
 dev = [
   "pytest>=8.4.2",
-  "ruff>=0.13.3",
+  "ruff>=0.13.3,<0.15",
   "mypy>=1.18.2",
 ]
