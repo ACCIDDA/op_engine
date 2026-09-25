@@ -4,6 +4,12 @@ system:
   - module: "wrapper"
     state_change: "flow"
     script: "external_provider/src/flepimop2/system/sir.py"
+    requested_parameters:
+      beta:
+      gamma:
+    model_state:
+      parameter_names: ["s0", "i0", "r0"]
+      labels: ["S", "I", "R"]
 engine:
   - module: "op_engine"
     state_change: "flow"

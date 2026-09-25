@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
+from flepimop2.axis import ResolvedShape
+from flepimop2.parameter.abc import ModelStateSpecification, ParameterValue
 from flepimop2.system.abc import SystemABC
 from flepimop2.typing import StateChangeEnum
 
@@ -54,11 +56,10 @@ class _GoodStepper:
         return np.asarray(state, dtype=np.float64)
 
 
-class _GoodSystem(SystemABC):
+class _GoodSystem(SystemABC, module="test_good"):
     """SystemABC implementation exposing a valid stepper via bind()."""
 
-    module = "flepimop2.system.test_good"
-    state_change = StateChangeEnum.FLOW
+    state_change: StateChangeEnum = StateChangeEnum.FLOW
 
     def __init__(self) -> None:
         super().__init__()
@@ -75,11 +76,26 @@ class _GoodSystem(SystemABC):
         return functools.partial(self._stepper, **(params or {}))
 
 
-class _DeltaSystem(_GoodSystem):
+class _DeltaSystem(_GoodSystem, module="test_delta"):
     """SystemABC implementation with incompatible state_change."""
 
-    module = "flepimop2.system.test_delta"
-    state_change = StateChangeEnum.DELTA
+    state_change: StateChangeEnum = StateChangeEnum.DELTA
+
+
+def _initial_state(
+    *values: float,
+) -> tuple[dict[str, ParameterValue], ModelStateSpecification]:
+    """Build scalar state entries and their declared ordering.
+
+    Returns:
+        Parameter values and their model-state specification.
+    """
+    names = tuple(f"x{idx}" for idx in range(len(values)))
+    entries = {
+        name: ParameterValue(np.asarray(value), ResolvedShape())
+        for name, value in zip(names, values, strict=True)
+    }
+    return entries, ModelStateSpecification(parameter_names=names)
 
 
 # -----------------------------------------------------------------------------
@@ -106,11 +122,9 @@ def test_engine_run_basic_shape_and_dtype() -> None:
     system = _GoodSystem()
 
     times = np.array([0.0, 0.5, 1.0], dtype=np.float64)
-    y0 = np.array([1.0, 2.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0, 2.0)
 
-    params: dict[str, object] = {}
-
-    out = engine.run(system, times, y0, params)
+    out = engine.run(system, times, initial_state, {}, model_state=model_state)
 
     assert out.shape == (3, 3)
     assert out.dtype == np.float64
@@ -127,11 +141,9 @@ def test_engine_run_identity_rhs_behavior() -> None:
     system = _GoodSystem()
 
     times = np.array([0.0, 0.1, 0.2], dtype=np.float64)
-    y0 = np.array([1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
 
-    params: dict[str, object] = {}
-
-    out = engine.run(system, times, y0, params)
+    out = engine.run(system, times, initial_state, {}, model_state=model_state)
 
     state_values = out[:, 1]
     assert state_values[1] >= state_values[0]
@@ -149,26 +161,22 @@ def test_engine_rejects_non_increasing_times() -> None:
     system = _GoodSystem()
 
     times = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-    y0 = np.array([1.0], dtype=np.float64)
-
-    params: dict[str, object] = {}
+    initial_state, model_state = _initial_state(1.0)
 
     with pytest.raises(ValueError, match="strictly increasing"):
-        engine.run(system, times, y0, params)
+        engine.run(system, times, initial_state, {}, model_state=model_state)
 
 
-def test_engine_rejects_non_1d_initial_state() -> None:
-    """Engine rejects non-1D initial state arrays."""
+def test_engine_requires_model_state_ordering() -> None:
+    """Engine requires semantic ordering for structured initial state."""
     engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
     system = _GoodSystem()
 
     times = np.array([0.0, 1.0], dtype=np.float64)
-    y0 = np.array([[1.0, 2.0]], dtype=np.float64)
+    initial_state, _model_state = _initial_state(1.0, 2.0)
 
-    params: dict[str, object] = {}
-
-    with pytest.raises(ValueError, match="1D"):
-        engine.run(system, times, y0, params)
+    with pytest.raises(ValueError, match="model_state must be provided"):
+        engine.run(system, times, initial_state, {})
 
 
 def test_validate_system_checks_state_change() -> None:
@@ -322,8 +330,8 @@ def test_engine_uses_bind_not_stepper() -> None:
     system.bind = tracking_bind  # type: ignore[method-assign]
 
     times = np.array([0.0, 0.1], dtype=np.float64)
-    y0 = np.array([1.0], dtype=np.float64)
-    engine.run(system, times, y0, {})
+    initial_state, model_state = _initial_state(1.0)
+    engine.run(system, times, initial_state, {}, model_state=model_state)
 
     assert bind_called, "Engine should call system.bind()"
 
@@ -347,9 +355,9 @@ def test_run_implicit_method_uses_system_jacobian() -> None:
     system.options = {**(system.options or {}), "jacobian": neg_identity_jac}
 
     times = np.array([0.0, 0.1, 0.2], dtype=np.float64)
-    y0 = np.array([1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
 
-    out = engine.run(system, times, y0, {})
+    out = engine.run(system, times, initial_state, {}, model_state=model_state)
 
     assert out.shape == (3, 2)
     assert out.dtype == np.float64

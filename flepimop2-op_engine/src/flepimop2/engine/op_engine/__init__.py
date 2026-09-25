@@ -19,10 +19,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
-from flepimop2.configuration import ModuleModel
 from flepimop2.engine.abc import EngineABC
 from flepimop2.exceptions import ValidationIssue
 from flepimop2.typing import IdentifierString, StateChangeEnum  # noqa: TC002
@@ -41,9 +40,11 @@ from .config import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
+    from flepimop2.parameter.abc import ModelStateSpecification, ParameterValue
     from flepimop2.system.abc import SystemABC, SystemProtocol
+    from flepimop2.typing import Float64NDArray
 
 
 def _as_float64_1d(x: object, *, name: str) -> np.ndarray:
@@ -119,7 +120,22 @@ def _make_core(times: np.ndarray, y0: np.ndarray) -> ModelCore:
     return core
 
 
-class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
+def _assemble_initial_state(
+    initial_state: dict[IdentifierString, ParameterValue],
+    model_state: ModelStateSpecification | None,
+) -> np.ndarray:
+    """Assemble flepimop2 state entries in their declared semantic order."""
+    if model_state is None:
+        msg = "model_state must be provided to assemble the initial state."
+        raise ValueError(msg)
+    values = [
+        np.asarray(initial_state[name].value, dtype=np.float64).reshape(-1)
+        for name in model_state.parameter_names
+    ]
+    return np.ascontiguousarray(np.concatenate(values))
+
+
+class OpEngineFlepimop2Engine(EngineABC):
     """flepimop2 engine adapter backed by op_engine.CoreSolver."""
 
     module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
@@ -180,17 +196,18 @@ class OpEngineFlepimop2Engine(ModuleModel, EngineABC):
     def run(
         self,
         system: SystemABC,
-        eval_times: np.ndarray,
-        initial_state: np.ndarray,
-        params: dict[IdentifierString, object],
-        **kwargs: object,
-    ) -> np.ndarray:
+        eval_times: Float64NDArray,
+        initial_state: dict[IdentifierString, ParameterValue],
+        params: Mapping[IdentifierString, ParameterValue],
+        model_state: ModelStateSpecification | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> Float64NDArray:
         """Execute simulation using op_engine and return `(time, state...)` output."""
         del kwargs
 
         times = _as_float64_1d(eval_times, name="eval_times")
         _ensure_strictly_increasing(times, name="eval_times")
-        y0 = _as_float64_1d(initial_state, name="initial_state")
+        y0 = _assemble_initial_state(initial_state, model_state)
         n_state = int(y0.size)
 
         run_cfg = self.config.to_run_config()
