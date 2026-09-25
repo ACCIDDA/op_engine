@@ -51,12 +51,13 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.sparse import csr_matrix, identity
 
+from ._typing import Array
 from .matrix_ops import (
     StageOperatorContext,
     build_implicit_euler_operators,
@@ -95,13 +96,21 @@ _UNSUPPORTED_OPERATOR_TYPE_MSG = (
     "Unsupported operator type for current backend. "
     "Expected numpy.ndarray or scipy.sparse.csr_matrix."
 )
+_ARRAY_API_ERROR_MSG = (
+    "Explicit solver arrays must implement __array_namespace__(); got {type_name}."
+)
+_IMPLICIT_NUMPY_ONLY_ERROR_MSG = (
+    "Method '{method}' currently requires NumPy state arrays because it uses the "
+    "SciPy implicit-solve boundary; use 'euler' or 'heun' for other Array-API "
+    "namespaces."
+)
 
 
 # =============================================================================
 # Type aliases / protocols
 # =============================================================================
 
-RHSFunction = Callable[[float, NDArray[np.floating]], NDArray[np.floating]]
+RHSFunction = Callable[..., Array]
 JacobianFunction = Callable[[float, NDArray[np.floating]], "OperatorLike"]
 MethodName = Literal[
     "euler",
@@ -125,7 +134,7 @@ class OperatorLike(Protocol):
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """Return the operator shape."""
+        """Operator shape."""
         ...
 
 
@@ -148,6 +157,20 @@ StageOperatorFactory = Callable[[float, float, StageOperatorContext], CoreOperat
 
 # What the current (NumPy/SciPy) implicit_solve backend actually accepts.
 ScipyOperator: TypeAlias = NDArray[np.floating] | csr_matrix
+
+
+def _namespace_of(value: object) -> Any:  # noqa: ANN401
+    """Return the Array-API namespace advertised by ``value``.
+
+    Raises:
+        TypeError: If ``value`` does not advertise an array namespace.
+    """
+    namespace = getattr(value, "__array_namespace__", None)
+    if namespace is None:
+        raise TypeError(
+            _ARRAY_API_ERROR_MSG.format(type_name=type(value).__name__),
+        )
+    return namespace()
 
 
 # =============================================================================
@@ -187,7 +210,7 @@ class AdaptiveConfig:
     """
 
     rtol: float = 1e-6
-    atol: float | NDArray[np.floating] = 1e-9
+    atol: float | Array = 1e-9
     dt_init: float | None = None
     max_reject: int = 25
     max_steps: int = 1_000_000
@@ -422,8 +445,6 @@ class CoreSolver:
         self._y_two_half: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._y_low: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._err: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
-        self._scale: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
-        self._ratio: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
 
         # Working state buffers (avoid allocating per substep)
         self._y_curr: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
@@ -706,6 +727,39 @@ class CoreSolver:
     # ------------------------------------------------------------------
     # RHS evaluation helper (shape + dtype enforcement)
     # ------------------------------------------------------------------
+
+    def _rhs_array(self, rhs_func: RHSFunction, t: float, y: Array) -> Array:
+        """Evaluate an RHS without converting it out of ``y``'s namespace.
+
+        Args:
+            rhs_func: RHS function F(t, y).
+            t: Time.
+            y: State array whose namespace owns this evaluation.
+
+        Returns:
+            RHS array in the same numerical ecosystem as ``y``.
+
+        Raises:
+            TypeError: If the RHS result is not an Array-API array.
+            ValueError: If the RHS result has an unexpected shape.
+        """
+        xp = _namespace_of(y)
+        result = rhs_func(float(t), y)
+        result_xp = _namespace_of(result)
+        if result_xp is not xp:
+            msg = (
+                "rhs_func must preserve the input array namespace; "
+                f"got {result_xp!r}, expected {xp!r}."
+            )
+            raise TypeError(msg)
+        if result.shape != self.state_shape:
+            raise ValueError(
+                _RHS_SHAPE_ERROR_MSG.format(
+                    actual=result.shape,
+                    expected=self.state_shape,
+                )
+            )
+        return result
 
     def _rhs_into(
         self,
@@ -1138,14 +1192,14 @@ class CoreSolver:
     # Error norm + dt controller
     # ------------------------------------------------------------------
 
+    @staticmethod
     def _error_norm(
-        self,
-        err: NDArray[np.floating],
-        y_ref: NDArray[np.floating],
-        y_prev: NDArray[np.floating],
+        err: Array,
+        y_ref: Array,
+        y_prev: Array,
         *,
         rtol: float,
-        atol: float | NDArray[np.floating],
+        atol: float | Array,
     ) -> float:
         """
         Compute RMS scaled error norm.
@@ -1160,23 +1214,22 @@ class CoreSolver:
         Returns:
             RMS scaled error norm.
         """
-        np.abs(y_ref, out=self._scale)
-        np.abs(y_prev, out=self._ratio)
-        np.maximum(self._scale, self._ratio, out=self._scale)
-
+        xp = _namespace_of(err)
+        scale = xp.maximum(xp.abs(y_ref), xp.abs(y_prev))
+        scale = xp.multiply(scale, rtol)
         if isinstance(atol, (float, int, np.floating)):
-            self._scale *= float(rtol)
-            self._scale += float(atol)
+            scale = xp.add(scale, float(atol))
         else:
-            atol_arr = np.asarray(atol, dtype=self.dtype)
-            self._scale *= float(rtol)
-            self._scale += atol_arr
+            atol_arr = xp.asarray(atol, dtype=err.dtype)
+            scale = xp.add(scale, atol_arr)
 
-        np.divide(err, self._scale, out=self._ratio)
-        v = float(np.sqrt(np.mean(self._ratio * self._ratio)))
-        if not np.isfinite(v):
+        ratio = xp.divide(err, scale)
+        squared = xp.multiply(ratio, ratio)
+        norm = cast("Array", xp.sqrt(xp.mean(squared)))
+        value = float(norm.item())
+        if not np.isfinite(value):
             return float("inf")
-        return v
+        return value
 
     @staticmethod
     def _propose_dt(
@@ -1215,6 +1268,74 @@ class CoreSolver:
     # ------------------------------------------------------------------
     # One-step kernels (write into provided out arrays)
     # ------------------------------------------------------------------
+
+    def _step_explicit_euler_doubling(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> tuple[Array, Array, int]:
+        """Return an Euler step and doubling error in ``y``'s namespace."""
+        xp = _namespace_of(y)
+        f_n = self._rhs_array(rhs_func, t, y)
+        y_full = cast("Array", xp.add(y, xp.multiply(f_n, dt)))
+        y_half = cast("Array", xp.add(y, xp.multiply(f_n, 0.5 * dt)))
+        f_half = self._rhs_array(rhs_func, t + 0.5 * dt, y_half)
+        y_two_half = cast(
+            "Array",
+            xp.add(y_half, xp.multiply(f_half, 0.5 * dt)),
+        )
+        error = cast("Array", xp.subtract(y_two_half, y_full))
+        return y_two_half, error, 1
+
+    def _step_explicit_heun(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> tuple[Array, Array, int]:
+        """Return a Heun step and embedded Euler error in ``y``'s namespace."""
+        xp = _namespace_of(y)
+        f_n = self._rhs_array(rhs_func, t, y)
+        y_euler = cast("Array", xp.add(y, xp.multiply(f_n, dt)))
+        f_pred = self._rhs_array(rhs_func, t + dt, y_euler)
+        slope = xp.add(f_n, f_pred)
+        y_heun = cast("Array", xp.add(y, xp.multiply(slope, 0.5 * dt)))
+        error = cast("Array", xp.subtract(y_heun, y_euler))
+        return y_heun, error, 2
+
+    def _attempt_explicit_step(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        method: MethodName,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> tuple[Array, Array, int]:
+        """Dispatch one functional explicit step.
+
+        Returns:
+            Candidate state, local error estimate, and method order.
+
+        Raises:
+            RuntimeError: If called with a non-explicit method.
+        """
+        if method == "euler":
+            return self._step_explicit_euler_doubling(
+                rhs_func,
+                t=t,
+                dt=dt,
+                y=y,
+            )
+        if method == "heun":
+            return self._step_explicit_heun(rhs_func, t=t, dt=dt, y=y)
+        raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
+
     @staticmethod
     def _require_err_out(step: StepIO) -> NDArray[np.floating]:
         """
@@ -1232,60 +1353,6 @@ class CoreSolver:
         if step.err_out is None:
             raise RuntimeError(_INTERNAL_ERROR_ERR_OUT_MSG)
         return step.err_out
-
-    def _step_euler_doubling(self, rhs_func: RHSFunction, step: StepIO) -> int:
-        """Explicit Euler step with step-doubling error estimate.
-
-        Args:
-            rhs_func: RHS function.
-            step: Step bundle.
-
-        Returns:
-            Method order (1).
-        """
-        err_out = self._require_err_out(step)
-
-        self._rhs_into(self._f_n, rhs_func, step.t, step.y)
-        np.multiply(self._f_n, step.dt, out=self._y_full)
-        self._y_full += step.y
-
-        np.multiply(self._f_n, 0.5 * step.dt, out=self._y_half)
-        self._y_half += step.y
-
-        self._rhs_into(self._f_pred, rhs_func, step.t + 0.5 * step.dt, self._y_half)
-        np.multiply(self._f_pred, 0.5 * step.dt, out=self._y_two_half)
-        self._y_two_half += self._y_half
-
-        np.subtract(self._y_two_half, self._y_full, out=err_out)
-        np.copyto(step.out, self._y_two_half)
-        return 1
-
-    def _step_heun(self, rhs_func: RHSFunction, step: StepIO) -> int:
-        """Explicit Heun (RK2) step with embedded Euler estimator.
-
-        Args:
-            rhs_func: RHS function.
-            step: Step bundle.
-
-        Returns:
-            Method order (2).
-        """
-        err_out = self._require_err_out(step)
-
-        self._rhs_into(self._f_n, rhs_func, step.t, step.y)
-
-        np.multiply(self._f_n, step.dt, out=self._state_pred)
-        self._state_pred += step.y
-
-        self._rhs_into(self._f_pred, rhs_func, step.t + step.dt, self._state_pred)
-
-        np.add(self._f_n, self._f_pred, out=self._rhs_buffer)
-        self._rhs_buffer *= 0.5 * step.dt
-        self._rhs_buffer += step.y
-
-        np.subtract(self._rhs_buffer, self._state_pred, out=err_out)
-        np.copyto(step.out, self._rhs_buffer)
-        return 2
 
     def _imex_euler_step_once(
         self,
@@ -1826,7 +1893,7 @@ class CoreSolver:
     # Dispatch helpers
     # ------------------------------------------------------------------
 
-    def _attempt_step(  # noqa: C901, PLR0911, PLR0912
+    def _attempt_step(  # noqa: C901, PLR0911
         self,
         rhs_func: RHSFunction,
         *,
@@ -1847,10 +1914,6 @@ class CoreSolver:
         Raises:
             RuntimeError: If an unknown method is encountered or internal errors occur.
         """
-        if plan.method == "euler":
-            return self._step_euler_doubling(rhs_func, step)
-        if plan.method == "heun":
-            return self._step_heun(rhs_func, step)
         if plan.method == "imex-euler":
             return self._step_imex_euler_doubling(
                 rhs_func,
@@ -1907,6 +1970,131 @@ class CoreSolver:
             operators_bdf2=plan.op_bdf2,
             gamma=plan.gamma,
         )
+
+    def _advance_explicit_adaptive_to_time(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        method: MethodName,
+        t0: float,
+        t1: float,
+        y0: Array,
+        adaptive_cfg: AdaptiveConfig,
+        dt_ctrl: DtControllerConfig,
+    ) -> Array:
+        """Advance an explicit method with functional adaptive substeps.
+
+        Returns:
+            State at ``t1`` in the input state's namespace.
+
+        Raises:
+            RuntimeError: If step rejection, minimum-dt, or step-count limits
+                are exceeded.
+        """
+        t = float(t0)
+        target = float(t1)
+        dt_out = target - t
+        dt = (
+            float(adaptive_cfg.dt_init)
+            if (
+                adaptive_cfg.dt_init is not None
+                and np.isfinite(adaptive_cfg.dt_init)
+                and adaptive_cfg.dt_init > 0.0
+            )
+            else dt_out
+        )
+        dt = min(dt, dt_ctrl.dt_max)
+        if dt <= 0.0:
+            dt = dt_out
+
+        y_current = y0
+        n_internal = 0
+        while t < target:
+            if n_internal >= adaptive_cfg.max_steps:
+                raise RuntimeError(_MAX_STEPS_ERROR_MSG)
+
+            remaining = target - t
+            if remaining <= 0.0:
+                break
+            dt = min(dt, remaining)
+
+            rejects = 0
+            while True:
+                if rejects >= adaptive_cfg.max_reject:
+                    raise RuntimeError(_TOO_MANY_REJECTS_ERROR_MSG)
+
+                y_try, error, order = self._attempt_explicit_step(
+                    rhs_func,
+                    method=method,
+                    t=t,
+                    dt=dt,
+                    y=y_current,
+                )
+                error_norm = self._error_norm(
+                    error,
+                    y_try,
+                    y_current,
+                    rtol=adaptive_cfg.rtol,
+                    atol=adaptive_cfg.atol,
+                )
+
+                if error_norm <= 1.0:
+                    t += dt
+                    y_current = y_try
+                    dt = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
+                    break
+
+                dt_new = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
+                if dt_new <= dt_ctrl.dt_min and dt_ctrl.dt_min > 0.0:
+                    raise RuntimeError(_DT_UNDERFLOW_ERROR_MSG)
+                dt = dt_new
+                rejects += 1
+
+            n_internal += 1
+
+        return y_current
+
+    def _run_explicit(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        config: RunConfig,
+    ) -> None:
+        """Run an explicit method without mutable NumPy scratch buffers.
+
+        Raises:
+            ValueError: If an output interval is not strictly increasing.
+        """
+        time_grid = np.asarray(self.core.time_grid, dtype=float)
+        n_steps = int(self.core.n_timesteps)
+
+        for idx in range(n_steps - 1):
+            t0 = float(time_grid[idx])
+            t1 = float(time_grid[idx + 1])
+            if t1 <= t0:
+                raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
+
+            y_current = self.core.get_current_state()
+            if config.adaptive:
+                y_next = self._advance_explicit_adaptive_to_time(
+                    rhs_func,
+                    method=plan.method,
+                    t0=t0,
+                    t1=t1,
+                    y0=y_current,
+                    adaptive_cfg=config.adaptive_cfg,
+                    dt_ctrl=config.dt_controller,
+                )
+            else:
+                y_next, _error, _order = self._attempt_explicit_step(
+                    rhs_func,
+                    method=plan.method,
+                    t=t0,
+                    dt=t1 - t0,
+                    y=y_current,
+                )
+            self.core.advance_timestep(y_next)
 
     def _advance_nonadaptive_to_time(  # noqa: PLR0913
         self,
@@ -2042,10 +2230,21 @@ class CoreSolver:
             config: Optional run configuration. If None, defaults are used.
 
         Raises:
+            TypeError: If an implicit method receives non-NumPy state.
             ValueError: If invalid parameters are provided.
         """
         cfg = config or RunConfig()
         plan = self._resolve_run_plan(cfg)
+
+        if plan.method in {"euler", "heun"}:
+            self._run_explicit(rhs_func, plan=plan, config=cfg)
+            return
+
+        current_state = self.core.get_current_state()
+        if not isinstance(current_state, np.ndarray):
+            raise TypeError(
+                _IMPLICIT_NUMPY_ONLY_ERROR_MSG.format(method=plan.method),
+            )
 
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
@@ -2057,7 +2256,12 @@ class CoreSolver:
                 raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
             dt_out = t1 - t0
 
-            np.copyto(self._y_curr, self.core.get_current_state())
+            state = self.core.get_current_state()
+            if not isinstance(state, np.ndarray):
+                raise TypeError(
+                    _IMPLICIT_NUMPY_ONLY_ERROR_MSG.format(method=plan.method),
+                )
+            np.copyto(self._y_curr, state)
 
             y_prev: NDArray[np.floating] | None = (
                 self._prev_state_cache if self._has_prev_state else None
