@@ -7,7 +7,7 @@ time-evolving models. It is designed to support:
 - Non-uniform time grids via per-step dt accessors.
 - Multi-axis state tensors (e.g., state x age x space x traits).
 - Optional full history storage for post-analysis.
-- A minimal backend hook to ease future NumPy->(JAX/CuPy) integration.
+- Array-API namespace preservation for numerical state and history.
 
 The core intentionally does not build RHS functions or construct operators; it
 only manages state, time, and shape/axis metadata in a solver-friendly manner.
@@ -19,12 +19,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
-import numpy.typing as npt
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from numpy.typing import DTypeLike
+
+    from ._typing import Array
 
 
 # Error / message constants -------------------------------------------------
@@ -48,11 +49,38 @@ _STEP_OOB_ERROR = "Step out of bounds"
 _FINAL_TIMESTEP_ERROR = "Simulation has already reached final timestep"
 _DT_INDEX_OOB_ERROR = "dt index out of bounds: {idx}"
 _TIME_INDEX_OOB_ERROR = "time index out of bounds: {idx}"
+_ARRAY_API_ERROR = (
+    "ModelCore state inputs must implement __array_namespace__() "
+    "(for example NumPy >= 2.0 or JAX arrays); got {type_name}."
+)
 
 
-# Typing helpers ------------------------------------------------------------
+def _namespace_of(value: object) -> Any:  # noqa: ANN401
+    """Return the Array-API namespace advertised by ``value``.
 
-FloatArray = npt.NDArray[np.floating[Any]]
+    Raises:
+        TypeError: If ``value`` does not advertise an array namespace.
+    """
+    namespace = getattr(value, "__array_namespace__", None)
+    if namespace is None:
+        raise TypeError(_ARRAY_API_ERROR.format(type_name=type(value).__name__))
+    return namespace()
+
+
+class _IndexableArray(Protocol):
+    """Internal array indexing surface used for state-history slices."""
+
+    def __getitem__(self, key: int | slice) -> Array:
+        """Return an array slice."""
+
+
+def _array_slice(value: Array, key: int | slice) -> Array:
+    """Index an Array while keeping the public protocol intentionally small.
+
+    Returns:
+        Requested array slice.
+    """
+    return cast("_IndexableArray", value)[key]
 
 
 @dataclass(slots=True)
@@ -74,8 +102,6 @@ class ModelCoreOptions:
             FV/FDM operator builders.
         store_history: Whether to store the full time history.
         dtype: Floating-point dtype for internal arrays.
-        xp: Array backend module (default NumPy). This is a forward-
-            compatibility hook for GPU backends.
     """
 
     other_axes: tuple[int, ...] = ()
@@ -83,27 +109,6 @@ class ModelCoreOptions:
     axis_coords: Mapping[str, np.ndarray] | None = None
     store_history: bool = True
     dtype: DTypeLike = np.float64
-    xp: object = np
-
-
-class ArrayBackend(Protocol):
-    """Minimal array backend interface for ModelCore numerical storage."""
-
-    def asarray(
-        self,
-        x: object,
-        dtype: object | None = None,
-    ) -> np.ndarray:
-        """Convert input to an array of the backend type."""
-        ...
-
-    def zeros(
-        self,
-        shape: tuple[int, ...],
-        dtype: object | None = None,
-    ) -> np.ndarray:
-        """Return a new array of given shape filled with zeros."""
-        ...
 
 
 class ModelCore:
@@ -130,10 +135,6 @@ class ModelCore:
             ValueError: if time_grid is invalid or any shapes mismatch.
         """
         opts = options or ModelCoreOptions()
-
-        # Forward-compat hook; stored for later wiring. For now ModelCore remains
-        # NumPy-first; higher layers can decide how to allocate/convert.
-        self.xp = opts.xp
 
         self.dtype = np.dtype(opts.dtype)
 
@@ -186,13 +187,13 @@ class ModelCore:
         self.current_step = 0
 
         # Per-timestep working state (contiguous).
-        self.current_state = np.zeros(self.state_shape, dtype=self.dtype)
+        self.current_state: Array = np.zeros(self.state_shape, dtype=self.dtype)
 
         # Optional full history: (n_timesteps, *state_shape)
-        self.state_array: FloatArray | None
+        self.state_array: Array | None
         if self.store_history:
             self.state_array = cast(
-                "FloatArray",
+                "Array",
                 np.zeros((self.n_timesteps, *self.state_shape), dtype=self.dtype),
             )
         else:
@@ -250,7 +251,7 @@ class ModelCore:
         name = self.axis_names[idx]
         return self.axis_coords.get(name)
 
-    def validate_state_shape(self, arr: np.ndarray, *, msg: str | None = None) -> None:
+    def validate_state_shape(self, arr: Array, *, msg: str | None = None) -> None:
         """
         Validate that arr has state_shape.
 
@@ -264,7 +265,7 @@ class ModelCore:
         Raises:
             ValueError: if arr does not have shape state_shape.
         """
-        arr_shape = np.asarray(arr).shape
+        arr_shape = arr.shape
         if arr_shape != self.state_shape:
             raise ValueError(
                 (msg or _NEXT_STATE_SHAPE_ERROR).format(
@@ -384,7 +385,22 @@ class ModelCore:
     # Initialization / accessors
     # ------------------------------------------------------------------
 
-    def set_initial_state(self, initial_state: np.ndarray) -> None:
+    def _store_history_value(self, step: int, value: Array) -> None:
+        """Functionally replace one history row in the active namespace."""
+        if not self.store_history or self.state_array is None:
+            return
+
+        if isinstance(self.state_array, np.ndarray) and isinstance(value, np.ndarray):
+            self.state_array[step] = value
+            return
+
+        xp = _namespace_of(value)
+        before = _array_slice(self.state_array, slice(None, step))
+        after = _array_slice(self.state_array, slice(step + 1, None))
+        row = cast("Array", xp.expand_dims(value, axis=0))
+        self.state_array = cast("Array", xp.concat((before, row, after), axis=0))
+
+    def set_initial_state(self, initial_state: Array) -> None:
         """
         Set the initial state at time_grid[0].
 
@@ -394,7 +410,11 @@ class ModelCore:
         Raises:
             ValueError: if initial_state has incorrect shape.
         """
-        initial_state_arr = np.asarray(initial_state, dtype=self.dtype)
+        xp = _namespace_of(initial_state)
+        initial_state_arr = cast(
+            "Array",
+            xp.asarray(initial_state, dtype=self.dtype),
+        )
         if initial_state_arr.shape != self.state_shape:
             raise ValueError(
                 _INITIAL_STATE_SHAPE_ERROR.format(
@@ -403,23 +423,34 @@ class ModelCore:
                 )
             )
 
-        np.copyto(self.current_state, initial_state_arr)
-
-        if self.store_history and self.state_array is not None:
-            self.state_array[0] = self.current_state
+        if isinstance(self.current_state, np.ndarray) and isinstance(
+            initial_state_arr, np.ndarray
+        ):
+            np.copyto(self.current_state, initial_state_arr)
+        else:
+            self.current_state = initial_state_arr
+        if self.store_history:
+            self.state_array = cast(
+                "Array",
+                xp.zeros(
+                    (self.n_timesteps, *self.state_shape),
+                    dtype=initial_state_arr.dtype,
+                ),
+            )
+            self._store_history_value(0, self.current_state)
 
         self.current_step = 0
 
-    def get_current_state(self) -> np.ndarray:
+    def get_current_state(self) -> Array:
         """
-        Retrun the current state.
+        Return the current state.
 
         Returns:
             Current state, shape state_shape.
         """
         return self.current_state
 
-    def get_state_at(self, step: int) -> FloatArray:
+    def get_state_at(self, step: int) -> Array:
         """
         Return the state at a given timestep from history.
 
@@ -439,9 +470,7 @@ class ModelCore:
         if not (0 <= step < self.n_timesteps):
             raise IndexError(_STEP_OOB_ERROR)
 
-        # NumPy typing stubs often type ndarray.__getitem__ as Any under mypy,
-        # which triggers --strict [no-any-return] without an explicit cast.
-        return cast("FloatArray", self.state_array[step])
+        return _array_slice(self.state_array, step)
 
     # ------------------------------------------------------------------
     # Stepping / updates
@@ -451,7 +480,7 @@ class ModelCore:
         if self.current_step >= self.n_timesteps - 1:
             raise RuntimeError(_FINAL_TIMESTEP_ERROR)
 
-    def apply_deltas(self, deltas: np.ndarray) -> None:
+    def apply_deltas(self, deltas: Array) -> None:
         """
         Apply state deltas, advancing the timestep.
 
@@ -464,7 +493,8 @@ class ModelCore:
         Raises:
             ValueError: if deltas has incorrect shape.
         """
-        deltas_arr = np.asarray(deltas, dtype=self.dtype)
+        xp = _namespace_of(self.current_state)
+        deltas_arr = cast("Array", xp.asarray(deltas, dtype=self.current_state.dtype))
         if deltas_arr.shape != self.state_shape:
             raise ValueError(
                 _DELTAS_SHAPE_ERROR.format(
@@ -474,13 +504,17 @@ class ModelCore:
 
         self._check_can_advance()
 
-        self.current_state += deltas_arr
+        if isinstance(self.current_state, np.ndarray) and isinstance(
+            deltas_arr, np.ndarray
+        ):
+            self.current_state += deltas_arr
+        else:
+            self.current_state = cast("Array", xp.add(self.current_state, deltas_arr))
 
         self.current_step += 1
-        if self.store_history and self.state_array is not None:
-            self.state_array[self.current_step] = self.current_state
+        self._store_history_value(self.current_step, self.current_state)
 
-    def apply_next_state(self, next_state: np.ndarray) -> None:
+    def apply_next_state(self, next_state: Array) -> None:
         """
         Set the next state directly, advancing the timestep.
 
@@ -490,7 +524,11 @@ class ModelCore:
         Raises:
             ValueError: if next_state has incorrect shape.
         """
-        next_state_arr = np.asarray(next_state, dtype=self.dtype)
+        xp = _namespace_of(self.current_state)
+        next_state_arr = cast(
+            "Array",
+            xp.asarray(next_state, dtype=self.current_state.dtype),
+        )
         if next_state_arr.shape != self.state_shape:
             raise ValueError(
                 _NEXT_STATE_SHAPE_ERROR.format(
@@ -500,12 +538,16 @@ class ModelCore:
 
         self._check_can_advance()
 
-        np.copyto(self.current_state, next_state_arr)
+        if isinstance(self.current_state, np.ndarray) and isinstance(
+            next_state_arr, np.ndarray
+        ):
+            np.copyto(self.current_state, next_state_arr)
+        else:
+            self.current_state = next_state_arr
 
         self.current_step += 1
-        if self.store_history and self.state_array is not None:
-            self.state_array[self.current_step] = self.current_state
+        self._store_history_value(self.current_step, self.current_state)
 
-    def advance_timestep(self, next_state: np.ndarray) -> None:
+    def advance_timestep(self, next_state: Array) -> None:
         """Alias for apply_next_state, for solver-friendly naming."""
         self.apply_next_state(next_state)

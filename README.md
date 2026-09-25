@@ -4,7 +4,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 
 ## Why use it?
 - Shared solver surface for ODEs and operator-split PDEs.
-- Strong typing, minimal dependencies (NumPy + SciPy for implicit paths).
+- Strong typing and Array-API explicit paths; SciPy remains the implicit backend.
 - Separates state/time management (`ModelCore`) from stepping logic (`CoreSolver`).
 - Optional adapters (e.g., flepimop2) without affecting the core API.
 - IMEX paths accept externally supplied operator tuples; defaults remain explicit-only.
@@ -50,6 +50,36 @@ solver.run(rhs)  # defaults to Heun/RK2
 
 solution = core.state_array  # shape (n_timesteps, state, subgroup)
 ```
+
+### Array namespaces
+
+`ModelCore` infers its numerical namespace from the initial state through
+`initial_state.__array_namespace__()`. The state, stored history, explicit Euler
+and Heun stages, and adaptive error control stay in that namespace. There is no
+`xp=` or backend option:
+
+```python
+import jax.numpy as jnp
+import numpy as np
+
+from op_engine import CoreSolver, ModelCore
+
+core = ModelCore(1, 1, np.asarray([0.0, 0.5, 1.0]))
+core.set_initial_state(jnp.asarray([[1.0]]))
+
+
+def decay(_time, state):
+    xp = state.__array_namespace__()
+    return xp.multiply(state, -0.2)
+
+
+CoreSolver(core).run(decay)
+assert core.state_array.__array_namespace__() is jnp
+```
+
+The RHS must return an array in the input state's namespace. The current
+implicit and IMEX methods still use SciPy and therefore require NumPy state;
+multi-backend implicit solves are tracked separately.
 
 ### IMEX with operators (tuple form)
 

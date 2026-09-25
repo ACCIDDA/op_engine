@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import version as _metadata_version
 
+from ._typing import Array
 from .core_solver import CoreSolver
 from .matrix_ops import (
     DiffusionConfig,
@@ -28,6 +29,7 @@ from .matrix_ops import (
 from .model_core import ModelCore
 
 __all__ = [
+    "Array",
     "CoreSolver",
     "DiffusionConfig",
     "GridGeometry",

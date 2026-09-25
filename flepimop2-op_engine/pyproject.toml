@@ -15,7 +15,7 @@ dependencies = [
   "op-engine==0.1.1",
   "flepimop2>=0.1.0",
   "pydantic>=2.0,<3",
-  "numpy>=1.26",
+  "numpy>=2.0",
 ]
 
 classifiers = [

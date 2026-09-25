@@ -12,7 +12,7 @@ authors = [
 ]
 keywords = ["multiphysics", "ODE", "PDE", "IMEX", "operator-splitting", "solver"]
 dependencies = [
-    "numpy>=1.26",
+    "numpy>=2.0",
     "scipy>=1.11",
 ]
 
@@ -40,6 +40,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "jax>=0.4.32",
     "mkdocs>=1.6.1",
     "mypy>=1.18.2",
     "matplotlib>=3.8",
