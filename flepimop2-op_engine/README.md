@@ -25,6 +25,8 @@ pip install "flepimop2-op_engine[jax]"
 ```
 
 Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, or
-dense IMEX/implicit methods. Typed operator-descriptor compilation still builds
-host-side matrices; tracing gradients through descriptor parameters is a
-separate follow-up.
+dense IMEX/implicit methods. Typed dense operator descriptors are compiled in
+the evolving state's namespace, so descriptor parameters remain traceable too.
+The NumPy path applies op_system's value-dependent generator validation. A
+traced non-NumPy path can validate shapes and static layout only; producers are
+responsible for maintaining generator invariants in dynamic parameter values.

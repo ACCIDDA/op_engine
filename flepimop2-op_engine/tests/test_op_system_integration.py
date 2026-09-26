@@ -244,6 +244,88 @@ def test_axis_kernel_generator_runs_as_flat_imex_operator() -> None:
     np.testing.assert_allclose(result[1, 1:].sum(), 1.0, rtol=0.0, atol=1e-14)
 
 
+def test_axis_kernel_parameters_are_jittable_and_differentiable() -> None:  # noqa: PLR0914
+    """Typed operator parameters remain dynamic through the JAX IMEX path."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    axes = AxisCollection({
+        "imm": Axis(
+            name="imm",
+            kind="ordinal",
+            size=2,
+            labels=("x0", "x1"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {
+                    "name": "imm",
+                    "type": "ordinal",
+                    "coords": ["x0", "x1"],
+                }
+            ],
+            "state": ["X[imm]"],
+            "equations": {"X[imm]": "0 * X[imm]"},
+            "initial_state": {
+                "X[imm]": {"shaped": "x_init", "axes": ["imm"]},
+            },
+            "operators": [
+                {
+                    "kind": "axis_kernel",
+                    "axis": "imm",
+                    "velocity": "speed",
+                    "kernel": {
+                        "form": "generator",
+                        "params": {"matrix": "G"},
+                        "param_axes": {"G": ["imm", "imm"]},
+                    },
+                }
+            ],
+        }
+    )
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
+    )
+    times = np.asarray([0.0, 0.2], dtype=np.float64)
+    scalar_shape = ResolvedShape()
+    generator_shape = axes.resolve_shape(("imm", "imm"))
+    state_shape = axes.resolve_shape(("imm",))
+    generator_template = jnp.asarray([[-1.0, 1.0], [0.0, 0.0]], dtype=jnp.float32)
+    initial = jnp.asarray([1.0, 0.0], dtype=jnp.float32)
+
+    def final_target(speed: object, generator_rate: object) -> object:
+        generator = generator_template * generator_rate
+        result = engine.run(
+            system,
+            times,
+            {},
+            {
+                "speed": ParameterValue(speed, scalar_shape),
+                "G": ParameterValue(generator, generator_shape),
+                "x_init": ParameterValue(initial, state_shape),
+            },
+            model_state=system.model_state(axes),
+        )
+        return result[-1, 2]
+
+    speed = jnp.asarray(0.5, dtype=jnp.float32)
+    generator_rate = jnp.asarray(1.2, dtype=jnp.float32)
+    value, derivatives = jax.jit(jax.value_and_grad(final_target, argnums=(0, 1)))(
+        speed, generator_rate
+    )
+    decay = 1.0 + 0.1 * float(speed) * float(generator_rate)
+    expected_value = 1.0 - decay**-2
+    expected_speed_derivative = 0.2 * float(generator_rate) * decay**-3
+    expected_generator_derivative = 0.2 * float(speed) * decay**-3
+
+    assert value == pytest.approx(expected_value, rel=2e-5)
+    assert derivatives[0] == pytest.approx(expected_speed_derivative, rel=2e-5)
+    assert derivatives[1] == pytest.approx(expected_generator_derivative, rel=2e-5)
+
+
 def test_real_op_system_is_jittable_and_differentiable_through_provider() -> None:  # noqa: PLR0914
     """Portable Heun retains JAX state and parameter gradients end to end."""
     jax = pytest.importorskip("jax")
