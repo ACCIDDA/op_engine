@@ -54,6 +54,8 @@ RHSFunction = Callable[[float, "FloatArray"], "FloatArray"]
 MethodName = Literal[
     "euler",
     "heun",
+    "rk4",
+    "dopri5",
     "imex-euler",
     "imex-heun-tr",
     "imex-trbdf2",
@@ -279,16 +281,19 @@ def imex_linear_split_setup() -> tuple[FloatArray, float, float]:
 # -----------------------------------------------------------------------------
 
 
-EXPLICIT_CASES: list[tuple[MethodName, float]] = [
-    ("euler", 1.0),
-    ("heun", 2.0),
+EXPLICIT_CASES: list[tuple[MethodName, float, float]] = [
+    ("euler", 1.0, 2e-2),
+    ("heun", 2.0, 2e-2),
+    ("rk4", 4.0, 1e-1),
+    ("dopri5", 5.0, 1e-1),
 ]
 
 
-@pytest.mark.parametrize(("method", "expected_order"), EXPLICIT_CASES)
+@pytest.mark.parametrize(("method", "expected_order", "dt"), EXPLICIT_CASES)
 def test_explicit_methods_convergence_order_against_numerical_reference(
     method: MethodName,
     expected_order: float,
+    dt: float,
     ode_decay_setup: tuple[float, float],
 ) -> None:
     """Convergence order on y'=-k y, using numerical reference on dt_ref = dt/16."""
@@ -300,7 +305,6 @@ def test_explicit_methods_convergence_order_against_numerical_reference(
         out[0, 0] = -k * float(y[0, 0])
         return out
 
-    dt = 2e-2
     dts = (dt, dt / 2.0, dt / 4.0)
     exact = _exact_decay(k, y0, t_end)
 
@@ -319,20 +323,9 @@ def test_explicit_methods_convergence_order_against_numerical_reference(
     assert np.isfinite(p1)
     assert np.isfinite(p2)
 
-    if method == "ros2":
-        # Rosenbrock-W implementation empirically converges at ~1st order on this
-        # linear decay, so use a relaxed threshold while still enforcing monotonic
-        # improvement across the dt ladder.
-        assert p1 > 0.9
-        assert p2 > 0.9
-        return
-
-    if expected_order < 1.5:
-        assert p1 > 0.7
-        assert p2 > 0.7
-    else:
-        assert p1 > 1.3
-        assert p2 > 1.3
+    tolerance = 0.3 if expected_order >= 4.0 else 0.5
+    assert p1 > expected_order - tolerance
+    assert p2 > expected_order - tolerance
 
 
 # -----------------------------------------------------------------------------
@@ -639,7 +632,13 @@ def test_nonuniform_output_grid_imex_trbdf2_matches_fine_reference() -> None:
 # -----------------------------------------------------------------------------
 
 
-ADAPTIVE_CASES: list[MethodName] = ["heun", "imex-heun-tr", "imex-trbdf2"]
+ADAPTIVE_CASES: list[MethodName] = [
+    "heun",
+    "rk4",
+    "dopri5",
+    "imex-heun-tr",
+    "imex-trbdf2",
+]
 
 
 def _build_adaptive_case(
@@ -650,14 +649,14 @@ def _build_adaptive_case(
     y0: float,
 ) -> tuple[ScalarRunCase, float]:
     """Return (base_case, dt_ref) for a given adaptive method."""
-    if method == "heun":
+    if method in {"heun", "rk4", "dopri5"}:
 
         def rhs_heun(t: float, y: FloatArray) -> FloatArray:
             out = np.empty_like(y)
             out[0, 0] = np.cos(t)
             return out
 
-        return ScalarRunCase(method="heun", time_grid=tg, y0=0.0, rhs=rhs_heun), 1e-4
+        return ScalarRunCase(method=method, time_grid=tg, y0=0.0, rhs=rhs_heun), 1e-4
 
     def rhs_imex(t: float, y: FloatArray) -> FloatArray:  # noqa: ARG001
         out = np.empty_like(y)
@@ -731,3 +730,39 @@ def test_adaptive_not_worse_than_fixed_against_reference(
             f"Adaptive worse than fixed: method={method} "
             f"err_adapt={err_adapt} err_fixed={err_fixed}"
         )
+
+
+def test_adaptive_dopri5_reaches_heun_accuracy_with_fewer_rhs_calls() -> None:
+    """The embedded fifth-order pair reduces work at the same tolerance."""
+
+    def solve(method: MethodName) -> tuple[float, int]:
+        core = _make_scalar_core(np.asarray([0.0, 5.0]))
+        core.set_initial_state(_scalar_state(1.0))
+        rhs_calls = 0
+
+        def rhs(_time: float, state: FloatArray) -> FloatArray:
+            nonlocal rhs_calls
+            rhs_calls += 1
+            return -state
+
+        CoreSolver(core).run(
+            rhs,
+            config=SolverRunConfig(
+                method=method,
+                adaptive=True,
+                adaptive_cfg=AdaptiveConfig(
+                    rtol=1e-5,
+                    atol=1e-8,
+                    dt_init=0.5,
+                ),
+            ),
+        )
+        return _unpack_scalar(core.get_current_state()), rhs_calls
+
+    exact = float(np.exp(-5.0))
+    heun, heun_calls = solve("heun")
+    dopri5, dopri5_calls = solve("dopri5")
+
+    assert abs(heun - exact) < 2e-7
+    assert abs(dopri5 - exact) < 2e-7
+    assert dopri5_calls < heun_calls / 5

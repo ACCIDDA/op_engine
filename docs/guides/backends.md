@@ -12,11 +12,12 @@ because their fixed-step numerical operations remain in that namespace.
 
 ## Portable fixed-step methods
 
-With JAX state, fixed-step Euler, Heun, dense IMEX, and dense linearly implicit
-methods can be used inside `jax.jit` and differentiated with `jax.grad`. Dynamic
-values can include the initial state, RHS parameters, dense operator values, and
-Jacobian values. The time grid, method selection, state shape, and Python solver
-configuration are structural inputs and must remain static during a trace.
+With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX, and
+dense linearly implicit methods can be used inside `jax.jit` and differentiated
+with `jax.grad`. Dynamic values can include the initial state, RHS parameters,
+dense operator values, and Jacobian values. The time grid, method selection,
+state shape, and Python solver configuration are structural inputs and must
+remain static during a trace.
 
 Sparse acceleration is backend-specific. SciPy sparse solves are not a JAX
 differentiation path; use dense JAX operators when gradients through a solve are
@@ -27,8 +28,8 @@ JAX array namespace, and `jax.grad` can differentiate the numerical operations
 on the branch accepted by the nominal solve. Step acceptance itself extracts
 scalar error values and uses Python loops and branches, however, so a live
 `adaptive=True` solve is not a JAX-`jit`-compatible execution path. This
-limitation belongs to the controller, not to the Euler, Heun, IMEX, or linearly
-implicit formulas.
+limitation belongs to the controller, not to the explicit Runge--Kutta, IMEX,
+or linearly implicit formulas.
 
 ## Adaptive-controller boundary
 

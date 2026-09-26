@@ -22,6 +22,23 @@ def test_run_config_normalizes_method_alias_at_construction() -> None:
     assert config.method == "trapezoidal"
 
 
+@pytest.mark.parametrize(
+    ("alias", "canonical"),
+    [
+        ("runge-kutta-4", "rk4"),
+        ("rk45", "dopri5"),
+        ("dormand-prince", "dopri5"),
+        ("dormand-prince-5(4)", "dopri5"),
+    ],
+)
+def test_run_config_normalizes_explicit_runge_kutta_aliases(
+    alias: str,
+    canonical: str,
+) -> None:
+    """Common higher-order names resolve to stable canonical method names."""
+    assert RunConfig(method=alias).method == canonical
+
+
 def test_run_config_rejects_unknown_method_at_construction() -> None:
     """Unknown methods fail where the user constructs the configuration."""
     with pytest.raises(ValueError, match="Unknown method"):

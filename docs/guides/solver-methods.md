@@ -13,6 +13,8 @@ numerical method.
 | --- | ---: | --- | --- |
 | `euler` | 1 | None | Debugging and first-order reference runs |
 | `heun` | 2 | None | Default non-stiff explicit integration |
+| `rk4` | 4 | None | Accurate fixed-step non-stiff integration |
+| `dopri5` | 5 (embedded 4) | None | Efficient adaptive non-stiff integration |
 | `imex-euler` | 1 | One implicit-Euler operator factory | Robust first-order split systems |
 | `imex-heun-tr` | 2 | One trapezoidal operator factory | Second-order explicit/implicit splitting |
 | `imex-trbdf2` | 2 | Trapezoidal and BDF2-stage factories | Split systems needing stronger damping |
@@ -94,8 +96,8 @@ at a higher inference/provider layer.
 
 ## Explicit deterministic methods
 
-Euler and Heun need only an RHS. The default is fixed-step Heun, with one step
-per output interval:
+Euler, Heun, classic RK4, and Dormand--Prince need only an RHS. The default is
+fixed-step Heun, with one step per output interval:
 
 ```python
 import numpy as np
@@ -123,6 +125,18 @@ CoreSolver(core).run(rhs, config=config)
 With `adaptive=False`, every adjacent pair of output times defines one solver
 step. With `adaptive=True`, the controller may take multiple internal steps but
 still stores only the requested output times.
+
+Heun, RK4, and Dormand--Prince share one validated explicit Runge--Kutta
+tableau kernel. `rk4` takes four RHS stages per fixed step. Under adaptivity it
+uses step doubling to estimate error, so `dopri5` is normally the more efficient
+adaptive choice: its embedded fourth-order formula estimates error using the
+same seven stages as its fifth-order solution. Dormand--Prince also reuses its
+final stage as the first stage of the next accepted step (FSAL), including
+across output-time boundaries.
+
+`dopri5`, `rk45`, and `dormand-prince` select the same canonical method. Dense
+output is not currently exposed; the solver lands on and stores the requested
+output times instead of interpolating between accepted internal steps.
 
 ## IMEX methods and operator factories
 

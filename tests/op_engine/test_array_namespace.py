@@ -104,7 +104,7 @@ def test_model_core_preserves_jax_namespace_for_updates_and_history() -> None:
     assert np.array_equal(np.asarray(core.state_array[:, 0, 0]), [1.0, 1.5, 3.0])
 
 
-@pytest.mark.parametrize("method", ["euler", "heun"])
+@pytest.mark.parametrize("method", ["euler", "heun", "rk4", "dopri5"])
 @pytest.mark.parametrize("adaptive", [False, True])
 def test_numpy_and_jax_explicit_paths_agree(method: str, *, adaptive: bool) -> None:
     """The same explicit solve stays native and agrees across namespaces."""
@@ -281,7 +281,7 @@ def _solve_jax_adaptive_method(
         solver = CoreSolver(core, operators=operators)
     else:
         solver = CoreSolver(core)
-        if method not in {"euler", "heun"}:
+        if method not in {"euler", "heun", "rk4", "dopri5"}:
 
             def jacobian(_time: float, _state: Array) -> Array:
                 return cast("Array", jnp.reshape(explicit_rate, (1, 1)))
@@ -487,6 +487,8 @@ def test_fixed_step_dense_implicit_methods_support_jax_jit_and_grad(
     [
         ("euler", (0, 2)),
         ("heun", (0, 2)),
+        ("rk4", (0, 2)),
+        ("dopri5", (0, 2)),
         ("imex-euler", (0, 1, 2)),
         ("imex-heun-tr", (0, 1, 2)),
         ("imex-trbdf2", (0, 1, 2)),
@@ -534,6 +536,8 @@ def test_live_adaptive_methods_support_eager_jax_grad(
     [
         ("euler", (0, 2)),
         ("heun", (0, 2)),
+        ("rk4", (0, 2)),
+        ("dopri5", (0, 2)),
         ("imex-euler", (0, 1, 2)),
         ("imex-heun-tr", (0, 1, 2)),
         ("imex-trbdf2", (0, 1, 2)),
