@@ -18,6 +18,7 @@ numerical method.
 | `imex-euler` | 1 | One implicit-Euler operator factory | Robust first-order split systems |
 | `imex-heun-tr` | 2 | One trapezoidal operator factory | Second-order explicit/implicit splitting |
 | `imex-trbdf2` | 2 | Trapezoidal and BDF2-stage factories | Split systems needing stronger damping |
+| `imex-ark3` | 3 (embedded 2) | One implicit-Euler stage factory | Higher-order adaptive split systems |
 | `implicit-euler` | 1 | Jacobian callable | One-linearization approximation with first-order damping |
 | `trapezoidal` | 2 | Jacobian callable | One-linearization, second-order integration |
 | `bdf2` | 2 | Jacobian callable | Uniform, fixed-step, one-linearization integration |
@@ -211,6 +212,34 @@ config = RunConfig(
     operators=OperatorSpecs(tr=trapezoidal, bdf2=implicit_euler),
 )
 ```
+
+`imex-ark3` uses the five-stage ARS(4,4,3) additive Runge--Kutta
+tableau from [Ascher, Ruuth, and Spiteri
+(1997)](https://doi.org/10.1016/S0168-9274(97)00056-1). Its implicit
+half is L-stable and stiffly accurate. A shared `c=1/2` stage supplies a
+second-order explicit/implicit midpoint estimate, so adaptive error control
+does not use step doubling.
+
+```python
+implicit_euler = make_stage_operator_factory(diffusion, scheme="implicit-euler")
+config = RunConfig(
+    method="imex-ark3",
+    operators=OperatorSpecs(default=implicit_euler),
+)
+```
+
+This method always requires a `StageOperatorFactory`, including on a uniform
+fixed-step grid. For each non-explicit stage the factory receives the attempted
+full-step size, the DIRK diagonal coefficient as `scale`, the actual stage
+time, and the assembled stage base in `StageOperatorContext.y`. It must build
+an implicit-Euler left operator `I - dt * scale * A`. Predictor tuples are not
+accepted, and the returned right operator is not applied: the additive kernel
+has already assembled all previous explicit and implicit stage contributions.
+The implicit derivative is then recovered from the solved stage equation,
+which avoids a duplicate callback for `A @ y` and keeps the method portable
+across Array-API namespaces.
+
+`imex-ars443` and `ars443` are aliases for `imex-ark3`.
 
 The flepimop2 provider can compile typed `op_system` `axis_kernel`, `advection`,
 and `diffusion` descriptors into these same factories. Descriptor parsing and

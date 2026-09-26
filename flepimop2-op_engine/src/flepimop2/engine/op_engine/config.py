@@ -57,6 +57,7 @@ class SolverMethod(StrEnum):
     IMEX_EULER = "imex-euler"
     IMEX_HEUN_TR = "imex-heun-tr"
     IMEX_TRBDF2 = "imex-trbdf2"
+    IMEX_ARK3 = "imex-ark3"
     IMPLICIT_EULER = "implicit-euler"
     TRAPEZOIDAL = "trapezoidal"
     BDF2 = "bdf2"
