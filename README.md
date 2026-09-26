@@ -5,14 +5,14 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 ## Why use it?
 - Shared solver surface for ODEs and operator-split PDEs.
 - Strong typing and Array-API explicit and dense-implicit paths.
-- Optional differentiable adaptive integration through JAX and Diffrax.
+- JAX autodiff and JIT support for the same portable fixed-step methods.
 - Separates state/time management (`ModelCore`) from stepping logic (`CoreSolver`).
 - Optional adapters (e.g., flepimop2) without affecting the core API.
 - IMEX paths accept externally supplied operator tuples; defaults remain explicit-only.
 
 ## Core surface
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
-- `CoreSolver`: explicit, IMEX, and optional Diffrax Tsit5 methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
+- `CoreSolver`: portable explicit and dense IMEX/implicit methods, plus an optional Diffrax Tsit5 adaptive strategy; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
 - `matrix_ops`: Laplacian/Crank–Nicolson/implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
@@ -22,7 +22,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 pip install op_engine
 ```
 
-With differentiable adaptive JAX integration:
+With the optional JAX-specific adaptive strategy:
 
 ```bash
 pip install "op_engine[jax]"
@@ -91,6 +91,18 @@ registry: SciPy is included for NumPy state, and CuPy sparse support is enabled
 when the `cupy` extra is installed. A backend without a sparse adapter still has
 the dense correctness path.
 
+With JAX arrays, the fixed-step Euler, Heun, dense IMEX, and dense linearly
+implicit methods can be used under `jax.jit` and differentiated with `jax.grad`.
+This includes gradients through dynamic RHS parameters, initial state, and dense
+operator or Jacobian values. Diffrax is not required for those operations.
+
+The portable adaptive controller is eager-only under JAX: it keeps state arrays
+in JAX, but its step acceptance uses Python scalar extraction and control flow.
+Use fixed steps when compiling the portable methods. The optional
+`diffrax-tsit5` strategy is available for workloads that specifically need a
+compiled adaptive controller or checkpointed adjoints. See the
+[backend guide](docs/guides/backends.md) for the capability boundary.
+
 ### IMEX with operators (tuple form)
 
 ```python
@@ -121,7 +133,7 @@ solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
 
 ## Public API
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
-- `CoreSolver`: explicit and IMEX stepping plus optional differentiable `diffrax-tsit5` integration.
+- `CoreSolver`: portable explicit and dense IMEX/implicit stepping plus optional JAX-specific `diffrax-tsit5` adaptive integration.
 - Operator utilities (`matrix_ops`): Laplacian builders, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.
 - Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. The adapter merges any `mixing_kernels` already computed by op_system (no automatic generation) and consumes config-supplied IMEX operator specs (dict or `OperatorSpecs`), forwarding the chosen `operator_axis` to `CoreSolver`.
