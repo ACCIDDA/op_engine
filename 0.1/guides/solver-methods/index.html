@@ -520,6 +520,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#bounded-adaptive-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounded adaptive tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fixed-step-tau-leaping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -761,6 +772,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/adaptive_tau/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adaptive Tau
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/core_solver/" class="md-nav__link">
         
   
@@ -962,6 +1001,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#bounded-adaptive-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounded adaptive tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fixed-step-tau-leaping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1144,7 +1194,7 @@ compiled-control-flow boundary described below.</p>
 coefficient/history contract, restart rules, and the current no-go decision on
 exposing BDF3 before variable-step and rejection semantics exist.</p>
 <h2 id="stochastic-reaction-networks">Stochastic reaction networks<a class="headerlink" href="#stochastic-reaction-networks" title="Permanent link">&para;</a></h2>
-<p>Both stochastic solvers use one reaction contract: the stoichiometric matrix
+<p>All stochastic solvers use one reaction contract: the stoichiometric matrix
 has shape <code>(n_species, n_reactions)</code>, while the propensity function returns
 the state shape with <code>n_reactions</code> replacing <code>n_species</code> on the configured
 reaction axis.</p>
@@ -1184,6 +1234,57 @@ DirectSSASolver(core, stoichiometry).run(
 as in a time-homogeneous continuous-time Markov chain. Across batch cells it
 samples from the superposed event process; the result is equivalent to
 independent direct-method trajectories for independent batch cells.</p>
+<h3 id="bounded-adaptive-tau-leaping">Bounded adaptive tau-leaping<a class="headerlink" href="#bounded-adaptive-tau-leaping" title="Permanent link">&para;</a></h3>
+<p><code>AdaptiveTauLeapingSolver</code> implements the species-based pre-leap selector of
+<a href="https://doi.org/10.1063/1.2159468">Cao, Gillespie, and Petzold</a> together with
+their <a href="https://doi.org/10.1063/1.1992473">non-negative modified Poisson
+algorithm</a>. It needs both net stoichiometry
+and non-negative reactant stoichiometry. They are intentionally separate:
+net changes cannot reveal catalytic reactants or how many source molecules a
+reaction consumes.</p>
+<pre><code class="language-python">from op_engine import (
+    AdaptiveTauLeapingConfig,
+    AdaptiveTauLeapingSolver,
+    NumpyPoissonSampler,
+    NumpySSASampler,
+)
+
+# Net A -&gt; B changes and consumed reactants, respectively.
+stoichiometry = np.asarray([[-1], [1]])
+reactants = np.asarray([[1], [0]])
+
+solver = AdaptiveTauLeapingSolver(core, stoichiometry, reactants)
+solver.run(
+    propensity,
+    NumpyPoissonSampler(seed=2026),
+    NumpySSASampler(seed=2027),
+    config=AdaptiveTauLeapingConfig(leap_tolerance=0.03),
+)
+</code></pre>
+<p>The non-negativity strategy has three explicit layers:</p>
+<ol>
+<li><strong>Pre-leap selection.</strong> Species drift and variance from noncritical
+   reactions bound expected and stochastic population changes. The
+   <code>leap_tolerance</code> controls this approximation.</li>
+<li><strong>Bounded critical events.</strong> A channel is critical when fewer than
+   <code>critical_threshold</code> firings could exhaust a reactant. Across all critical
+   channel/batch events, at most one is selected by the exact-event sampler in
+   a leap. If all active channels are critical, the method is direct SSA.</li>
+<li><strong>Post-leap rejection.</strong> If noncritical Poisson firings still propose a
+   negative population, the proposal is discarded, the attempted tau is
+   halved, and fresh samples use new deterministic draw indices. No population
+   or firing count is clipped.</li>
+</ol>
+<p>When the selected tau is cheaper to execute event by event,
+<code>exact_fallback_multiplier</code> switches temporarily to direct SSA. Tightening
+<code>leap_tolerance</code> therefore approaches, and eventually crosses into, the exact
+reference path on low-count networks.</p>
+<p>Per-channel binomial firing was considered but is not used here. Although a
+binomial draw bounds one channel, independent binomials can still collectively
+overconsume a reactant shared by several channels. A true coupled-binomial
+scheme would need a distinct sampling contract. The critical-event bound plus
+explicit post-leap rejection gives a documented non-negative method without
+silently changing those reaction dependencies.</p>
 <h3 id="fixed-step-tau-leaping">Fixed-step tau-leaping<a class="headerlink" href="#fixed-step-tau-leaping" title="Permanent link">&para;</a></h3>
 <p>Fixed-step explicit tau-leaping approximates the number of firings in each
 reaction channel over a time interval with an independent Poisson draw. Supply
@@ -1232,8 +1333,9 @@ def poisson(mean, step_index):
 </code></pre>
 <p>This first implementation deliberately rejects a leap that produces a
 negative population. It neither clips counts nor changes the process
-silently. Reduce <code>max_step</code> for a better fixed-tau approximation. Bounded or
-adaptive tau selection is a separate future method.</p>
+silently. Reduce <code>max_step</code> for a better fixed-tau approximation, or use
+<code>AdaptiveTauLeapingSolver</code> when automatic leap selection and critical-event
+handling are required.</p>
 <p>Tau-leaping is currently an eager execution path: validation reads sampled
 counts and proposed populations back to Python. JAX arrays stay in their native
 namespace, but a sampled stochastic trajectory does not provide an ordinary
