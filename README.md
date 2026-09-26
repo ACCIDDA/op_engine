@@ -1,6 +1,6 @@
 # op_engine
 
-Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver core for time-dependent systems. It supports explicit ODE solvers and IMEX/operator-based schemes for PDE-like models while staying framework-agnostic.
+Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver core for time-dependent systems. It supports explicit ODE solvers, IMEX/operator-based schemes for PDE-like models, and stochastic tau-leaping for reaction networks while staying framework-agnostic.
 
 ## Why use it?
 - Shared solver surface for ODEs and operator-split PDEs.
@@ -13,6 +13,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 ## Core surface
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
 - `CoreSolver`: portable explicit and dense IMEX/implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
+- `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
@@ -103,6 +104,7 @@ solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
 ## Public API
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
 - `CoreSolver`: portable explicit and dense IMEX/implicit stepping selected by the state array namespace.
+- `TauLeapingSolver`: portable stoichiometric updates with NumPy, JAX, or another Array-API namespace supplying Poisson samples.
 - Operator utilities (`matrix_ops`): portable upwind advection, Laplacian, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, and grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.
 - Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. The adapter merges any `mixing_kernels` already computed by op_system (no automatic generation) and consumes config-supplied IMEX operator specs (dict or `OperatorSpecs`), forwarding the chosen `operator_axis` to `CoreSolver`.

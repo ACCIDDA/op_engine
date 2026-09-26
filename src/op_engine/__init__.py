@@ -29,6 +29,12 @@ from .matrix_ops import (
     smooth,
 )
 from .model_core import ModelCore
+from .stochastic_solver import (
+    NumpyPoissonSampler,
+    PoissonSampler,
+    TauLeapingConfig,
+    TauLeapingSolver,
+)
 
 __all__ = [
     "Array",
@@ -36,7 +42,11 @@ __all__ = [
     "DiffusionConfig",
     "GridGeometry",
     "ModelCore",
+    "NumpyPoissonSampler",
     "Operator",
+    "PoissonSampler",
+    "TauLeapingConfig",
+    "TauLeapingSolver",
     "build_advection_matrix",
     "build_crank_nicolson_operator",
     "build_diffusion_matrix",

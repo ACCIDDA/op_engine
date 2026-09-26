@@ -1,11 +1,13 @@
 # Choosing and configuring a solver
 
-`ModelCore` owns output times and state storage. `CoreSolver` advances that
-state using a method selected by `RunConfig`. The state array selects the
+`ModelCore` owns output times and state storage. Deterministic systems use
+`CoreSolver` and a method selected by `RunConfig`. Stochastic reaction networks
+use `TauLeapingSolver`, because propensities and stoichiometry have different
+semantics from an ODE right-hand side. In both cases the state array selects the
 Array-API namespace; choosing JAX instead of NumPy does not select a different
 numerical method.
 
-## Method guide
+## Deterministic method guide
 
 | Method | Order | Split/operator input | Typical use |
 | --- | ---: | --- | --- |
@@ -24,7 +26,73 @@ step uses linearly implicit Euler because no previous state exists yet. The
 other methods support the built-in adaptive controller, subject to the
 compiled-control-flow boundary described below.
 
-## Explicit methods
+## Stochastic reaction networks
+
+Fixed-step explicit tau-leaping approximates the number of firings in each
+reaction channel over a time interval with an independent Poisson draw. Supply
+a stoichiometric matrix with shape `(n_species, n_reactions)` and a propensity
+function whose reaction axis has length `n_reactions`:
+
+```python
+import numpy as np
+
+from op_engine import (
+    ModelCore,
+    NumpyPoissonSampler,
+    TauLeapingConfig,
+    TauLeapingSolver,
+)
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=2, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[1_000.0], [0.0]]))
+
+# A -> B
+stoichiometry = np.asarray([[-1], [1]])
+
+
+def propensity(_time, state):
+    return 0.2 * state[0:1]
+
+
+solver = TauLeapingSolver(core, stoichiometry)
+solver.run(
+    propensity,
+    NumpyPoissonSampler(seed=2026),
+    config=TauLeapingConfig(max_step=0.05),
+)
+```
+
+`max_step=None` takes one leap per output interval. Setting `max_step` divides
+each interval into smaller leaps and clips the final leap so that it lands on
+the requested output time. The propensity is evaluated at the beginning of
+each leap.
+
+The core solver does not own random-number state. Instead, it receives a
+`PoissonSampler`, keeping PRNG details outside the numerical method. A JAX run
+can use an explicit key and the stable leap index:
+
+```python
+key = jax.random.key(2026)
+
+
+def poisson(mean, step_index):
+    return jax.random.poisson(jax.random.fold_in(key, step_index), mean)
+```
+
+This first implementation deliberately rejects a leap that produces a
+negative population. It neither clips counts nor changes the process
+silently. Reduce `max_step` for a better fixed-tau approximation. Bounded or
+adaptive tau selection is a separate future method.
+
+Tau-leaping is currently an eager execution path: validation reads sampled
+counts and proposed populations back to Python. JAX arrays stay in their native
+namespace, but a sampled stochastic trajectory does not provide an ordinary
+pathwise `jax.grad` derivative. Differentiable deterministic counterparts can
+continue to use `CoreSolver`; gradient estimators for stochastic paths belong
+at a higher inference/provider layer.
+
+## Explicit deterministic methods
 
 Euler and Heun need only an RHS. The default is fixed-step Heun, with one step
 per output interval:
