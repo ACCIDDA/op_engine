@@ -21,6 +21,13 @@ versioning while the project remains pre-1.0.
   validated frozen-mesh replay for conditional JAX JIT and differentiation
   workflows (#127).
 
+### Fixed
+
+- Explicit flepimop2 provider methods now add typed op_system axis-kernel,
+  advection, and diffusion drift at every Runge--Kutta stage. Flat, PyTree,
+  and block layouts share the same namespace-preserving operator path instead
+  of silently omitting operators outside IMEX execution (#140).
+
 ## [0.2.0] - 2026-09-26
 
 ### Added

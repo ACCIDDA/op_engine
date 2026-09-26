@@ -1269,3 +1269,110 @@ def test_flat_pytree_and_block_layouts_agree_and_block_is_differentiable() -> ( 
     assert gradient.shape == rates.shape
     assert bool(jnp.all(jnp.isfinite(gradient)))
     assert str(jax.make_jaxpr(objective)(rates)).count("scan[") == 1
+
+
+def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> None:
+    """Explicit RK stages include typed operator drift for every state layout."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    axes = AxisCollection({
+        "loc": Axis(
+            name="loc",
+            kind="categorical",
+            size=2,
+            labels=("a", "b"),
+        ),
+        "imm": Axis(
+            name="imm",
+            kind="categorical",
+            size=3,
+            labels=("x0", "x1", "x2"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {"name": "loc", "coords": ["a", "b"]},
+                {
+                    "name": "imm",
+                    "type": "ordinal",
+                    "coords": ["x0", "x1", "x2"],
+                },
+            ],
+            "state": ["X[loc, imm]"],
+            "equations": {"X[loc, imm]": "0 * X[loc, imm]"},
+            "operators": [
+                {
+                    "kind": "advection",
+                    "axis": "imm",
+                    "velocity": "speed",
+                    "bc": "absorbing",
+                }
+            ],
+            "initial_state": {"X[loc, imm]": {"shaped": "x0", "axes": ["loc", "imm"]}},
+            "factorize_axes": ["loc"],
+        }
+    )
+    times = np.asarray([0.0, 0.1], dtype=np.float64)
+    x0 = jnp.asarray([[1.0, 2.0, 4.0], [2.0, 3.0, 5.0]], dtype=jnp.float32)
+    state_shape = axes.resolve_shape(("loc", "imm"))
+
+    def parameters(speed: Array) -> dict[str, ParameterValue]:
+        return {
+            "x0": ParameterValue(x0, state_shape),
+            "speed": ParameterValue(speed, ResolvedShape()),
+        }
+
+    def engine(layout: StateLayout) -> OpEngineFlepimop2Engine:
+        return OpEngineFlepimop2Engine(
+            state_change=StateChangeEnum.FLOW,
+            config=OpEngineEngineConfig(
+                method=SolverMethod.EULER,
+                fixed_max_step=0.1,
+                state_layout=layout,
+                block_axis="loc" if layout is StateLayout.BLOCK else None,
+            ),
+        )
+
+    speed = jnp.asarray(0.4, dtype=jnp.float32)
+    results = {
+        layout: engine(layout).run(
+            system,
+            times,
+            {},
+            parameters(speed),
+            model_state=system.model_state(axes),
+        )
+        for layout in (StateLayout.FLAT, StateLayout.PYTREE, StateLayout.BLOCK)
+    }
+    operator = np.asarray(
+        build_advection_matrix(3, 1.0, 0.4, bc="absorbing"),
+        dtype=np.float32,
+    )
+    expected = np.asarray(x0) + 0.1 * (np.asarray(x0) @ operator.T)
+
+    for result in results.values():
+        np.testing.assert_allclose(
+            np.asarray(result[-1, 1:]).reshape(2, 3),
+            expected,
+            rtol=2e-6,
+            atol=2e-7,
+        )
+
+    block_engine = engine(StateLayout.BLOCK)
+
+    def objective(operator_speed: Array) -> Array:
+        result = block_engine.run(
+            system,
+            times,
+            {},
+            parameters(operator_speed),
+            model_state=system.model_state(axes),
+        )
+        return result[-1, 1:].sum()
+
+    value, gradient = jax.jit(jax.value_and_grad(objective))(speed)
+    assert bool(jnp.isfinite(value))
+    assert bool(jnp.isfinite(gradient))
+    assert float(jnp.abs(gradient)) > 0.0

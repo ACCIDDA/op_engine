@@ -39,7 +39,10 @@ reuses its FSAL stage between scan iterations. This compact trace is not a
 promise of constant-memory reverse-mode differentiation; JAX's transformation
 and checkpointing choices still govern gradient storage. Typed dense operator
 descriptors are compiled in the evolving state's namespace, so descriptor
-parameters remain traceable too.
+parameters remain traceable too. Explicit methods apply those descriptors as
+additive drift at every Runge--Kutta stage for flat, PyTree, and block state
+layouts; the structured paths use small axis-local matrices rather than a
+dense full-state operator.
 The compiler supports row-source axis-kernel generators and first-order upwind
 advection plus centered diffusion on uniform axes, including dynamic signed
 velocities and diffusion coefficients.
