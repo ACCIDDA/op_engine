@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any
+import math
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pytest
@@ -37,6 +38,7 @@ from flepimop2.engine.op_engine import (
 
 if TYPE_CHECKING:
     from flepimop2.typing import IdentifierString, SystemProtocol
+    from op_engine import Array
 
 # -----------------------------------------------------------------------------
 # Test helpers
@@ -97,6 +99,12 @@ def _initial_state(
         for name, value in zip(names, values, strict=True)
     }
     return entries, ModelStateSpecification(parameter_names=names)
+
+
+def _identity_rhs_jacobian(_time: float, state: Array) -> Array:
+    """Return a full flattened identity Jacobian in the state namespace."""
+    xp = cast("Any", state.__array_namespace__())
+    return cast("Array", xp.eye(math.prod(state.shape), dtype=state.dtype))
 
 
 # -----------------------------------------------------------------------------
@@ -290,6 +298,29 @@ def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
             adaptive_schedule=schedule,
         )
 
+    for changed_control in (
+        {"dt_init": 0.1},
+        {"max_reject": 7},
+        {"max_steps": 20},
+    ):
+        changed_engine = OpEngineFlepimop2Engine(
+            state_change=StateChangeEnum.FLOW,
+            config=OpEngineEngineConfig(
+                method=SolverMethod.HEUN,
+                adaptive=True,
+                **changed_control,  # type: ignore[arg-type]
+            ),
+        )
+        with pytest.raises(ValueError, match="controller settings"):
+            changed_engine.run(
+                system,
+                times,
+                initial_state,
+                {},
+                model_state=model_state,
+                adaptive_schedule=schedule,
+            )
+
     with pytest.raises(ValueError, match="output_times"):
         engine.run(
             system,
@@ -465,6 +496,25 @@ def test_validate_implicit_with_jacobian(method: SolverMethod) -> None:
     assert issues is None
 
 
+def test_validate_sdirk2_requires_full_rhs_jacobian() -> None:
+    """SDIRK2 reports its distinct full-system Jacobian requirement."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.SDIRK2),
+    )
+    system = _GoodSystem()
+
+    issues = engine.validate_system(system)
+    assert issues is not None
+    assert "missing_rhs_jacobian" in {issue.kind for issue in issues}
+
+    system.options = {
+        **(system.options or {}),
+        "rhs_jacobian": _identity_rhs_jacobian,
+    }
+    assert engine.validate_system(system) is None
+
+
 def test_validate_explicit_no_extra_issues() -> None:
     """Explicit methods do not trigger operator or jacobian warnings."""
     for method in (
@@ -535,3 +585,65 @@ def test_run_implicit_method_uses_system_jacobian() -> None:
 
     assert out.shape == (3, 2)
     assert out.dtype == np.float64
+
+
+def test_sdirk2_runs_and_replays_adaptively_with_jax_gradients() -> None:
+    """The provider exposes nonlinear discovery and differentiable replay."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.SDIRK2,
+            adaptive=True,
+            dt_init=0.05,
+            max_reject=10,
+            max_steps=100,
+            rtol=1e-4,
+            atol=1e-7,
+        ),
+    )
+    system = _GoodSystem()
+    system.options = {
+        **(system.options or {}),
+        "rhs_jacobian": _identity_rhs_jacobian,
+    }
+    times = np.asarray([0.0, 0.2, 0.4], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+
+    discovered = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    )
+    replayed = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+        schedule=discovered.schedule,
+    )
+
+    assert discovered.diagnostics is not None
+    assert replayed.require_converged() is replayed
+    np.testing.assert_allclose(replayed.trajectory, discovered.trajectory)
+
+    def solve(initial: Array) -> Array:
+        trajectory = engine.run(
+            system,
+            times,
+            {"x0": ParameterValue(initial, ResolvedShape())},
+            {},
+            model_state=model_state,
+            adaptive_schedule=discovered.schedule,
+        )
+        return cast("Array", trajectory[-1, 1])
+
+    initial = jnp.asarray(1.0, dtype=jnp.float32)
+    value, derivative = jax.jit(jax.value_and_grad(solve))(initial)
+
+    assert np.isfinite(float(value))
+    assert derivative == pytest.approx(value, rel=2e-5)

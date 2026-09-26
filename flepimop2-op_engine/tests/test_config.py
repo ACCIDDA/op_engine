@@ -18,10 +18,18 @@
 
 from __future__ import annotations
 
+from typing import get_args
+
+import numpy as np
 import pytest
 
 pydantic = pytest.importorskip("pydantic")
-from op_engine.core_solver import OperatorSpecs, RunConfig  # noqa: E402
+from op_engine.core_solver import (  # noqa: E402
+    MethodName,
+    NonlinearMethodConfig,
+    OperatorSpecs,
+    RunConfig,
+)
 from pydantic import ValidationError  # noqa: E402
 
 from flepimop2.engine.op_engine import (  # noqa: E402
@@ -50,6 +58,9 @@ def test_engine_config_defaults_to_run_config() -> None:
     # Adaptive config defaults
     assert run.adaptive_cfg.rtol == pytest.approx(1e-6)
     assert float(run.adaptive_cfg.atol) == pytest.approx(1e-9)
+    assert run.adaptive_cfg.dt_init is None
+    assert run.adaptive_cfg.max_reject == 25
+    assert run.adaptive_cfg.max_steps == 1_000_000
 
     # dt controller defaults
     assert run.dt_controller.dt_min == pytest.approx(0.0)
@@ -74,6 +85,9 @@ def test_engine_config_round_trips_selected_fields() -> None:
         strict=False,
         rtol=1e-4,
         atol=1e-7,
+        dt_init=0.05,
+        max_reject=12,
+        max_steps=345,
         dt_min=1e-6,
         dt_max=0.25,
         safety=0.95,
@@ -88,6 +102,9 @@ def test_engine_config_round_trips_selected_fields() -> None:
 
     assert run.adaptive_cfg.rtol == pytest.approx(1e-4)
     assert float(run.adaptive_cfg.atol) == pytest.approx(1e-7)
+    assert run.adaptive_cfg.dt_init == pytest.approx(0.05)
+    assert run.adaptive_cfg.max_reject == 12
+    assert run.adaptive_cfg.max_steps == 345
 
     assert run.dt_controller.dt_min == pytest.approx(1e-6)
     assert run.dt_controller.dt_max == pytest.approx(0.25)
@@ -138,6 +155,27 @@ def test_engine_config_rejects_unknown_method() -> None:
     """Engine config validates method name."""
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(method="bogus")  # type: ignore[arg-type]
+
+
+def test_provider_method_enum_matches_canonical_core_surface() -> None:
+    """A new canonical core method requires an explicit provider decision."""
+    assert {method.value for method in SolverMethod} == set(get_args(MethodName))
+
+
+@pytest.mark.parametrize("method", list(SolverMethod))
+def test_every_provider_method_converts_to_matching_core_method(
+    method: SolverMethod,
+) -> None:
+    """Every advertised provider method has a tested RunConfig conversion."""
+    nonlinear = None
+    if method is SolverMethod.SDIRK2:
+        nonlinear = NonlinearMethodConfig(
+            rhs_jacobian=lambda _time, state: np.eye(state.size),
+        )
+
+    run = OpEngineEngineConfig(method=method).to_run_config(nonlinear=nonlinear)
+
+    assert run.method == method.value
 
 
 @pytest.mark.parametrize("method", [SolverMethod.RK4, SolverMethod.DOPRI5])
@@ -269,7 +307,7 @@ def test_hybrid_mode_rejects_methods_requiring_the_full_jacobian(
     method: SolverMethod,
 ) -> None:
     """The full deterministic Jacobian is invalid after jump-drift subtraction."""
-    if not method.is_implicit:
+    if not method.is_implicit and not method.is_nonlinear:
         OpEngineEngineConfig(
             mode=ExecutionMode.HYBRID,
             method=method,

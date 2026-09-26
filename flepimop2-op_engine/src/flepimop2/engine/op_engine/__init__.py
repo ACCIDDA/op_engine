@@ -33,6 +33,7 @@ from op_engine.core_solver import (
     AdaptiveStepSchedule,
     CoreSolver,
     NonlinearIntegrationDiagnostics,
+    NonlinearMethodConfig,
     fixed_step_sizes,
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
@@ -69,6 +70,7 @@ if TYPE_CHECKING:
 
     from op_engine._typing import Scalar
     from op_engine.core_solver import CoreOperators, RunConfig, StageOperatorFactory
+    from op_engine.nonlinear_solver import NonlinearSolver
     from op_engine.stochastic_solver import PoissonSampler, SSASampler
 
 
@@ -99,6 +101,9 @@ class AdaptiveSchedule:
     step_schedule: AdaptiveStepSchedule
     rtol: float
     atol: float
+    dt_init: float | None
+    max_reject: int
+    max_steps: int
     dt_min: float
     dt_max: float
     safety: float
@@ -123,6 +128,9 @@ class AdaptiveSchedule:
             step_schedule=step_schedule,
             rtol=config.rtol,
             atol=config.atol,
+            dt_init=config.dt_init,
+            max_reject=config.max_reject,
+            max_steps=config.max_steps,
             dt_min=config.dt_min,
             dt_max=config.dt_max,
             safety=config.safety,
@@ -148,6 +156,9 @@ class AdaptiveSchedule:
         recorded = (
             self.rtol,
             self.atol,
+            self.dt_init,
+            self.max_reject,
+            self.max_steps,
             self.dt_min,
             self.dt_max,
             self.safety,
@@ -159,6 +170,9 @@ class AdaptiveSchedule:
         configured = (
             config.rtol,
             config.atol,
+            config.dt_init,
+            config.max_reject,
+            config.max_steps,
             config.dt_min,
             config.dt_max,
             config.safety,
@@ -996,6 +1010,20 @@ class OpEngineFlepimop2Engine(EngineABC):
                     ),
                 )
 
+        if method.is_nonlinear:
+            rhs_jacobian = system.option("rhs_jacobian", None)
+            if not callable(rhs_jacobian):
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"Nonlinear method '{method}' requires a full RHS "
+                            "Jacobian callable from "
+                            "system.option('rhs_jacobian')."
+                        ),
+                        kind="missing_rhs_jacobian",
+                    ),
+                )
+
         return issues or None
 
     def run(
@@ -1104,6 +1132,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         raw_params = _unwrap_parameter_values(params)
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
         n_state = int(y0.shape[0])
+        method = self.config.method
 
         if mode is ExecutionMode.STOCHASTIC:
             stochastic_network = compile_reaction_network(
@@ -1122,8 +1151,25 @@ class OpEngineFlepimop2Engine(EngineABC):
                 trajectory=_format_result(times, stochastic_states),
             )
 
-        run_cfg = self.config.to_run_config()
-        method = self.config.method
+        nonlinear: NonlinearMethodConfig | None = None
+        if method.is_nonlinear:
+            rhs_jacobian = system.option("rhs_jacobian", None)
+            if not callable(rhs_jacobian):
+                msg = (
+                    f"Nonlinear method '{method}' requires callable system option "
+                    "'rhs_jacobian'."
+                )
+                raise ValueError(msg)
+            nonlinear_solver = system.option("nonlinear_solver", None)
+            if nonlinear_solver is None:
+                nonlinear = NonlinearMethodConfig(rhs_jacobian=rhs_jacobian)
+            else:
+                nonlinear = NonlinearMethodConfig(
+                    rhs_jacobian=rhs_jacobian,
+                    solver=cast("NonlinearSolver", nonlinear_solver),
+                )
+
+        run_cfg = self.config.to_run_config(nonlinear=nonlinear)
         is_imex = method.is_imex
         operators = run_cfg.operators
         compiled_system_operators = False

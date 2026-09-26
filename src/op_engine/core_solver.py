@@ -4174,12 +4174,11 @@ class CoreSolver:
         Raises:
             ValueError: If the schedule and core output grids differ.
         """
-        time_grid = np.asarray(self.core.time_grid, dtype=float)
-        if len(schedule.output_times) != len(time_grid) or not np.allclose(
-            schedule.output_times,
+        time_grid = np.asarray(self.core.time_grid)
+        schedule_times = np.asarray(schedule.output_times, dtype=time_grid.dtype)
+        if len(schedule_times) != len(time_grid) or not np.array_equal(
+            schedule_times,
             time_grid,
-            rtol=1e-12,
-            atol=1e-12,
         ):
             raise ValueError(_SCHEDULE_TIME_GRID_ERROR_MSG)
 
