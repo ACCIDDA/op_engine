@@ -161,10 +161,34 @@ under `jax.jit` and be differentiated with `jax.grad`; no JAX-specific solver
 implementation is selected.
 
 The built-in adaptive controller uses eager Python loops and scalar acceptance
-decisions. It preserves JAX arrays but is not itself JIT-compatible. A compiled
-adaptive controller or specialized adjoint implementation belongs in an
-external provider and may return a trajectory through
-`ModelCore.apply_trajectory`.
+decisions. It preserves JAX arrays, and an eager `jax.grad` differentiates the
+accepted sequence of native steps, but the live controller is not itself
+JIT-compatible.
+
+For compiled differentiation, record the accepted mesh at representative
+parameters and replay it:
+
+```python
+solver = CoreSolver(reference_core)
+solver.run(rhs, config=config)
+schedule = solver.last_adaptive_schedule
+assert schedule is not None
+
+# Construct a fresh core and solver inside the function being transformed.
+solver = CoreSolver(differentiable_core)
+solver.replay_adaptive_schedule(rhs, schedule, config=config)
+```
+
+`jax.jit(jax.value_and_grad(...))` can trace the replay because its step count
+and step sizes are static, while array-valued model inputs remain dynamic. The
+gradient is conditional on that mesh: replay does not differentiate the
+accept/reject decisions. Refresh the schedule when parameters, tolerances, the
+method, or other model structure change materially.
+
+A live compiled controller or specialized adjoint implementation can still
+belong in an external provider and may return a trajectory through
+`ModelCore.apply_trajectory`. It should reuse the portable method semantics
+rather than define a JAX-only numerical method.
 
 See [Backend and solve-strategy boundaries](backends.md) for the complete
 portability contract and [the biogeochemical tutorial](biogeochemical-network.md)

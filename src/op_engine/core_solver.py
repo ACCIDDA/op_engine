@@ -48,9 +48,11 @@ Performance hygiene:
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
+from itertools import pairwise
 from numbers import Integral
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, TypeAlias, cast
 
@@ -99,6 +101,9 @@ _UNSUPPORTED_OPERATOR_TYPE_MSG = (
 )
 _ARRAY_API_ERROR_MSG = (
     "Explicit solver arrays must implement __array_namespace__(); got {type_name}."
+)
+_SCHEDULE_TIME_GRID_ERROR_MSG = (
+    "Adaptive schedule output_times must match the ModelCore time_grid"
 )
 
 
@@ -313,6 +318,71 @@ class AdaptiveConfig:
         ):
             msg = "max_steps must be a positive integer"
             raise ValueError(msg)
+
+
+@dataclass(slots=True, frozen=True)
+class AdaptiveStepSchedule:
+    """Accepted step sizes for replaying one adaptive solve.
+
+    The schedule records controller decisions, not array values. Replaying it
+    therefore uses the same numerical kernels and active Array-API namespace as
+    a live solve while keeping loop lengths and step sizes static.
+
+    Attributes:
+        output_times: Output grid used to create the schedule.
+        step_sizes: Accepted internal step sizes for each output interval.
+    """
+
+    output_times: tuple[float, ...]
+    step_sizes: tuple[tuple[float, ...], ...]
+
+    def __post_init__(self) -> None:
+        """Normalize and validate the recorded mesh.
+
+        Raises:
+            ValueError: If times or step sizes do not define a valid mesh.
+        """
+        output_times = tuple(float(value) for value in self.output_times)
+        step_sizes = tuple(
+            tuple(float(step_size) for step_size in interval)
+            for interval in self.step_sizes
+        )
+        object.__setattr__(self, "output_times", output_times)
+        object.__setattr__(self, "step_sizes", step_sizes)
+
+        if not output_times:
+            msg = "Adaptive schedule must contain at least one output time"
+            raise ValueError(msg)
+        if any(not math.isfinite(value) for value in output_times):
+            msg = "Adaptive schedule output times must be finite"
+            raise ValueError(msg)
+        if any(end <= start for start, end in pairwise(output_times)):
+            msg = "Adaptive schedule output times must be strictly increasing"
+            raise ValueError(msg)
+        if len(step_sizes) != len(output_times) - 1:
+            msg = "Adaptive schedule must contain one step group per output interval"
+            raise ValueError(msg)
+
+        for interval_index, interval_steps in enumerate(step_sizes):
+            if not interval_steps:
+                msg = "Adaptive schedule step groups must not be empty"
+                raise ValueError(msg)
+            if any(
+                not math.isfinite(step_size) or step_size <= 0.0
+                for step_size in interval_steps
+            ):
+                msg = "Adaptive schedule step sizes must be finite and positive"
+                raise ValueError(msg)
+
+            interval = output_times[interval_index + 1] - output_times[interval_index]
+            if not math.isclose(
+                math.fsum(interval_steps),
+                interval,
+                rel_tol=1e-10,
+                abs_tol=1e-12,
+            ):
+                msg = "Adaptive schedule steps must sum to each output interval"
+                raise ValueError(msg)
 
 
 @dataclass(slots=True, frozen=True)
@@ -597,6 +667,7 @@ class CoreSolver:
         # Previous-step cache (for multistep methods like BDF2)
         self._prev_state_cache: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._has_prev_state = False
+        self._last_adaptive_schedule: AdaptiveStepSchedule | None = None
 
         # Validate operator sizes if default spec is a static tuple
         if operators is not None and not callable(operators):
@@ -604,6 +675,11 @@ class CoreSolver:
             if left_op is not None and right_op is not None:
                 self._resolve_operator_axis()
                 self._validate_operator_sizes(left_op, right_op)
+
+    @property
+    def last_adaptive_schedule(self) -> AdaptiveStepSchedule | None:
+        """Return the schedule recorded or replayed by the latest adaptive run."""
+        return self._last_adaptive_schedule
 
     # ------------------------------------------------------------------
     # Axis / operator helpers
@@ -2635,6 +2711,7 @@ class CoreSolver:
         y0: Array,
         adaptive_cfg: AdaptiveConfig,
         dt_ctrl: DtControllerConfig,
+        accepted_steps: list[float],
     ) -> Array:
         """Advance an explicit method with functional adaptive substeps.
 
@@ -2693,6 +2770,7 @@ class CoreSolver:
                 )
 
                 if error_norm <= 1.0:
+                    accepted_steps.append(float(dt))
                     t += dt
                     y_current = y_try
                     dt = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
@@ -2722,6 +2800,7 @@ class CoreSolver:
         """
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
+        schedule_steps: list[tuple[float, ...]] = []
 
         for idx in range(n_steps - 1):
             t0 = float(time_grid[idx])
@@ -2731,6 +2810,7 @@ class CoreSolver:
 
             y_current = self.core.get_current_state()
             if config.adaptive:
+                accepted_steps: list[float] = []
                 y_next = self._advance_explicit_adaptive_to_time(
                     rhs_func,
                     method=plan.method,
@@ -2739,7 +2819,9 @@ class CoreSolver:
                     y0=y_current,
                     adaptive_cfg=config.adaptive_cfg,
                     dt_ctrl=config.dt_controller,
+                    accepted_steps=accepted_steps,
                 )
+                schedule_steps.append(tuple(accepted_steps))
             elif plan.method == "euler":
                 y_next = self._step_explicit_euler_once(
                     rhs_func,
@@ -2757,6 +2839,12 @@ class CoreSolver:
                 )
             self.core.advance_timestep(y_next)
 
+        if config.adaptive:
+            self._last_adaptive_schedule = AdaptiveStepSchedule(
+                output_times=tuple(float(value) for value in time_grid),
+                step_sizes=tuple(schedule_steps),
+            )
+
     def _advance_array_implicit_adaptive_to_time(  # noqa: PLR0913
         self,
         rhs_func: RHSFunction,
@@ -2767,6 +2855,7 @@ class CoreSolver:
         y0: Array,
         adaptive_cfg: AdaptiveConfig,
         dt_ctrl: DtControllerConfig,
+        accepted_steps: list[float],
     ) -> Array:
         """Advance a non-NumPy implicit method with adaptive substeps.
 
@@ -2823,6 +2912,7 @@ class CoreSolver:
                     atol=adaptive_cfg.atol,
                 )
                 if error_norm <= 1.0:
+                    accepted_steps.append(float(dt))
                     t += dt
                     y_current = y_try
                     dt = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
@@ -2852,6 +2942,7 @@ class CoreSolver:
         """
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         previous_state: Array | None = None
+        schedule_steps: list[tuple[float, ...]] = []
 
         for index in range(int(self.core.n_timesteps) - 1):
             t0 = float(time_grid[index])
@@ -2861,6 +2952,7 @@ class CoreSolver:
 
             current_state = self.core.get_current_state()
             if config.adaptive:
+                accepted_steps: list[float] = []
                 next_state = self._advance_array_implicit_adaptive_to_time(
                     rhs_func,
                     plan=plan,
@@ -2869,7 +2961,9 @@ class CoreSolver:
                     y0=current_state,
                     adaptive_cfg=config.adaptive_cfg,
                     dt_ctrl=config.dt_controller,
+                    accepted_steps=accepted_steps,
                 )
+                schedule_steps.append(tuple(accepted_steps))
             else:
                 next_state, _error, _order = self._attempt_array_implicit_step(
                     rhs_func,
@@ -2882,6 +2976,12 @@ class CoreSolver:
 
             self.core.advance_timestep(next_state)
             previous_state = current_state
+
+        if config.adaptive:
+            self._last_adaptive_schedule = AdaptiveStepSchedule(
+                output_times=tuple(float(value) for value in time_grid),
+                step_sizes=tuple(schedule_steps),
+            )
 
     def _advance_nonadaptive_to_time(  # noqa: PLR0913
         self,
@@ -2922,12 +3022,14 @@ class CoreSolver:
         self,
         rhs_func: RHSFunction,
         params: AdaptiveAdvanceParams,
+        accepted_steps: list[float],
     ) -> NDArray[np.floating]:
         """Advance with adaptive substepping to land exactly on params.t1.
 
         Args:
             rhs_func: RHS function.
             params: Adaptive advance parameters.
+            accepted_steps: Destination for accepted step sizes.
 
         Returns:
             State at params.t1.
@@ -2990,6 +3092,7 @@ class CoreSolver:
                 )
 
                 if err_norm <= 1.0:
+                    accepted_steps.append(float(dt))
                     t += dt
                     self._y_curr, self._y_try = self._y_try, self._y_curr
                     dt = self._propose_dt(dt, err_norm, order, cfg=params.dt_ctrl)
@@ -3009,6 +3112,164 @@ class CoreSolver:
     # Public run loop
     # ------------------------------------------------------------------
 
+    def _validate_schedule_time_grid(self, schedule: AdaptiveStepSchedule) -> None:
+        """Require a replay schedule to describe this core's output grid.
+
+        Raises:
+            ValueError: If the schedule and core output grids differ.
+        """
+        time_grid = np.asarray(self.core.time_grid, dtype=float)
+        if len(schedule.output_times) != len(time_grid) or not np.allclose(
+            schedule.output_times,
+            time_grid,
+            rtol=1e-12,
+            atol=1e-12,
+        ):
+            raise ValueError(_SCHEDULE_TIME_GRID_ERROR_MSG)
+
+    def _replay_explicit_schedule(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        schedule: AdaptiveStepSchedule,
+    ) -> None:
+        """Replay accepted explicit steps with functional Array-API kernels."""
+        for t0, interval_steps in zip(
+            schedule.output_times[:-1],
+            schedule.step_sizes,
+            strict=True,
+        ):
+            t = t0
+            state = self.core.get_current_state()
+            for dt in interval_steps:
+                state, _error, _order = self._attempt_explicit_step(
+                    rhs_func,
+                    method=plan.method,
+                    t=t,
+                    dt=dt,
+                    y=state,
+                )
+                t += dt
+            self.core.advance_timestep(state)
+
+    def _replay_array_implicit_schedule(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        schedule: AdaptiveStepSchedule,
+    ) -> None:
+        """Replay accepted implicit steps with functional Array-API kernels."""
+        for t0, interval_steps in zip(
+            schedule.output_times[:-1],
+            schedule.step_sizes,
+            strict=True,
+        ):
+            t = t0
+            state = self.core.get_current_state()
+            for dt in interval_steps:
+                state, _error, _order = self._attempt_array_implicit_step(
+                    rhs_func,
+                    plan=plan,
+                    t=t,
+                    dt=dt,
+                    y=state,
+                )
+                t += dt
+            self.core.advance_timestep(state)
+
+    def _replay_numpy_implicit_schedule(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        schedule: AdaptiveStepSchedule,
+    ) -> None:
+        """Replay accepted implicit steps with NumPy/SciPy scratch buffers.
+
+        Raises:
+            TypeError: If the state changes array ecosystems during replay.
+        """
+        for t0, interval_steps in zip(
+            schedule.output_times[:-1],
+            schedule.step_sizes,
+            strict=True,
+        ):
+            state = self.core.get_current_state()
+            if not isinstance(state, np.ndarray):
+                raise TypeError(
+                    _ARRAY_API_ERROR_MSG.format(type_name=type(state).__name__)
+                )
+            np.copyto(self._y_curr, state)
+            t = t0
+            for dt in interval_steps:
+                step = StepIO(
+                    t=t,
+                    dt=dt,
+                    y=self._y_curr,
+                    out=self._y_try,
+                    err_out=self._err,
+                )
+                self._attempt_step(rhs_func, plan=plan, step=step)
+                self._y_curr, self._y_try = self._y_try, self._y_curr
+                t += dt
+            self.core.advance_timestep(self._y_curr)
+
+    def replay_adaptive_schedule(
+        self,
+        rhs_func: RHSFunction,
+        schedule: AdaptiveStepSchedule,
+        *,
+        config: RunConfig,
+    ) -> None:
+        """Replay a recorded adaptive mesh through the configured method.
+
+        Replay bypasses error norms and accept/reject decisions while invoking
+        the same high-order step kernels used by a live adaptive solve. With a
+        JAX state, the static Python schedule can therefore be traced by
+        ``jax.jit`` and differentiated with respect to array-valued model inputs.
+
+        Args:
+            rhs_func: Function computing the explicit RHS F(t, y).
+            schedule: Accepted step mesh recorded by an adaptive run.
+            config: Matching adaptive run configuration.
+
+        Raises:
+            TypeError: If schedule has the wrong type or the state changes array
+                ecosystems during replay.
+            ValueError: If config is not adaptive or the output grid differs.
+        """
+        if not isinstance(schedule, AdaptiveStepSchedule):
+            msg = "schedule must be an AdaptiveStepSchedule"
+            raise TypeError(msg)
+        if not config.adaptive:
+            msg = "Schedule replay requires config.adaptive=True"
+            raise ValueError(msg)
+
+        self._last_adaptive_schedule = None
+        self._validate_schedule_time_grid(schedule)
+        plan = self._resolve_run_plan(config)
+
+        if plan.method in {"euler", "heun"}:
+            self._replay_explicit_schedule(rhs_func, plan=plan, schedule=schedule)
+        else:
+            current_state = self.core.get_current_state()
+            if isinstance(current_state, np.ndarray):
+                self._replay_numpy_implicit_schedule(
+                    rhs_func,
+                    plan=plan,
+                    schedule=schedule,
+                )
+            else:
+                self._replay_array_implicit_schedule(
+                    rhs_func,
+                    plan=plan,
+                    schedule=schedule,
+                )
+
+        self._last_adaptive_schedule = schedule
+
     def run(self, rhs_func: RHSFunction, *, config: RunConfig | None = None) -> None:
         """Advance the ModelCore state through its time grid.
 
@@ -3020,6 +3281,7 @@ class CoreSolver:
             TypeError: If the state changes array ecosystems during a run.
             ValueError: If invalid parameters are provided.
         """
+        self._last_adaptive_schedule = None
         cfg = config or RunConfig()
         plan = self._resolve_run_plan(cfg)
 
@@ -3034,6 +3296,7 @@ class CoreSolver:
 
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
+        schedule_steps: list[tuple[float, ...]] = []
 
         for idx in range(n_steps - 1):
             t0 = float(time_grid[idx])
@@ -3067,6 +3330,7 @@ class CoreSolver:
                 np.copyto(self._prev_state_cache, self._y_curr)
                 continue
 
+            accepted_steps: list[float] = []
             y_end = self._advance_adaptive_to_time(
                 rhs_func,
                 AdaptiveAdvanceParams(
@@ -3077,7 +3341,15 @@ class CoreSolver:
                     adaptive_cfg=cfg.adaptive_cfg,
                     dt_ctrl=cfg.dt_controller,
                 ),
+                accepted_steps,
             )
+            schedule_steps.append(tuple(accepted_steps))
             self.core.advance_timestep(y_end)
             self._has_prev_state = True
             np.copyto(self._prev_state_cache, self._y_curr)
+
+        if cfg.adaptive:
+            self._last_adaptive_schedule = AdaptiveStepSchedule(
+                output_times=tuple(float(value) for value in time_grid),
+                step_sizes=tuple(schedule_steps),
+            )

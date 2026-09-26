@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from op_engine import Array, CoreSolver, ModelCore, implicit_solve
-from op_engine.core_solver import AdaptiveConfig, RunConfig
+from op_engine.core_solver import AdaptiveConfig, AdaptiveStepSchedule, RunConfig
 from op_engine.model_core import ModelCoreOptions
 
 if TYPE_CHECKING:
@@ -236,6 +236,75 @@ def _solve_implicit_method(
     return core.get_current_state()
 
 
+def _solve_jax_adaptive_method(
+    method: str,
+    explicit_rate: Array,
+    operator_rate: Array,
+    initial: Array,
+    *,
+    schedule: AdaptiveStepSchedule | None = None,
+) -> tuple[Array, AdaptiveStepSchedule]:
+    """Run or replay one adaptive scalar problem with JAX arrays.
+
+    Returns:
+        Final scalar state and the accepted-step schedule.
+    """
+    jnp = pytest.importorskip("jax.numpy")
+    times = np.asarray([0.0, 0.2, 0.5], dtype=np.float32)
+    core = ModelCore(
+        1,
+        1,
+        times,
+        options=ModelCoreOptions(dtype=np.float32),
+    )
+    core.set_initial_state(jnp.reshape(initial, (1, 1)))
+
+    def rhs(_time: float, state: Array) -> Array:
+        return cast("Array", jnp.multiply(state, explicit_rate))
+
+    config_kwargs: dict[str, Any] = {}
+    if method.startswith("imex-"):
+
+        def operators(
+            dt: float,
+            scale: float,
+            _context: object,
+        ) -> tuple[Array, Array]:
+            identity = jnp.eye(1, dtype=jnp.float32)
+            generator = jnp.reshape(operator_rate, (1, 1))
+            left = jnp.subtract(
+                identity,
+                jnp.multiply(generator, dt * scale),
+            )
+            return cast("Array", left), cast("Array", identity)
+
+        solver = CoreSolver(core, operators=operators)
+    else:
+        solver = CoreSolver(core)
+        if method not in {"euler", "heun"}:
+
+            def jacobian(_time: float, _state: Array) -> Array:
+                return cast("Array", jnp.reshape(explicit_rate, (1, 1)))
+
+            config_kwargs["jacobian"] = jacobian
+
+    config = RunConfig(
+        method=method,
+        adaptive=True,
+        adaptive_cfg=AdaptiveConfig(rtol=1e-4, atol=1e-6, dt_init=0.05),
+        **config_kwargs,
+    )
+    if schedule is None:
+        solver.run(rhs, config=config)
+    else:
+        solver.replay_adaptive_schedule(rhs, schedule, config=config)
+
+    recorded_schedule = solver.last_adaptive_schedule
+    assert recorded_schedule is not None
+    final_state = cast("Array", core.get_current_state()[0, 0])
+    return final_state, recorded_schedule
+
+
 @pytest.mark.parametrize(
     "method",
     [
@@ -411,3 +480,103 @@ def test_fixed_step_dense_implicit_methods_support_jax_jit_and_grad(
     assert np.isfinite(float(value))
     assert np.all(np.isfinite(np.asarray(gradients)))
     assert np.allclose(np.asarray(gradients), expected_gradients, rtol=3e-2, atol=3e-3)
+
+
+@pytest.mark.parametrize(
+    ("method", "argnums"),
+    [
+        ("euler", (0, 2)),
+        ("heun", (0, 2)),
+        ("imex-euler", (0, 1, 2)),
+        ("imex-heun-tr", (0, 1, 2)),
+        ("imex-trbdf2", (0, 1, 2)),
+        ("implicit-euler", (0, 2)),
+        ("trapezoidal", (0, 2)),
+        ("ros2", (0, 2)),
+    ],
+)
+def test_live_adaptive_methods_support_eager_jax_grad(
+    method: str,
+    argnums: tuple[int, ...],
+) -> None:
+    """Live Python adaptivity preserves gradients through every step family."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+
+    def final_state(
+        explicit_rate: Array,
+        operator_rate: Array,
+        initial: Array,
+    ) -> Array:
+        result, _schedule = _solve_jax_adaptive_method(
+            method,
+            explicit_rate,
+            operator_rate,
+            initial,
+        )
+        return result
+
+    values = (-0.2, -0.4, 1.2)
+    value, gradients = jax.value_and_grad(final_state, argnums=argnums)(
+        *map(jnp.asarray, values)
+    )
+    expected_gradients = tuple(
+        _central_difference(final_state, values, argnum) for argnum in argnums
+    )
+
+    assert np.isfinite(float(value))
+    assert np.all(np.isfinite(np.asarray(gradients)))
+    assert np.allclose(np.asarray(gradients), expected_gradients, rtol=4e-2, atol=4e-3)
+
+
+@pytest.mark.parametrize(
+    ("method", "argnums"),
+    [
+        ("euler", (0, 2)),
+        ("heun", (0, 2)),
+        ("imex-euler", (0, 1, 2)),
+        ("imex-heun-tr", (0, 1, 2)),
+        ("imex-trbdf2", (0, 1, 2)),
+        ("implicit-euler", (0, 2)),
+        ("trapezoidal", (0, 2)),
+        ("ros2", (0, 2)),
+    ],
+)
+def test_adaptive_schedule_replay_supports_jax_jit_and_grad(
+    method: str,
+    argnums: tuple[int, ...],
+) -> None:
+    """Frozen accepted meshes compile and differentiate through native kernels."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    values = (-0.2, -0.4, 1.2)
+    live_value, schedule = _solve_jax_adaptive_method(
+        method,
+        *map(jnp.asarray, values),
+    )
+
+    def replayed_final_state(
+        explicit_rate: Array,
+        operator_rate: Array,
+        initial: Array,
+    ) -> Array:
+        result, _schedule = _solve_jax_adaptive_method(
+            method,
+            explicit_rate,
+            operator_rate,
+            initial,
+            schedule=schedule,
+        )
+        return result
+
+    replay_value = replayed_final_state(*map(jnp.asarray, values))
+    compiled = jax.jit(jax.value_and_grad(replayed_final_state, argnums=argnums))
+    value, gradients = compiled(*map(jnp.asarray, values))
+    expected_gradients = tuple(
+        _central_difference(replayed_final_state, values, argnum) for argnum in argnums
+    )
+
+    assert np.allclose(replay_value, live_value, rtol=2e-6, atol=2e-7)
+    assert np.isfinite(float(value))
+    assert np.all(np.isfinite(np.asarray(gradients)))
+    assert np.allclose(np.asarray(gradients), expected_gradients, rtol=4e-2, atol=4e-3)
