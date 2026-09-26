@@ -83,7 +83,7 @@ def _array_slice(value: Array, key: int | slice) -> Array:
     return cast("_IndexableArray", value)[key]
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class ModelCoreOptions:
     """Optional configuration for ModelCore.
 
@@ -109,6 +109,32 @@ class ModelCoreOptions:
     axis_coords: Mapping[str, np.ndarray] | None = None
     store_history: bool = True
     dtype: DTypeLike = np.float64
+
+    def __post_init__(self) -> None:
+        """Validate options that do not depend on a concrete model shape.
+
+        Raises:
+            ValueError: If an axis size or axis-name count is invalid.
+        """
+        for axis_size in self.other_axes:
+            if (
+                not isinstance(axis_size, (int, np.integer))
+                or isinstance(axis_size, bool)
+                or axis_size < 0
+            ):
+                msg = "other_axes entries must be non-negative integers"
+                raise ValueError(msg)
+
+        expected_rank = 2 + len(self.other_axes)
+        if self.axis_names is not None and len(self.axis_names) != expected_rank:
+            raise ValueError(
+                _AXIS_NAMES_LEN_ERROR.format(
+                    actual=len(self.axis_names),
+                    expected=expected_rank,
+                )
+            )
+
+        np.dtype(self.dtype)
 
 
 class ModelCore:

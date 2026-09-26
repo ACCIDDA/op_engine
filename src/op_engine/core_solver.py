@@ -51,6 +51,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
+from numbers import Integral
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
 
 import numpy as np
@@ -118,6 +119,41 @@ MethodName = Literal[
     "bdf2",
     "ros2",
 ]
+
+_METHOD_ALIASES: dict[str, MethodName] = {
+    "cn": "trapezoidal",
+    "crank-nicolson": "trapezoidal",
+    "trap": "trapezoidal",
+    "rosenbrock": "ros2",
+    "rosenbrock-w": "ros2",
+}
+_ALLOWED_METHODS: tuple[MethodName, ...] = (
+    "euler",
+    "heun",
+    "imex-euler",
+    "imex-heun-tr",
+    "imex-trbdf2",
+    "implicit-euler",
+    "trapezoidal",
+    "bdf2",
+    "ros2",
+)
+
+
+def _normalize_method(method: str) -> MethodName:
+    """Normalize and validate a user-provided method string.
+
+    Returns:
+        Canonical method name.
+
+    Raises:
+        ValueError: If the method is unknown.
+    """
+    method_norm = str(method).strip().lower()
+    method_norm = _METHOD_ALIASES.get(method_norm, cast("MethodName", method_norm))
+    if method_norm not in _ALLOWED_METHODS:
+        raise ValueError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
+    return method_norm
 
 
 class OperatorLike(Protocol):
@@ -191,6 +227,34 @@ class DtControllerConfig:
     fac_min: float = 0.2
     fac_max: float = 5.0
 
+    def __post_init__(self) -> None:
+        """Validate static timestep-controller parameters.
+
+        Raises:
+            ValueError: If any controller parameter is outside its valid range.
+        """
+        if not np.isfinite(self.dt_min) or self.dt_min < 0.0:
+            msg = "dt_min must be finite and non-negative"
+            raise ValueError(msg)
+        if np.isnan(self.dt_max) or self.dt_max <= 0.0:
+            msg = "dt_max must be positive and not NaN"
+            raise ValueError(msg)
+        if self.dt_max < self.dt_min:
+            msg = "dt_max must be greater than or equal to dt_min"
+            raise ValueError(msg)
+        if not np.isfinite(self.safety) or self.safety <= 0.0:
+            msg = "safety must be finite and positive"
+            raise ValueError(msg)
+        if not np.isfinite(self.fac_min) or self.fac_min <= 0.0:
+            msg = "fac_min must be finite and positive"
+            raise ValueError(msg)
+        if not np.isfinite(self.fac_max) or self.fac_max <= 0.0:
+            msg = "fac_max must be finite and positive"
+            raise ValueError(msg)
+        if self.fac_max < self.fac_min:
+            msg = "fac_max must be greater than or equal to fac_min"
+            raise ValueError(msg)
+
 
 @dataclass(slots=True, frozen=True)
 class AdaptiveConfig:
@@ -209,6 +273,46 @@ class AdaptiveConfig:
     dt_init: float | None = None
     max_reject: int = 25
     max_steps: int = 1_000_000
+
+    def __post_init__(self) -> None:
+        """Validate static adaptive-step parameters without coercing arrays.
+
+        Raises:
+            ValueError: If any static adaptive parameter is invalid.
+        """
+        if not np.isfinite(self.rtol) or self.rtol < 0.0:
+            msg = "rtol must be finite and non-negative"
+            raise ValueError(msg)
+
+        if isinstance(self.atol, (float, int, np.floating, np.integer)):
+            if not np.isfinite(self.atol) or self.atol < 0.0:
+                msg = "scalar atol must be finite and non-negative"
+                raise ValueError(msg)
+        elif isinstance(self.atol, np.ndarray) and (
+            not np.all(np.isfinite(self.atol)) or np.any(self.atol < 0.0)
+        ):
+            msg = "NumPy atol values must be finite and non-negative"
+            raise ValueError(msg)
+
+        if self.dt_init is not None and (
+            not np.isfinite(self.dt_init) or self.dt_init <= 0.0
+        ):
+            msg = "dt_init must be finite and positive when provided"
+            raise ValueError(msg)
+        if (
+            not isinstance(self.max_reject, Integral)
+            or isinstance(self.max_reject, bool)
+            or self.max_reject < 1
+        ):
+            msg = "max_reject must be a positive integer"
+            raise ValueError(msg)
+        if (
+            not isinstance(self.max_steps, Integral)
+            or isinstance(self.max_steps, bool)
+            or self.max_steps < 1
+        ):
+            msg = "max_steps must be a positive integer"
+            raise ValueError(msg)
 
 
 @dataclass(slots=True, frozen=True)
@@ -251,6 +355,31 @@ class RunConfig:
     operators: OperatorSpecs = OperatorSpecs()
     jacobian: JacobianFunction | None = None
     gamma: float | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize the method and validate context-free configuration.
+
+        Raises:
+            TypeError: If a nested configuration has the wrong type.
+            ValueError: If the method or TR-BDF2 gamma is invalid.
+        """
+        method = _normalize_method(self.method)
+        object.__setattr__(self, "method", method)
+
+        if not isinstance(self.dt_controller, DtControllerConfig):
+            msg = "dt_controller must be a DtControllerConfig"
+            raise TypeError(msg)
+        if not isinstance(self.adaptive_cfg, AdaptiveConfig):
+            msg = "adaptive_cfg must be an AdaptiveConfig"
+            raise TypeError(msg)
+        if not isinstance(self.operators, OperatorSpecs):
+            msg = "operators must be an OperatorSpecs"
+            raise TypeError(msg)
+
+        if method == "imex-trbdf2" and self.gamma is not None:
+            gamma = float(self.gamma)
+            if not np.isfinite(gamma) or not (0.0 < gamma < 1.0):
+                raise ValueError(_GAMMA_RANGE_ERROR_MSG)
 
 
 @dataclass(slots=True, frozen=True)
@@ -1429,45 +1558,6 @@ class CoreSolver:
         return jacobian
 
     @staticmethod
-    def _normalize_method(method: str) -> MethodName:
-        """Normalize and validate method string.
-
-        Args:
-            method: User-provided method string.
-
-        Returns:
-            Normalized method literal.
-
-        Raises:
-            ValueError: If method is unknown.
-        """
-        method_norm = str(method).strip().lower()
-
-        aliases: dict[str, str] = {
-            "cn": "trapezoidal",
-            "crank-nicolson": "trapezoidal",
-            "trap": "trapezoidal",
-            "rosenbrock": "ros2",
-            "rosenbrock-w": "ros2",
-        }
-        method_norm = aliases.get(method_norm, method_norm)
-
-        allowed: tuple[str, ...] = (
-            "euler",
-            "heun",
-            "imex-euler",
-            "imex-heun-tr",
-            "imex-trbdf2",
-            "implicit-euler",
-            "trapezoidal",
-            "bdf2",
-            "ros2",
-        )
-        if method_norm not in allowed:
-            raise ValueError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
-        return method_norm  # type: ignore[return-value]
-
-    @staticmethod
     def _resolve_gamma(method: MethodName, gamma: float | None) -> float | None:
         """
         Resolve TR-BDF2 gamma parameter.
@@ -1680,7 +1770,7 @@ class CoreSolver:
         Raises:
             ValueError: If invalid parameters are provided.
         """
-        method_in = self._normalize_method(cfg.method)
+        method_in = _normalize_method(cfg.method)
         gamma = self._resolve_gamma(method_in, cfg.gamma)
 
         op_default = (

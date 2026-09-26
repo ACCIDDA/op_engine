@@ -39,6 +39,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from importlib import import_module
+from numbers import Integral
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
@@ -114,6 +115,19 @@ class GridGeometry:
     n: int
     dx: float
 
+    def __post_init__(self) -> None:
+        """Validate context-free grid geometry.
+
+        Raises:
+            ValueError: If the grid size or spacing is invalid.
+        """
+        if not isinstance(self.n, Integral) or isinstance(self.n, bool) or self.n < 1:
+            msg = "n must be a positive integer"
+            raise ValueError(msg)
+        if not np.isfinite(self.dx) or self.dx <= 0.0:
+            msg = "dx must be finite and positive"
+            raise ValueError(msg)
+
 
 @dataclass(frozen=True, slots=True)
 class DiffusionConfig:
@@ -128,6 +142,19 @@ class DiffusionConfig:
     coeff: float
     dtype: DTypeLike = np.float64
     bc: str = "neumann"
+
+    def __post_init__(self) -> None:
+        """Validate context-free diffusion parameters.
+
+        Raises:
+            ValueError: If the coefficient or boundary condition is invalid.
+        """
+        if not np.isfinite(self.coeff) or self.coeff < 0.0:
+            msg = "coeff must be finite and non-negative"
+            raise ValueError(msg)
+        if self.bc not in {"neumann", "absorbing"}:
+            raise ValueError(_UNKNOWN_BC_ERROR.format(bc=self.bc))
+        np.dtype(self.dtype)
 
 
 # === Internal autodispatch threshold (tuned empirically) ===

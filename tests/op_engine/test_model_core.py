@@ -141,11 +141,18 @@ def test_axis_names_default_and_axis_index_and_state_ndim() -> None:
 
 
 def test_axis_names_length_mismatch_raises() -> None:
-    """axis_names length mismatch raises ValueError."""
-    time_grid = np.array([0.0, 1.0], dtype=float)
-    opts = ModelCoreOptions(other_axes=(4,), axis_names=("state", "subgroup"))
+    """axis_names length mismatch raises when options are constructed."""
     with pytest.raises(ValueError, match="axis_names length"):
-        ModelCore(n_states=2, n_subgroups=3, time_grid=time_grid, options=opts)
+        ModelCoreOptions(other_axes=(4,), axis_names=("state", "subgroup"))
+
+
+@pytest.mark.parametrize("other_axes", [(-1,), (1.5,), (True,)])
+def test_model_core_options_rejects_invalid_axis_sizes(
+    other_axes: tuple[object, ...],
+) -> None:
+    """Additional dimensions must be non-negative integral sizes."""
+    with pytest.raises(ValueError, match="other_axes"):
+        ModelCoreOptions(other_axes=other_axes)  # type: ignore[arg-type]
 
 
 def test_axis_coords_metadata_roundtrip() -> None:
