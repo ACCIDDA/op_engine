@@ -160,6 +160,13 @@ def test_engine_config_imex_allows_deferred_operators() -> None:
     assert not _has_any_operator_specs(run.operators)
 
 
+def test_engine_config_exposes_higher_order_imex_ark3() -> None:
+    """The provider passes the paired ARK method through to core config."""
+    run = OpEngineEngineConfig(method=SolverMethod.IMEX_ARK3).to_run_config()
+
+    assert run.method == "imex-ark3"
+
+
 def test_engine_config_imex_rejects_explicitly_empty_operator_block() -> None:
     """Providing an empty operator block should raise validation errors."""
     with pytest.raises(ValidationError):

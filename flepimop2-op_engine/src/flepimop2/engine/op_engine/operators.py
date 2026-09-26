@@ -649,6 +649,8 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
         return OperatorSpecs(default=trapezoidal)
     if method == "imex-trbdf2":
         return OperatorSpecs(tr=trapezoidal, bdf2=implicit_euler)
+    if method == "imex-ark3":
+        return OperatorSpecs(default=implicit_euler)
     msg = f"Typed system operators require an IMEX method; got {method!r}."
     raise ValueError(msg)
 
@@ -720,6 +722,8 @@ def compile_operator_descriptors(  # noqa: PLR0913
         return OperatorSpecs(default=trapezoidal)
     if method == "imex-trbdf2":
         return OperatorSpecs(tr=trapezoidal, bdf2=implicit_euler)
+    if method == "imex-ark3":
+        return OperatorSpecs(default=implicit_euler)
     msg = f"Typed system operators require an IMEX method; got {method!r}."
     raise ValueError(msg)
 

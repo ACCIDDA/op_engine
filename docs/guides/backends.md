@@ -12,12 +12,12 @@ because their fixed-step numerical operations remain in that namespace.
 
 ## Portable fixed-step methods
 
-With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX, and
-dense linearly implicit methods can be used inside `jax.jit` and differentiated
-with `jax.grad`. Dynamic values can include the initial state, RHS parameters,
-dense operator values, and Jacobian values. The time grid, method selection,
-state shape, and Python solver configuration are structural inputs and must
-remain static during a trace.
+With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX
+(including paired ARK3), and dense linearly implicit methods can be used inside
+`jax.jit` and differentiated with `jax.grad`. Dynamic values can include the
+initial state, RHS parameters, dense operator values, and Jacobian values. The
+time grid, method selection, state shape, and Python solver configuration are
+structural inputs and must remain static during a trace.
 
 Sparse acceleration is backend-specific. SciPy sparse solves are not a JAX
 differentiation path; use dense JAX operators when gradients through a solve are

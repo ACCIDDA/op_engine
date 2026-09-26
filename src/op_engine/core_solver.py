@@ -20,6 +20,7 @@ Supported methods (keyword `method=`):
                       Adaptive via embedded low/high (Euler vs Heun) mapped by the
                       same implicit operator solve.
     - "imex-trbdf2":  IMEX TR-BDF2 (order 2), adaptive via step-doubling.
+    - "imex-ark3":    ARS(4,4,3) additive Runge--Kutta with embedded order 2.
     - "implicit-euler": One-linearization Euler approximation (order 1).
     - "trapezoidal": One-linearization trapezoidal approximation (order 2).
     - "bdf2":        One-linearization BDF2 approximation (order 2).
@@ -76,6 +77,11 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.sparse import csr_matrix, identity
 
+from ._additive_runge_kutta import (
+    ADDITIVE_RUNGE_KUTTA_TABLEAUS,
+    AdditiveRungeKuttaTableau,
+    evaluate_additive_runge_kutta,
+)
 from ._multistep import (
     BDF2,
     MultistepHistory,
@@ -160,6 +166,7 @@ MethodName = Literal[
     "imex-euler",
     "imex-heun-tr",
     "imex-trbdf2",
+    "imex-ark3",
     "implicit-euler",
     "trapezoidal",
     "bdf2",
@@ -179,6 +186,8 @@ _METHOD_ALIASES: dict[str, MethodName] = {
     "runge-kutta-4": "rk4",
     "sdirk": "sdirk2",
     "alexander-sdirk2": "sdirk2",
+    "imex-ars443": "imex-ark3",
+    "ars443": "imex-ark3",
 }
 _ALLOWED_METHODS: tuple[MethodName, ...] = (
     "euler",
@@ -188,6 +197,7 @@ _ALLOWED_METHODS: tuple[MethodName, ...] = (
     "imex-euler",
     "imex-heun-tr",
     "imex-trbdf2",
+    "imex-ark3",
     "implicit-euler",
     "trapezoidal",
     "bdf2",
@@ -1533,6 +1543,74 @@ class CoreSolver:
             right_op=right_op,
         )
 
+    def _evaluate_additive_runge_kutta_array(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        tableau: AdditiveRungeKuttaTableau,
+        op_factory: StageOperatorFactory,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> tuple[Array, Array]:
+        """Evaluate one paired explicit/DIRK tableau functionally.
+
+        The factory must build an implicit-Euler left operator
+        ``I - dt * scale * A``. Its right operator is intentionally ignored:
+        additive DIRK stages solve the left system against an assembled stage
+        base rather than applying a complete one-step propagator.
+
+        Returns:
+            High- and embedded-order states in ``y``'s namespace.
+        """
+
+        def solve_stage(
+            stage_index: int,
+            stage_time: float,
+            stage_scale: float,
+            stage_base: Array,
+        ) -> Array:
+            ctx = StageOperatorContext(
+                t=float(stage_time),
+                y=stage_base,
+                stage=f"ark3-{stage_index}",
+                extra={
+                    "tableau": tableau.name,
+                    "stage_index": stage_index,
+                    "stage_scale": stage_scale,
+                },
+            )
+            predictor, left_op, _right_op = self._resolve_stage_operators(
+                op_factory,
+                dt=dt,
+                scale=stage_scale,
+                ctx=ctx,
+            )
+            if predictor is not None:
+                msg = "Additive Runge-Kutta stage factories cannot use a predictor"
+                raise ValueError(msg)
+            return self._apply_operator_solve_array(
+                stage_base,
+                predictor=None,
+                left_op=left_op,
+                right_op=self._identity_array(stage_base),
+            )
+
+        result = evaluate_additive_runge_kutta(
+            tableau=tableau,
+            t=t,
+            dt=dt,
+            y=y,
+            explicit_rhs=lambda stage_time, stage_state: self._rhs_array(
+                rhs_func,
+                stage_time,
+                stage_state,
+            ),
+            solve_implicit_stage=solve_stage,
+            weighted_state=self._weighted_rk_state,
+        )
+        return result.state, result.embedded_state
+
     @staticmethod
     def _weighted_array_state(
         base: Array,
@@ -1596,7 +1674,7 @@ class CoreSolver:
             weighted_sum=self._weighted_array_state,
         )
 
-    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914
+    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914, PLR0915
         self,
         rhs_func: RHSFunction,
         *,
@@ -1615,6 +1693,25 @@ class CoreSolver:
             RuntimeError: If the resolved plan is internally inconsistent.
         """
         xp = _namespace_of(y)
+
+        if plan.method == "imex-ark3":
+            if not callable(plan.op_default):
+                msg = "Internal error: additive Runge-Kutta factory is missing"
+                raise RuntimeError(msg)
+            additive_tableau = ADDITIVE_RUNGE_KUTTA_TABLEAUS[plan.method]
+            high, embedded = self._evaluate_additive_runge_kutta_array(
+                rhs_func,
+                tableau=additive_tableau,
+                op_factory=plan.op_default,
+                t=t,
+                dt=dt,
+                y=y,
+            )
+            return (
+                high,
+                cast("Array", xp.subtract(high, embedded)),
+                additive_tableau.embedded_order,
+            )
 
         if plan.method == "imex-euler":
             y_full = self._imex_euler_array_once(
@@ -2027,7 +2124,7 @@ class CoreSolver:
         if op_default is not None:
             msg = (
                 f"Method '{method_in}' is explicit; provided operators ignored. "
-                "Use 'imex-euler', 'imex-heun-tr', or 'imex-trbdf2' for implicit A."
+                "Use an 'imex-*' method for an implicit operator."
             )
             if strict:
                 warnings.warn(msg, RuntimeWarning, stacklevel=2)
@@ -2181,6 +2278,40 @@ class CoreSolver:
             jacobian=None,
         )
 
+    @staticmethod
+    def _plan_for_additive_runge_kutta(
+        method_in: MethodName,
+        op_default: CoreOperators | StageOperatorFactory | None,
+    ) -> RunPlan:
+        """Build a plan for a paired additive Runge--Kutta method.
+
+        Every DIRK stage has its own coefficient and context, so a callable
+        stage factory is required even on a uniform fixed-step grid.
+
+        Returns:
+            A resolved additive Runge--Kutta plan.
+
+        Raises:
+            TypeError: If the implicit stage operator specification is static.
+            ValueError: If the implicit stage factory is missing.
+        """
+        if op_default is None:
+            raise ValueError(_MISSING_OPERATORS_ERROR_MSG.format(method=method_in))
+        if not callable(op_default):
+            msg = (
+                f"Method '{method_in}' requires a StageOperatorFactory because "
+                "its DIRK stages have distinct times and coefficients"
+            )
+            raise TypeError(msg)
+        return RunPlan(
+            method=method_in,
+            gamma=None,
+            op_default=op_default,
+            op_tr=None,
+            op_bdf2=None,
+            jacobian=None,
+        )
+
     def _resolve_run_plan(self, cfg: RunConfig) -> RunPlan:
         """Resolve method/operators into an executable plan.
 
@@ -2218,6 +2349,9 @@ class CoreSolver:
                 strict=strict,
                 adaptive=adaptive,
             )
+
+        if method_in == "imex-ark3":
+            return self._plan_for_additive_runge_kutta(method_in, op_default)
 
         if method_in in {"implicit-euler", "trapezoidal", "bdf2", "ros2"}:
             jac_required = self._require_jacobian(method_in, jacobian)
@@ -2392,7 +2526,7 @@ class CoreSolver:
         y: Array,
         dt: float,
         weights: tuple[float, ...],
-        stages: list[Array],
+        stages: Sequence[Array],
     ) -> Array:
         """Return ``y + dt * sum(weights[i] * stages[i])`` natively."""
         xp = _namespace_of(y)
@@ -4064,14 +4198,14 @@ class CoreSolver:
             self._replay_explicit_schedule(rhs_func, plan=plan, schedule=schedule)
         else:
             current_state = self.core.get_current_state()
-            if isinstance(current_state, np.ndarray):
-                self._replay_numpy_implicit_schedule(
+            if plan.method == "imex-ark3" or not isinstance(current_state, np.ndarray):
+                self._replay_array_implicit_schedule(
                     rhs_func,
                     plan=plan,
                     schedule=schedule,
                 )
             else:
-                self._replay_array_implicit_schedule(
+                self._replay_numpy_implicit_schedule(
                     rhs_func,
                     plan=plan,
                     schedule=schedule,
@@ -4112,7 +4246,7 @@ class CoreSolver:
             return None
 
         current_state = self.core.get_current_state()
-        if not isinstance(current_state, np.ndarray):
+        if plan.method == "imex-ark3" or not isinstance(current_state, np.ndarray):
             self._run_array_implicit(rhs_func, plan=plan, config=cfg)
             return None
 

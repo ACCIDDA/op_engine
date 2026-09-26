@@ -46,6 +46,12 @@ def test_run_config_normalizes_sdirk2_aliases(alias: str) -> None:
     assert RunConfig(method=alias).method == "sdirk2"
 
 
+@pytest.mark.parametrize("alias", ["imex-ars443", "ars443"])
+def test_run_config_normalizes_imex_ark3_aliases(alias: str) -> None:
+    """The higher-order additive method has stable descriptive aliases."""
+    assert RunConfig(method=alias).method == "imex-ark3"
+
+
 def test_nonlinear_method_config_validates_protocol_boundary() -> None:
     """Nonlinear configuration stores callbacks and a backend-neutral protocol."""
     config = NonlinearMethodConfig(

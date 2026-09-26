@@ -129,6 +129,27 @@ def test_generator_lifts_over_other_axes_and_apply_to() -> None:
     np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
 
 
+def test_ark3_compiles_typed_descriptors_to_implicit_euler_factory() -> None:
+    """The provider gives each ARK DIRK stage the required left operator."""
+    specs = compile_operator_descriptors(
+        (_generator_descriptor(apply_to=("X[imm]",)),),
+        method="imex-ark3",
+        state_names=("X__imm_x_0", "X__imm_x_1"),
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x-0", "x 1")},
+        params={"G": np.asarray([[-1.0, 1.0], [0.25, -0.25]])},
+    )
+
+    assert callable(specs.default)
+    left, right = specs.default(
+        0.2,
+        0.5,
+        StageOperatorContext(t=0.1, y=np.zeros((2, 1)), stage="ark3-1"),
+    )
+    np.testing.assert_array_equal(np.asarray(right), np.eye(2))
+    assert not np.array_equal(np.asarray(left), np.eye(2))
+
+
 def test_advection_lifts_portable_operator_over_selected_states() -> None:
     """Typed advection uses axis coordinates and the portable upwind stencil."""
     state_names = (
