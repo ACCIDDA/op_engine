@@ -2,10 +2,10 @@
 
 `ModelCore` owns output times and state storage. Deterministic systems use
 `CoreSolver` and a method selected by `RunConfig`. Stochastic reaction networks
-use `TauLeapingSolver`, because propensities and stoichiometry have different
-semantics from an ODE right-hand side. In both cases the state array selects the
-Array-API namespace; choosing JAX instead of NumPy does not select a different
-numerical method.
+use `DirectSSASolver` or `TauLeapingSolver`, because propensities and
+stoichiometry have different semantics from an ODE right-hand side. In every
+case the state array selects the Array-API namespace; choosing JAX instead of
+NumPy does not select a different numerical method.
 
 ## Deterministic method guide
 
@@ -35,6 +35,55 @@ coefficient/history contract, restart rules, and the current no-go decision on
 exposing BDF3 before variable-step and rejection semantics exist.
 
 ## Stochastic reaction networks
+
+Both stochastic solvers use one reaction contract: the stoichiometric matrix
+has shape `(n_species, n_reactions)`, while the propensity function returns
+the state shape with `n_reactions` replacing `n_species` on the configured
+reaction axis.
+
+### Exact direct SSA
+
+`DirectSSASolver` implements
+[Gillespie's direct method](https://doi.org/10.1021/j100540a008). It samples one
+exponential waiting time and one categorical reaction/batch event, applies
+exactly one stoichiometric update, and repeats. A draw beyond an output boundary
+is retained rather than discarded, so adding observation times does not alter
+the simulated path. Zero total propensity is absorbing.
+
+Use direct SSA as the reference method for low-copy-number networks, rare-event
+questions, or checking a tau-leaping approximation. Its cost is proportional to
+the number of individual events, so tau-leaping is usually preferable when
+populations and firing rates are high.
+
+```python
+import numpy as np
+
+from op_engine import DirectSSASolver, ModelCore, NumpySSASampler
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=2, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[20.0], [0.0]]))
+
+# A -> B
+stoichiometry = np.asarray([[-1], [1]])
+
+
+def propensity(_time, state):
+    return 0.2 * state[0:1]
+
+
+DirectSSASolver(core, stoichiometry).run(
+    propensity,
+    NumpySSASampler(seed=2026),
+)
+```
+
+The direct method assumes propensities remain constant between reaction events,
+as in a time-homogeneous continuous-time Markov chain. Across batch cells it
+samples from the superposed event process; the result is equivalent to
+independent direct-method trajectories for independent batch cells.
+
+### Fixed-step tau-leaping
 
 Fixed-step explicit tau-leaping approximates the number of firings in each
 reaction channel over a time interval with an independent Poisson draw. Supply
