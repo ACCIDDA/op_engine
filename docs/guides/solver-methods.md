@@ -36,7 +36,7 @@ exposing BDF3 before variable-step and rejection semantics exist.
 
 ## Stochastic reaction networks
 
-Both stochastic solvers use one reaction contract: the stoichiometric matrix
+All stochastic solvers use one reaction contract: the stoichiometric matrix
 has shape `(n_species, n_reactions)`, while the propensity function returns
 the state shape with `n_reactions` replacing `n_species` on the configured
 reaction axis.
@@ -82,6 +82,63 @@ The direct method assumes propensities remain constant between reaction events,
 as in a time-homogeneous continuous-time Markov chain. Across batch cells it
 samples from the superposed event process; the result is equivalent to
 independent direct-method trajectories for independent batch cells.
+
+### Bounded adaptive tau-leaping
+
+`AdaptiveTauLeapingSolver` implements the species-based pre-leap selector of
+[Cao, Gillespie, and Petzold](https://doi.org/10.1063/1.2159468) together with
+their [non-negative modified Poisson
+algorithm](https://doi.org/10.1063/1.1992473). It needs both net stoichiometry
+and non-negative reactant stoichiometry. They are intentionally separate:
+net changes cannot reveal catalytic reactants or how many source molecules a
+reaction consumes.
+
+```python
+from op_engine import (
+    AdaptiveTauLeapingConfig,
+    AdaptiveTauLeapingSolver,
+    NumpyPoissonSampler,
+    NumpySSASampler,
+)
+
+# Net A -> B changes and consumed reactants, respectively.
+stoichiometry = np.asarray([[-1], [1]])
+reactants = np.asarray([[1], [0]])
+
+solver = AdaptiveTauLeapingSolver(core, stoichiometry, reactants)
+solver.run(
+    propensity,
+    NumpyPoissonSampler(seed=2026),
+    NumpySSASampler(seed=2027),
+    config=AdaptiveTauLeapingConfig(leap_tolerance=0.03),
+)
+```
+
+The non-negativity strategy has three explicit layers:
+
+1. **Pre-leap selection.** Species drift and variance from noncritical
+   reactions bound expected and stochastic population changes. The
+   `leap_tolerance` controls this approximation.
+2. **Bounded critical events.** A channel is critical when fewer than
+   `critical_threshold` firings could exhaust a reactant. Across all critical
+   channel/batch events, at most one is selected by the exact-event sampler in
+   a leap. If all active channels are critical, the method is direct SSA.
+3. **Post-leap rejection.** If noncritical Poisson firings still propose a
+   negative population, the proposal is discarded, the attempted tau is
+   halved, and fresh samples use new deterministic draw indices. No population
+   or firing count is clipped.
+
+When the selected tau is cheaper to execute event by event,
+`exact_fallback_multiplier` switches temporarily to direct SSA. Tightening
+`leap_tolerance` therefore approaches, and eventually crosses into, the exact
+reference path on low-count networks.
+
+Per-channel binomial firing was considered but is not used here. Although a
+binomial draw bounds one channel, independent binomials can still collectively
+overconsume a reactant shared by several channels. A true coupled-binomial
+scheme would need a distinct sampling contract. The critical-event bound plus
+explicit post-leap rejection gives a documented non-negative method without
+silently changing those reaction dependencies.
 
 ### Fixed-step tau-leaping
 
@@ -139,8 +196,9 @@ def poisson(mean, step_index):
 
 This first implementation deliberately rejects a leap that produces a
 negative population. It neither clips counts nor changes the process
-silently. Reduce `max_step` for a better fixed-tau approximation. Bounded or
-adaptive tau selection is a separate future method.
+silently. Reduce `max_step` for a better fixed-tau approximation, or use
+`AdaptiveTauLeapingSolver` when automatic leap selection and critical-event
+handling are required.
 
 Tau-leaping is currently an eager execution path: validation reads sampled
 counts and proposed populations back to Python. JAX arrays stay in their native

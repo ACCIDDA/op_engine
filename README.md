@@ -15,6 +15,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
 - `CoreSolver`: portable explicit methods through Dormand--Prince 5(4), plus dense IMEX and linearly implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
 - `DirectSSASolver`: exact Gillespie direct-method trajectories with injected, backend-specific exponential and categorical sampling.
+- `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
@@ -107,6 +108,7 @@ solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
 - `CoreSolver`: portable explicit and dense IMEX/implicit stepping selected by the state array namespace.
 - `DirectSSASolver`: exact event-by-event stochastic reaction trajectories with NumPy, JAX, or another Array-API namespace supplying random draws.
+- `AdaptiveTauLeapingSolver`: adaptive non-negative stochastic leaps using explicit reactant stoichiometry and injected Poisson plus exact-event sampling.
 - `TauLeapingSolver`: portable stoichiometric updates with NumPy, JAX, or another Array-API namespace supplying Poisson samples.
 - Operator utilities (`matrix_ops`): portable upwind advection, Laplacian, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, and grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.

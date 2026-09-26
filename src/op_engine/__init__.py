@@ -5,6 +5,7 @@ from __future__ import annotations
 from importlib.metadata import version as _metadata_version
 
 from ._typing import Array
+from .adaptive_tau import AdaptiveTauLeapingConfig, AdaptiveTauLeapingSolver
 from .core_solver import (
     CoreSolver,
     NonlinearIntegrationConvergenceError,
@@ -60,6 +61,8 @@ from .stochastic_solver import (
 )
 
 __all__ = [
+    "AdaptiveTauLeapingConfig",
+    "AdaptiveTauLeapingSolver",
     "Array",
     "CoreSolver",
     "DenseNewtonSolver",
