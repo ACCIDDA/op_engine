@@ -66,6 +66,12 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.sparse import csr_matrix, identity
 
+from ._multistep import (
+    BDF2,
+    MultistepHistory,
+    evaluate_linearly_implicit_bdf,
+    select_multistep_tableau,
+)
 from ._rosenbrock import ROSENBROCK_W_TABLEAUS, RosenbrockWTableau
 from ._rosenbrock import evaluate_rosenbrock_w as evaluate_rosenbrock_w_tableau
 from ._runge_kutta import EXPLICIT_TABLEAUS, ExplicitRungeKuttaTableau
@@ -503,7 +509,7 @@ class StepIO:
         y: Current state array (input).
         out: Output state array (written in-place).
         err_out: Error estimate array (written in-place) for adaptive methods.
-        y_prev: Optional previous state (for multistep methods).
+        history: Older accepted states for multistep methods, newest first.
     """
 
     t: float
@@ -511,7 +517,7 @@ class StepIO:
     y: NDArray[np.floating]
     out: NDArray[np.floating]
     err_out: NDArray[np.floating] | None = None
-    y_prev: NDArray[np.floating] | None = None
+    history: tuple[NDArray[np.floating], ...] = ()
 
 
 @dataclass(slots=True, frozen=True)
@@ -701,9 +707,6 @@ class CoreSolver:
         self._f_stage1: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._f_extrap: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
 
-        # Previous-step cache (for multistep methods like BDF2)
-        self._prev_state_cache: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
-        self._has_prev_state = False
         self._last_adaptive_schedule: AdaptiveStepSchedule | None = None
 
         # Validate operator sizes if default spec is a static tuple
@@ -1189,7 +1192,7 @@ class CoreSolver:
             x=explicit,
         )
 
-    def _imex_trbdf2_array_once(  # noqa: PLR0913, PLR0914
+    def _imex_trbdf2_array_once(  # noqa: PLR0913
         self,
         rhs_func: RHSFunction,
         *,
@@ -1348,7 +1351,7 @@ class CoreSolver:
             weighted_sum=self._weighted_array_state,
         )
 
-    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914
+    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913
         self,
         rhs_func: RHSFunction,
         *,
@@ -1356,7 +1359,7 @@ class CoreSolver:
         t: float,
         dt: float,
         y: Array,
-        y_prev: Array | None = None,
+        history: tuple[Array, ...] = (),
     ) -> tuple[Array, Array, int]:
         """Attempt any implicit/IMEX method with functional array operations.
 
@@ -1511,16 +1514,7 @@ class CoreSolver:
             return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
 
         if plan.method == "bdf2":
-            if y_prev is None:
-                y_next = self._implicit_euler_array_once(
-                    rhs_func,
-                    plan.jacobian,
-                    t=t,
-                    dt=dt,
-                    y=y,
-                )
-                return y_next, cast("Array", xp.zeros_like(y_next)), 1
-
+            bdf_tableau = select_multistep_tableau(BDF2, len(history))
             jac, residual = self._linearized_residual_array(
                 rhs_func,
                 plan.jacobian,
@@ -1529,23 +1523,37 @@ class CoreSolver:
             )
             jac_array = self._operator_array(jac, y)
             identity_op = self._identity_array(y)
-            left_op = cast(
-                "Array",
-                xp.subtract(
-                    xp.multiply(identity_op, 1.5),
-                    xp.multiply(jac_array, dt),
-                ),
+
+            def solve(alpha_zero: float, dt_beta: float, solve_rhs: Array) -> Array:
+                left_op = cast(
+                    "Array",
+                    xp.subtract(
+                        xp.multiply(identity_op, alpha_zero),
+                        xp.multiply(jac_array, dt_beta),
+                    ),
+                )
+                return self._apply_operator_solve_array(
+                    solve_rhs,
+                    predictor=None,
+                    left_op=left_op,
+                    right_op=identity_op,
+                )
+
+            known_states = (y, *history[: bdf_tableau.stored_state_history])
+            y_high = evaluate_linearly_implicit_bdf(
+                tableau=bdf_tableau,
+                dt=dt,
+                known_states=known_states,
+                residual=residual,
+                solve=solve,
+                weighted_sum=self._weighted_array_state,
             )
-            solve_rhs = xp.add(
-                xp.subtract(xp.multiply(y, 2.0), xp.multiply(y_prev, 0.5)),
-                xp.multiply(residual, dt),
-            )
-            y_high = self._apply_operator_solve_array(
-                cast("Array", solve_rhs),
-                predictor=None,
-                left_op=left_op,
-                right_op=identity_op,
-            )
+            if bdf_tableau.order == 1:
+                return (
+                    y_high,
+                    cast("Array", xp.zeros_like(y_high)),
+                    bdf_tableau.order,
+                )
             y_low = self._implicit_euler_array_once(
                 rhs_func,
                 plan.jacobian,
@@ -1553,7 +1561,11 @@ class CoreSolver:
                 dt=dt,
                 y=y,
             )
-            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+            return (
+                y_high,
+                cast("Array", xp.subtract(y_high, y_low)),
+                bdf_tableau.order,
+            )
 
         if plan.method == "ros2":
             tableau = ROSENBROCK_W_TABLEAUS[plan.method]
@@ -2714,51 +2726,65 @@ class CoreSolver:
         """BDF2 with linearized residual (uniform dt, non-adaptive).
 
         Returns:
-            Method order (2).
+            Executed method order (1 during startup, then 2).
         """
-        if step.y_prev is None:
-            err_out = self._require_err_out(step)
-            self._implicit_euler_linearized_once(
-                rhs_func,
-                t=step.t,
-                y=step.y,
-                dt=step.dt,
-                jacobian=jacobian,
-                out=step.out,
-            )
-            err_out.fill(0.0)
-            return 1
-
         err_out = self._require_err_out(step)
-
+        tableau = select_multistep_tableau(BDF2, len(step.history))
         jac = self._compute_linearized_residual(rhs_func, jacobian, step.t, step.y)
         jac_op = self._as_scipy_operator(jac)
         n = self._require_op_axis_len()
 
-        left_op: OperatorLike
-        right_op: OperatorLike
+        def weighted_sum(
+            base: NDArray[np.floating],
+            base_weight: float,
+            weights: tuple[float, ...],
+            states: Sequence[NDArray[np.floating]],
+        ) -> NDArray[np.floating]:
+            np.multiply(base, base_weight, out=self._rhs_buffer)
+            for weight, state in zip(weights, states, strict=True):
+                np.multiply(state, weight, out=self._f_pred)
+                np.add(self._rhs_buffer, self._f_pred, out=self._rhs_buffer)
+            return self._rhs_buffer
 
-        if isinstance(jac_op, csr_matrix):
-            identity_op = identity(n, format="csr", dtype=jac_op.dtype)
-            left_op = (1.5 * identity_op - step.dt * jac_op).tocsr()
-            right_op = identity_op
-        else:
-            jac_arr = np.asarray(jac_op, dtype=self.dtype)
-            left_op = 1.5 * np.eye(n, dtype=self.dtype) - step.dt * jac_arr
-            right_op = np.eye(n, dtype=self.dtype)
+        def solve(
+            alpha_zero: float,
+            dt_beta: float,
+            solve_rhs: NDArray[np.floating],
+        ) -> NDArray[np.floating]:
+            left_op: OperatorLike
+            right_op: OperatorLike
+            identity_op: OperatorLike
+            if isinstance(jac_op, csr_matrix):
+                identity_op = identity(n, format="csr", dtype=jac_op.dtype)
+                left_op = (alpha_zero * identity_op - dt_beta * jac_op).tocsr()
+                right_op = identity_op
+            else:
+                jac_arr = np.asarray(jac_op, dtype=self.dtype)
+                identity_op = np.eye(n, dtype=self.dtype)
+                left_op = alpha_zero * identity_op - dt_beta * jac_arr
+                right_op = identity_op
+            self._apply_operator_solve_with_ops(
+                solve_rhs,
+                predictor=None,
+                left_op=left_op,
+                right_op=right_op,
+                out=step.out,
+            )
+            return step.out
 
-        np.copyto(self._rhs_buffer, step.y)
-        self._rhs_buffer *= 2.0
-        self._rhs_buffer -= 0.5 * step.y_prev
-        self._rhs_buffer += step.dt * self._f_extrap
-
-        self._apply_operator_solve_with_ops(
-            self._rhs_buffer,
-            predictor=None,
-            left_op=left_op,
-            right_op=right_op,
-            out=step.out,
+        known_states = (step.y, *step.history[: tableau.stored_state_history])
+        _ = evaluate_linearly_implicit_bdf(
+            tableau=tableau,
+            dt=step.dt,
+            known_states=known_states,
+            residual=self._f_extrap,
+            solve=solve,
+            weighted_sum=weighted_sum,
         )
+
+        if tableau.order == 1:
+            err_out.fill(0.0)
+            return tableau.order
 
         # Embedded implicit Euler (order 1) for error estimate
         self._implicit_euler_linearized_once(
@@ -2770,7 +2796,7 @@ class CoreSolver:
             out=self._y_full,
         )
         np.subtract(step.out, self._y_full, out=err_out)
-        return 2
+        return tableau.order
 
     def _step_rosenbrock_w2(
         self,
@@ -3140,7 +3166,9 @@ class CoreSolver:
             ValueError: If an output interval is not strictly increasing.
         """
         time_grid = np.asarray(self.core.time_grid, dtype=float)
-        previous_state: Array | None = None
+        history = MultistepHistory[Array](
+            capacity=BDF2.stored_state_history if plan.method == "bdf2" else 0,
+        )
         schedule_steps: list[tuple[float, ...]] = []
 
         for index in range(int(self.core.n_timesteps) - 1):
@@ -3170,11 +3198,11 @@ class CoreSolver:
                     t=t0,
                     dt=t1 - t0,
                     y=current_state,
-                    y_prev=previous_state,
+                    history=history.states,
                 )
 
+            history = history.push(current_state)
             self.core.advance_timestep(next_state)
-            previous_state = current_state
 
         if config.adaptive:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
@@ -3190,7 +3218,7 @@ class CoreSolver:
         t0: float,
         dt_out: float,
         y0: NDArray[np.floating],
-        y_prev: NDArray[np.floating] | None,
+        history: tuple[NDArray[np.floating], ...],
     ) -> NDArray[np.floating]:
         """
         Advance exactly one step to the next output time.
@@ -3201,7 +3229,7 @@ class CoreSolver:
             t0: Initial time.
             dt_out: Output time step.
             y0: Initial state.
-            y_prev: Previous state (required for multistep methods).
+            history: Older accepted states for multistep methods, newest first.
 
         Returns:
             State at t0 + dt_out.
@@ -3212,7 +3240,7 @@ class CoreSolver:
             y=y0,
             out=self._y_try,
             err_out=self._err,
-            y_prev=y_prev,
+            history=history,
         )
         _ = self._attempt_step(rhs_func, plan=plan, step=step)
         return self._y_try
@@ -3499,6 +3527,9 @@ class CoreSolver:
 
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
+        history = MultistepHistory[NDArray[np.floating]](
+            capacity=BDF2.stored_state_history if plan.method == "bdf2" else 0,
+        )
         schedule_steps: list[tuple[float, ...]] = []
 
         for idx in range(n_steps - 1):
@@ -3515,10 +3546,6 @@ class CoreSolver:
                 )
             np.copyto(self._y_curr, state)
 
-            y_prev: NDArray[np.floating] | None = (
-                self._prev_state_cache if self._has_prev_state else None
-            )
-
             if not cfg.adaptive:
                 y_next = self._advance_nonadaptive_to_time(
                     rhs_func,
@@ -3526,11 +3553,10 @@ class CoreSolver:
                     t0=t0,
                     dt_out=dt_out,
                     y0=self._y_curr,
-                    y_prev=y_prev,
+                    history=history.states,
                 )
+                history = history.push(self._y_curr)
                 self.core.advance_timestep(y_next)
-                self._has_prev_state = True
-                np.copyto(self._prev_state_cache, self._y_curr)
                 continue
 
             accepted_steps: list[float] = []
@@ -3547,9 +3573,8 @@ class CoreSolver:
                 accepted_steps,
             )
             schedule_steps.append(tuple(accepted_steps))
+            history = history.push(self._y_curr)
             self.core.advance_timestep(y_end)
-            self._has_prev_state = True
-            np.copyto(self._prev_state_cache, self._y_curr)
 
         if cfg.adaptive:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
