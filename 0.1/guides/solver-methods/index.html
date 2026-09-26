@@ -1043,6 +1043,12 @@ numerical method.</p>
 <td>Split systems needing stronger damping</td>
 </tr>
 <tr>
+<td><code>imex-ark3</code></td>
+<td style="text-align: right;">3 (embedded 2)</td>
+<td>One implicit-Euler stage factory</td>
+<td>Higher-order adaptive split systems</td>
+</tr>
+<tr>
 <td><code>implicit-euler</code></td>
 <td style="text-align: right;">1</td>
 <td>Jacobian callable</td>
@@ -1233,6 +1239,29 @@ config = RunConfig(
     operators=OperatorSpecs(tr=trapezoidal, bdf2=implicit_euler),
 )
 </code></pre>
+<p><code>imex-ark3</code> uses the five-stage ARS(4,4,3) additive Runge--Kutta
+tableau from <a href="https://doi.org/10.1016/S0168-9274(97)00056-1">Ascher, Ruuth, and Spiteri
+(1997)</a>. Its implicit
+half is L-stable and stiffly accurate. A shared <code>c=1/2</code> stage supplies a
+second-order explicit/implicit midpoint estimate, so adaptive error control
+does not use step doubling.</p>
+<pre><code class="language-python">implicit_euler = make_stage_operator_factory(diffusion, scheme=&quot;implicit-euler&quot;)
+config = RunConfig(
+    method=&quot;imex-ark3&quot;,
+    operators=OperatorSpecs(default=implicit_euler),
+)
+</code></pre>
+<p>This method always requires a <code>StageOperatorFactory</code>, including on a uniform
+fixed-step grid. For each non-explicit stage the factory receives the attempted
+full-step size, the DIRK diagonal coefficient as <code>scale</code>, the actual stage
+time, and the assembled stage base in <code>StageOperatorContext.y</code>. It must build
+an implicit-Euler left operator <code>I - dt * scale * A</code>. Predictor tuples are not
+accepted, and the returned right operator is not applied: the additive kernel
+has already assembled all previous explicit and implicit stage contributions.
+The implicit derivative is then recovered from the solved stage equation,
+which avoids a duplicate callback for <code>A @ y</code> and keeps the method portable
+across Array-API namespaces.</p>
+<p><code>imex-ars443</code> and <code>ars443</code> are aliases for <code>imex-ark3</code>.</p>
 <p>The flepimop2 provider can compile typed <code>op_system</code> <code>axis_kernel</code>, <code>advection</code>,
 and <code>diffusion</code> descriptors into these same factories. Descriptor parsing and
 axis-label resolution belong to the provider; the numerical builders and
