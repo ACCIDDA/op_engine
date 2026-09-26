@@ -77,6 +77,42 @@ def _as_dense(mat: object) -> NDArray[np.floating]:
     return np.asarray(mat)
 
 
+@pytest.mark.parametrize(
+    ("n", "dx", "match"),
+    [
+        (0, 1.0, "n must"),
+        (1, 0.0, "dx must"),
+        (1, np.inf, "dx must"),
+    ],
+)
+def test_grid_geometry_validates_at_construction(
+    n: int,
+    dx: float,
+    match: str,
+) -> None:
+    """Invalid static grid geometry fails at configuration construction."""
+    with pytest.raises(ValueError, match=match):
+        GridGeometry(n=n, dx=dx)
+
+
+@pytest.mark.parametrize(
+    ("coeff", "bc", "match"),
+    [
+        (-1.0, "neumann", "coeff"),
+        (np.inf, "neumann", "coeff"),
+        (1.0, "periodic", "Unknown bc"),
+    ],
+)
+def test_diffusion_config_validates_at_construction(
+    coeff: float,
+    bc: str,
+    match: str,
+) -> None:
+    """Invalid legacy diffusion configuration fails at construction."""
+    with pytest.raises(ValueError, match=match):
+        DiffusionConfig(coeff=coeff, bc=bc)
+
+
 # -------------------------------------------------------------------
 # Upwind advection
 # -------------------------------------------------------------------
