@@ -51,6 +51,10 @@ addopts = "-q"
 
 [tool.uv.sources]
 op-engine = { path = "..", editable = true }
+# Temporary development pins: op_system main supplies routing and sparse_table.
+# Published wheel metadata continues to use the registry requirements above.
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "7d65f9bc36946dfac9b53dd18c792304dd924410", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "7d65f9bc36946dfac9b53dd18c792304dd924410" }
 
 
 [tool.ruff.format]
@@ -75,6 +79,8 @@ convention = "google"
 
 [dependency-groups]
 dev = [
+  "flepimop2-op-system>=0.2.0",
+  "op-system>=0.2.0",
   "pytest>=8.4.2",
   "ruff>=0.13.3,<0.15",
   "mypy>=1.18.2",
