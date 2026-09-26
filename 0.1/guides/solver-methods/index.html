@@ -14,7 +14,7 @@
         <link rel="prev" href="../getting-started/">
       
       
-        <link rel="next" href="../biogeochemical-network/">
+        <link rel="next" href="../nonlinear-solvers/">
       
       
         
@@ -567,6 +567,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../nonlinear-solvers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solvers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../biogeochemical-network/" class="md-nav__link">
         
   
@@ -741,6 +769,34 @@
     
   
     Model Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/nonlinear_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solver
   
 
     
@@ -962,19 +1018,19 @@ numerical method.</p>
 <td><code>implicit-euler</code></td>
 <td style="text-align: right;">1</td>
 <td>Jacobian callable</td>
-<td>Stiff systems where first-order damping is useful</td>
+<td>One-linearization approximation with first-order damping</td>
 </tr>
 <tr>
 <td><code>trapezoidal</code></td>
 <td style="text-align: right;">2</td>
 <td>Jacobian callable</td>
-<td>Second-order linearly implicit integration</td>
+<td>One-linearization, second-order integration</td>
 </tr>
 <tr>
 <td><code>bdf2</code></td>
 <td style="text-align: right;">2</td>
 <td>Jacobian callable</td>
-<td>Uniform, fixed-step stiff integration</td>
+<td>Uniform, fixed-step, one-linearization integration</td>
 </tr>
 <tr>
 <td><code>ros2</code></td>
@@ -1145,8 +1201,9 @@ and <code>diffusion</code> descriptors into these same factories. Descriptor par
 axis-label resolution belong to the provider; the numerical builders and
 stepping methods remain in <code>op_engine</code>.</p>
 <h2 id="linearly-implicit-methods">Linearly implicit methods<a class="headerlink" href="#linearly-implicit-methods" title="Permanent link">&para;</a></h2>
-<p>The fully implicit and Rosenbrock methods take a Jacobian callable. The
-callable returns an operator acting along <code>operator_axis</code>:</p>
+<p>The methods historically named <code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code>, as
+well as the Rosenbrock method, take a Jacobian callable. The callable returns an
+operator acting along <code>operator_axis</code>:</p>
 <pre><code class="language-python">def jacobian(_time, state):
     xp = state.__array_namespace__()
     return xp.multiply(xp.eye(state.shape[0], dtype=state.dtype), -0.5)
@@ -1163,6 +1220,10 @@ formal orders, and controller order are declared together and validated when
 the module is imported.</p>
 <p>Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
 optional NumPy acceleration path and are not a JAX differentiation path.</p>
+<p>The first three methods perform a single linearization; they do not iterate a
+nonlinear residual to convergence. See the <a href="../nonlinear-solvers/">nonlinear solver
+contract</a> for the boundary required by future SDIRK and
+fully implicit Runge--Kutta methods.</p>
 <h2 id="adaptivity-and-array-api-backends">Adaptivity and Array-API backends<a class="headerlink" href="#adaptivity-and-array-api-backends" title="Permanent link">&para;</a></h2>
 <p><code>AdaptiveConfig</code> sets tolerances and attempt limits; <code>DtControllerConfig</code> sets
 step-size bounds and growth factors. Their static scalar values are validated
