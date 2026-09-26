@@ -165,6 +165,20 @@ def _resolve_scalar(
     return scalar
 
 
+def _advection_direction_sign(descriptor: OperatorDescriptor) -> float:
+    """Return the orientation multiplier for one advection descriptor."""
+    direction = descriptor.direction
+    if direction is None or direction == "increasing":
+        return 1.0
+    if direction == "decreasing":
+        return -1.0
+    msg = (
+        "advection direction must be 'increasing', 'decreasing', or None; "
+        f"got {direction!r}."
+    )
+    raise ValueError(msg)
+
+
 def _uniform_axis_spacing(
     axis: str,
     *,
@@ -278,6 +292,7 @@ def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
             params=params,
             field="advection velocity",
         )
+        velocity *= _advection_direction_sign(descriptor)
         dx = _uniform_axis_spacing(
             descriptor.axis,
             axis_coords=axis_coords,
@@ -467,6 +482,10 @@ def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
             field="advection velocity",
             xp=xp,
             dtype=reference.dtype,
+        )
+        velocity = cast(
+            "Array",
+            xp.multiply(velocity, _advection_direction_sign(descriptor)),
         )
         dx = _uniform_axis_spacing(
             descriptor.axis,

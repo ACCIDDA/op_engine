@@ -546,6 +546,7 @@ def test_advection_parameter_is_jittable_and_differentiable() -> None:
                     "kind": "advection",
                     "axis": "imm",
                     "velocity": "speed",
+                    "direction": "decreasing",
                     "bc": "periodic",
                 }
             ],
@@ -579,7 +580,7 @@ def test_advection_parameter_is_jittable_and_differentiable() -> None:
 
     def expected_target(speed_value: float) -> float:
         operator = np.asarray(
-            build_advection_matrix(3, 1.0, speed_value, bc="periodic")
+            build_advection_matrix(3, 1.0, -speed_value, bc="periodic")
         )
         half_step_left = np.eye(3) - 0.1 * operator
         expected = np.linalg.solve(half_step_left, np.asarray(initial))
@@ -1307,7 +1308,8 @@ def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> 
                     "kind": "advection",
                     "axis": "imm",
                     "velocity": "speed",
-                    "bc": "absorbing",
+                    "direction": "decreasing",
+                    "bc": "reflecting",
                 }
             ],
             "initial_state": {"X[loc, imm]": {"shaped": "x0", "axes": ["loc", "imm"]}},
@@ -1347,7 +1349,7 @@ def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> 
         for layout in (StateLayout.FLAT, StateLayout.PYTREE, StateLayout.BLOCK)
     }
     operator = np.asarray(
-        build_advection_matrix(3, 1.0, 0.4, bc="absorbing"),
+        build_advection_matrix(3, 1.0, -0.4, bc="reflecting"),
         dtype=np.float32,
     )
     expected = np.asarray(x0) + 0.1 * (np.asarray(x0) @ operator.T)
@@ -1370,7 +1372,7 @@ def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> 
             parameters(operator_speed),
             model_state=system.model_state(axes),
         )
-        return result[-1, 1:].sum()
+        return result[-1, 1]
 
     value, gradient = jax.jit(jax.value_and_grad(objective))(speed)
     assert bool(jnp.isfinite(value))
