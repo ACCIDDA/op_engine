@@ -16,6 +16,10 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
+See the documentation guides for [solver selection](docs/guides/solver-methods.md),
+[the biogeochemical splitting tutorial](docs/guides/biogeochemical-network.md),
+and [backend boundaries](docs/guides/backends.md).
+
 ## Installation
 
 ```bash
@@ -62,46 +66,11 @@ solution = core.state_array  # shape (n_timesteps, state, subgroup)
 
 `ModelCore` infers its numerical namespace from the initial state through
 `initial_state.__array_namespace__()`. The state, stored history, solver stages,
-and adaptive error control stay in that namespace. There is no `xp=` or backend
-option:
-
-```python
-import jax.numpy as jnp
-import numpy as np
-
-from op_engine import CoreSolver, ModelCore
-
-core = ModelCore(1, 1, np.asarray([0.0, 0.5, 1.0]))
-core.set_initial_state(jnp.asarray([[1.0]]))
-
-
-def decay(_time, state):
-    xp = state.__array_namespace__()
-    return xp.multiply(state, -0.2)
-
-
-CoreSolver(core).run(decay)
-assert core.state_array.__array_namespace__() is jnp
-```
-
-The RHS must return an array in the input state's namespace. Dense implicit and
-IMEX operators use that namespace's Array-API `linalg.solve`, so the same
-methods work with NumPy and JAX arrays. Sparse operators use an acceleration
-registry: SciPy is included for NumPy state, and CuPy sparse support is enabled
-when the `cupy` extra is installed. A backend without a sparse adapter still has
-the dense correctness path.
-
-With JAX arrays, the fixed-step Euler, Heun, dense IMEX, and dense linearly
-implicit methods can be used under `jax.jit` and differentiated with `jax.grad`.
-This includes gradients through dynamic RHS parameters, initial state, and dense
-operator or Jacobian values. No separate solver implementation is required.
-
-The portable adaptive controller is eager-only under JAX: it keeps state arrays
-in JAX, but its step acceptance uses Python scalar extraction and control flow.
-Use fixed steps when compiling the portable methods. Compiled adaptive
-controllers and checkpointed adjoints are outside the core Array-API method
-contract and can be provided by specialized external integrations. See the
-[backend guide](docs/guides/backends.md) for the precise boundary.
+and dense solver operations stay in that namespace. There is no `xp=` or
+backend option. Fixed-step methods can be differentiated by JAX; the built-in
+adaptive controller is eager Python control flow. See the
+[backend guide](docs/guides/backends.md) for the precise contract and the
+[solver guide](docs/guides/solver-methods.md) for method-specific examples.
 
 ### IMEX with operators (tuple form)
 

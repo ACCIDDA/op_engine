@@ -621,6 +621,35 @@ def make_base_builder_for_split(
     return builder
 
 
+def make_explicit_remainder_tensor(
+    full_rhs: Callable[[float, np.ndarray], np.ndarray],
+    base_builder: Callable[[StageOperatorContext], np.ndarray],
+) -> Callable[[float, np.ndarray], np.ndarray]:
+    """Build the explicit remainder ``F = full_rhs - A(t, y)y``.
+
+    The same base builder must be supplied to the stage-operator factory so
+    the explicit and implicit partitions reconstruct the original model.
+
+    Returns:
+        Tensor-in/tensor-out explicit remainder callable.
+    """
+
+    def remainder(t: float, state_tensor: np.ndarray) -> np.ndarray:
+        full = flat_from_tensor(full_rhs(t, state_tensor))
+        state = flat_from_tensor(state_tensor)
+        context = StageOperatorContext(
+            t=float(t),
+            y=state_tensor,
+            stage="explicit",
+        )
+        split_term = np.asarray(base_builder(context) @ state, dtype=float)
+        explicit = full - split_term
+        _assert_finite("explicit remainder", explicit, t=t)
+        return tensor_from_flat(explicit)
+
+    return remainder
+
+
 # =============================================================================
 # CoreSolver / SciPy runners
 # =============================================================================
@@ -714,6 +743,7 @@ def run_op_engine(
     solver = OpeCoreSolver(core, operators=None, operator_axis="state")
 
     operators = OperatorSpecs(default=None, tr=None, bdf2=None)
+    rhs_func = run.rhs_tensor
     if method in {"imex-euler", "imex-heun-tr", "imex-trbdf2"}:
         if split is None:
             msg = _SPLIT_REQUIRED_ERROR
@@ -722,6 +752,7 @@ def run_op_engine(
         base_builder = make_base_builder_for_split(
             split, model=model, y0_flat=run.y0_flat
         )
+        rhs_func = make_explicit_remainder_tensor(run.rhs_tensor, base_builder)
 
         if method == "imex-euler":
             operators = OperatorSpecs(
@@ -742,7 +773,7 @@ def run_op_engine(
     cfg = _make_run_config(method=method, adaptive=True, operators=operators)
 
     t0 = time.perf_counter()
-    solver.run(run.rhs_tensor, config=cfg)
+    solver.run(rhs_func, config=cfg)
     wall = time.perf_counter() - t0
 
     if not store_history:

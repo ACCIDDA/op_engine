@@ -64,6 +64,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = [
     "docs/",
+    "examples/",
     "src/op_engine/",
     "tests/",
 ]
