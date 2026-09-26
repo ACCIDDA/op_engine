@@ -51,7 +51,7 @@ addopts = "-q"
 
 [tool.uv.sources]
 op-engine = { path = "..", editable = true }
-# Temporary development pins: op_system main supplies routing and sparse_table.
+# Temporary development pins for routing, sparse_table, and axis_kernel support.
 # Published wheel metadata continues to use the registry requirements above.
 flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "7d65f9bc36946dfac9b53dd18c792304dd924410", subdirectory = "flepimop2-op_system" }
 op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "7d65f9bc36946dfac9b53dd18c792304dd924410" }
@@ -73,6 +73,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["INP001", "S101"]
 "src/flepimop2/engine/op_engine/__init__.py" = ["C901", "DOC201", "DOC501", "PLR0912", "PLR0913", "PLR0914", "PLR0915", "RUF067"]
+"src/flepimop2/engine/op_engine/operators.py" = ["C901", "DOC201", "DOC501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

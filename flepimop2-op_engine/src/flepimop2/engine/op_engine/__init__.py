@@ -39,6 +39,10 @@ from .config import (
     _coerce_operator_specs,
     _has_operator_specs,
 )
+from .operators import (
+    compile_operator_descriptors,
+    typed_operator_descriptors,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -293,7 +297,11 @@ class OpEngineFlepimop2Engine(EngineABC):
             _coerce_operator_specs(self.config.operators),
         ):
             sys_ops = system.option("operators", None)
-            if not _has_operator_specs(_coerce_operator_specs(sys_ops)):
+            descriptors = typed_operator_descriptors(sys_ops)
+            has_system_operators = bool(descriptors) or _has_operator_specs(
+                _coerce_operator_specs(sys_ops)
+            )
+            if not has_system_operators:
                 issues.append(
                     ValidationIssue(
                         msg=(
@@ -343,11 +351,23 @@ class OpEngineFlepimop2Engine(EngineABC):
         method = self.config.method
         is_imex = method.is_imex
         operators = run_cfg.operators
+        compiled_system_operators = False
 
         if is_imex and not _has_operator_specs(operators):
-            operators = (
-                _coerce_operator_specs(system.option("operators", None)) or operators
-            )
+            system_operators = system.option("operators", None)
+            descriptors = typed_operator_descriptors(system_operators)
+            if descriptors:
+                operators = compile_operator_descriptors(
+                    descriptors,
+                    method=method.value,
+                    state_names=system.option("state_names", None),
+                    axis_order=system.option("axis_order", None),
+                    axis_labels=system.option("axis_labels", None),
+                    params=raw_params,
+                )
+                compiled_system_operators = True
+            else:
+                operators = _coerce_operator_specs(system_operators) or operators
         run_cfg = replace(run_cfg, operators=operators)
 
         if is_imex and not _has_operator_specs(operators):
@@ -362,10 +382,12 @@ class OpEngineFlepimop2Engine(EngineABC):
             if callable(jacobian):
                 run_cfg = replace(run_cfg, jacobian=jacobian)
 
-        operator_axis = self.config.operator_axis
+        operator_axis: str | int = (
+            "state" if compiled_system_operators else self.config.operator_axis
+        )
         if operator_axis == "state":
             system_axis = system.option("operator_axis", None)
-            if isinstance(system_axis, str | int):
+            if not compiled_system_operators and isinstance(system_axis, str | int):
                 operator_axis = system_axis
 
         # Bind raw payloads once. Systems such as op_system merge their own

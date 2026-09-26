@@ -66,7 +66,7 @@ def _engine() -> OpEngineFlepimop2Engine:
     """Build the fixed-step engine used by these integration tests.
 
     Returns:
-        An Euler-configured op_engine provider.
+        A Heun-configured op_engine provider.
     """
     return OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
@@ -171,3 +171,73 @@ def test_routing_sparse_table_and_shaped_initial_state_run_end_to_end() -> None:
 
     np.testing.assert_allclose(result[0, 1:], y0, rtol=0.0, atol=0.0)
     np.testing.assert_allclose(result[1, 1:], expected, rtol=0.0, atol=1e-14)
+
+
+def test_axis_kernel_generator_runs_as_flat_imex_operator() -> None:
+    """A typed row-source generator drives a real op_system IMEX solve."""
+    axes = AxisCollection({
+        "imm": Axis(
+            name="imm",
+            kind="ordinal",
+            size=3,
+            labels=("x0", "x1", "x2"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {
+                    "name": "imm",
+                    "type": "ordinal",
+                    "coords": ["x0", "x1", "x2"],
+                }
+            ],
+            "state": ["X[imm]"],
+            "equations": {"X[imm]": "0 * X[imm]"},
+            "initial_state": {
+                "X[imm]": {"shaped": "x_init", "axes": ["imm"]},
+            },
+            "operators": [
+                {
+                    "kind": "axis_kernel",
+                    "axis": "imm",
+                    "velocity": 0.5,
+                    "kernel": {
+                        "form": "generator",
+                        "params": {"matrix": "G"},
+                        "param_axes": {"G": ["imm", "imm"]},
+                    },
+                }
+            ],
+        }
+    )
+    generator = np.asarray(
+        [[-1.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+        dtype=np.float64,
+    )
+    y0 = np.asarray([1.0, 0.0, 0.0], dtype=np.float64)
+    params = {
+        "G": ParameterValue(generator, axes.resolve_shape(("imm", "imm"))),
+        "x_init": ParameterValue(y0, axes.resolve_shape(("imm",))),
+    }
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
+    )
+
+    assert engine.validate_system(system) is None
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.2], dtype=np.float64),
+        {},
+        params,
+        model_state=system.model_state(axes),
+    )
+
+    base_operator = 0.5 * generator.T
+    half_step_left = np.eye(3) - 0.1 * base_operator
+    expected = np.linalg.solve(half_step_left, y0)
+    expected = np.linalg.solve(half_step_left, expected)
+    np.testing.assert_allclose(result[1, 1:], expected, rtol=0.0, atol=1e-14)
+    np.testing.assert_allclose(result[1, 1:].sum(), 1.0, rtol=0.0, atol=1e-14)
