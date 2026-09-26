@@ -36,7 +36,7 @@ from flepimop2.engine.op_engine import (
     OpEngineFlepimop2Engine,
     ReplayCheckpoint,
     SolverMethod,
-    _validate_state_tree,
+    _validate_state_tree,  # noqa: PLC2701 - focused internal regression
 )
 
 if TYPE_CHECKING:
