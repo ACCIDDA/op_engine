@@ -66,6 +66,7 @@ class LinearMultistepTableau:
         """Validate dimensions, metadata, and declared order conditions.
 
         Raises:
+            TypeError: If typed metadata does not use the required Python type.
             ValueError: If the method declaration is inconsistent.
         """
         if not self.name.strip():
@@ -174,7 +175,12 @@ class MultistepHistory(Generic[StateArray]):
                 raise ValueError(msg)
 
     def push(self, state: StateArray) -> MultistepHistory[StateArray]:
-        """Return a new history containing an independent state snapshot."""
+        """Return a new history containing an independent state snapshot.
+
+        Raises:
+            TypeError: If the state changes the history's array namespace.
+            ValueError: If the state changes the history's shape or dtype.
+        """
         if self.capacity == 0:
             return self
         namespace = _namespace_of(state)

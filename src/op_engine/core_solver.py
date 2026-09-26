@@ -1192,7 +1192,7 @@ class CoreSolver:
             x=explicit,
         )
 
-    def _imex_trbdf2_array_once(  # noqa: PLR0913
+    def _imex_trbdf2_array_once(  # noqa: PLR0913, PLR0914
         self,
         rhs_func: RHSFunction,
         *,
@@ -1351,7 +1351,7 @@ class CoreSolver:
             weighted_sum=self._weighted_array_state,
         )
 
-    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913
+    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914
         self,
         rhs_func: RHSFunction,
         *,

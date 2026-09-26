@@ -1,5 +1,7 @@
 """Tests for reusable linear-multistep coefficients and state history."""
 
+# ruff: noqa: PLC2701
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
