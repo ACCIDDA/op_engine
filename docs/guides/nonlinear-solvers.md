@@ -100,6 +100,21 @@ for roots whose gradients are defined by the implicit function theorem. That
 package-specific mechanism does not enter the core configuration or alter the
 portable default's semantics.
 
-An SDIRK prototype should be added only after its stage residuals, warm starts,
-nonconvergence handling, and diagnostic propagation can be expressed entirely
-through this contract.
+## SDIRK2 contract prototype
+
+The private prototype uses the two-stage, second-order, L-stable SDIRK formula
+from [Alexander (1977)](https://epubs.siam.org/doi/10.1137/0714068), with
+`gamma = 1 - 1/sqrt(2)`, coefficient rows `(gamma)` and
+`(1 - gamma, gamma)`, and weights equal to the final row. It is stiffly
+accurate: a converged final stage is the accepted state.
+
+Every stage constructs a `NonlinearProblem`, starts from its explicit
+lower-triangular predictor, and returns its `NonlinearSolveDiagnostics` without
+a host decision. The step-doubling prototype evaluates one full step and two
+half steps, scales their difference by `1 / (2**order - 1)`, and combines all
+six stage-convergence flags for an adaptive controller.
+
+The prototype is intentionally not a selectable `CoreSolver`/`RunConfig`
+method yet. Exposing it as a production method first requires a public place to
+return fixed-step and compiled-replay stage diagnostics; silently discarding
+those diagnostics would violate the failure contract above.
