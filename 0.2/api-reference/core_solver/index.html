@@ -821,6 +821,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.fixed_explicit_step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fixed_explicit_step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#op_engine.core_solver.CoreSolver.replay_adaptive_schedule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1369,6 +1380,17 @@
     <span class="md-ellipsis">
       
         last_nonlinear_diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.fixed_explicit_step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fixed_explicit_step
       
     </span>
   </a>
@@ -2668,6 +2690,271 @@ a live solve while keeping loop lengths and step sizes static.</p>
 <div class="doc doc-object doc-function">
 
 
+<h4 id="op_engine.core_solver.CoreSolver.fixed_explicit_step" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fixed_explicit_step</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">first_stage</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#op_engine.core_solver.CoreSolver.fixed_explicit_step" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Take one functional fixed step with an explicit method.</p>
+<p>This boundary does not mutate :class:<code>ModelCore</code> history, so callers
+can compose it with backend-native loop primitives and apply the
+completed trajectory once.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>rhs_func</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.core_solver.RHSFunction">RHSFunction</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function computing the explicit RHS F(t, y).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit solver method name.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>t</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._typing.Scalar">Scalar</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Step start time as a Python float or backend-native scalar.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dt</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._typing.Scalar">Scalar</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Step size as a Python float or backend-native scalar.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>y</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>State at the step start.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>first_stage</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional cached FSAL stage.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="op_engine._typing.Array">Array</span>, <span title="op_engine._typing.Array">Array</span> | None]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Next state and an optional FSAL stage for the following step.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>method</code> is not an explicit method.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2706</span>
+<span class="normal">2707</span>
+<span class="normal">2708</span>
+<span class="normal">2709</span>
+<span class="normal">2710</span>
+<span class="normal">2711</span>
+<span class="normal">2712</span>
+<span class="normal">2713</span>
+<span class="normal">2714</span>
+<span class="normal">2715</span>
+<span class="normal">2716</span>
+<span class="normal">2717</span>
+<span class="normal">2718</span>
+<span class="normal">2719</span>
+<span class="normal">2720</span>
+<span class="normal">2721</span>
+<span class="normal">2722</span>
+<span class="normal">2723</span>
+<span class="normal">2724</span>
+<span class="normal">2725</span>
+<span class="normal">2726</span>
+<span class="normal">2727</span>
+<span class="normal">2728</span>
+<span class="normal">2729</span>
+<span class="normal">2730</span>
+<span class="normal">2731</span>
+<span class="normal">2732</span>
+<span class="normal">2733</span>
+<span class="normal">2734</span>
+<span class="normal">2735</span>
+<span class="normal">2736</span>
+<span class="normal">2737</span>
+<span class="normal">2738</span>
+<span class="normal">2739</span>
+<span class="normal">2740</span>
+<span class="normal">2741</span>
+<span class="normal">2742</span>
+<span class="normal">2743</span>
+<span class="normal">2744</span>
+<span class="normal">2745</span>
+<span class="normal">2746</span>
+<span class="normal">2747</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">t</span><span class="p">:</span> <span class="n">Scalar</span><span class="p">,</span>
+    <span class="n">dt</span><span class="p">:</span> <span class="n">Scalar</span><span class="p">,</span>
+    <span class="n">y</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
+    <span class="n">first_stage</span><span class="p">:</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Array</span><span class="p">,</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Take one functional fixed step with an explicit method.</span>
+
+<span class="sd">    This boundary does not mutate :class:`ModelCore` history, so callers</span>
+<span class="sd">    can compose it with backend-native loop primitives and apply the</span>
+<span class="sd">    completed trajectory once.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rhs_func: Function computing the explicit RHS F(t, y).</span>
+<span class="sd">        method: Explicit solver method name.</span>
+<span class="sd">        t: Step start time as a Python float or backend-native scalar.</span>
+<span class="sd">        dt: Step size as a Python float or backend-native scalar.</span>
+<span class="sd">        y: State at the step start.</span>
+<span class="sd">        first_stage: Optional cached FSAL stage.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Next state and an optional FSAL stage for the following step.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``method`` is not an explicit method.</span>
+<span class="sd">    """</span>
+    <span class="n">normalized_method</span> <span class="o">=</span> <span class="n">_normalize_method</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">normalized_method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_EXPLICIT_METHODS</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Method '</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">' is not an explicit solver method"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step_explicit_fixed</span><span class="p">(</span>
+        <span class="n">rhs_func</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">normalized_method</span><span class="p">,</span>
+        <span class="n">t</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
+        <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+        <span class="n">first_stage</span><span class="o">=</span><span class="n">first_stage</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h4 id="op_engine.core_solver.CoreSolver.replay_adaptive_schedule" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">replay_adaptive_schedule</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="n">schedule</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span></code>
 
@@ -2813,56 +3100,7 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4150</span>
-<span class="normal">4151</span>
-<span class="normal">4152</span>
-<span class="normal">4153</span>
-<span class="normal">4154</span>
-<span class="normal">4155</span>
-<span class="normal">4156</span>
-<span class="normal">4157</span>
-<span class="normal">4158</span>
-<span class="normal">4159</span>
-<span class="normal">4160</span>
-<span class="normal">4161</span>
-<span class="normal">4162</span>
-<span class="normal">4163</span>
-<span class="normal">4164</span>
-<span class="normal">4165</span>
-<span class="normal">4166</span>
-<span class="normal">4167</span>
-<span class="normal">4168</span>
-<span class="normal">4169</span>
-<span class="normal">4170</span>
-<span class="normal">4171</span>
-<span class="normal">4172</span>
-<span class="normal">4173</span>
-<span class="normal">4174</span>
-<span class="normal">4175</span>
-<span class="normal">4176</span>
-<span class="normal">4177</span>
-<span class="normal">4178</span>
-<span class="normal">4179</span>
-<span class="normal">4180</span>
-<span class="normal">4181</span>
-<span class="normal">4182</span>
-<span class="normal">4183</span>
-<span class="normal">4184</span>
-<span class="normal">4185</span>
-<span class="normal">4186</span>
-<span class="normal">4187</span>
-<span class="normal">4188</span>
-<span class="normal">4189</span>
-<span class="normal">4190</span>
-<span class="normal">4191</span>
-<span class="normal">4192</span>
-<span class="normal">4193</span>
-<span class="normal">4194</span>
-<span class="normal">4195</span>
-<span class="normal">4196</span>
-<span class="normal">4197</span>
-<span class="normal">4198</span>
-<span class="normal">4199</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4199</span>
 <span class="normal">4200</span>
 <span class="normal">4201</span>
 <span class="normal">4202</span>
@@ -2878,7 +3116,56 @@ ecosystems during replay.</p>
 <span class="normal">4212</span>
 <span class="normal">4213</span>
 <span class="normal">4214</span>
-<span class="normal">4215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
+<span class="normal">4215</span>
+<span class="normal">4216</span>
+<span class="normal">4217</span>
+<span class="normal">4218</span>
+<span class="normal">4219</span>
+<span class="normal">4220</span>
+<span class="normal">4221</span>
+<span class="normal">4222</span>
+<span class="normal">4223</span>
+<span class="normal">4224</span>
+<span class="normal">4225</span>
+<span class="normal">4226</span>
+<span class="normal">4227</span>
+<span class="normal">4228</span>
+<span class="normal">4229</span>
+<span class="normal">4230</span>
+<span class="normal">4231</span>
+<span class="normal">4232</span>
+<span class="normal">4233</span>
+<span class="normal">4234</span>
+<span class="normal">4235</span>
+<span class="normal">4236</span>
+<span class="normal">4237</span>
+<span class="normal">4238</span>
+<span class="normal">4239</span>
+<span class="normal">4240</span>
+<span class="normal">4241</span>
+<span class="normal">4242</span>
+<span class="normal">4243</span>
+<span class="normal">4244</span>
+<span class="normal">4245</span>
+<span class="normal">4246</span>
+<span class="normal">4247</span>
+<span class="normal">4248</span>
+<span class="normal">4249</span>
+<span class="normal">4250</span>
+<span class="normal">4251</span>
+<span class="normal">4252</span>
+<span class="normal">4253</span>
+<span class="normal">4254</span>
+<span class="normal">4255</span>
+<span class="normal">4256</span>
+<span class="normal">4257</span>
+<span class="normal">4258</span>
+<span class="normal">4259</span>
+<span class="normal">4260</span>
+<span class="normal">4261</span>
+<span class="normal">4262</span>
+<span class="normal">4263</span>
+<span class="normal">4264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="n">schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span><span class="p">,</span>
@@ -3073,56 +3360,7 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4217</span>
-<span class="normal">4218</span>
-<span class="normal">4219</span>
-<span class="normal">4220</span>
-<span class="normal">4221</span>
-<span class="normal">4222</span>
-<span class="normal">4223</span>
-<span class="normal">4224</span>
-<span class="normal">4225</span>
-<span class="normal">4226</span>
-<span class="normal">4227</span>
-<span class="normal">4228</span>
-<span class="normal">4229</span>
-<span class="normal">4230</span>
-<span class="normal">4231</span>
-<span class="normal">4232</span>
-<span class="normal">4233</span>
-<span class="normal">4234</span>
-<span class="normal">4235</span>
-<span class="normal">4236</span>
-<span class="normal">4237</span>
-<span class="normal">4238</span>
-<span class="normal">4239</span>
-<span class="normal">4240</span>
-<span class="normal">4241</span>
-<span class="normal">4242</span>
-<span class="normal">4243</span>
-<span class="normal">4244</span>
-<span class="normal">4245</span>
-<span class="normal">4246</span>
-<span class="normal">4247</span>
-<span class="normal">4248</span>
-<span class="normal">4249</span>
-<span class="normal">4250</span>
-<span class="normal">4251</span>
-<span class="normal">4252</span>
-<span class="normal">4253</span>
-<span class="normal">4254</span>
-<span class="normal">4255</span>
-<span class="normal">4256</span>
-<span class="normal">4257</span>
-<span class="normal">4258</span>
-<span class="normal">4259</span>
-<span class="normal">4260</span>
-<span class="normal">4261</span>
-<span class="normal">4262</span>
-<span class="normal">4263</span>
-<span class="normal">4264</span>
-<span class="normal">4265</span>
-<span class="normal">4266</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4266</span>
 <span class="normal">4267</span>
 <span class="normal">4268</span>
 <span class="normal">4269</span>
@@ -3165,7 +3403,56 @@ ecosystems during replay.</p>
 <span class="normal">4306</span>
 <span class="normal">4307</span>
 <span class="normal">4308</span>
-<span class="normal">4309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">4309</span>
+<span class="normal">4310</span>
+<span class="normal">4311</span>
+<span class="normal">4312</span>
+<span class="normal">4313</span>
+<span class="normal">4314</span>
+<span class="normal">4315</span>
+<span class="normal">4316</span>
+<span class="normal">4317</span>
+<span class="normal">4318</span>
+<span class="normal">4319</span>
+<span class="normal">4320</span>
+<span class="normal">4321</span>
+<span class="normal">4322</span>
+<span class="normal">4323</span>
+<span class="normal">4324</span>
+<span class="normal">4325</span>
+<span class="normal">4326</span>
+<span class="normal">4327</span>
+<span class="normal">4328</span>
+<span class="normal">4329</span>
+<span class="normal">4330</span>
+<span class="normal">4331</span>
+<span class="normal">4332</span>
+<span class="normal">4333</span>
+<span class="normal">4334</span>
+<span class="normal">4335</span>
+<span class="normal">4336</span>
+<span class="normal">4337</span>
+<span class="normal">4338</span>
+<span class="normal">4339</span>
+<span class="normal">4340</span>
+<span class="normal">4341</span>
+<span class="normal">4342</span>
+<span class="normal">4343</span>
+<span class="normal">4344</span>
+<span class="normal">4345</span>
+<span class="normal">4346</span>
+<span class="normal">4347</span>
+<span class="normal">4348</span>
+<span class="normal">4349</span>
+<span class="normal">4350</span>
+<span class="normal">4351</span>
+<span class="normal">4352</span>
+<span class="normal">4353</span>
+<span class="normal">4354</span>
+<span class="normal">4355</span>
+<span class="normal">4356</span>
+<span class="normal">4357</span>
+<span class="normal">4358</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
