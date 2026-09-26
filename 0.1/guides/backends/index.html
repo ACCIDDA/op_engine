@@ -458,10 +458,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#diffrax-tsit5" class="md-nav__link">
+  <a href="#portable-fixed-step-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Diffrax Tsit5
+        Portable fixed-step methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-diffrax-tsit5-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Diffrax Tsit5 strategy
       
     </span>
   </a>
@@ -677,10 +688,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#diffrax-tsit5" class="md-nav__link">
+  <a href="#portable-fixed-step-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Diffrax Tsit5
+        Portable fixed-step methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-diffrax-tsit5-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Diffrax Tsit5 strategy
       
     </span>
   </a>
@@ -705,15 +727,33 @@
 
 
 <h1 id="backend-and-solve-strategy-boundaries">Backend and solve-strategy boundaries<a class="headerlink" href="#backend-and-solve-strategy-boundaries" title="Permanent link">&para;</a></h1>
-<p><code>op_engine</code> selects ordinary numerical namespaces from the state array. Explicit
-methods and dense implicit/IMEX methods use the state namespace's Array-API
-operations, including <code>linalg.solve</code>. That path provides portable numerical
-correctness without storing a backend module in solver configuration.</p>
-<p>Differentiable adaptive integration is a different capability. The Array API
-does not define adaptive ODE controllers, checkpointed adjoints, or traced solve
-loops. For those operations, <code>CoreSolver</code> dispatches a method-specific strategy
-while keeping the same <code>CoreSolver.run()</code> surface.</p>
-<h2 id="diffrax-tsit5">Diffrax Tsit5<a class="headerlink" href="#diffrax-tsit5" title="Permanent link">&para;</a></h2>
+<p><code>op_engine</code> selects the numerical namespace from the state array. Explicit and
+dense implicit/IMEX methods use that namespace's Array-API operations, including
+<code>linalg.solve</code>. The numerical method does not change when the array namespace
+changes.</p>
+<p>Namespace portability and automatic differentiation are related but distinct.
+The Array API does not define <code>grad</code>, <code>jit</code>, or traced control flow. A namespace
+such as JAX can nevertheless differentiate the ordinary <code>op_engine</code> methods
+because their fixed-step numerical operations remain in that namespace.</p>
+<h2 id="portable-fixed-step-methods">Portable fixed-step methods<a class="headerlink" href="#portable-fixed-step-methods" title="Permanent link">&para;</a></h2>
+<p>With JAX state, fixed-step Euler, Heun, dense IMEX, and dense linearly implicit
+methods can be used inside <code>jax.jit</code> and differentiated with <code>jax.grad</code>. Dynamic
+values can include the initial state, RHS parameters, dense operator values, and
+Jacobian values. The time grid, method selection, state shape, and Python solver
+configuration are structural inputs and must remain static during a trace.</p>
+<p>Sparse acceleration is backend-specific. SciPy sparse solves are not a JAX
+differentiation path; use dense JAX operators when gradients through a solve are
+required.</p>
+<p>The built-in adaptive controller is an eager Python controller. It preserves a
+JAX array namespace, but step acceptance extracts scalar error values and uses
+Python loops and branches. Consequently, <code>adaptive=True</code> on the portable methods
+is not currently a JAX-<code>jit</code>-compatible execution path. This limitation belongs
+to the controller, not to the Euler, Heun, IMEX, or linearly implicit formulas.</p>
+<h2 id="optional-diffrax-tsit5-strategy">Optional Diffrax Tsit5 strategy<a class="headerlink" href="#optional-diffrax-tsit5-strategy" title="Permanent link">&para;</a></h2>
+<p><code>diffrax-tsit5</code> is an optional JAX-specific adaptive strategy. It is not required
+for differentiation of the portable fixed-step methods. It is useful when a run
+specifically requires a compiled adaptive controller, checkpointed adjoints, or
+other Diffrax capabilities.</p>
 <p>Install the optional dependencies:</p>
 <pre><code class="language-bash">pip install &quot;op_engine[jax]&quot;
 </code></pre>
@@ -751,7 +791,7 @@ CoreSolver(core).run(decay, config=config)
 The RHS and initial state must already be JAX-native; the solver rejects NumPy
 state instead of silently moving it to another device.</p>
 <p>The first Diffrax slice supports ordinary array state and a single deterministic
-RHS. Operator splitting, shaped PyTree/provider execution, block and draw
+RHS. Shaped PyTree/provider execution, block and draw
 batching, history/DDE terms, and hybrid CTMC execution are separate follow-up
 capabilities. Existing Array-API and sparse-accelerated methods remain unchanged.</p>
 
