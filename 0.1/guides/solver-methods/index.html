@@ -486,10 +486,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#method-guide" class="md-nav__link">
+  <a href="#deterministic-method-guide" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Method guide
+        Deterministic method guide
       
     </span>
   </a>
@@ -497,10 +497,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#explicit-methods" class="md-nav__link">
+  <a href="#stochastic-reaction-networks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Explicit methods
+        Stochastic reaction networks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explicit-deterministic-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explicit deterministic methods
       
     </span>
   </a>
@@ -743,6 +754,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/stochastic_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -777,10 +816,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#method-guide" class="md-nav__link">
+  <a href="#deterministic-method-guide" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Method guide
+        Deterministic method guide
       
     </span>
   </a>
@@ -788,10 +827,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#explicit-methods" class="md-nav__link">
+  <a href="#stochastic-reaction-networks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Explicit methods
+        Stochastic reaction networks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explicit-deterministic-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explicit deterministic methods
       
     </span>
   </a>
@@ -849,11 +899,13 @@
 
 
 <h1 id="choosing-and-configuring-a-solver">Choosing and configuring a solver<a class="headerlink" href="#choosing-and-configuring-a-solver" title="Permanent link">&para;</a></h1>
-<p><code>ModelCore</code> owns output times and state storage. <code>CoreSolver</code> advances that
-state using a method selected by <code>RunConfig</code>. The state array selects the
+<p><code>ModelCore</code> owns output times and state storage. Deterministic systems use
+<code>CoreSolver</code> and a method selected by <code>RunConfig</code>. Stochastic reaction networks
+use <code>TauLeapingSolver</code>, because propensities and stoichiometry have different
+semantics from an ODE right-hand side. In both cases the state array selects the
 Array-API namespace; choosing JAX instead of NumPy does not select a different
 numerical method.</p>
-<h2 id="method-guide">Method guide<a class="headerlink" href="#method-guide" title="Permanent link">&para;</a></h2>
+<h2 id="deterministic-method-guide">Deterministic method guide<a class="headerlink" href="#deterministic-method-guide" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -924,7 +976,63 @@ numerical method.</p>
 step uses linearly implicit Euler because no previous state exists yet. The
 other methods support the built-in adaptive controller, subject to the
 compiled-control-flow boundary described below.</p>
-<h2 id="explicit-methods">Explicit methods<a class="headerlink" href="#explicit-methods" title="Permanent link">&para;</a></h2>
+<h2 id="stochastic-reaction-networks">Stochastic reaction networks<a class="headerlink" href="#stochastic-reaction-networks" title="Permanent link">&para;</a></h2>
+<p>Fixed-step explicit tau-leaping approximates the number of firings in each
+reaction channel over a time interval with an independent Poisson draw. Supply
+a stoichiometric matrix with shape <code>(n_species, n_reactions)</code> and a propensity
+function whose reaction axis has length <code>n_reactions</code>:</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import (
+    ModelCore,
+    NumpyPoissonSampler,
+    TauLeapingConfig,
+    TauLeapingSolver,
+)
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=2, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[1_000.0], [0.0]]))
+
+# A -&gt; B
+stoichiometry = np.asarray([[-1], [1]])
+
+
+def propensity(_time, state):
+    return 0.2 * state[0:1]
+
+
+solver = TauLeapingSolver(core, stoichiometry)
+solver.run(
+    propensity,
+    NumpyPoissonSampler(seed=2026),
+    config=TauLeapingConfig(max_step=0.05),
+)
+</code></pre>
+<p><code>max_step=None</code> takes one leap per output interval. Setting <code>max_step</code> divides
+each interval into smaller leaps and clips the final leap so that it lands on
+the requested output time. The propensity is evaluated at the beginning of
+each leap.</p>
+<p>The core solver does not own random-number state. Instead, it receives a
+<code>PoissonSampler</code>, keeping PRNG details outside the numerical method. A JAX run
+can use an explicit key and the stable leap index:</p>
+<pre><code class="language-python">key = jax.random.key(2026)
+
+
+def poisson(mean, step_index):
+    return jax.random.poisson(jax.random.fold_in(key, step_index), mean)
+</code></pre>
+<p>This first implementation deliberately rejects a leap that produces a
+negative population. It neither clips counts nor changes the process
+silently. Reduce <code>max_step</code> for a better fixed-tau approximation. Bounded or
+adaptive tau selection is a separate future method.</p>
+<p>Tau-leaping is currently an eager execution path: validation reads sampled
+counts and proposed populations back to Python. JAX arrays stay in their native
+namespace, but a sampled stochastic trajectory does not provide an ordinary
+pathwise <code>jax.grad</code> derivative. Differentiable deterministic counterparts can
+continue to use <code>CoreSolver</code>; gradient estimators for stochastic paths belong
+at a higher inference/provider layer.</p>
+<h2 id="explicit-deterministic-methods">Explicit deterministic methods<a class="headerlink" href="#explicit-deterministic-methods" title="Permanent link">&para;</a></h2>
 <p>Euler and Heun need only an RHS. The default is fixed-step Heun, with one step
 per output interval:</p>
 <pre><code class="language-python">import numpy as np

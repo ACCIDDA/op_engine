@@ -563,6 +563,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#stochastic-sampling-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stochastic sampling boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -710,6 +721,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/stochastic_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -759,6 +798,17 @@
     <span class="md-ellipsis">
       
         Adaptive-controller boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stochastic-sampling-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stochastic sampling boundary
       
     </span>
   </a>
@@ -831,6 +881,21 @@ backend-specific method to <code>CoreSolver</code>.</p>
 <p>This keeps optional packages such as Diffrax out of the core dependency and
 method surfaces. The portable fixed-step methods and their differentiation
 contract remain identical across conforming array namespaces.</p>
+<h2 id="stochastic-sampling-boundary">Stochastic sampling boundary<a class="headerlink" href="#stochastic-sampling-boundary" title="Permanent link">&para;</a></h2>
+<p><code>TauLeapingSolver</code> keeps reaction-channel arithmetic in the state array's
+namespace but injects Poisson sampling through a <code>PoissonSampler</code>. This is
+necessary because the Array API does not define random-number generation and
+because NumPy's stateful generator and JAX's explicit keys have intentionally
+different semantics. <code>NumpyPoissonSampler</code> is provided as a convenience; JAX
+users can construct a fresh key for each leap from the solver's stable
+<code>step_index</code>.</p>
+<p>The current safety checks are eager, so tau-leaping is not a JIT-compatible
+path. Moreover, integer Poisson samples do not have an ordinary pathwise
+derivative. JAX remains useful for array execution and for differentiating a
+deterministic version of the same model, but <code>jax.grad</code> through the sampled
+trajectory is not part of this API contract. Score-function, reparameterized,
+or other stochastic gradient estimators should be implemented explicitly by
+an inference/provider layer rather than implied by the array namespace.</p>
 
 
 
