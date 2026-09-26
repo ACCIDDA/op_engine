@@ -69,6 +69,20 @@ def _reaction_zero(_t: float, y: FloatArray) -> FloatArray:
     return np.zeros_like(y)
 
 
+@pytest.mark.parametrize("method", ["diffrax-tsit5", "tsit5"])
+def test_backend_specific_adaptive_methods_are_not_core_methods(method: str) -> None:
+    """CoreSolver rejects solver-package-specific method names."""
+    core = _make_core(
+        n_states=1,
+        n_subgroups=1,
+        time_grid=np.asarray([0.0, 1.0]),
+    )
+    core.set_initial_state(np.asarray([[1.0]]))
+
+    with pytest.raises(ValueError, match=rf"Unknown method: {method}"):
+        CoreSolver(core).run(_reaction_zero, config=RunConfig(method=method))
+
+
 # -----------------------------------------------------------------------------
 # A) Output-time semantics
 # -----------------------------------------------------------------------------
