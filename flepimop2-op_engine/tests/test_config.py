@@ -360,6 +360,62 @@ def test_engine_config_accepts_pure_direct_ssa() -> None:
     assert config.ssa_max_events == 1_000_000
 
 
+def test_engine_config_exposes_every_stochastic_core_method() -> None:
+    """The provider makes an explicit decision for each stochastic solver."""
+    assert set(StochasticMethod) == {
+        StochasticMethod.ADAPTIVE_TAU_LEAPING,
+        StochasticMethod.DIRECT_SSA,
+        StochasticMethod.TAU_LEAPING,
+    }
+
+
+def test_engine_config_round_trips_adaptive_tau_controls() -> None:
+    """Adaptive tau production guards survive provider validation."""
+    config = OpEngineEngineConfig(
+        mode=ExecutionMode.STOCHASTIC,
+        stochastic_method=StochasticMethod.ADAPTIVE_TAU_LEAPING,
+        stochastic_max_steps=321,
+        tau_leap_tolerance=0.05,
+        tau_critical_threshold=7,
+        tau_exact_fallback_multiplier=4.0,
+        tau_max_retries=6,
+    )
+
+    assert config.stochastic_max_steps == 321
+    assert config.tau_leap_tolerance == pytest.approx(0.05)
+    assert config.tau_critical_threshold == 7
+    assert config.tau_exact_fallback_multiplier == pytest.approx(4.0)
+    assert config.tau_max_retries == 6
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"tau_leap_tolerance": 0.0},
+        {"tau_leap_tolerance": 1.0},
+        {"tau_critical_threshold": -1},
+        {"tau_exact_fallback_multiplier": -1.0},
+        {"tau_max_retries": -1},
+    ],
+)
+def test_engine_config_rejects_invalid_adaptive_tau_controls(
+    kwargs: dict[str, object],
+) -> None:
+    """Invalid adaptive stochastic safety controls fail at config load."""
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_adaptive_tau_rejects_fixed_tau_step_cap() -> None:
+    """A fixed-step-only cap cannot silently change adaptive semantics."""
+    with pytest.raises(ValidationError, match="fixed tau-leaping only"):
+        OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=StochasticMethod.ADAPTIVE_TAU_LEAPING,
+            tau_max_step=0.1,
+        )
+
+
 def test_hybrid_mode_requires_a_unique_jump_partition() -> None:
     """Hybrid execution cannot silently select no channels or duplicates."""
     with pytest.raises(ValidationError, match="requires at least one"):

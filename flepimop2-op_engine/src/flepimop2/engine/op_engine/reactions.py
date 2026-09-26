@@ -40,7 +40,19 @@ class ReactionArtifact(Protocol):
     sum_axes: tuple[str, ...]
     pinned: tuple[tuple[str, int], ...]
     from_pinned: tuple[tuple[str, int], ...]
+    reactants: tuple[ReactionReactantArtifact, ...]
+    reactants_complete: bool
     propensity_fn: Callable[..., object]
+
+
+class ReactionReactantArtifact(Protocol):
+    """Structural molecular-reactant surface published by op_system."""
+
+    state_base: str
+    state_axes: tuple[str, ...]
+    full_axes: tuple[str, ...]
+    pinned: tuple[tuple[str, int], ...]
+    order: int
 
 
 class ReactionSystem(Protocol):
@@ -84,6 +96,7 @@ class CompiledReactionNetwork:
     _reactions: tuple[ReactionArtifact, ...]
     _event_shapes: tuple[tuple[int, ...], ...]
     _params: Mapping[str, object]
+    reactants_complete: bool = False
 
     @property
     def n_state(self) -> int:
@@ -270,28 +283,141 @@ def _reaction_axes(
         State base to full ordered axes.
     """
     result: dict[str, tuple[str, ...]] = {}
+
+    def register(base: str, axes_value: object, *, reaction_name: str) -> None:
+        axes = _require_string_tuple(axes_value, field="full_axes")
+        if base not in blocks:
+            msg = f"Reaction {reaction_name!r} references unknown state {base!r}."
+            raise ValueError(msg)
+        previous = result.setdefault(base, axes)
+        if previous != axes:
+            msg = (
+                f"Reaction {reaction_name!r} gives state {base!r} axes {axes}, "
+                f"inconsistent with {previous}."
+            )
+            raise ValueError(msg)
+        try:
+            expected_shape = tuple(axis_sizes[axis] for axis in axes)
+        except KeyError as error:
+            msg = (
+                f"Reaction {reaction_name!r} references unknown axis {error.args[0]!r}."
+            )
+            raise ValueError(msg) from error
+        if blocks[base].shape != expected_shape:
+            msg = (
+                f"State {base!r} shape {blocks[base].shape} does not match "
+                f"reaction axes {axes} with shape {expected_shape}."
+            )
+            raise ValueError(msg)
+
     for reaction in reactions:
-        axes = _require_string_tuple(reaction.full_axes, field="full_axes")
         for base in (reaction.from_base, reaction.to_base):
             if base is None:
                 continue
-            if base not in blocks:
-                msg = f"Reaction {reaction.name!r} references unknown state {base!r}."
-                raise ValueError(msg)
-            previous = result.setdefault(base, axes)
-            if previous != axes:
-                msg = (
-                    f"Reaction {reaction.name!r} gives state {base!r} axes {axes}, "
-                    f"inconsistent with {previous}."
-                )
-                raise ValueError(msg)
-            expected_shape = tuple(axis_sizes[axis] for axis in axes)
-            if blocks[base].shape != expected_shape:
-                msg = (
-                    f"State {base!r} shape {blocks[base].shape} does not match "
-                    f"reaction axes {axes} with shape {expected_shape}."
-                )
-                raise ValueError(msg)
+            register(base, reaction.full_axes, reaction_name=reaction.name)
+        raw_reactants = getattr(reaction, "reactants", ())
+        if not isinstance(raw_reactants, tuple | list):
+            msg = f"Reaction {reaction.name!r} reactants must be a sequence."
+            raise TypeError(msg)
+        for reactant in raw_reactants:
+            base = getattr(reactant, "state_base", None)
+            if not isinstance(base, str) or not base:
+                msg = f"Reaction {reaction.name!r} has an invalid reactant state base."
+                raise TypeError(msg)
+            register(
+                base,
+                getattr(reactant, "full_axes", None),
+                reaction_name=reaction.name,
+            )
+    return result
+
+
+def _expanded_reactants(  # noqa: PLR0913
+    reaction: ReactionArtifact,
+    *,
+    varying: Mapping[str, int],
+    from_axes: tuple[str, ...],
+    base_axes: Mapping[str, tuple[str, ...]],
+    blocks: Mapping[str, _StateBlock],
+    n_state: int,
+) -> np.ndarray:
+    """Expand one reaction channel's molecular reactant-order column.
+
+    Returns:
+        Integer molecular orders aligned to the flat provider state.
+    """
+    raw_reactants = getattr(reaction, "reactants", None)
+    if raw_reactants is None:
+        # Compatibility with op_system artifacts predating reactant metadata.
+        result = np.zeros(n_state, dtype=np.int64)
+        if reaction.from_base is not None:
+            source_coordinates = {
+                **varying,
+                **_require_pins(reaction.from_pinned, field="from_pinned"),
+            }
+            source = _flat_cell(
+                blocks[reaction.from_base],
+                base_axes[reaction.from_base],
+                source_coordinates,
+            )
+            result[source] = 1
+        return result
+    if not isinstance(raw_reactants, tuple | list):
+        msg = f"Reaction {reaction.name!r} reactants must be a sequence."
+        raise TypeError(msg)
+
+    result = np.zeros(n_state, dtype=np.int64)
+    for reactant in raw_reactants:
+        base = getattr(reactant, "state_base", None)
+        if not isinstance(base, str) or base not in blocks:
+            msg = f"Reaction {reaction.name!r} has an unknown reactant state."
+            raise ValueError(msg)
+        state_axes = _require_string_tuple(
+            getattr(reactant, "state_axes", None),
+            field="reactant.state_axes",
+        )
+        full_axes = _require_string_tuple(
+            getattr(reactant, "full_axes", None),
+            field="reactant.full_axes",
+        )
+        if full_axes != base_axes[base]:
+            msg = (
+                f"Reaction {reaction.name!r} reactant {base!r} has inconsistent "
+                "full_axes metadata."
+            )
+            raise ValueError(msg)
+        if not set(state_axes).issubset(from_axes):
+            msg = (
+                f"Reaction {reaction.name!r} reactant {base!r} has axes outside "
+                "the expanded reaction channels."
+            )
+            raise ValueError(msg)
+        pins = _require_pins(
+            getattr(reactant, "pinned", None),
+            field="reactant.pinned",
+        )
+        if set(state_axes) | set(pins) != set(full_axes):
+            msg = (
+                f"Reaction {reaction.name!r} reactant {base!r} has incomplete "
+                "axis metadata."
+            )
+            raise ValueError(msg)
+        if set(state_axes) & set(pins):
+            msg = (
+                f"Reaction {reaction.name!r} reactant {base!r} both varies and "
+                "pins an axis."
+            )
+            raise ValueError(msg)
+        order = getattr(reactant, "order", None)
+        if not isinstance(order, int) or isinstance(order, bool) or order < 1:
+            msg = (
+                f"Reaction {reaction.name!r} reactant {base!r} order must be a "
+                "positive integer."
+            )
+            raise TypeError(msg)
+        coordinates = {axis: varying[axis] for axis in state_axes} | pins
+        cell = _flat_cell(blocks[base], full_axes, coordinates)
+        result[cell] += order
     return result
 
 
@@ -394,8 +520,20 @@ def compile_reaction_network(
     channel_reactions: list[str] = []
     channel_names: list[str] = []
     event_shapes: list[tuple[int, ...]] = []
+    reactants_complete = True
 
     for reaction in reactions:
+        complete = getattr(reaction, "reactants_complete", False)
+        if not isinstance(complete, bool):
+            msg = f"Reaction {reaction.name!r} reactants_complete must be boolean."
+            raise TypeError(msg)
+        if complete and getattr(reaction, "reactants", None) is None:
+            msg = (
+                f"Reaction {reaction.name!r} claims complete reactants without "
+                "publishing reactant metadata."
+            )
+            raise ValueError(msg)
+        reactants_complete = reactants_complete and complete
         from_axes = _require_string_tuple(reaction.from_axes, field="from_axes")
         to_axes = _require_string_tuple(reaction.to_axes, field="to_axes")
         sum_axes = _require_string_tuple(reaction.sum_axes, field="sum_axes")
@@ -425,7 +563,6 @@ def compile_reaction_network(
         for coordinate in coordinates:
             varying = dict(zip(from_axes, coordinate, strict=True))
             column = np.zeros(n_state, dtype=np.int64)
-            reactants = np.zeros(n_state, dtype=np.int64)
             if reaction.from_base is not None:
                 source_coordinates = {**varying, **from_pinned}
                 source = _flat_cell(
@@ -434,7 +571,15 @@ def compile_reaction_network(
                     source_coordinates,
                 )
                 column[source] -= 1
-                reactants[source] += 1
+
+            reactants = _expanded_reactants(
+                reaction,
+                varying=varying,
+                from_axes=from_axes,
+                base_axes=base_axes,
+                blocks=blocks,
+                n_state=n_state,
+            )
 
             destination_coordinates = {**varying, **pinned}
             destination = _flat_cell(
@@ -465,11 +610,13 @@ def compile_reaction_network(
         _reactions=reactions,
         _event_shapes=tuple(event_shapes),
         _params=dict(params),
+        reactants_complete=reactants_complete,
     )
 
 
 __all__ = [
     "CompiledReactionNetwork",
     "ReactionArtifact",
+    "ReactionReactantArtifact",
     "compile_reaction_network",
 ]

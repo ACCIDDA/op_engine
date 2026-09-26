@@ -36,6 +36,10 @@ from op_engine._runge_kutta import (
     EXPLICIT_TABLEAUS,
     evaluate_explicit_runge_kutta,
 )
+from op_engine.adaptive_tau import (
+    AdaptiveTauLeapingConfig,
+    AdaptiveTauLeapingSolver,
+)
 from op_engine.core_solver import (
     AdaptiveStepSchedule,
     CoreSolver,
@@ -1237,7 +1241,10 @@ def _resolve_samplers(
 
     xp = _namespace_of(y0)
     poisson_seed, ssa_seed = _split_numpy_seeds(config.random_seed)
-    if config.stochastic_method is StochasticMethod.TAU_LEAPING:
+    if config.stochastic_method in {
+        StochasticMethod.TAU_LEAPING,
+        StochasticMethod.ADAPTIVE_TAU_LEAPING,
+    }:
         if poisson_sampler is None and xp is np:
             poisson_sampler = NumpyPoissonSampler(poisson_seed)
         if poisson_sampler is None:
@@ -1246,7 +1253,10 @@ def _resolve_samplers(
                 "required for non-NumPy stochastic runs."
             )
             raise TypeError(msg)
-    elif config.stochastic_method is StochasticMethod.DIRECT_SSA:
+    if config.stochastic_method in {
+        StochasticMethod.DIRECT_SSA,
+        StochasticMethod.ADAPTIVE_TAU_LEAPING,
+    }:
         if ssa_sampler is None and xp is np:
             ssa_sampler = NumpySSASampler(ssa_seed)
         if ssa_sampler is None:
@@ -1322,6 +1332,43 @@ def _run_stochastic_core(
         )
         return
 
+    if config.stochastic_method is StochasticMethod.ADAPTIVE_TAU_LEAPING:
+        if not network.reactants_complete:
+            msg = (
+                "Adaptive tau-leaping requires complete molecular reactant "
+                "metadata for every selected reaction. Add an explicit "
+                "reactants list to each op_system transition."
+            )
+            raise ValueError(msg)
+        if poisson_sampler is None or ssa_sampler is None:
+            msg = "Adaptive tau-leaping sampler resolution is inconsistent."
+            raise RuntimeError(msg)
+        reactants = cast(
+            "Array",
+            xp.asarray(network.reactant_stoichiometry, dtype=state.dtype),
+        )
+        adaptive_solver = AdaptiveTauLeapingSolver(
+            core,
+            stoichiometry,
+            reactants,
+        )
+        adaptive_solver.run(
+            network.propensity,
+            poisson_sampler,
+            ssa_sampler,
+            config=AdaptiveTauLeapingConfig(
+                leap_tolerance=config.tau_leap_tolerance,
+                critical_threshold=config.tau_critical_threshold,
+                exact_fallback_multiplier=config.tau_exact_fallback_multiplier,
+                max_steps=config.stochastic_max_steps,
+                max_retries=config.tau_max_retries,
+            ),
+        )
+        return
+
+    if config.stochastic_method is not StochasticMethod.DIRECT_SSA:
+        msg = f"Unsupported stochastic method {config.stochastic_method!r}."
+        raise ValueError(msg)
     if ssa_sampler is None:
         msg = "Direct-SSA sampler resolution is inconsistent."
         raise RuntimeError(msg)
