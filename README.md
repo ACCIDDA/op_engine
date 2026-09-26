@@ -13,7 +13,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 
 ## Core surface
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
-- `CoreSolver`: portable explicit methods through Dormand--Prince 5(4), plus dense IMEX/implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
+- `CoreSolver`: portable explicit methods through Dormand--Prince 5(4), plus dense IMEX and linearly implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.

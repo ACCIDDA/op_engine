@@ -500,13 +500,13 @@ def test_rhs_shape_mismatch_raises() -> None:
 
 
 # -----------------------------------------------------------------------------
-# F) Jacobian-driven implicit methods plumbing
+# F) Jacobian-driven linearly implicit methods plumbing
 # -----------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("method", ["implicit-euler", "trapezoidal", "bdf2", "ros2"])
 def test_implicit_methods_require_jacobian(method: str) -> None:
-    """Fully implicit / Rosenbrock methods require a Jacobian callable."""
+    """Jacobian-driven linearly implicit methods require a Jacobian callable."""
     tg = np.array([0.0, 0.25], dtype=float)
     core = _make_core(n_states=1, n_subgroups=1, time_grid=tg)
     core.set_initial_state(np.array([[1.0]], dtype=float))

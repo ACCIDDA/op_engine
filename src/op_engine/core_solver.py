@@ -20,6 +20,10 @@ Supported methods (keyword `method=`):
                       Adaptive via embedded low/high (Euler vs Heun) mapped by the
                       same implicit operator solve.
     - "imex-trbdf2":  IMEX TR-BDF2 (order 2), adaptive via step-doubling.
+    - "implicit-euler": One-linearization Euler approximation (order 1).
+    - "trapezoidal": One-linearization trapezoidal approximation (order 2).
+    - "bdf2":        One-linearization BDF2 approximation (order 2).
+    - "ros2":        L-stable Rosenbrock-W 2(1).
 
 IMEX structure:
     We assume a split system:
@@ -427,7 +431,7 @@ class RunConfig:
         dt_controller: Parameters for dt controller when adaptive=True.
         adaptive_cfg: Parameters controlling error tolerances and limits.
         operators: Operator specifications for implicit/IMEX methods.
-        jacobian: Optional Jacobian function for fully implicit / Rosenbrock methods.
+        jacobian: Optional Jacobian function for linearly implicit methods.
         gamma: Optional TR-BDF2 gamma (if None, uses default).
     """
 
@@ -478,7 +482,7 @@ class RunPlan:
         op_default: Operator spec for IMEX Euler/Heun-TR.
         op_tr: TR-stage operator spec for TR-BDF2.
         op_bdf2: BDF2-stage operator spec for TR-BDF2.
-        jacobian: Optional Jacobian function for fully implicit / Rosenbrock methods.
+        jacobian: Optional Jacobian function for linearly implicit methods.
     """
 
     method: MethodName
@@ -1700,7 +1704,7 @@ class CoreSolver:
         method: MethodName,
         jacobian: JacobianFunction | None,
     ) -> JacobianFunction:
-        """Ensure a Jacobian is provided for fully implicit methods.
+        """Ensure a Jacobian is provided for linearly implicit methods.
 
         Args:
             method: Method name.
@@ -2585,7 +2589,7 @@ class CoreSolver:
         return 2
 
     # ------------------------------------------------------------------
-    # Fully implicit + Rosenbrock (linearly implicit) methods
+    # Jacobian-driven linearly implicit methods
     # ------------------------------------------------------------------
 
     def _implicit_euler_linearized_once(  # noqa: PLR0913
