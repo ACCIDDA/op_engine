@@ -2,6 +2,7 @@
 """Unit tests for op_engine.matrix_ops.
 
 This module verifies:
+- First-order upwind advection across Array-API namespaces.
 - Laplacian construction for supported boundary conditions.
 - Crank-Nicolson operator construction (dense/sparse autodispatch).
 - Predictor-corrector construction for dense and sparse base matrices.
@@ -31,6 +32,7 @@ from op_engine.matrix_ops import (
     DiffusionConfig,
     GridGeometry,
     StageOperatorContext,
+    build_advection_matrix,
     build_crank_nicolson_operator,
     build_identity_operator,
     build_implicit_euler_operators,
@@ -71,6 +73,134 @@ def _as_dense(mat: object) -> NDArray[np.floating]:
     if hasattr(mat, "toarray"):
         return np.asarray(mat.toarray())
     return np.asarray(mat)
+
+
+# -------------------------------------------------------------------
+# Upwind advection
+# -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("velocity", "expected"),
+    [
+        pytest.param(
+            2.0,
+            np.asarray([[-4.0, 0.0, 0.0], [4.0, -4.0, 0.0], [0.0, 4.0, -4.0]]),
+            id="positive",
+        ),
+        pytest.param(
+            -2.0,
+            np.asarray([[-4.0, 4.0, 0.0], [0.0, -4.0, 4.0], [0.0, 0.0, -4.0]]),
+            id="negative",
+        ),
+    ],
+)
+def test_advection_absorbing_stencil_orientation(
+    velocity: float,
+    expected: NDArray[np.floating],
+) -> None:
+    """Signed velocity selects the matching first-order upwind stencil."""
+    observed = build_advection_matrix(3, 0.5, velocity)
+
+    assert isinstance(observed, np.ndarray)
+    np.testing.assert_array_equal(observed, expected)
+
+
+@pytest.mark.parametrize("bc", ["reflecting", "periodic"])
+@pytest.mark.parametrize("velocity", [-1.75, 1.75])
+def test_advection_conservative_boundaries_have_zero_column_sums(
+    bc: str,
+    velocity: float,
+) -> None:
+    """No-flux and periodic stencils conserve total state for either direction."""
+    operator = build_advection_matrix(7, 0.25, velocity, bc=bc)
+
+    np.testing.assert_allclose(
+        np.asarray(operator).sum(axis=0),
+        np.zeros(7),
+        rtol=0.0,
+        atol=0.0,
+    )
+
+
+def test_advection_periodic_cfl_one_is_an_exact_cell_shift() -> None:
+    """Forward Euler at CFL one shifts a periodic profile by one cell."""
+    state = np.asarray([1.0, 2.0, 4.0, 8.0])
+    dx = 0.25
+    velocity = 2.0
+    dt = dx / velocity
+    operator = build_advection_matrix(state.size, dx, velocity, bc="periodic")
+
+    advanced = state + dt * (operator @ state)
+
+    np.testing.assert_array_equal(advanced, np.roll(state, 1))
+    assert np.all(advanced >= 0.0)
+
+
+def test_advection_periodic_spatial_error_is_first_order() -> None:
+    """The upwind derivative converges at first order on a smooth profile."""
+    errors: list[float] = []
+    for n_cells in (64, 128):
+        dx = 1.0 / n_cells
+        coordinate = np.arange(n_cells, dtype=np.float64) * dx
+        state = np.sin(2.0 * np.pi * coordinate)
+        expected = -2.0 * np.pi * np.cos(2.0 * np.pi * coordinate)
+        operator = build_advection_matrix(
+            n_cells,
+            dx,
+            1.0,
+            bc="periodic",
+        )
+        observed = operator @ state
+        errors.append(float(np.sqrt(np.mean((observed - expected) ** 2))))
+
+    convergence_ratio = errors[0] / errors[1]
+    assert 1.8 < convergence_ratio < 2.2
+
+
+def test_advection_velocity_is_jittable_and_differentiable() -> None:
+    """The matrix stays in JAX and preserves gradients through velocity."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    state = jnp.asarray([1.0, 2.0, 4.0, 8.0], dtype=jnp.float32)
+
+    def objective(velocity: object) -> object:
+        operator = build_advection_matrix(
+            state.size,
+            0.25,
+            velocity,
+            bc="periodic",
+            reference=state,
+        )
+        tendency = operator @ state
+        return jnp.sum(tendency * tendency)
+
+    velocity = jnp.asarray(0.5, dtype=jnp.float32)
+    value, gradient = jax.jit(jax.value_and_grad(objective))(velocity)
+    operator = build_advection_matrix(
+        state.size,
+        0.25,
+        velocity,
+        bc="periodic",
+        reference=state,
+    )
+
+    assert operator.__array_namespace__() is jnp
+    assert gradient == pytest.approx(2.0 * float(value) / float(velocity), rel=1e-6)
+
+
+def test_advection_rejects_invalid_structural_inputs() -> None:
+    """Grid, boundary, velocity shape, and eager finiteness are validated."""
+    with pytest.raises(ValueError, match="grid size must be at least 2"):
+        build_advection_matrix(1, 1.0, 1.0)
+    with pytest.raises(ValueError, match="dx must be finite and positive"):
+        build_advection_matrix(2, 0.0, 1.0)
+    with pytest.raises(ValueError, match="Unknown advection bc"):
+        build_advection_matrix(2, 1.0, 1.0, bc="open")
+    with pytest.raises(ValueError, match="velocity must be scalar"):
+        build_advection_matrix(2, 1.0, np.ones(2))
+    with pytest.raises(ValueError, match="velocity must be finite"):
+        build_advection_matrix(2, 1.0, np.inf)
 
 
 # -------------------------------------------------------------------

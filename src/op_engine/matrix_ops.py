@@ -4,7 +4,7 @@ Matrix operations and linear solvers for multiphysics modeling.
 This module provides small, performance-oriented numerical utilities used by
 multiphysics engines:
 
-- Construction of common 1D linear operators (e.g., Laplacian, Crank-Nicolson).
+- Construction of common 1D linear operators (e.g., upwind advection, Laplacian).
 - Cached implicit solves for repeated linear systems with fixed operators.
 - High-throughput aggregation utilities for large numbers of subpopulations.
 - Optional Kronecker composition utilities for separable multi-axis operators.
@@ -196,6 +196,102 @@ _SPARSE_ECOSYSTEM_ERROR = (
 # =============================================================================
 # Core linear operators: Laplacian + Crank-Nicolson + Predictor-Corrector
 # =============================================================================
+
+
+def build_advection_matrix(
+    n: int,
+    dx: float,
+    velocity: float | Array,
+    *,
+    bc: str = "absorbing",
+    reference: Array | None = None,
+) -> Array:
+    """Build a dense first-order upwind finite-volume operator.
+
+    The returned matrix ``A`` acts on a column state as ``dy = A @ y``.
+    Positive velocity transports values toward increasing coordinate indices;
+    negative velocity transports toward decreasing indices. The velocity may be
+    an Array-API scalar, so its value stays dynamic under transformations such
+    as JAX ``jit`` and ``grad``.
+
+    Boundary modes are:
+
+    - ``absorbing``: zero inflow at the upstream boundary and free outflow at
+      the downstream boundary;
+    - ``reflecting``: zero flux through the downstream boundary;
+    - ``periodic``: downstream outflow wraps to the upstream boundary.
+
+    The namespace comes from ``reference`` when provided, then from ``velocity``;
+    plain numeric velocities use NumPy. Grid geometry and the boundary mode are
+    static structural inputs.
+
+    Args:
+        n: Number of uniformly spaced finite-volume cells.
+        dx: Positive cell width.
+        velocity: Signed scalar transport velocity.
+        bc: Boundary mode: ``"absorbing"``, ``"reflecting"``, or ``"periodic"``.
+        reference: Optional array whose namespace and floating dtype control the
+            result.
+
+    Returns:
+        Dense ``(n, n)`` operator in the selected Array-API namespace.
+
+    Raises:
+        ValueError: If the grid, velocity shape/value, or boundary mode is
+            invalid.
+    """
+    if n < 2:
+        msg = f"advection grid size must be at least 2; got {n}."
+        raise ValueError(msg)
+    if not np.isfinite(dx) or dx <= 0.0:
+        msg = f"advection dx must be finite and positive; got {dx}."
+        raise ValueError(msg)
+
+    bc_normalized = str(bc).strip().lower()
+    if bc_normalized not in {"absorbing", "reflecting", "periodic"}:
+        msg = (
+            f"Unknown advection bc: {bc!r}; expected absorbing, reflecting, "
+            "or periodic."
+        )
+        raise ValueError(msg)
+
+    namespace_source: object = reference if reference is not None else velocity
+    if getattr(namespace_source, "__array_namespace__", None) is None:
+        namespace_source = np.asarray(namespace_source)
+    xp = _namespace_of(namespace_source)
+    source_dtype = cast("Any", namespace_source).dtype
+    dtype = xp.result_type(xp.asarray(0.0).dtype, source_dtype)
+    velocity_array = cast("Array", xp.asarray(velocity, dtype=dtype))
+    if velocity_array.shape != ():
+        msg = f"advection velocity must be scalar; got shape {velocity_array.shape}."
+        raise ValueError(msg)
+    if isinstance(velocity_array, np.ndarray) and not np.isfinite(velocity_array).all():
+        msg = "advection velocity must be finite."
+        raise ValueError(msg)
+
+    positive = -np.eye(n, dtype=np.float64)
+    negative = -np.eye(n, dtype=np.float64)
+    indices = np.arange(n - 1)
+    positive[indices + 1, indices] = 1.0
+    negative[indices, indices + 1] = 1.0
+
+    if bc_normalized == "reflecting":
+        positive[-1, -1] = 0.0
+        negative[0, 0] = 0.0
+    elif bc_normalized == "periodic":
+        positive[0, -1] = 1.0
+        negative[-1, 0] = 1.0
+
+    positive_array = xp.asarray(positive, dtype=dtype)
+    negative_array = xp.asarray(negative, dtype=dtype)
+    zero = xp.asarray(0.0, dtype=dtype)
+    stencil = xp.where(
+        xp.greater_equal(velocity_array, zero),
+        positive_array,
+        negative_array,
+    )
+    speed = xp.divide(xp.abs(velocity_array), dx)
+    return cast("Array", xp.multiply(stencil, speed))
 
 
 def build_laplacian_tridiag(
