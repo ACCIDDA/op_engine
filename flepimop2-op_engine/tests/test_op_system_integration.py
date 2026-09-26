@@ -159,6 +159,75 @@ def test_simulator_preserves_parameter_namespace_for_any_backend(
     )
 
 
+def test_simulator_discovers_schedule_for_jitted_provider_replay() -> None:
+    """A Simulator discovery mesh supports conditional JAX provider gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "state": ["X"],
+            "equations": {"X": "rate * X"},
+            "initial_state": {"X": "seed"},
+        }
+    )
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.DOPRI5,
+            adaptive=True,
+            rtol=1e-6,
+            atol=1e-8,
+        ),
+    )
+    times = np.asarray([0.0, 0.25, 0.7, 1.0], dtype=np.float64)
+    simulator = Simulator(
+        system,
+        engine,
+        _NoopBackend(),
+        simulate_config=SimulateSpecificationModel(times=times.tolist()),
+    )
+    shape = ResolvedShape()
+    rate = jnp.asarray(-0.3, dtype=jnp.float32)
+    initial = jnp.asarray(1.2, dtype=jnp.float32)
+
+    discovered = simulator.run(
+        initial_state={},
+        params={
+            "seed": ParameterValue(initial, shape),
+            "rate": ParameterValue(rate, shape),
+        },
+    )
+    schedule = engine.last_adaptive_schedule
+    assert schedule is not None
+    assert schedule.method is SolverMethod.DOPRI5
+    assert discovered.__array_namespace__() is jnp
+
+    def replay(replay_rate: Array, replay_initial: Array) -> Array:
+        result = engine.run(
+            system,
+            times,
+            {},
+            {
+                "seed": ParameterValue(replay_initial, shape),
+                "rate": ParameterValue(replay_rate, shape),
+            },
+            adaptive_schedule=schedule,
+        )
+        return result[-1, 1]
+
+    value, gradients = jax.jit(jax.value_and_grad(replay, argnums=(0, 1)))(
+        rate,
+        initial,
+    )
+    expected_factor = np.exp(float(rate))
+    expected_value = float(initial) * expected_factor
+
+    assert value == pytest.approx(expected_value, rel=2e-5)
+    assert gradients[0] == pytest.approx(expected_value, rel=3e-5)
+    assert gradients[1] == pytest.approx(expected_factor, rel=3e-5)
+
+
 def test_routing_sparse_table_and_shaped_initial_state_run_end_to_end() -> None:
     """A routed op_system RHS consumes sparse_table and shaped state metadata."""
     axes = AxisCollection({

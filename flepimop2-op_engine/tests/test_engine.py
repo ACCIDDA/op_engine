@@ -29,6 +29,7 @@ from flepimop2.system.abc import SystemABC
 from flepimop2.typing import StateChangeEnum
 
 from flepimop2.engine.op_engine import (
+    AdaptiveSchedule,
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
     SolverMethod,
@@ -185,6 +186,137 @@ def test_jax_fixed_explicit_trajectory_is_one_differentiable_scan(
     value, derivative = jax.jit(jax.value_and_grad(solve))(initial)
     assert value == pytest.approx(np.e, rel=2e-5)
     assert derivative == pytest.approx(np.e, rel=2e-5)
+
+
+def test_adaptive_schedule_discovery_and_replay_are_explicit() -> None:
+    """Provider discovery returns a reusable artifact and matching replay."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.HEUN,
+            adaptive=True,
+            rtol=1e-5,
+            atol=1e-8,
+        ),
+    )
+    system = _GoodSystem()
+    times = np.asarray([0.0, 0.3, 1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+
+    discovered = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    )
+
+    assert isinstance(discovered.schedule, AdaptiveSchedule)
+    assert discovered.schedule.method is SolverMethod.HEUN
+    assert discovered.schedule.step_schedule.output_times == tuple(times)
+    assert discovered.diagnostics is None
+    assert discovered.require_converged() is discovered
+    assert engine.last_adaptive_schedule is discovered.schedule
+
+    replayed = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+        schedule=discovered.schedule,
+    )
+    ordinary_replay = engine.run(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+        adaptive_schedule=discovered.schedule,
+    )
+
+    assert replayed.schedule is discovered.schedule
+    assert engine.last_adaptive_schedule is discovered.schedule
+    np.testing.assert_allclose(replayed.trajectory, discovered.trajectory)
+    np.testing.assert_allclose(ordinary_replay, discovered.trajectory)
+
+
+def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
+    """A frozen mesh cannot silently cross incompatible provider settings."""
+    system = _GoodSystem()
+    times = np.asarray([0.0, 0.5, 1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.HEUN, adaptive=True),
+    )
+    schedule = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    ).schedule
+
+    wrong_method = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.RK4, adaptive=True),
+    )
+    with pytest.raises(ValueError, match="does not match configured method"):
+        wrong_method.run(
+            system,
+            times,
+            initial_state,
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+
+    wrong_controls = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.HEUN,
+            adaptive=True,
+            rtol=1e-4,
+        ),
+    )
+    with pytest.raises(ValueError, match="controller settings"):
+        wrong_controls.run(
+            system,
+            times,
+            initial_state,
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+
+    with pytest.raises(ValueError, match="output_times"):
+        engine.run(
+            system,
+            np.asarray([0.0, 1.0]),
+            initial_state,
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+
+
+def test_adaptive_entry_point_requires_adaptive_configuration() -> None:
+    """Schedule discovery is unavailable for a fixed-step configuration."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(adaptive=False),
+    )
+    initial_state, model_state = _initial_state(1.0)
+
+    with pytest.raises(ValueError, match="adaptive=True"):
+        engine.run_adaptive(
+            _GoodSystem(),
+            np.asarray([0.0, 1.0]),
+            initial_state,
+            {},
+            model_state=model_state,
+        )
 
 
 # -----------------------------------------------------------------------------

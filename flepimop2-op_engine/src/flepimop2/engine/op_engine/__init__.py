@@ -20,17 +20,19 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 import numpy as np
 from flepimop2.engine.abc import EngineABC
 from flepimop2.exceptions import ValidationIssue
 from flepimop2.typing import IdentifierString, StateChangeEnum  # noqa: TC002
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 
 from op_engine.core_solver import (
+    AdaptiveStepSchedule,
     CoreSolver,
+    NonlinearIntegrationDiagnostics,
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
 from op_engine.stochastic_solver import (
@@ -80,6 +82,124 @@ class _IndexableArray(Protocol):
 _ARRAY_API_ERROR = (
     "op_engine provider inputs must implement __array_namespace__(); got {type_name}."
 )
+
+
+@dataclass(frozen=True, slots=True)
+class AdaptiveSchedule:
+    """Provider replay artifact for one accepted adaptive mesh.
+
+    The accepted steps are conditional on the model, parameters, tolerances,
+    and output grid used during discovery. The provider can validate the
+    recorded method and controller configuration, but callers must refresh the
+    schedule after material model or parameter changes.
+    """
+
+    method: SolverMethod
+    step_schedule: AdaptiveStepSchedule
+    rtol: float
+    atol: float
+    dt_min: float
+    dt_max: float
+    safety: float
+    fac_min: float
+    fac_max: float
+    gamma: float | None
+    strict: bool
+
+    @classmethod
+    def from_core(
+        cls,
+        step_schedule: AdaptiveStepSchedule,
+        config: OpEngineEngineConfig,
+    ) -> AdaptiveSchedule:
+        """Build an artifact from a completed provider discovery run.
+
+        Returns:
+            Schedule artifact bound to the active numerical configuration.
+        """
+        return cls(
+            method=config.method,
+            step_schedule=step_schedule,
+            rtol=config.rtol,
+            atol=config.atol,
+            dt_min=config.dt_min,
+            dt_max=config.dt_max,
+            safety=config.safety,
+            fac_min=config.fac_min,
+            fac_max=config.fac_max,
+            gamma=config.gamma,
+            strict=config.strict,
+        )
+
+    def validate_config(self, config: OpEngineEngineConfig) -> None:
+        """Validate that a provider configuration can replay this artifact.
+
+        Raises:
+            ValueError: If the solver method or adaptive controls changed.
+        """
+        if config.method is not self.method:
+            msg = (
+                f"Adaptive schedule method '{self.method.value}' does not match "
+                f"configured method '{config.method.value}'."
+            )
+            raise ValueError(msg)
+
+        recorded = (
+            self.rtol,
+            self.atol,
+            self.dt_min,
+            self.dt_max,
+            self.safety,
+            self.fac_min,
+            self.fac_max,
+            self.gamma,
+            self.strict,
+        )
+        configured = (
+            config.rtol,
+            config.atol,
+            config.dt_min,
+            config.dt_max,
+            config.safety,
+            config.fac_min,
+            config.fac_max,
+            config.gamma,
+            config.strict,
+        )
+        if recorded != configured:
+            msg = (
+                "Adaptive schedule controller settings do not match the active "
+                "engine configuration; discover a fresh schedule."
+            )
+            raise ValueError(msg)
+
+
+@dataclass(frozen=True, slots=True)
+class AdaptiveRunResult:
+    """Trajectory, frozen schedule, and optional nonlinear diagnostics."""
+
+    trajectory: Array
+    schedule: AdaptiveSchedule
+    diagnostics: NonlinearIntegrationDiagnostics | None = None
+
+    def require_converged(self) -> AdaptiveRunResult:
+        """Validate any nonlinear diagnostics attached to this result.
+
+        Returns:
+            This unchanged result after successful validation.
+        """
+        if self.diagnostics is not None:
+            self.diagnostics.require_converged()
+        return self
+
+
+@dataclass(frozen=True, slots=True)
+class _ExecutionResult:
+    """Internal result shared by ordinary and schedule-aware entry points."""
+
+    trajectory: Array
+    schedule: AdaptiveSchedule | None = None
+    diagnostics: NonlinearIntegrationDiagnostics | None = None
 
 
 def _namespace_of(value: object) -> Any:  # noqa: ANN401
@@ -749,6 +869,12 @@ class OpEngineFlepimop2Engine(EngineABC):
     module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
     state_change: StateChangeEnum
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
+    _last_adaptive_schedule: AdaptiveSchedule | None = PrivateAttr(default=None)
+
+    @property
+    def last_adaptive_schedule(self) -> AdaptiveSchedule | None:
+        """Return the schedule discovered or replayed by the latest run."""
+        return self._last_adaptive_schedule
 
     def validate_system(self, system: SystemABC) -> list[ValidationIssue] | None:
         """Validate system compatibility with engine config."""
@@ -855,16 +981,107 @@ class OpEngineFlepimop2Engine(EngineABC):
         initial_state: dict[IdentifierString, ParameterValue],
         params: Mapping[IdentifierString, ParameterValue],
         model_state: ModelStateSpecification | None = None,
+        *,
+        adaptive_schedule: AdaptiveSchedule | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> Float64NDArray:
-        """Execute simulation using op_engine and return `(time, state...)` output."""
+        """Execute a simulation, optionally replaying a frozen adaptive mesh."""
+        self._last_adaptive_schedule = None
+        result = self._execute(
+            system,
+            eval_times,
+            initial_state,
+            params,
+            model_state=model_state,
+            adaptive_schedule=adaptive_schedule,
+            **kwargs,
+        )
+        self._last_adaptive_schedule = result.schedule
+        return cast("Float64NDArray", result.trajectory)
+
+    def run_adaptive(
+        self,
+        system: SystemABC,
+        eval_times: Float64NDArray,
+        initial_state: dict[IdentifierString, ParameterValue],
+        params: Mapping[IdentifierString, ParameterValue],
+        model_state: ModelStateSpecification | None = None,
+        *,
+        schedule: AdaptiveSchedule | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> AdaptiveRunResult:
+        """Discover or replay an adaptive schedule with explicit metadata.
+
+        Pass no schedule for eager controller discovery. Pass the returned
+        schedule to replay the frozen accepted mesh under JIT or automatic
+        differentiation. Resulting gradients are conditional on that mesh.
+
+        Returns:
+            Trajectory, provider schedule artifact, and optional nonlinear
+            diagnostics.
+
+        Raises:
+            ValueError: If the engine is not deterministic and adaptive.
+        """
+        if self.config.mode is not ExecutionMode.DETERMINISTIC:
+            msg = "Adaptive schedule discovery and replay require deterministic mode."
+            raise ValueError(msg)
+        if not self.config.adaptive:
+            msg = "Adaptive schedule discovery and replay require adaptive=True."
+            raise ValueError(msg)
+
+        self._last_adaptive_schedule = None
+        result = self._execute(
+            system,
+            eval_times,
+            initial_state,
+            params,
+            model_state=model_state,
+            adaptive_schedule=schedule,
+            **kwargs,
+        )
+        if result.schedule is None:
+            msg = "Adaptive execution completed without recording a schedule."
+            raise RuntimeError(msg)
+        self._last_adaptive_schedule = result.schedule
+        return AdaptiveRunResult(
+            trajectory=result.trajectory,
+            schedule=result.schedule,
+            diagnostics=result.diagnostics,
+        )
+
+    def _execute(
+        self,
+        system: SystemABC,
+        eval_times: Float64NDArray,
+        initial_state: dict[IdentifierString, ParameterValue],
+        params: Mapping[IdentifierString, ParameterValue],
+        model_state: ModelStateSpecification | None = None,
+        *,
+        adaptive_schedule: AdaptiveSchedule | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> _ExecutionResult:
+        """Execute one provider run and retain schedule-aware metadata."""
         times = _as_float64_1d(eval_times, name="eval_times")
         _ensure_strictly_increasing(times, name="eval_times")
+        mode = self.config.mode
+        if adaptive_schedule is not None:
+            if not isinstance(adaptive_schedule, AdaptiveSchedule):
+                msg = "adaptive_schedule must be an AdaptiveSchedule"
+                raise TypeError(msg)
+            if mode is not ExecutionMode.DETERMINISTIC:
+                msg = "Adaptive schedule replay requires deterministic mode."
+                raise ValueError(msg)
+            if not self.config.adaptive:
+                msg = "Adaptive schedule replay requires adaptive=True."
+                raise ValueError(msg)
+            adaptive_schedule.validate_config(self.config)
+
         raw_params = _unwrap_parameter_values(params)
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
         n_state = int(y0.shape[0])
 
-        if self.config.mode is ExecutionMode.STOCHASTIC:
+        if mode is ExecutionMode.STOCHASTIC:
             stochastic_network = compile_reaction_network(
                 system,
                 raw_params,
@@ -877,9 +1094,8 @@ class OpEngineFlepimop2Engine(EngineABC):
                 self.config,
                 kwargs,
             )
-            return cast(
-                "Float64NDArray",
-                _format_result(times, stochastic_states),
+            return _ExecutionResult(
+                trajectory=_format_result(times, stochastic_states),
             )
 
         run_cfg = self.config.to_run_config()
@@ -932,7 +1148,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         stepper: SystemProtocol = system.bind(params=raw_params)
         rhs = _rhs_from_stepper(stepper, n_state=n_state)
 
-        if self.config.mode is ExecutionMode.HYBRID:
+        if mode is ExecutionMode.HYBRID:
             hybrid_network = compile_reaction_network(
                 system,
                 raw_params,
@@ -950,7 +1166,9 @@ class OpEngineFlepimop2Engine(EngineABC):
                 operators=operators.default if is_imex else None,
                 operator_axis=operator_axis,
             )
-            return cast("Float64NDArray", _format_result(times, hybrid_states))
+            return _ExecutionResult(
+                trajectory=_format_result(times, hybrid_states),
+            )
 
         core = _make_core(times, y0)
 
@@ -971,7 +1189,14 @@ class OpEngineFlepimop2Engine(EngineABC):
                 SolverMethod.DOPRI5,
             }
         )
-        if use_jax_scan:
+        diagnostics: NonlinearIntegrationDiagnostics | None = None
+        if adaptive_schedule is not None:
+            diagnostics = solver.replay_adaptive_schedule(
+                rhs,
+                adaptive_schedule.step_schedule,
+                config=run_cfg,
+            )
+        elif use_jax_scan:
             _run_jax_fixed_explicit_trajectory(
                 solver,
                 rhs,
@@ -979,14 +1204,23 @@ class OpEngineFlepimop2Engine(EngineABC):
                 times=times,
             )
         else:
-            solver.run(rhs, config=run_cfg)
+            diagnostics = solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)
-        # flepimop2#343 will generalize this inherited annotation to Array.
-        return cast("Float64NDArray", _format_result(times, states))
+        step_schedule = solver.last_adaptive_schedule
+        schedule = adaptive_schedule
+        if schedule is None and step_schedule is not None:
+            schedule = AdaptiveSchedule.from_core(step_schedule, self.config)
+        return _ExecutionResult(
+            trajectory=_format_result(times, states),
+            schedule=schedule,
+            diagnostics=diagnostics,
+        )
 
 
 __all__ = [
+    "AdaptiveRunResult",
+    "AdaptiveSchedule",
     "ExecutionMode",
     "OpEngineEngineConfig",
     "OpEngineFlepimop2Engine",
