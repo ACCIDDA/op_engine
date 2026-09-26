@@ -23,17 +23,32 @@ differentiation path; use dense JAX operators when gradients through a solve are
 required.
 
 The built-in adaptive controller is an eager Python controller. It preserves a
-JAX array namespace, but step acceptance extracts scalar error values and uses
-Python loops and branches. Consequently, `adaptive=True` on the portable methods
-is not currently a JAX-`jit`-compatible execution path. This limitation belongs
-to the controller, not to the Euler, Heun, IMEX, or linearly implicit formulas.
+JAX array namespace, and `jax.grad` can differentiate the numerical operations
+on the branch accepted by the nominal solve. Step acceptance itself extracts
+scalar error values and uses Python loops and branches, however, so a live
+`adaptive=True` solve is not a JAX-`jit`-compatible execution path. This
+limitation belongs to the controller, not to the Euler, Heun, IMEX, or linearly
+implicit formulas.
 
 ## Adaptive-controller boundary
 
-The built-in adaptive controller preserves the active array namespace, but its
-step acceptance is intentionally eager Python control flow. It is therefore not
-a JAX-`jit`-compatible controller even though the numerical step formulas are
-differentiable.
+After a successful adaptive run, `CoreSolver.last_adaptive_schedule` contains
+the accepted internal step sizes. A new solver can pass that value to
+`replay_adaptive_schedule`. Replay skips error norms and acceptance decisions,
+but invokes the same high-order Array-API step kernels. The static schedule can
+therefore be used inside `jax.jit(jax.value_and_grad(...))` while parameters,
+initial state, dense operators, and Jacobians remain dynamic.
+
+The resulting derivative is conditional on the recorded mesh. This is also the
+branchwise meaning of an eager live-adaptive gradient: neither mode differentiates
+the discrete accept/reject decision. Refresh the schedule as optimization
+parameters move, and always refresh it after a material model or tolerance
+change. A schedule is validated against the output grid, while matching the
+method and other configuration is the caller's responsibility.
+
+Schedule replay statically unrolls the accepted steps when JAX traces it. For
+very long meshes, a provider may instead implement bounded, masked compiled
+control flow around the same portable kernels.
 
 Projects that require a compiled adaptive controller, checkpointed adjoints, or
 other solver-specific capabilities can provide those at an external plugin or

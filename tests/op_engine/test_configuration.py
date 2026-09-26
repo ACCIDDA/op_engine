@@ -9,6 +9,7 @@ import pytest
 
 from op_engine.core_solver import (
     AdaptiveConfig,
+    AdaptiveStepSchedule,
     DtControllerConfig,
     RunConfig,
 )
@@ -89,3 +90,35 @@ def test_adaptive_config_validates_numpy_atol_without_coercing_array_api() -> No
     assert config.atol is tolerance
     with pytest.raises(ValueError, match="NumPy atol"):
         AdaptiveConfig(atol=np.asarray([1e-8, -1.0]))
+
+
+def test_adaptive_schedule_normalizes_and_validates_interval_steps() -> None:
+    """A schedule is immutable, normalized, and covers every output interval."""
+    schedule = AdaptiveStepSchedule(
+        output_times=(np.float32(0.0), np.float32(0.5), np.float32(1.0)),
+        step_sizes=((0.2, 0.3), (0.5,)),
+    )
+
+    assert schedule.output_times == (0.0, 0.5, 1.0)
+    assert schedule.step_sizes == ((0.2, 0.3), (0.5,))
+
+
+@pytest.mark.parametrize(
+    ("output_times", "step_sizes", "match"),
+    [
+        ((), (), "at least one output time"),
+        ((0.0, 0.0), ((0.1,),), "strictly increasing"),
+        ((0.0, 1.0), (), "one step group"),
+        ((0.0, 1.0), ((),), "must not be empty"),
+        ((0.0, 1.0), ((-1.0,),), "finite and positive"),
+        ((0.0, 1.0), ((0.25, 0.5),), "sum to each output interval"),
+    ],
+)
+def test_adaptive_schedule_rejects_invalid_meshes(
+    output_times: tuple[float, ...],
+    step_sizes: tuple[tuple[float, ...], ...],
+    match: str,
+) -> None:
+    """Invalid accepted-step meshes fail when the schedule is constructed."""
+    with pytest.raises(ValueError, match=match):
+        AdaptiveStepSchedule(output_times=output_times, step_sizes=step_sizes)

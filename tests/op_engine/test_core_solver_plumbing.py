@@ -21,7 +21,12 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
-from op_engine.core_solver import AdaptiveConfig, CoreSolver, RunConfig
+from op_engine.core_solver import (
+    AdaptiveConfig,
+    AdaptiveStepSchedule,
+    CoreSolver,
+    RunConfig,
+)
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
 if TYPE_CHECKING:
@@ -159,6 +164,67 @@ def test_adaptive_true_lands_exactly_on_next_output_time() -> None:
     assert np.isclose(core.current_time, 1.0)
     assert np.all(np.isfinite(core.get_current_state()))
     assert np.isclose(float(core.get_current_state()[0, 0]), 1.0, atol=1e-12, rtol=0.0)
+
+
+def test_numpy_implicit_adaptive_schedule_replays_the_accepted_mesh() -> None:
+    """NumPy replay reproduces a live adaptive linearly implicit trajectory."""
+    time_grid = np.asarray([0.0, 0.3, 0.7])
+    config = RunConfig(
+        method="trapezoidal",
+        adaptive=True,
+        adaptive_cfg=AdaptiveConfig(rtol=1e-4, atol=1e-7, dt_init=0.05),
+        jacobian=lambda _time, _state: np.asarray([[-0.3]]),
+    )
+
+    def rhs_decay(_time: float, state: FloatArray) -> FloatArray:
+        return -0.3 * state
+
+    live_core = _make_core(n_states=1, n_subgroups=1, time_grid=time_grid)
+    live_core.set_initial_state(np.asarray([[1.2]]))
+    live_solver = CoreSolver(live_core)
+    live_solver.run(rhs_decay, config=config)
+    schedule = live_solver.last_adaptive_schedule
+
+    assert schedule is not None
+    assert sum(map(len, schedule.step_sizes)) > len(schedule.step_sizes)
+
+    replay_core = _make_core(n_states=1, n_subgroups=1, time_grid=time_grid)
+    replay_core.set_initial_state(np.asarray([[1.2]]))
+    replay_solver = CoreSolver(replay_core)
+    replay_solver.replay_adaptive_schedule(rhs_decay, schedule, config=config)
+
+    assert replay_solver.last_adaptive_schedule is schedule
+    assert live_core.state_array is not None
+    assert replay_core.state_array is not None
+    np.testing.assert_allclose(replay_core.state_array, live_core.state_array)
+
+
+def test_adaptive_schedule_replay_requires_adaptive_matching_grid() -> None:
+    """Replay rejects non-adaptive configs and schedules for another output grid."""
+    core = _make_core(
+        n_states=1,
+        n_subgroups=1,
+        time_grid=np.asarray([0.0, 1.0]),
+    )
+    core.set_initial_state(np.asarray([[1.0]]))
+    solver = CoreSolver(core)
+    schedule = AdaptiveStepSchedule(
+        output_times=(0.0, 0.5),
+        step_sizes=((0.5,),),
+    )
+
+    with pytest.raises(ValueError, match="adaptive=True"):
+        solver.replay_adaptive_schedule(
+            _reaction_zero,
+            schedule,
+            config=RunConfig(method="heun"),
+        )
+    with pytest.raises(ValueError, match="must match"):
+        solver.replay_adaptive_schedule(
+            _reaction_zero,
+            schedule,
+            config=RunConfig(method="heun", adaptive=True),
+        )
 
 
 # -----------------------------------------------------------------------------
