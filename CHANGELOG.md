@@ -27,6 +27,10 @@ versioning while the project remains pre-1.0.
   advection, and diffusion drift at every Runge--Kutta stage. Flat, PyTree,
   and block layouts share the same namespace-preserving operator path instead
   of silently omitting operators outside IMEX execution (#140).
+- Typed advection and transport descriptors now honor op_system's explicit
+  `increasing`/`decreasing` direction contract in both IMEX and explicit
+  provider paths while preserving JAX differentiation through dynamic
+  coefficients (#142).
 
 ## [0.2.0] - 2026-09-26
 

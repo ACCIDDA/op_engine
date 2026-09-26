@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, cast
 from op_engine.matrix_ops import build_advection_matrix, build_diffusion_matrix
 
 from .operators import (
+    _advection_direction_sign,
     _apply_to_bases,
     _array_namespace,
     _axis_label_map,
@@ -68,6 +69,10 @@ def _row_source_operator(
             field="advection velocity",
             xp=xp,
             dtype=reference.dtype,
+        )
+        velocity = cast(
+            "Array",
+            xp.multiply(velocity, _advection_direction_sign(descriptor)),
         )
         dx = _uniform_axis_spacing(
             descriptor.axis,

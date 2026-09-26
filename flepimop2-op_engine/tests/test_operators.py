@@ -51,7 +51,11 @@ def _generator_descriptor(
     )
 
 
-def _advection_descriptor() -> OperatorDescriptor:
+def _advection_descriptor(
+    *,
+    direction: str | None = None,
+    bc: str = "periodic",
+) -> OperatorDescriptor:
     """Build a typed advection descriptor for the test immune axis.
 
     Returns:
@@ -61,7 +65,8 @@ def _advection_descriptor() -> OperatorDescriptor:
         axis="imm",
         kind="advection",
         velocity=2.0,
-        bc="periodic",
+        bc=bc,
+        direction=direction,
         apply_to=("X[imm]",),
     )
 
@@ -188,6 +193,60 @@ def test_advection_lifts_portable_operator_over_selected_states() -> None:
 
     np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
     np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
+
+
+@pytest.mark.parametrize(
+    ("direction", "resolved_velocity"),
+    [(None, 2.0), ("increasing", 2.0), ("decreasing", -2.0)],
+)
+def test_advection_resolves_explicit_direction(
+    direction: str | None,
+    resolved_velocity: float,
+) -> None:
+    """Direction orients a non-negative coefficient before stencil assembly."""
+    state_names = ("X__imm_x0", "X__imm_x1", "X__imm_x2")
+    specs = compile_operator_descriptors(
+        (_advection_descriptor(direction=direction, bc="reflecting"),),
+        method="imex-euler",
+        state_names=state_names,
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_coords={"imm": np.asarray([0.0, 0.5, 1.0])},
+        params={},
+    )
+
+    assert callable(specs.default)
+    dt = 0.2
+    left, _right = specs.default(
+        dt,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((len(state_names), 1))),
+    )
+    observed = (np.eye(len(state_names)) - np.asarray(left)) / dt
+    expected = np.asarray(
+        build_advection_matrix(
+            3,
+            0.5,
+            resolved_velocity,
+            bc="reflecting",
+        )
+    )
+
+    np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
+
+
+def test_advection_rejects_unknown_direction() -> None:
+    """Provider compilation fails closed for a manually forged descriptor."""
+    with pytest.raises(ValueError, match="advection direction must be"):
+        compile_operator_descriptors(
+            (_advection_descriptor(direction="sideways"),),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1", "x2")},
+            axis_coords={"imm": np.asarray([0.0, 0.5, 1.0])},
+            params={},
+        )
 
 
 def test_diffusion_lifts_portable_operator_over_selected_states() -> None:
