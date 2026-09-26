@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from flepimop2.typing import Array, Float64NDArray
     from numpy.typing import DTypeLike
 
+    from op_engine._typing import Scalar
     from op_engine.core_solver import CoreOperators, RunConfig, StageOperatorFactory
     from op_engine.stochastic_solver import PoissonSampler, SSASampler
 
@@ -174,8 +175,8 @@ def _rhs_from_stepper(
     stepper: SystemProtocol,
     *,
     n_state: int,
-) -> Callable[[float, Array], Array]:
-    def rhs(time: float, state: Array) -> Array:
+) -> Callable[[Scalar, Array], Array]:
+    def rhs(time: Scalar, state: Array) -> Array:
         xp = _namespace_of(state)
         state_arr = state
         if state_arr.shape == (n_state,):
@@ -242,7 +243,7 @@ def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
 
 def _run_jax_fixed_explicit_trajectory(
     solver: CoreSolver,
-    rhs: Callable[[float, Array], Array],
+    rhs: Callable[[Scalar, Array], Array],
     *,
     method: SolverMethod,
     times: np.ndarray,
@@ -259,22 +260,81 @@ def _run_jax_fixed_explicit_trajectory(
         xp.subtract(_array_item(time_values, slice(1, None)), step_times),
     )
 
-    def advance(state: Array, step: tuple[Array, Array]) -> tuple[Array, Array]:
-        time, dt = step
-        next_state, _next_stage = solver.fixed_explicit_step(
+    if times.size == 1:
+        solver.core.apply_trajectory(
+            cast("Array", xp.expand_dims(initial_state, axis=0))
+        )
+        return
+
+    if method is SolverMethod.DOPRI5:
+        first_state, first_stage = solver.fixed_explicit_step(
             rhs,
             method=method.value,
-            t=cast("float", time),
-            dt=cast("float", dt),
-            y=state,
+            t=_array_item(step_times, 0),
+            dt=_array_item(step_sizes, 0),
+            y=initial_state,
         )
-        return next_state, next_state
+        if first_stage is None:
+            msg = "Dormand--Prince fixed steps must return an FSAL stage."
+            raise RuntimeError(msg)
 
-    _final_state, tail = jax.lax.scan(
-        advance,
-        initial_state,
-        (step_times, step_sizes),
-    )
+        if times.size == 2:
+            tail = cast("Array", xp.expand_dims(first_state, axis=0))
+        else:
+
+            def advance_dopri5(
+                carry: tuple[Array, Array],
+                step: tuple[Array, Array],
+            ) -> tuple[tuple[Array, Array], Array]:
+                state, stage = carry
+                time, dt = step
+                next_state, next_stage = solver.fixed_explicit_step(
+                    rhs,
+                    method=method.value,
+                    t=time,
+                    dt=dt,
+                    y=state,
+                    first_stage=stage,
+                )
+                if next_stage is None:
+                    msg = "Dormand--Prince fixed steps must return an FSAL stage."
+                    raise RuntimeError(msg)
+                return (next_state, next_stage), next_state
+
+            (_final_state, _final_stage), remaining_tail = jax.lax.scan(
+                advance_dopri5,
+                (first_state, first_stage),
+                (
+                    _array_item(step_times, slice(1, None)),
+                    _array_item(step_sizes, slice(1, None)),
+                ),
+            )
+            tail = cast(
+                "Array",
+                xp.concat(
+                    (xp.expand_dims(first_state, axis=0), remaining_tail),
+                    axis=0,
+                ),
+            )
+    else:
+
+        def advance(state: Array, step: tuple[Array, Array]) -> tuple[Array, Array]:
+            time, dt = step
+            next_state, _next_stage = solver.fixed_explicit_step(
+                rhs,
+                method=method.value,
+                t=time,
+                dt=dt,
+                y=state,
+            )
+            return next_state, next_state
+
+        _final_state, tail = jax.lax.scan(
+            advance,
+            initial_state,
+            (step_times, step_sizes),
+        )
+
     trajectory = cast(
         "Array",
         xp.concat((xp.expand_dims(initial_state, axis=0), tail), axis=0),

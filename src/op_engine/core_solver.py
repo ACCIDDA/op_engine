@@ -97,7 +97,7 @@ from ._sdirk import (
     attempt_sdirk_step,
     evaluate_sdirk_step,
 )
-from ._typing import Array
+from ._typing import Array, Scalar
 from .matrix_ops import (
     StageOperatorContext,
     build_implicit_euler_operators,
@@ -1928,7 +1928,7 @@ class CoreSolver:
     # RHS evaluation helper (shape + dtype enforcement)
     # ------------------------------------------------------------------
 
-    def _rhs_array(self, rhs_func: RHSFunction, t: float, y: Array) -> Array:
+    def _rhs_array(self, rhs_func: RHSFunction, t: Scalar, y: Array) -> Array:
         """Evaluate an RHS without converting it out of ``y``'s namespace.
 
         Args:
@@ -2491,8 +2491,8 @@ class CoreSolver:
         self,
         rhs_func: RHSFunction,
         *,
-        t: float,
-        dt: float,
+        t: Scalar,
+        dt: Scalar,
         y: Array,
     ) -> Array:
         """Return one explicit Euler step in ``y``'s namespace."""
@@ -2527,7 +2527,7 @@ class CoreSolver:
     @staticmethod
     def _weighted_rk_state(
         y: Array,
-        dt: float,
+        dt: Scalar,
         weights: tuple[float, ...],
         stages: Sequence[Array],
     ) -> Array:
@@ -2538,7 +2538,10 @@ class CoreSolver:
             if weight != 0.0:
                 result = cast(
                     "Array",
-                    xp.add(result, xp.multiply(stage, dt * weight)),
+                    xp.add(
+                        result,
+                        xp.multiply(stage, cast("Any", dt) * weight),
+                    ),
                 )
         return result
 
@@ -2547,8 +2550,8 @@ class CoreSolver:
         rhs_func: RHSFunction,
         *,
         tableau: ExplicitRungeKuttaTableau,
-        t: float,
-        dt: float,
+        t: Scalar,
+        dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
     ) -> tuple[Array, Array | None, Array, Array | None]:
@@ -2568,7 +2571,7 @@ class CoreSolver:
                 stage_state = self._weighted_rk_state(y, dt, row, stages)
                 derivative = self._rhs_array(
                     rhs_func,
-                    t + stage_time * dt,
+                    cast("Any", t) + stage_time * cast("Any", dt),
                     stage_state,
                 )
             stages.append(derivative)
@@ -2667,8 +2670,8 @@ class CoreSolver:
         rhs_func: RHSFunction,
         *,
         method: MethodName,
-        t: float,
-        dt: float,
+        t: Scalar,
+        dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
     ) -> tuple[Array, Array | None]:
@@ -2705,8 +2708,8 @@ class CoreSolver:
         rhs_func: RHSFunction,
         *,
         method: str,
-        t: float,
-        dt: float,
+        t: Scalar,
+        dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
     ) -> tuple[Array, Array | None]:
@@ -2719,8 +2722,8 @@ class CoreSolver:
         Args:
             rhs_func: Function computing the explicit RHS F(t, y).
             method: Explicit solver method name.
-            t: Step start time.
-            dt: Step size.
+            t: Step start time as a Python float or backend-native scalar.
+            dt: Step size as a Python float or backend-native scalar.
             y: State at the step start.
             first_stage: Optional cached FSAL stage.
 

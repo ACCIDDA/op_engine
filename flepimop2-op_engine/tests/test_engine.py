@@ -177,7 +177,10 @@ def test_jax_fixed_explicit_trajectory_is_one_differentiable_scan(
 
     initial = jnp.asarray(1.0, dtype=jnp.float32)
     jaxpr = jax.make_jaxpr(solve)(initial)
-    assert str(jaxpr).count("scan[") == 1
+    scan_equations = [
+        equation for equation in jaxpr.jaxpr.eqns if equation.primitive.name == "scan"
+    ]
+    assert len(scan_equations) == 1
 
     value, derivative = jax.jit(jax.value_and_grad(solve))(initial)
     assert value == pytest.approx(np.e, rel=2e-5)
@@ -332,7 +335,12 @@ def test_validate_implicit_with_jacobian(method: SolverMethod) -> None:
 
 def test_validate_explicit_no_extra_issues() -> None:
     """Explicit methods do not trigger operator or jacobian warnings."""
-    for method in (SolverMethod.EULER, SolverMethod.HEUN):
+    for method in (
+        SolverMethod.EULER,
+        SolverMethod.HEUN,
+        SolverMethod.RK4,
+        SolverMethod.DOPRI5,
+    ):
         engine = OpEngineFlepimop2Engine(
             state_change=StateChangeEnum.FLOW,
             config=OpEngineEngineConfig(method=method),

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
-from op_engine import Array, CoreSolver, ModelCore, implicit_solve
+from op_engine import Array, CoreSolver, ModelCore, Scalar, implicit_solve
 from op_engine.core_solver import AdaptiveConfig, AdaptiveStepSchedule, RunConfig
 from op_engine.model_core import ModelCoreOptions
 
@@ -126,6 +126,84 @@ def test_numpy_and_jax_explicit_paths_agree(method: str, *, adaptive: bool) -> N
     assert jax_history.__array_namespace__() is jnp
     assert np.allclose(np.asarray(jax_state), np.asarray(numpy_state), rtol=2e-6)
     assert np.allclose(np.asarray(jax_history), np.asarray(numpy_history), rtol=2e-6)
+
+
+@pytest.mark.parametrize("method", ["euler", "heun", "rk4", "dopri5"])
+def test_fixed_explicit_step_matches_run_without_mutating_core(method: str) -> None:
+    """The public functional step agrees with a run and leaves history alone."""
+    time_grid = np.asarray([0.0, 0.2])
+    initial = np.asarray([[1.0], [0.5]])
+
+    direct_core = ModelCore(2, 1, time_grid)
+    direct_core.set_initial_state(initial)
+    direct_solver = CoreSolver(direct_core)
+
+    def rhs(time: float, state: Array) -> Array:
+        xp = cast("Any", state.__array_namespace__())
+        return cast("Array", xp.add(xp.multiply(state, -0.25), 0.1 * time))
+
+    direct, _stage = direct_solver.fixed_explicit_step(
+        rhs,
+        method=method,
+        t=0.0,
+        dt=0.2,
+        y=direct_core.get_current_state(),
+    )
+
+    run_core = ModelCore(2, 1, time_grid)
+    run_core.set_initial_state(initial)
+    CoreSolver(run_core).run(rhs, config=RunConfig(method=method))
+
+    assert direct.__array_namespace__() is np
+    np.testing.assert_allclose(direct, run_core.get_current_state())
+    np.testing.assert_array_equal(direct_core.get_current_state(), initial)
+    assert direct_core.current_step == 0
+
+
+def test_fixed_explicit_step_accepts_traced_time_and_preserves_namespace() -> None:
+    """Backend scalar times remain traceable through the public step boundary."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    core = ModelCore(1, 1, np.asarray([0.0, 0.1]))
+    solver = CoreSolver(core)
+
+    def rhs(time: Scalar, state: Array) -> Array:
+        xp = cast("Any", state.__array_namespace__())
+        return cast("Array", xp.add(xp.negative(state), time))
+
+    def step(time: Scalar, dt: Scalar, state: Array) -> Array:
+        result, _stage = solver.fixed_explicit_step(
+            rhs,
+            method="heun",
+            t=time,
+            dt=dt,
+            y=state,
+        )
+        return result
+
+    result = jax.jit(step)(
+        jnp.asarray(0.2, dtype=jnp.float32),
+        jnp.asarray(0.1, dtype=jnp.float32),
+        jnp.asarray([[1.0]], dtype=jnp.float32),
+    )
+
+    assert result.__array_namespace__() is jnp
+    assert result[0, 0] == pytest.approx(0.929, rel=2e-6)
+
+
+def test_fixed_explicit_step_rejects_implicit_method() -> None:
+    """The functional explicit boundary rejects non-explicit methods."""
+    core = ModelCore(1, 1, np.asarray([0.0, 0.1]))
+    state = core.get_current_state()
+
+    with pytest.raises(ValueError, match="not an explicit solver method"):
+        CoreSolver(core).fixed_explicit_step(
+            lambda _time, value: value,
+            method="implicit-euler",
+            t=0.0,
+            dt=0.1,
+            y=state,
+        )
 
 
 def test_dense_implicit_solve_preserves_jax_namespace() -> None:
