@@ -494,6 +494,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                     state_names=system.option("state_names", None),
                     axis_order=system.option("axis_order", None),
                     axis_labels=system.option("axis_labels", None),
+                    axis_coords=system.option("axis_coords", None),
                     params=raw_params,
                     reference=y0,
                 )

@@ -27,6 +27,10 @@ from flepimop2.testing import external_provider_package, flepimop2_run
 def test_external_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Run a simulation with an installed external op_engine provider package."""
     cwd = Path(__file__).parent.resolve()
+    core_root = cwd.parents[1]
+    constraints = tmp_path / "constraints.txt"
+    constraints.write_text(f"op-engine @ {core_root.as_uri()}\n")
+    monkeypatch.setenv("PIP_CONSTRAINT", str(constraints))
     external_provider_package(
         tmp_path,
         copy_files={
