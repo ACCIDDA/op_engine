@@ -68,6 +68,7 @@ from .config import (
     _coerce_operator_specs,
     _has_operator_specs,
 )
+from .explicit_operators import compile_structured_operator_drift
 from .operators import (
     compile_operator_descriptors,
     typed_operator_descriptors,
@@ -846,17 +847,55 @@ def _validate_state_tree(
     return checked
 
 
+def _system_explicit_operator_drift(
+    system: SystemABC,
+    params: Mapping[str, object],
+    reference: StateTree,
+    *,
+    excluded_axes: tuple[str, ...] = (),
+) -> Callable[[Mapping[str, Array]], dict[str, Array]] | None:
+    """Compile a system's typed operators as additive explicit drift."""
+    descriptors = typed_operator_descriptors(system.option("operators", None))
+    if not descriptors:
+        return None
+    return compile_structured_operator_drift(
+        descriptors,
+        state_names=system.option("state_names", None),
+        axis_order=system.option("axis_order", None),
+        axis_labels=system.option("axis_labels", None),
+        axis_coords=system.option("axis_coords", None),
+        params=params,
+        reference=reference,
+        excluded_axes=excluded_axes,
+    )
+
+
 def _structured_rhs(
     stepper: Callable[..., object],
     params: Mapping[str, object],
     *,
     source: str,
+    operator_drift: Callable[[Mapping[str, Array]], dict[str, Array]] | None = None,
 ) -> Callable[[Scalar, StateTree], StateTree]:
     """Bind parameters and validate a structured system stepper."""
 
     def rhs(time: Scalar, state: StateTree) -> StateTree:
         result = stepper(cast("Any", time), state, **params)
-        return _validate_state_tree(result, state, source=source)
+        checked = _validate_state_tree(result, state, source=source)
+        if operator_drift is None:
+            return checked
+        operator_result = _validate_state_tree(
+            operator_drift(state),
+            state,
+            source="typed system operator",
+        )
+        return {
+            name: cast(
+                "Array",
+                _namespace_of(value).add(value, operator_result[name]),
+            )
+            for name, value in checked.items()
+        }
 
     return rhs
 
@@ -1076,6 +1115,46 @@ def _flat_state_to_pytree(
     return result
 
 
+def _flatten_state_tree(
+    state: Mapping[str, Array],
+    template_shapes: Mapping[str, object],
+) -> Array:
+    """Flatten one structured state in the published template order."""
+    first_value = next(iter(state.values()))
+    xp = _namespace_of(first_value)
+    leaves = tuple(
+        cast("Array", xp.reshape(state[name], (-1,))) for name in template_shapes
+    )
+    return cast("Array", xp.concat(leaves, axis=0))
+
+
+def _add_flat_operator_drift(
+    rhs: Callable[[Scalar, Array], Array],
+    operator_drift: Callable[[Mapping[str, Array]], dict[str, Array]],
+    *,
+    template_shapes: Mapping[str, object],
+    n_state: int,
+) -> Callable[[Scalar, Array], Array]:
+    """Add structured typed-operator drift to a flat provider RHS."""
+
+    def combined(time: Scalar, state: Array) -> Array:
+        base = rhs(time, state)
+        if state.shape == (n_state,):
+            flat_state = state
+        else:
+            flat_state = _array_item(state, (slice(None), 0))
+        tree = _flat_state_to_pytree(flat_state, template_shapes)
+        operator_tree = operator_drift(tree)
+        operator_flat = _flatten_state_tree(operator_tree, template_shapes)
+        xp = _namespace_of(base)
+        return cast(
+            "Array",
+            xp.add(base, xp.reshape(operator_flat, base.shape)),
+        )
+
+    return combined
+
+
 def _flatten_pytree_trajectory(
     trajectory: StateTree,
     template_shapes: Mapping[str, object],
@@ -1128,10 +1207,16 @@ def _run_structured_deterministic(
     initial_tree = _flat_state_to_pytree(y0, template_shapes)
 
     if config.state_layout is StateLayout.PYTREE:
+        operator_drift = _system_explicit_operator_drift(
+            system,
+            raw_params,
+            initial_tree,
+        )
         rhs = _structured_rhs(
             pytree_stepper,
             raw_params,
             source="system option 'pytree_stepper_fn'",
+            operator_drift=operator_drift,
         )
         trajectory = _run_fixed_explicit_pytree(
             rhs,
@@ -1172,10 +1257,17 @@ def _run_structured_deterministic(
         block_state: StateTree,
         block_params: Mapping[str, object],
     ) -> StateTree:
+        operator_drift = _system_explicit_operator_drift(
+            system,
+            block_params,
+            block_state,
+            excluded_axes=(block_info.name,),
+        )
         rhs = _structured_rhs(
             block_stepper,
             block_params,
             source="system option 'block_pytree_stepper_fn'",
+            operator_drift=operator_drift,
         )
         return _run_jax_fixed_explicit_pytree(
             rhs,
@@ -2022,6 +2114,39 @@ class OpEngineFlepimop2Engine(EngineABC):
         # static mixing kernels and should never receive ParameterValue wrappers.
         stepper: SystemProtocol = system.bind(params=raw_params)
         rhs = _rhs_from_stepper(stepper, n_state=n_state)
+        system_descriptors = typed_operator_descriptors(
+            system.option("operators", None)
+        )
+        if system_descriptors and method.is_explicit:
+            template_shapes = system.option("template_shapes", None)
+            if not isinstance(template_shapes, Mapping):
+                msg = (
+                    "Explicit typed operators require system option "
+                    "'template_shapes'; the operator contribution cannot be "
+                    "silently omitted."
+                )
+                raise TypeError(msg)
+            initial_tree = _flat_state_to_pytree(y0, template_shapes)
+            operator_drift = _system_explicit_operator_drift(
+                system,
+                raw_params,
+                initial_tree,
+            )
+            if operator_drift is None:  # pragma: no cover - guarded above
+                msg = "Internal error: typed operator descriptors were not compiled."
+                raise RuntimeError(msg)
+            rhs = _add_flat_operator_drift(
+                rhs,
+                operator_drift,
+                template_shapes=template_shapes,
+                n_state=n_state,
+            )
+        elif system_descriptors and not is_imex:
+            msg = (
+                f"Typed system operators are unsupported by method '{method}'. "
+                "Use an explicit or IMEX method."
+            )
+            raise ValueError(msg)
 
         if mode is ExecutionMode.HYBRID:
             hybrid_network = compile_reaction_network(
