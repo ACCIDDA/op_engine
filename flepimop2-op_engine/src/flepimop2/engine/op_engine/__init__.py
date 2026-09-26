@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 import numpy as np
 from flepimop2.engine.abc import EngineABC
@@ -49,7 +49,89 @@ if TYPE_CHECKING:
 
     from flepimop2.parameter.abc import ModelStateSpecification, ParameterValue
     from flepimop2.system.abc import SystemABC, SystemProtocol
-    from flepimop2.typing import Float64NDArray
+    from flepimop2.typing import Array, Float64NDArray
+    from numpy.typing import DTypeLike
+
+
+class _IndexableArray(Protocol):
+    """Internal indexing surface kept out of the public Array protocol."""
+
+    def __getitem__(self, key: object) -> Array:
+        """Return one array item or slice."""
+        ...
+
+
+_ARRAY_API_ERROR = (
+    "op_engine provider inputs must implement __array_namespace__(); got {type_name}."
+)
+
+
+def _namespace_of(value: object) -> Any:  # noqa: ANN401
+    """Return the Array-API namespace advertised by ``value``."""
+    namespace = getattr(value, "__array_namespace__", None)
+    if namespace is None:
+        raise TypeError(_ARRAY_API_ERROR.format(type_name=type(value).__name__))
+    return namespace()
+
+
+def _array_item(value: Array, key: object) -> Array:
+    """Index an Array while keeping the shared public protocol minimal."""
+    return cast("_IndexableArray", value)[key]
+
+
+def _state_reference(  # noqa: PLR0911
+    system: SystemABC,
+    initial_state: Mapping[IdentifierString, ParameterValue],
+    params: Mapping[IdentifierString, ParameterValue],
+) -> object | None:
+    """Return the first payload that contributes to the initial state."""
+    state_names = system.option("state_names", None)
+    init_map = system.option("initial_state", None)
+    if isinstance(state_names, tuple | list) and isinstance(init_map, Mapping):
+        for state_name_obj in state_names:
+            state_name = str(state_name_obj)
+            if state_name in initial_state:
+                return initial_state[state_name].value
+
+            entry = init_map.get(state_name)
+            if isinstance(entry, str) and entry in params:
+                return params[entry].value
+            if isinstance(entry, Mapping):
+                shaped_name = entry.get("shaped")
+                if isinstance(shaped_name, str) and shaped_name in params:
+                    return params[shaped_name].value
+            elif getattr(entry, "__array_namespace__", None) is not None:
+                return entry
+
+    if initial_state:
+        return next(iter(initial_state.values())).value
+    if params:
+        return next(iter(params.values())).value
+    return None
+
+
+def _numerical_context(
+    system: SystemABC,
+    initial_state: Mapping[IdentifierString, ParameterValue],
+    params: Mapping[IdentifierString, ParameterValue],
+) -> tuple[Any, object]:
+    """Select the state namespace and floating dtype for a run.
+
+    Returns:
+        Array namespace and result dtype selected from incoming payloads.
+    """
+    reference = _state_reference(system, initial_state, params)
+    if reference is None:
+        xp = np
+        return xp, xp.asarray(0.0).dtype
+
+    reference_array = cast("Array", reference)
+    xp = _namespace_of(reference_array)
+    default_float_dtype = xp.asarray(0.0).dtype
+    dtype = xp.result_type(
+        default_float_dtype, cast("DTypeLike", reference_array.dtype)
+    )
+    return xp, dtype
 
 
 def _as_float64_1d(x: object, *, name: str) -> np.ndarray:
@@ -72,11 +154,12 @@ def _rhs_from_stepper(
     stepper: SystemProtocol,
     *,
     n_state: int,
-) -> Callable[[float, np.ndarray], np.ndarray]:
-    def rhs(time: float, state: np.ndarray) -> np.ndarray:
-        state_arr = np.asarray(state, dtype=np.float64)
+) -> Callable[[float, Array], Array]:
+    def rhs(time: float, state: Array) -> Array:
+        xp = _namespace_of(state)
+        state_arr = state
         if state_arr.shape == (n_state,):
-            state_arr = state_arr.reshape((n_state, 1))
+            state_arr = cast("Array", xp.reshape(state_arr, (n_state, 1)))
         expected_shape = (n_state, 1)
         if state_arr.shape != expected_shape:
             msg = (
@@ -84,24 +167,31 @@ def _rhs_from_stepper(
                 f"expected {expected_shape}."
             )
             raise ValueError(msg)
-        out = np.asarray(stepper(np.float64(time), state_arr[:, 0]), dtype=np.float64)
-        if out.shape != (n_state,):
-            msg = f"Stepper returned shape {out.shape}; expected {(n_state,)}."
+
+        flat_state = _array_item(state_arr, (slice(None), 0))
+        out = stepper(np.float64(time), cast("Any", flat_state))
+        out_xp = _namespace_of(out)
+        if out_xp is not xp:
+            msg = "System stepper must preserve the state array namespace."
+            raise TypeError(msg)
+        out_arr = cast("Array", xp.asarray(out, dtype=state_arr.dtype))
+        if out_arr.shape != (n_state,):
+            msg = f"Stepper returned shape {out_arr.shape}; expected {(n_state,)}."
             raise ValueError(msg)
-        return out.reshape(expected_shape)
+        return cast("Array", xp.reshape(out_arr, expected_shape))
 
     return rhs
 
 
-def _extract_states_2d(core: ModelCore, *, n_state: int) -> np.ndarray:
+def _extract_states_2d(core: ModelCore, *, n_state: int) -> Array:
     state_array = getattr(core, "state_array", None)
     if state_array is None:
         msg = "ModelCore does not expose state_array; store_history must be enabled."
         raise RuntimeError(msg)
-    arr = np.asarray(state_array, dtype=np.float64)
-    if arr.ndim == 3 and arr.shape[1] == n_state and arr.shape[2] == 1:
-        return arr[:, :, 0]
-    if arr.ndim == 2 and arr.shape[1] == n_state:
+    arr = cast("Array", state_array)
+    if len(arr.shape) == 3 and arr.shape[1] == n_state and arr.shape[2] == 1:
+        return _array_item(arr, (slice(None), slice(None), 0))
+    if len(arr.shape) == 2 and arr.shape[1] == n_state:
         return arr
     msg = (
         f"Unexpected state shape {arr.shape}; "
@@ -110,15 +200,23 @@ def _extract_states_2d(core: ModelCore, *, n_state: int) -> np.ndarray:
     raise RuntimeError(msg)
 
 
-def _make_core(times: np.ndarray, y0: np.ndarray) -> ModelCore:
-    n_states = int(y0.size)
+def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
+    if len(y0.shape) != 1:
+        msg = f"Initial state must be one-dimensional; got {y0.shape}."
+        raise ValueError(msg)
+    n_states = int(y0.shape[0])
     core = ModelCore(
         n_states,
         1,
         np.asarray(times, dtype=np.float64),
-        options=ModelCoreOptions(other_axes=(), store_history=True, dtype=np.float64),
+        options=ModelCoreOptions(
+            other_axes=(),
+            store_history=True,
+            dtype=cast("DTypeLike", y0.dtype),
+        ),
     )
-    core.set_initial_state(y0.reshape(n_states, 1))
+    xp = _namespace_of(y0)
+    core.set_initial_state(cast("Array", xp.reshape(y0, (n_states, 1))))
     return core
 
 
@@ -129,17 +227,19 @@ def _unwrap_parameter_values(
     return {name: value.value for name, value in values.items()}
 
 
-def _as_initial_scalar(value: object, *, name: str) -> float:
-    """Coerce one state-cell initial value to a finite scalar."""
-    arr = np.asarray(value, dtype=np.float64)
+def _as_initial_scalar(
+    value: object,
+    *,
+    name: str,
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array:
+    """Coerce one state-cell value without leaving the run namespace."""
+    arr = cast("Array", xp.asarray(value, dtype=dtype))
     if arr.shape != ():
         msg = f"Initial state value for {name!r} must be scalar; got {arr.shape}."
         raise ValueError(msg)
-    scalar = float(arr)
-    if not np.isfinite(scalar):
-        msg = f"Initial state value for {name!r} must be finite."
-        raise ValueError(msg)
-    return scalar
+    return arr
 
 
 def _shaped_initial_scalar(
@@ -149,7 +249,9 @@ def _shaped_initial_scalar(
     params: Mapping[IdentifierString, ParameterValue],
     raw_params: Mapping[IdentifierString, object],
     axis_labels: Mapping[str, object],
-) -> float:
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array:
     """Resolve one expanded state cell from a shaped parameter value."""
     shaped_name = entry.get("shaped")
     if not isinstance(shaped_name, str):
@@ -186,15 +288,18 @@ def _shaped_initial_scalar(
             raise KeyError(msg)
         indices.append(string_labels.index(coord))
 
-    value = np.asarray(raw_params[shaped_name], dtype=np.float64)[tuple(indices)]
-    return _as_initial_scalar(value, name=state_name)
+    shaped_value = cast("Array", raw_params[shaped_name])
+    value = _array_item(shaped_value, tuple(indices))
+    return _as_initial_scalar(value, name=state_name, xp=xp, dtype=dtype)
 
 
 def _assemble_option_initial_state(
     system: SystemABC,
     initial_state: Mapping[IdentifierString, ParameterValue],
     params: Mapping[IdentifierString, ParameterValue],
-) -> np.ndarray | None:
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array | None:
     """Assemble state from the metadata contract published by op_system."""
     state_names = system.option("state_names", None)
     if not isinstance(state_names, tuple | list):
@@ -211,18 +316,23 @@ def _assemble_option_initial_state(
         msg = "system option 'axis_labels' must be a mapping when provided."
         raise TypeError(msg)
 
-    values: list[float] = []
+    values: list[Array] = []
     for state_name_obj in state_names:
         state_name = str(state_name_obj)
         if state_name in raw_initial_state:
             values.append(
-                _as_initial_scalar(raw_initial_state[state_name], name=state_name)
+                _as_initial_scalar(
+                    raw_initial_state[state_name],
+                    name=state_name,
+                    xp=xp,
+                    dtype=dtype,
+                )
             )
             continue
 
         entry = init_map.get(state_name)
         if entry is None:
-            values.append(0.0)
+            values.append(_as_initial_scalar(0.0, name=state_name, xp=xp, dtype=dtype))
         elif isinstance(entry, str):
             if entry not in raw_params:
                 msg = (
@@ -230,7 +340,14 @@ def _assemble_option_initial_state(
                     f"{entry!r}, which is not present in params."
                 )
                 raise KeyError(msg)
-            values.append(_as_initial_scalar(raw_params[entry], name=state_name))
+            values.append(
+                _as_initial_scalar(
+                    raw_params[entry],
+                    name=state_name,
+                    xp=xp,
+                    dtype=dtype,
+                )
+            )
         elif isinstance(entry, Mapping):
             values.append(
                 _shaped_initial_scalar(
@@ -239,12 +356,16 @@ def _assemble_option_initial_state(
                     params=params,
                     raw_params=raw_params,
                     axis_labels=axis_labels,
+                    xp=xp,
+                    dtype=dtype,
                 )
             )
         else:
-            values.append(_as_initial_scalar(entry, name=state_name))
+            values.append(
+                _as_initial_scalar(entry, name=state_name, xp=xp, dtype=dtype)
+            )
 
-    return np.ascontiguousarray(values, dtype=np.float64)
+    return cast("Array", xp.stack(tuple(values), axis=0))
 
 
 def _assemble_initial_state(
@@ -252,19 +373,29 @@ def _assemble_initial_state(
     initial_state: Mapping[IdentifierString, ParameterValue],
     params: Mapping[IdentifierString, ParameterValue],
     model_state: ModelStateSpecification | None,
-) -> np.ndarray:
+) -> Array:
     """Assemble flepimop2 state entries in their declared semantic order."""
-    option_state = _assemble_option_initial_state(system, initial_state, params)
+    xp, dtype = _numerical_context(system, initial_state, params)
+    option_state = _assemble_option_initial_state(
+        system,
+        initial_state,
+        params,
+        xp=xp,
+        dtype=dtype,
+    )
     if option_state is not None:
         return option_state
     if model_state is None:
         msg = "model_state must be provided to assemble the initial state."
         raise ValueError(msg)
     values = [
-        np.asarray(initial_state[name].value, dtype=np.float64).reshape(-1)
+        cast(
+            "Array",
+            xp.reshape(xp.asarray(initial_state[name].value, dtype=dtype), (-1,)),
+        )
         for name in model_state.parameter_names
     ]
-    return np.ascontiguousarray(np.concatenate(values))
+    return cast("Array", xp.concat(tuple(values), axis=0))
 
 
 class OpEngineFlepimop2Engine(EngineABC):
@@ -345,7 +476,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         _ensure_strictly_increasing(times, name="eval_times")
         raw_params = _unwrap_parameter_values(params)
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
-        n_state = int(y0.size)
+        n_state = int(y0.shape[0])
 
         run_cfg = self.config.to_run_config()
         method = self.config.method
@@ -404,7 +535,12 @@ class OpEngineFlepimop2Engine(EngineABC):
         solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)
-        return np.asarray(np.column_stack((times, states)), dtype=np.float64)
+        xp = _namespace_of(states)
+        time_values = cast("Array", xp.asarray(times, dtype=states.dtype))
+        time_column = cast("Array", xp.expand_dims(time_values, axis=1))
+        result = cast("Array", xp.concat((time_column, states), axis=1))
+        # flepimop2#343 will generalize this inherited annotation to Array.
+        return cast("Float64NDArray", result)
 
 
 __all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine", "SolverMethod"]
