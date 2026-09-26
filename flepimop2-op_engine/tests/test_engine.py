@@ -36,6 +36,7 @@ from flepimop2.engine.op_engine import (
     OpEngineFlepimop2Engine,
     ReplayCheckpoint,
     SolverMethod,
+    _validate_state_tree,
 )
 
 if TYPE_CHECKING:
@@ -120,6 +121,18 @@ def test_public_engine_wrapper_defines_module() -> None:
 
     assert isinstance(engine, OpEngineFlepimop2Engine)
     assert engine.module == "flepimop2.engine.op_engine"
+
+
+def test_structured_rhs_mapping_order_is_not_semantic() -> None:
+    """Structured state is validated by key identity and returned canonically."""
+    reference = {"first": np.zeros(2), "second": np.ones(2)}
+    result = {"second": np.full(2, 2.0), "first": np.full(2, 3.0)}
+
+    checked = _validate_state_tree(result, reference, source="test stepper")
+
+    assert tuple(checked) == ("first", "second")
+    np.testing.assert_array_equal(checked["first"], result["first"])
+    np.testing.assert_array_equal(checked["second"], result["second"])
 
 
 # -----------------------------------------------------------------------------

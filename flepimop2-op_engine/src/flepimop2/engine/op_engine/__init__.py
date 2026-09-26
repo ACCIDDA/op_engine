@@ -823,7 +823,7 @@ def _validate_state_tree(
     if not isinstance(result, Mapping):
         msg = f"{source} must return a mapping of state-template arrays."
         raise TypeError(msg)
-    if tuple(result) != tuple(reference):
+    if set(result) != set(reference):
         msg = (
             f"{source} returned keys {tuple(result)!r}; expected {tuple(reference)!r}."
         )
