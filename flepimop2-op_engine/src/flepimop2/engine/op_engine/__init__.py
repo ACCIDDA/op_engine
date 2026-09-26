@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Mapping
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
@@ -32,10 +33,20 @@ from op_engine.core_solver import (
     CoreSolver,
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
+from op_engine.stochastic_solver import (
+    DirectSSAConfig,
+    DirectSSASolver,
+    NumpyPoissonSampler,
+    NumpySSASampler,
+    TauLeapingConfig,
+    TauLeapingSolver,
+)
 
 from .config import (
+    ExecutionMode,
     OpEngineEngineConfig,
     SolverMethod,
+    StochasticMethod,
     _coerce_operator_specs,
     _has_operator_specs,
 )
@@ -43,6 +54,7 @@ from .operators import (
     compile_operator_descriptors,
     typed_operator_descriptors,
 )
+from .reactions import CompiledReactionNetwork, compile_reaction_network
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -51,6 +63,9 @@ if TYPE_CHECKING:
     from flepimop2.system.abc import SystemABC, SystemProtocol
     from flepimop2.typing import Array, Float64NDArray
     from numpy.typing import DTypeLike
+
+    from op_engine.core_solver import CoreOperators, RunConfig, StageOperatorFactory
+    from op_engine.stochastic_solver import PoissonSampler, SSASampler
 
 
 class _IndexableArray(Protocol):
@@ -218,6 +233,229 @@ def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
     xp = _namespace_of(y0)
     core.set_initial_state(cast("Array", xp.reshape(y0, (n_states, 1))))
     return core
+
+
+def _last_state(core: ModelCore, *, n_state: int) -> Array:
+    """Return the final flat state stored by one solver core."""
+    states = _extract_states_2d(core, n_state=n_state)
+    return _array_item(states, (-1, slice(None)))
+
+
+def _format_result(times: np.ndarray, states: Array) -> Array:
+    """Prepend the evaluation-time column to provider state history."""
+    xp = _namespace_of(states)
+    time_values = cast("Array", xp.asarray(times, dtype=states.dtype))
+    time_column = cast("Array", xp.expand_dims(time_values, axis=1))
+    return cast("Array", xp.concat((time_column, states), axis=1))
+
+
+def _split_numpy_seeds(seed: int | None) -> tuple[int | None, int | None]:
+    """Derive independent reproducible Poisson and SSA seeds."""
+    if seed is None:
+        return None, None
+    poisson_sequence, ssa_sequence = np.random.SeedSequence(seed).spawn(2)
+    poisson_seed = int(poisson_sequence.generate_state(1, dtype=np.uint64)[0])
+    ssa_seed = int(ssa_sequence.generate_state(1, dtype=np.uint64)[0])
+    return poisson_seed, ssa_seed
+
+
+def _resolve_samplers(
+    y0: Array,
+    config: OpEngineEngineConfig,
+    kwargs: Mapping[str, object],
+) -> tuple[PoissonSampler | None, SSASampler | None]:
+    """Resolve injected samplers or seeded NumPy conveniences.
+
+    Returns:
+        Poisson and SSA samplers required by the configured method.
+    """
+    poisson_obj = kwargs.get("poisson_sampler")
+    ssa_obj = kwargs.get("ssa_sampler")
+    if poisson_obj is not None and not callable(poisson_obj):
+        msg = "poisson_sampler must be callable."
+        raise TypeError(msg)
+    if ssa_obj is not None and not callable(ssa_obj):
+        msg = "ssa_sampler must be callable."
+        raise TypeError(msg)
+    poisson_sampler = cast("PoissonSampler | None", poisson_obj)
+    ssa_sampler = cast("SSASampler | None", ssa_obj)
+
+    xp = _namespace_of(y0)
+    poisson_seed, ssa_seed = _split_numpy_seeds(config.random_seed)
+    if config.stochastic_method is StochasticMethod.TAU_LEAPING:
+        if poisson_sampler is None and xp is np:
+            poisson_sampler = NumpyPoissonSampler(poisson_seed)
+        if poisson_sampler is None:
+            msg = (
+                "A poisson_sampler preserving the state array namespace is "
+                "required for non-NumPy stochastic runs."
+            )
+            raise TypeError(msg)
+    elif config.stochastic_method is StochasticMethod.DIRECT_SSA:
+        if ssa_sampler is None and xp is np:
+            ssa_sampler = NumpySSASampler(ssa_seed)
+        if ssa_sampler is None:
+            msg = (
+                "An ssa_sampler preserving the state array namespace is required "
+                "for non-NumPy stochastic runs."
+            )
+            raise TypeError(msg)
+    return poisson_sampler, ssa_sampler
+
+
+class _MonotonicPoissonSampler:
+    """Keep functional sampler indices monotonic across hybrid subproblems."""
+
+    def __init__(self, sampler: PoissonSampler) -> None:
+        self._sampler = sampler
+        self._draw_index = 0
+
+    def __call__(self, mean: Array, _local_index: int, /) -> Array:
+        """Forward one draw with a run-global index."""
+        draw_index = self._draw_index
+        self._draw_index += 1
+        return self._sampler(mean, draw_index)
+
+
+class _MonotonicSSASampler:
+    """Keep exact-event sampler indices monotonic across hybrid subproblems."""
+
+    def __init__(self, sampler: SSASampler) -> None:
+        self._sampler = sampler
+        self._draw_index = 0
+
+    def __call__(
+        self,
+        total_rate: Array,
+        probabilities: Array,
+        _local_index: int,
+        /,
+    ) -> Any:  # noqa: ANN401
+        """Forward one draw with a run-global index."""
+        draw_index = self._draw_index
+        self._draw_index += 1
+        return self._sampler(total_rate, probabilities, draw_index)
+
+
+def _run_stochastic_core(
+    core: ModelCore,
+    network: CompiledReactionNetwork,
+    config: OpEngineEngineConfig,
+    *,
+    poisson_sampler: PoissonSampler | None,
+    ssa_sampler: SSASampler | None,
+) -> None:
+    """Run the configured discrete method on one prepared core."""
+    state = core.get_current_state()
+    xp = _namespace_of(state)
+    stoichiometry = cast(
+        "Array",
+        xp.asarray(network.stoichiometry, dtype=state.dtype),
+    )
+    if config.stochastic_method is StochasticMethod.TAU_LEAPING:
+        if poisson_sampler is None:
+            msg = "Tau-leaping sampler resolution is inconsistent."
+            raise RuntimeError(msg)
+        solver = TauLeapingSolver(core, stoichiometry)
+        solver.run(
+            network.propensity,
+            poisson_sampler,
+            config=TauLeapingConfig(
+                max_step=config.tau_max_step,
+                max_steps=config.stochastic_max_steps,
+            ),
+        )
+        return
+
+    if ssa_sampler is None:
+        msg = "Direct-SSA sampler resolution is inconsistent."
+        raise RuntimeError(msg)
+    exact_solver = DirectSSASolver(core, stoichiometry)
+    exact_solver.run(
+        network.propensity,
+        ssa_sampler,
+        config=DirectSSAConfig(max_events=config.ssa_max_events),
+    )
+
+
+def _run_pure_stochastic(
+    times: np.ndarray,
+    y0: Array,
+    network: CompiledReactionNetwork,
+    config: OpEngineEngineConfig,
+    kwargs: Mapping[str, object],
+) -> Array:
+    """Run all typed reactions as one discrete process."""
+    poisson_sampler, ssa_sampler = _resolve_samplers(y0, config, kwargs)
+    core = _make_core(times, y0)
+    _run_stochastic_core(
+        core,
+        network,
+        config,
+        poisson_sampler=poisson_sampler,
+        ssa_sampler=ssa_sampler,
+    )
+    return _extract_states_2d(core, n_state=network.n_state)
+
+
+def _run_hybrid(
+    times: np.ndarray,
+    y0: Array,
+    *,
+    network: CompiledReactionNetwork,
+    config: OpEngineEngineConfig,
+    kwargs: Mapping[str, object],
+    rhs: Callable[[float, Array], Array],
+    run_config: RunConfig,
+    operators: CoreOperators | StageOperatorFactory | None,
+    operator_axis: str | int,
+) -> Array:
+    """Run deterministic residual then selected jump channels per interval.
+
+    Returns:
+        Flat state history from first-order deterministic-then-stochastic Lie
+        splitting on the requested output intervals.
+    """
+    poisson_sampler, ssa_sampler = _resolve_samplers(y0, config, kwargs)
+    indexed_poisson = (
+        None if poisson_sampler is None else _MonotonicPoissonSampler(poisson_sampler)
+    )
+    indexed_ssa = None if ssa_sampler is None else _MonotonicSSASampler(ssa_sampler)
+
+    def residual_rhs(time: float, state: Array) -> Array:
+        xp = _namespace_of(state)
+        return cast(
+            "Array",
+            xp.subtract(rhs(time, state), network.mean_drift(time, state)),
+        )
+
+    n_state = network.n_state
+    state = y0
+    history = [state]
+    for start, stop in itertools.pairwise(times):
+        interval = np.asarray([start, stop], dtype=np.float64)
+        deterministic_core = _make_core(interval, state)
+        deterministic_solver = CoreSolver(
+            deterministic_core,
+            operators=operators,
+            operator_axis=operator_axis,
+        )
+        deterministic_solver.run(residual_rhs, config=run_config)
+        state = _last_state(deterministic_core, n_state=n_state)
+
+        stochastic_core = _make_core(interval, state)
+        _run_stochastic_core(
+            stochastic_core,
+            network,
+            config,
+            poisson_sampler=indexed_poisson,
+            ssa_sampler=indexed_ssa,
+        )
+        state = _last_state(stochastic_core, n_state=n_state)
+        history.append(state)
+
+    xp = _namespace_of(y0)
+    return cast("Array", xp.stack(tuple(history), axis=0))
 
 
 def _unwrap_parameter_values(
@@ -421,6 +659,49 @@ class OpEngineFlepimop2Engine(EngineABC):
                 ),
             )
 
+        mode = self.config.mode
+        if mode is not ExecutionMode.DETERMINISTIC:
+            reactions = system.option("reactions", None)
+            if not isinstance(reactions, tuple | list) or not reactions:
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"{mode.value.capitalize()} mode requires typed "
+                            "system.option('reactions') artifacts."
+                        ),
+                        kind="missing_reactions",
+                    ),
+                )
+            elif mode is ExecutionMode.HYBRID:
+                available = {
+                    name
+                    for reaction in reactions
+                    if isinstance((name := getattr(reaction, "name", None)), str)
+                }
+                missing = sorted(set(self.config.stochastic_reactions) - available)
+                if missing:
+                    issues.append(
+                        ValidationIssue(
+                            msg=(
+                                "Unknown stochastic reaction names: "
+                                f"{', '.join(missing)}."
+                            ),
+                            kind="unknown_reactions",
+                        ),
+                    )
+            if not isinstance(system.option("template_shapes", None), Mapping):
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"{mode.value.capitalize()} mode requires typed "
+                            "system.option('template_shapes') metadata."
+                        ),
+                        kind="missing_reaction_layout",
+                    ),
+                )
+            if mode is ExecutionMode.STOCHASTIC:
+                return issues or None
+
         method = self.config.method
         is_imex = method.is_imex
 
@@ -470,13 +751,29 @@ class OpEngineFlepimop2Engine(EngineABC):
         **kwargs: Any,  # noqa: ANN401
     ) -> Float64NDArray:
         """Execute simulation using op_engine and return `(time, state...)` output."""
-        del kwargs
-
         times = _as_float64_1d(eval_times, name="eval_times")
         _ensure_strictly_increasing(times, name="eval_times")
         raw_params = _unwrap_parameter_values(params)
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
         n_state = int(y0.shape[0])
+
+        if self.config.mode is ExecutionMode.STOCHASTIC:
+            stochastic_network = compile_reaction_network(
+                system,
+                raw_params,
+                n_state=n_state,
+            )
+            stochastic_states = _run_pure_stochastic(
+                times,
+                y0,
+                stochastic_network,
+                self.config,
+                kwargs,
+            )
+            return cast(
+                "Float64NDArray",
+                _format_result(times, stochastic_states),
+            )
 
         run_cfg = self.config.to_run_config()
         method = self.config.method
@@ -527,6 +824,27 @@ class OpEngineFlepimop2Engine(EngineABC):
         # static mixing kernels and should never receive ParameterValue wrappers.
         stepper: SystemProtocol = system.bind(params=raw_params)
         rhs = _rhs_from_stepper(stepper, n_state=n_state)
+
+        if self.config.mode is ExecutionMode.HYBRID:
+            hybrid_network = compile_reaction_network(
+                system,
+                raw_params,
+                n_state=n_state,
+                reaction_names=self.config.stochastic_reactions,
+            )
+            hybrid_states = _run_hybrid(
+                times,
+                y0,
+                network=hybrid_network,
+                config=self.config,
+                kwargs=kwargs,
+                rhs=rhs,
+                run_config=run_cfg,
+                operators=operators.default if is_imex else None,
+                operator_axis=operator_axis,
+            )
+            return cast("Float64NDArray", _format_result(times, hybrid_states))
+
         core = _make_core(times, y0)
 
         solver = CoreSolver(
@@ -537,12 +855,14 @@ class OpEngineFlepimop2Engine(EngineABC):
         solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)
-        xp = _namespace_of(states)
-        time_values = cast("Array", xp.asarray(times, dtype=states.dtype))
-        time_column = cast("Array", xp.expand_dims(time_values, axis=1))
-        result = cast("Array", xp.concat((time_column, states), axis=1))
         # flepimop2#343 will generalize this inherited annotation to Array.
-        return cast("Float64NDArray", result)
+        return cast("Float64NDArray", _format_result(times, states))
 
 
-__all__ = ["OpEngineEngineConfig", "OpEngineFlepimop2Engine", "SolverMethod"]
+__all__ = [
+    "ExecutionMode",
+    "OpEngineEngineConfig",
+    "OpEngineFlepimop2Engine",
+    "SolverMethod",
+    "StochasticMethod",
+]

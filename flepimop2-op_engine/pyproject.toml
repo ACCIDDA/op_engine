@@ -81,6 +81,7 @@ ignore = [
 "tests/**/*" = ["INP001", "S101"]
 "src/flepimop2/engine/op_engine/__init__.py" = ["C901", "DOC201", "DOC501", "PLR0912", "PLR0913", "PLR0914", "PLR0915", "RUF067"]
 "src/flepimop2/engine/op_engine/operators.py" = ["C901", "DOC201", "DOC501"]
+"src/flepimop2/engine/op_engine/reactions.py" = ["C901", "DOC501", "PLR0912", "PLR0914", "PLR0915"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

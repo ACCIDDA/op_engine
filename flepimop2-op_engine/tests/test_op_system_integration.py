@@ -30,17 +30,20 @@ from flepimop2.parameter.sparse_table import SparseTableParameter
 from flepimop2.simulator import Simulator
 from flepimop2.system.op_system import OpSystemSystem
 from flepimop2.typing import StateChangeEnum
+from op_engine import SSASample
 from op_engine.matrix_ops import build_advection_matrix, build_diffusion_matrix
 
 from flepimop2.engine.op_engine import (
+    ExecutionMode,
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
     SolverMethod,
+    StochasticMethod,
 )
 
 if TYPE_CHECKING:
     from flepimop2.meta import RunMeta
-    from flepimop2.typing import Float64NDArray
+    from flepimop2.typing import Array, Float64NDArray
 
 
 class _NoopBackend(BackendABC, module="test_op_system_noop"):
@@ -577,3 +580,326 @@ def test_state_namespace_controls_mixed_parameter_inputs() -> None:
 
     assert result.__array_namespace__() is jnp
     assert float(result[-1, 1]) == pytest.approx(0.745, rel=2e-6)
+
+
+class _UnitPoissonSampler:
+    """Deterministic backend-preserving sampler for provider wiring tests."""
+
+    def __init__(self) -> None:
+        self.indices: list[int] = []
+
+    def __call__(self, mean: Array, step_index: int, /) -> Array:
+        """Return one firing per channel and record the functional index."""
+        self.indices.append(step_index)
+        xp = mean.__array_namespace__()
+        return xp.ones_like(mean)
+
+
+class _ExcessivePoissonSampler:
+    """Force a visible negative-population proposal."""
+
+    def __call__(self, mean: Array, step_index: int, /) -> Array:
+        """Return an impossible firing count in the input namespace."""
+        del step_index
+        xp = mean.__array_namespace__()
+        return xp.full_like(mean, 100)
+
+
+class _ConstantSSASampler:
+    """Backend-preserving exact-event sampler with a fixed waiting time."""
+
+    def __init__(self, waiting_time: float) -> None:
+        self.waiting_time = waiting_time
+        self.indices: list[int] = []
+
+    def __call__(
+        self,
+        total_rate: Array,
+        probabilities: Array,
+        draw_index: int,
+        /,
+    ) -> SSASample:
+        """Choose the only channel after a fixed positive delay.
+
+        Returns:
+            Exact waiting-time and categorical sample.
+        """
+        del total_rate
+        self.indices.append(draw_index)
+        xp = probabilities.__array_namespace__()
+        return SSASample(
+            xp.asarray(self.waiting_time, dtype=probabilities.dtype),
+            xp.asarray(0, dtype=xp.int64),
+        )
+
+
+def _single_reaction_system() -> OpSystemSystem:
+    """Build a one-cell transition system for stochastic integration tests.
+
+    Returns:
+        Compiled flepimop2 op_system provider.
+    """
+    return OpSystemSystem(
+        spec={
+            "kind": "transitions",
+            "axes": [{"name": "group", "coords": ["g0"]}],
+            "state": ["S[group]", "I[group]"],
+            "transitions": [
+                {
+                    "name": "infect",
+                    "from": "S[group]",
+                    "to": "I[group]",
+                    "rate": "beta",
+                }
+            ],
+        }
+    )
+
+
+def _named_initial_state(
+    system: OpSystemSystem,
+    values: tuple[object, ...],
+) -> dict[str, ParameterValue]:
+    """Build scalar initial values in the system's expanded semantic order.
+
+    Returns:
+        Initial state keyed by expanded state names.
+    """
+    names = system.option("state_names", None)
+    assert isinstance(names, tuple | list)
+    return {
+        str(name): ParameterValue(value, ResolvedShape())
+        for name, value in zip(names, values, strict=True)
+    }
+
+
+def _stochastic_engine(
+    *,
+    seed: int | None = None,
+    max_step: float | None = None,
+) -> OpEngineFlepimop2Engine:
+    """Build a pure fixed-tau provider.
+
+    Returns:
+        Configured op_engine provider.
+    """
+    return OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=StochasticMethod.TAU_LEAPING,
+            random_seed=seed,
+            tau_max_step=max_step,
+        ),
+    )
+
+
+def test_same_stochastic_network_runs_with_numpy_and_eager_jax() -> None:
+    """Injected samplers preserve each backend on the same typed network."""
+    jnp = pytest.importorskip("jax.numpy")
+    system = _single_reaction_system()
+    times = np.asarray([0.0, 1.0], dtype=np.float64)
+    params = {"beta": _scalar(1.0)}
+
+    numpy_sampler = _UnitPoissonSampler()
+    numpy_result = _stochastic_engine().run(
+        system,
+        times,
+        _named_initial_state(
+            system,
+            (np.asarray(2.0), np.asarray(0.0)),
+        ),
+        params,
+        poisson_sampler=numpy_sampler,
+    )
+    jax_sampler = _UnitPoissonSampler()
+    jax_result = _stochastic_engine().run(
+        system,
+        times,
+        _named_initial_state(
+            system,
+            (jnp.asarray(2.0), jnp.asarray(0.0)),
+        ),
+        params,
+        poisson_sampler=jax_sampler,
+    )
+
+    expected = np.asarray([[0.0, 2.0, 0.0], [1.0, 1.0, 1.0]])
+    np.testing.assert_array_equal(numpy_result, expected)
+    np.testing.assert_array_equal(np.asarray(jax_result), expected)
+    assert jax_result.__array_namespace__() is jnp
+    assert numpy_sampler.indices == [0]
+    assert jax_sampler.indices == [0]
+
+
+def test_seeded_numpy_stochastic_runs_are_reproducible() -> None:
+    """The provider derives the same NumPy random stream from the same seed."""
+    system = _single_reaction_system()
+    times = np.linspace(0.0, 1.0, 11)
+    initial = _named_initial_state(
+        system,
+        (np.asarray(100.0), np.asarray(0.0)),
+    )
+    params = {"beta": _scalar(0.05)}
+
+    first = _stochastic_engine(seed=90210, max_step=0.1).run(
+        system,
+        times,
+        initial,
+        params,
+    )
+    second = _stochastic_engine(seed=90210, max_step=0.1).run(
+        system,
+        times,
+        initial,
+        params,
+    )
+
+    np.testing.assert_array_equal(first, second)
+
+
+def test_direct_ssa_retains_an_event_across_an_output_boundary() -> None:
+    """Provider dispatch preserves exact SSA's pending-event semantics."""
+    system = _single_reaction_system()
+    sampler = _ConstantSSASampler(0.25)
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=StochasticMethod.DIRECT_SSA,
+        ),
+    )
+
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.2, 1.0]),
+        _named_initial_state(
+            system,
+            (np.asarray(2.0), np.asarray(0.0)),
+        ),
+        {"beta": _scalar(1.0)},
+        ssa_sampler=sampler,
+    )
+
+    np.testing.assert_array_equal(
+        result,
+        np.asarray([[0.0, 2.0, 0.0], [0.2, 2.0, 0.0], [1.0, 0.0, 2.0]]),
+    )
+    assert sampler.indices == [0, 1]
+
+
+def test_tau_indices_are_global_across_output_intervals() -> None:
+    """Pure stochastic step indices do not restart at output boundaries."""
+    system = _single_reaction_system()
+    sampler = _UnitPoissonSampler()
+
+    _stochastic_engine(max_step=0.25).run(
+        system,
+        np.asarray([0.0, 0.5, 1.0]),
+        _named_initial_state(
+            system,
+            (np.asarray(10.0), np.asarray(0.0)),
+        ),
+        {"beta": _scalar(0.1)},
+        poisson_sampler=sampler,
+    )
+
+    assert sampler.indices == [0, 1, 2, 3]
+
+
+def test_negative_tau_proposal_fails_instead_of_clipping() -> None:
+    """Provider stochastic runs retain the core's visible non-negativity error."""
+    system = _single_reaction_system()
+
+    with pytest.raises(RuntimeError, match="negative population"):
+        _stochastic_engine().run(
+            system,
+            np.asarray([0.0, 1.0]),
+            _named_initial_state(
+                system,
+                (np.asarray(2.0), np.asarray(0.0)),
+            ),
+            {"beta": _scalar(1.0)},
+            poisson_sampler=_ExcessivePoissonSampler(),
+        )
+
+
+def test_hybrid_selected_channels_jump_and_residual_stays_deterministic() -> None:
+    """Hybrid Lie splitting removes selected mean drift before sampling it."""
+    system = OpSystemSystem(
+        spec={
+            "kind": "transitions",
+            "axes": [{"name": "group", "coords": ["g0"]}],
+            "state": ["S[group]", "I[group]", "R[group]"],
+            "transitions": [
+                {
+                    "name": "infect",
+                    "from": "S[group]",
+                    "to": "I[group]",
+                    "rate": "beta",
+                },
+                {
+                    "name": "recover",
+                    "from": "I[group]",
+                    "to": "R[group]",
+                    "rate": "gamma",
+                },
+            ],
+        }
+    )
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.HYBRID,
+            method=SolverMethod.EULER,
+            stochastic_method=StochasticMethod.TAU_LEAPING,
+            stochastic_reactions=("infect",),
+        ),
+    )
+    sampler = _UnitPoissonSampler()
+
+    result = engine.run(
+        system,
+        np.asarray([0.0, 1.0]),
+        _named_initial_state(
+            system,
+            (np.asarray(10.0), np.asarray(1.0), np.asarray(0.0)),
+        ),
+        {"beta": _scalar(0.1), "gamma": _scalar(0.5)},
+        poisson_sampler=sampler,
+    )
+
+    np.testing.assert_allclose(
+        result,
+        np.asarray([[0.0, 10.0, 1.0, 0.0], [1.0, 9.0, 1.5, 0.5]]),
+        rtol=0.0,
+        atol=0.0,
+    )
+    assert sampler.indices == [0]
+
+
+def test_hybrid_sampler_indices_do_not_restart_between_split_intervals() -> None:
+    """Hybrid subproblem solvers expose one monotonic sampler index stream."""
+    system = _single_reaction_system()
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.HYBRID,
+            method=SolverMethod.EULER,
+            stochastic_reactions=("infect",),
+        ),
+    )
+    sampler = _UnitPoissonSampler()
+
+    engine.run(
+        system,
+        np.asarray([0.0, 0.5, 1.0]),
+        _named_initial_state(
+            system,
+            (np.asarray(10.0), np.asarray(0.0)),
+        ),
+        {"beta": _scalar(0.1)},
+        poisson_sampler=sampler,
+    )
+
+    assert sampler.indices == [0, 1]
