@@ -145,8 +145,35 @@ trajectory = engine.run(
 
 The replay uses the same portable core kernels but bypasses error estimation
 and accept/reject decisions, so it can be enclosed by `jax.jit` and
-`jax.grad`. The schedule records and validates the solver method, output grid,
-and adaptive controller settings. Its gradients are conditional on that mesh:
+`jax.grad`. With the default `adaptive_replay: auto`, fixed-mesh replay for an
+explicit method and JAX state is one compact `lax.scan`; other namespaces and
+methods retain the portable core replay. `adaptive_replay: unrolled` preserves
+the prior explicit JAX trace for comparison, while `adaptive_replay: compact`
+requires the supported JAX explicit path rather than silently falling back.
+
+Long reverse-mode computations can rematerialize each explicit step instead of
+retaining its intermediates:
+
+```yaml
+config:
+  method: dopri5
+  adaptive: true
+  adaptive_replay: compact
+  replay_checkpoint: step
+```
+
+This checkpoint policy recomputes step operations during the backward pass and
+does not change the accepted mesh or numerical method. Fully nonlinear SDIRK2
+replay intentionally remains on the existing path so its compiled-safe stage
+diagnostics and post-execution `require_converged()` validation are preserved.
+
+The schedule records and validates the solver method, output grid, adaptive
+controller settings, state order/shape, parameter shapes, and structural system
+metadata. op_system specs are included in that structural signature. Set an
+explicit `schedule_tag` when a custom system has semantic model versions that
+cannot be inferred from published metadata; a tag mismatch invalidates replay.
+Parameter values are deliberately not hashed because replay must support
+inference over dynamic values. Gradients remain conditional on the mesh, so
 discover a fresh schedule after material parameter, tolerance, model, or
 output-grid changes. A run launched through `Simulator` exposes its discovered
 artifact as `engine.last_adaptive_schedule`.
@@ -159,6 +186,11 @@ one requires a fresh schedule.
 `run_adaptive()` also returns any nonlinear replay diagnostics. Call
 `result.require_converged()` after compiled execution before accepting a result
 whose method uses nonlinear stages.
+
+Run `uv run python benchmarks/adaptive_replay.py` to compare eager discovery,
+legacy unrolled replay, compact replay, and step-checkpointed replay as accepted
+step counts grow. Its CSV records trace size, compile/runtime, Python host peaks,
+and the compiled value-and-gradient executable's temporary-memory estimate.
 
 ## Stochastic reaction networks
 

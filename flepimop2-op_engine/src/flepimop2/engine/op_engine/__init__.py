@@ -18,10 +18,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import itertools
+import json
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 import numpy as np
@@ -52,8 +54,10 @@ from op_engine.stochastic_solver import (
 )
 
 from .config import (
+    AdaptiveReplayMode,
     ExecutionMode,
     OpEngineEngineConfig,
+    ReplayCheckpoint,
     SolverMethod,
     StateLayout,
     StochasticMethod,
@@ -128,12 +132,15 @@ class AdaptiveSchedule:
     fac_max: float
     gamma: float | None
     strict: bool
+    context_signature: str | None = None
 
     @classmethod
     def from_core(
         cls,
         step_schedule: AdaptiveStepSchedule,
         config: OpEngineEngineConfig,
+        *,
+        context_signature: str,
     ) -> AdaptiveSchedule:
         """Build an artifact from a completed provider discovery run.
 
@@ -155,6 +162,7 @@ class AdaptiveSchedule:
             fac_max=config.fac_max,
             gamma=config.gamma,
             strict=config.strict,
+            context_signature=context_signature,
         )
 
     def validate_config(self, config: OpEngineEngineConfig) -> None:
@@ -205,6 +213,27 @@ class AdaptiveSchedule:
             )
             raise ValueError(msg)
 
+    def validate_context(self, context_signature: str) -> None:
+        """Require replay to use the structural discovery context.
+
+        Args:
+            context_signature: Signature of the active system, state layout,
+                parameter shapes, and optional caller tag.
+
+        Raises:
+            ValueError: If the replay context differs from discovery.
+        """
+        if (
+            self.context_signature is not None
+            and context_signature != self.context_signature
+        ):
+            msg = (
+                "Adaptive schedule context does not match the active system, "
+                "state layout, parameter shapes, or schedule_tag; discover a "
+                "fresh schedule."
+            )
+            raise ValueError(msg)
+
 
 @dataclass(frozen=True, slots=True)
 class AdaptiveRunResult:
@@ -247,9 +276,115 @@ def _is_jax_namespace(namespace: object) -> bool:
     return getattr(namespace, "__name__", "") == "jax.numpy"
 
 
+def _uses_compact_adaptive_replay(
+    config: OpEngineEngineConfig,
+    state_namespace: object,
+) -> bool:
+    """Resolve automatic replay dispatch and validate forced compact mode."""
+    if config.adaptive_replay is AdaptiveReplayMode.UNROLLED:
+        return False
+    if not config.method.is_explicit:
+        return False
+    if _is_jax_namespace(state_namespace):
+        return True
+    if config.adaptive_replay is AdaptiveReplayMode.COMPACT:
+        msg = "Compact adaptive replay currently requires JAX state arrays."
+        raise TypeError(msg)
+    return False
+
+
 def _array_item(value: Array, key: object) -> Array:
     """Index an Array while keeping the shared public protocol minimal."""
     return cast("_IndexableArray", value)[key]
+
+
+def _signature_value(value: object) -> object:
+    """Convert structural metadata into a stable JSON-compatible value."""
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    if isinstance(value, np.ndarray):
+        contiguous = np.ascontiguousarray(value)
+        return {
+            "array_dtype": str(contiguous.dtype),
+            "array_shape": tuple(int(size) for size in contiguous.shape),
+            "array_sha256": hashlib.sha256(contiguous.tobytes()).hexdigest(),
+        }
+    if isinstance(value, Mapping):
+        return {
+            str(key): _signature_value(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, tuple | list):
+        return tuple(_signature_value(item) for item in value)
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            "dataclass": f"{type(value).__module__}.{type(value).__qualname__}",
+            "fields": {
+                field.name: _signature_value(getattr(value, field.name))
+                for field in fields(value)
+            },
+        }
+    return {"type": f"{type(value).__module__}.{type(value).__qualname__}"}
+
+
+def _shape_signature(value: object) -> tuple[int, ...] | None:
+    """Return an array-like value's static shape without reading its data."""
+    shape = getattr(value, "shape", None)
+    if not isinstance(shape, tuple):
+        return None
+    return tuple(int(size) for size in shape)
+
+
+def _schedule_context_signature(
+    system: SystemABC,
+    state: Array,
+    raw_params: Mapping[str, object],
+    model_state: ModelStateSpecification | None,
+    schedule_tag: str | None,
+) -> str:
+    """Hash the structural context that a frozen schedule assumes."""
+    spec = getattr(system, "spec", None)
+    if isinstance(spec, Mapping):
+        system_structure: object = {"spec": _signature_value(spec)}
+    else:
+        option_names = (
+            "state_names",
+            "state_shape",
+            "axis_order",
+            "axis_labels",
+            "template_shapes",
+            "block_template_shapes",
+            "block_axes",
+            "factorize_axes",
+            "operators",
+            "operator_axis",
+        )
+        system_structure = {
+            "options": {
+                name: _signature_value(system.option(name, None))
+                for name in option_names
+            },
+        }
+    state_names = system.option("state_names", None)
+    if isinstance(state_names, tuple | list):
+        state_order: tuple[str, ...] | None = tuple(str(name) for name in state_names)
+    elif model_state is not None:
+        state_order = tuple(str(name) for name in model_state.parameter_names)
+    else:
+        state_order = None
+    payload = {
+        "system_type": f"{type(system).__module__}.{type(system).__qualname__}",
+        "system": system_structure,
+        "state_shape": tuple(int(size) for size in state.shape),
+        "state_order": state_order,
+        "parameter_shapes": {
+            str(name): _shape_signature(value)
+            for name, value in sorted(raw_params.items())
+        },
+        "schedule_tag": schedule_tag,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _state_reference(  # noqa: PLR0911
@@ -393,51 +528,67 @@ def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
     return core
 
 
-def _run_jax_fixed_explicit_trajectory(
+def _run_jax_explicit_plan_trajectory(
     solver: CoreSolver,
     rhs: Callable[[Scalar, Array], Array],
     *,
     method: SolverMethod,
-    times: np.ndarray,
-    fixed_max_step: float | None,
+    step_times_values: tuple[float, ...],
+    step_sizes_values: tuple[float, ...],
+    output_indices: np.ndarray,
+    checkpoint: ReplayCheckpoint,
 ) -> None:
-    """Run a fixed explicit solve as one compact JAX scan."""
+    """Run one explicit step plan as a compact, optionally rematerialized scan."""
     import jax  # noqa: PLC0415
 
     initial_state = solver.core.get_current_state()
     xp = _namespace_of(initial_state)
-
-    if times.size == 1:
+    if not step_sizes_values:
         solver.core.apply_trajectory(
             cast("Array", xp.expand_dims(initial_state, axis=0))
         )
         return
 
-    flat_step_times, flat_step_sizes, output_indices = _fixed_step_plan(
-        times, fixed_max_step
-    )
     step_times = cast(
         "Array",
-        xp.asarray(flat_step_times, dtype=initial_state.dtype),
+        xp.asarray(step_times_values, dtype=initial_state.dtype),
     )
     step_sizes = cast(
         "Array",
-        xp.asarray(flat_step_sizes, dtype=initial_state.dtype),
+        xp.asarray(step_sizes_values, dtype=initial_state.dtype),
     )
 
     if method is SolverMethod.DOPRI5:
-        first_state, first_stage = solver.fixed_explicit_step(
-            rhs,
-            method=method.value,
-            t=_array_item(step_times, 0),
-            dt=_array_item(step_sizes, 0),
-            y=initial_state,
-        )
-        if first_stage is None:
-            msg = "Dormand--Prince fixed steps must return an FSAL stage."
-            raise RuntimeError(msg)
 
-        if len(flat_step_sizes) == 1:
+        def initialize_dopri5(
+            state: Array,
+            time: Array,
+            dt: Array,
+        ) -> tuple[Array, Array]:
+            next_state, next_stage = solver.fixed_explicit_step(
+                rhs,
+                method=method.value,
+                t=time,
+                dt=dt,
+                y=state,
+            )
+            if next_stage is None:
+                msg = "Dormand--Prince fixed steps must return an FSAL stage."
+                raise RuntimeError(msg)
+            return next_state, next_stage
+
+        initialize = (
+            jax.checkpoint(initialize_dopri5)
+            if checkpoint is ReplayCheckpoint.STEP
+            else initialize_dopri5
+        )
+        first_state, first_stage = initialize(
+            initial_state,
+            _array_item(step_times, 0),
+            _array_item(step_sizes, 0),
+        )
+
+        if len(step_sizes_values) == 1:
             internal_tail = cast("Array", xp.expand_dims(first_state, axis=0))
         else:
 
@@ -460,8 +611,13 @@ def _run_jax_fixed_explicit_trajectory(
                     raise RuntimeError(msg)
                 return (next_state, next_stage), next_state
 
+            advance = (
+                jax.checkpoint(advance_dopri5)
+                if checkpoint is ReplayCheckpoint.STEP
+                else advance_dopri5
+            )
             (_final_state, _final_stage), remaining_tail = jax.lax.scan(
-                advance_dopri5,
+                advance,
                 (first_state, first_stage),
                 (
                     _array_item(step_times, slice(1, None)),
@@ -488,8 +644,11 @@ def _run_jax_fixed_explicit_trajectory(
             )
             return next_state, next_state
 
+        scan_advance = (
+            jax.checkpoint(advance) if checkpoint is ReplayCheckpoint.STEP else advance
+        )
         _final_state, internal_tail = jax.lax.scan(
-            advance,
+            scan_advance,
             initial_state,
             (step_times, step_sizes),
         )
@@ -500,6 +659,48 @@ def _run_jax_fixed_explicit_trajectory(
         xp.concat((xp.expand_dims(initial_state, axis=0), saved_tail), axis=0),
     )
     solver.core.apply_trajectory(trajectory)
+
+
+def _run_jax_fixed_explicit_trajectory(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    times: np.ndarray,
+    fixed_max_step: float | None,
+) -> None:
+    """Run a fixed explicit solve as one compact JAX scan."""
+    step_times, step_sizes, output_indices = _fixed_step_plan(times, fixed_max_step)
+    _run_jax_explicit_plan_trajectory(
+        solver,
+        rhs,
+        method=method,
+        step_times_values=step_times,
+        step_sizes_values=step_sizes,
+        output_indices=output_indices,
+        checkpoint=ReplayCheckpoint.NONE,
+    )
+
+
+def _run_jax_adaptive_explicit_trajectory(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    schedule: AdaptiveStepSchedule,
+    checkpoint: ReplayCheckpoint,
+) -> None:
+    """Replay an accepted explicit mesh as one compact JAX scan."""
+    step_times, step_sizes, output_indices = _schedule_step_plan(schedule)
+    _run_jax_explicit_plan_trajectory(
+        solver,
+        rhs,
+        method=method,
+        step_times_values=step_times,
+        step_sizes_values=step_sizes,
+        output_indices=output_indices,
+        checkpoint=checkpoint,
+    )
 
 
 def _fixed_step_plan(
@@ -527,6 +728,35 @@ def _fixed_step_plan(
     output_indices = (
         np.cumsum(
             np.asarray(tuple(len(steps) for steps in interval_steps), dtype=np.int64)
+        )
+        - 1
+    )
+    return tuple(flat_step_times), tuple(flat_step_sizes), output_indices
+
+
+def _schedule_step_plan(
+    schedule: AdaptiveStepSchedule,
+) -> tuple[tuple[float, ...], tuple[float, ...], np.ndarray]:
+    """Flatten a validated accepted mesh for backend-native replay.
+
+    Returns:
+        Step start times, step sizes, and requested-output indices.
+    """
+    flat_step_sizes: list[float] = []
+    flat_step_times: list[float] = []
+    for start, steps in zip(
+        schedule.output_times[:-1], schedule.step_sizes, strict=True
+    ):
+        step_time = start
+        for step_size in steps:
+            flat_step_times.append(step_time)
+            flat_step_sizes.append(step_size)
+            step_time += step_size
+    output_indices = (
+        np.cumsum(
+            np.asarray(
+                tuple(len(steps) for steps in schedule.step_sizes), dtype=np.int64
+            )
         )
         - 1
     )
@@ -1640,6 +1870,15 @@ class OpEngineFlepimop2Engine(EngineABC):
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
         n_state = int(y0.shape[0])
         method = self.config.method
+        context_signature = _schedule_context_signature(
+            system,
+            y0,
+            raw_params,
+            model_state,
+            self.config.schedule_tag,
+        )
+        if adaptive_schedule is not None:
+            adaptive_schedule.validate_context(context_signature)
 
         if self.config.state_layout is not StateLayout.FLAT:
             structured_states = _run_structured_deterministic(
@@ -1779,7 +2018,17 @@ class OpEngineFlepimop2Engine(EngineABC):
             }
         )
         diagnostics: NonlinearIntegrationDiagnostics | None = None
-        if adaptive_schedule is not None:
+        if adaptive_schedule is not None and _uses_compact_adaptive_replay(
+            self.config, state_namespace
+        ):
+            _run_jax_adaptive_explicit_trajectory(
+                solver,
+                rhs,
+                method=method,
+                schedule=adaptive_schedule.step_schedule,
+                checkpoint=self.config.replay_checkpoint,
+            )
+        elif adaptive_schedule is not None:
             diagnostics = solver.replay_adaptive_schedule(
                 rhs,
                 adaptive_schedule.step_schedule,
@@ -1800,7 +2049,11 @@ class OpEngineFlepimop2Engine(EngineABC):
         step_schedule = solver.last_adaptive_schedule
         schedule = adaptive_schedule
         if schedule is None and step_schedule is not None:
-            schedule = AdaptiveSchedule.from_core(step_schedule, self.config)
+            schedule = AdaptiveSchedule.from_core(
+                step_schedule,
+                self.config,
+                context_signature=context_signature,
+            )
         return _ExecutionResult(
             trajectory=_format_result(times, states),
             schedule=schedule,
@@ -1809,11 +2062,13 @@ class OpEngineFlepimop2Engine(EngineABC):
 
 
 __all__ = [
+    "AdaptiveReplayMode",
     "AdaptiveRunResult",
     "AdaptiveSchedule",
     "ExecutionMode",
     "OpEngineEngineConfig",
     "OpEngineFlepimop2Engine",
+    "ReplayCheckpoint",
     "SolverMethod",
     "StateLayout",
     "StochasticMethod",

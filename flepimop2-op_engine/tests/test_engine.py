@@ -30,9 +30,11 @@ from flepimop2.system.abc import SystemABC
 from flepimop2.typing import StateChangeEnum
 
 from flepimop2.engine.op_engine import (
+    AdaptiveReplayMode,
     AdaptiveSchedule,
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
+    ReplayCheckpoint,
     SolverMethod,
 )
 
@@ -325,6 +327,167 @@ def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
         engine.run(
             system,
             np.asarray([0.0, 1.0]),
+            initial_state,
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+
+
+def test_compact_replay_scan_and_gradient_parity() -> None:  # noqa: PLR0914
+    """Long explicit meshes stay compact without changing values or gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    times = np.linspace(0.0, 2.0, 33, dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+    system = _GoodSystem()
+
+    def make_engine(mode: AdaptiveReplayMode) -> OpEngineFlepimop2Engine:
+        return OpEngineFlepimop2Engine(
+            state_change=StateChangeEnum.FLOW,
+            config=OpEngineEngineConfig(
+                method=SolverMethod.HEUN,
+                adaptive=True,
+                rtol=1e-5,
+                atol=1e-8,
+                adaptive_replay=mode,
+            ),
+        )
+
+    discovery_engine = make_engine(AdaptiveReplayMode.AUTO)
+    schedule = discovery_engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    ).schedule
+    compact_engine = make_engine(AdaptiveReplayMode.COMPACT)
+    unrolled_engine = make_engine(AdaptiveReplayMode.UNROLLED)
+
+    def final_state(engine: OpEngineFlepimop2Engine, initial: Array) -> Array:
+        trajectory = engine.run(
+            system,
+            times,
+            {"x0": ParameterValue(initial, ResolvedShape())},
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+        return cast("Array", trajectory[-1, 1])
+
+    initial = jnp.asarray(1.0, dtype=jnp.float32)
+    compact = functools.partial(final_state, compact_engine)
+    unrolled = functools.partial(final_state, unrolled_engine)
+    compact_jaxpr = jax.make_jaxpr(compact)(initial)
+    scan_equations = [
+        equation
+        for equation in compact_jaxpr.jaxpr.eqns
+        if equation.primitive.name == "scan"
+    ]
+    compact_value, compact_gradient = jax.jit(jax.value_and_grad(compact))(initial)
+    unrolled_value, unrolled_gradient = jax.value_and_grad(unrolled)(initial)
+    epsilon = 1e-3
+    finite_gradient = (compact(initial + epsilon) - compact(initial - epsilon)) / (
+        2.0 * epsilon
+    )
+
+    assert len(scan_equations) == 1
+    assert compact_value == pytest.approx(unrolled_value, rel=1e-6)
+    assert compact_gradient == pytest.approx(unrolled_gradient, rel=2e-6)
+    assert compact_gradient == pytest.approx(finite_gradient, rel=2e-3)
+
+
+def test_checkpointed_compact_replay_rematerializes_the_scan_step() -> None:
+    """The step checkpoint policy emits rematerialization and keeps gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    times = np.linspace(0.0, 1.0, 33, dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+    system = _GoodSystem()
+    discovery = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(adaptive=True),
+    )
+    schedule = discovery.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    ).schedule
+    checkpointed = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            adaptive=True,
+            adaptive_replay=AdaptiveReplayMode.COMPACT,
+            replay_checkpoint=ReplayCheckpoint.STEP,
+        ),
+    )
+
+    def solve(initial: Array) -> Array:
+        trajectory = checkpointed.run(
+            system,
+            times,
+            {"x0": ParameterValue(initial, ResolvedShape())},
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+        return cast("Array", trajectory[-1, 1])
+
+    initial = jnp.asarray(1.0, dtype=jnp.float32)
+    jaxpr = jax.make_jaxpr(solve)(initial)
+    value, gradient = jax.jit(jax.value_and_grad(solve))(initial)
+
+    assert "remat" in str(jaxpr)
+    assert value == pytest.approx(np.e, rel=2e-5)
+    assert gradient == pytest.approx(value, rel=2e-5)
+
+
+def test_schedule_context_and_forced_compact_backend_are_validated() -> None:
+    """Caller tags catch stale schedules and forced compact mode requires JAX."""
+    system = _GoodSystem()
+    times = np.asarray([0.0, 0.5, 1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+    discovery = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(adaptive=True, schedule_tag="model-v1"),
+    )
+    schedule = discovery.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    ).schedule
+
+    stale = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(adaptive=True, schedule_tag="model-v2"),
+    )
+    with pytest.raises(ValueError, match="schedule_tag"):
+        stale.run(
+            system,
+            times,
+            initial_state,
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
+
+    forced_compact = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            adaptive=True,
+            adaptive_replay=AdaptiveReplayMode.COMPACT,
+            schedule_tag="model-v1",
+        ),
+    )
+    with pytest.raises(TypeError, match="requires JAX"):
+        forced_compact.run(
+            system,
+            times,
             initial_state,
             {},
             model_state=model_state,
