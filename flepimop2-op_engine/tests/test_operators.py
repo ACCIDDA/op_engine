@@ -20,7 +20,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from op_engine.matrix_ops import StageOperatorContext, build_advection_matrix
+from op_engine.matrix_ops import (
+    StageOperatorContext,
+    build_advection_matrix,
+    build_diffusion_matrix,
+)
 from op_system import OperatorDescriptor
 
 from flepimop2.engine.op_engine.operators import (
@@ -58,6 +62,21 @@ def _advection_descriptor() -> OperatorDescriptor:
         kind="advection",
         velocity=2.0,
         bc="periodic",
+        apply_to=("X[imm]",),
+    )
+
+
+def _diffusion_descriptor() -> OperatorDescriptor:
+    """Build a typed diffusion descriptor for the test immune axis.
+
+    Returns:
+        A diffusion descriptor for a no-flux uniform grid.
+    """
+    return OperatorDescriptor(
+        axis="imm",
+        kind="diffusion",
+        rate=0.3,
+        bc="neumann",
         apply_to=("X[imm]",),
     )
 
@@ -144,6 +163,46 @@ def test_advection_lifts_portable_operator_over_selected_states() -> None:
         0.5,
         2.0,
         bc="periodic",
+    )
+
+    np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
+    np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
+
+
+def test_diffusion_lifts_portable_operator_over_selected_states() -> None:
+    """Typed diffusion uses axis coordinates and the portable Laplacian."""
+    state_names = (
+        "X__imm_x0",
+        "X__imm_x1",
+        "X__imm_x2",
+        "Y__imm_x0",
+        "Y__imm_x1",
+        "Y__imm_x2",
+    )
+    specs = compile_operator_descriptors(
+        (_diffusion_descriptor(),),
+        method="imex-euler",
+        state_names=state_names,
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_coords={"imm": np.asarray([0.0, 0.5, 1.0])},
+        params={},
+    )
+
+    assert callable(specs.default)
+    dt = 0.2
+    left, right = specs.default(
+        dt,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((len(state_names), 1))),
+    )
+    observed = (np.eye(len(state_names)) - np.asarray(left)) / dt
+    expected = np.zeros_like(observed)
+    expected[:3, :3] = build_diffusion_matrix(
+        3,
+        0.5,
+        0.3,
+        bc="neumann",
     )
 
     np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)

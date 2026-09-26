@@ -294,6 +294,98 @@ def build_advection_matrix(
     return cast("Array", xp.multiply(stencil, speed))
 
 
+def build_diffusion_matrix(  # noqa: C901
+    n: int,
+    dx: float,
+    coefficient: float | Array,
+    *,
+    bc: str = "neumann",
+    reference: Array | None = None,
+) -> Array:
+    """Build a dense second-order centered diffusion operator.
+
+    The returned matrix A acts on a column state as dy = A @ y and
+    represents coefficient * d2y/dx2 on a uniform one-dimensional grid.
+    The coefficient may be an Array-API scalar, so it stays dynamic under
+    transformations such as JAX jit and grad.
+
+    Boundary modes are:
+
+    - neumann or reflecting: zero flux at both boundaries;
+    - absorbing: zero-valued cells outside both boundaries;
+    - periodic: the two grid ends are adjacent.
+
+    The namespace comes from reference when provided, then from coefficient;
+    plain numeric coefficients use NumPy. Grid geometry and the boundary mode
+    are static structural inputs.
+
+    Args:
+        n: Number of uniformly spaced grid cells.
+        dx: Positive cell width.
+        coefficient: Non-negative scalar diffusion coefficient.
+        bc: Boundary mode: neumann, reflecting, absorbing, or periodic.
+        reference: Optional array whose namespace and floating dtype control the
+            result.
+
+    Returns:
+        Dense (n, n) operator in the selected Array-API namespace.
+
+    Raises:
+        ValueError: If the grid, coefficient shape/value, or boundary mode is
+            invalid.
+    """
+    if n < 2:
+        msg = f"diffusion grid size must be at least 2; got {n}."
+        raise ValueError(msg)
+    if not np.isfinite(dx) or dx <= 0.0:
+        msg = f"diffusion dx must be finite and positive; got {dx}."
+        raise ValueError(msg)
+
+    bc_normalized = str(bc).strip().lower()
+    if bc_normalized not in {"absorbing", "neumann", "periodic", "reflecting"}:
+        msg = (
+            f"Unknown diffusion bc: {bc!r}; expected absorbing, neumann, "
+            "periodic, or reflecting."
+        )
+        raise ValueError(msg)
+
+    namespace_source: object = reference if reference is not None else coefficient
+    if getattr(namespace_source, "__array_namespace__", None) is None:
+        namespace_source = np.asarray(namespace_source)
+    xp = _namespace_of(namespace_source)
+    source_dtype = cast("Any", namespace_source).dtype
+    dtype = xp.result_type(xp.asarray(0.0).dtype, source_dtype)
+    coefficient_array = cast("Array", xp.asarray(coefficient, dtype=dtype))
+    if coefficient_array.shape != ():
+        msg = (
+            "diffusion coefficient must be scalar; "
+            f"got shape {coefficient_array.shape}."
+        )
+        raise ValueError(msg)
+    if isinstance(coefficient_array, np.ndarray):
+        if not np.isfinite(coefficient_array).all():
+            msg = "diffusion coefficient must be finite."
+            raise ValueError(msg)
+        if bool(coefficient_array < 0.0):
+            msg = "diffusion coefficient must be non-negative."
+            raise ValueError(msg)
+
+    stencil = -2.0 * np.eye(n, dtype=np.float64)
+    indices = np.arange(n - 1)
+    stencil[indices + 1, indices] = 1.0
+    stencil[indices, indices + 1] = 1.0
+    if bc_normalized in {"neumann", "reflecting"}:
+        stencil[0, 0] = -1.0
+        stencil[-1, -1] = -1.0
+    elif bc_normalized == "periodic":
+        stencil[0, -1] += 1.0
+        stencil[-1, 0] += 1.0
+
+    stencil_array = xp.asarray(stencil, dtype=dtype)
+    scale = xp.divide(coefficient_array, dx * dx)
+    return cast("Array", xp.multiply(stencil_array, scale))
+
+
 def build_laplacian_tridiag(
     n: int,
     dx: float,

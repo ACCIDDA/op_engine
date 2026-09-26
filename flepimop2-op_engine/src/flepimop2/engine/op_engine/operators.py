@@ -28,6 +28,7 @@ import numpy as np
 from op_engine.core_solver import OperatorSpecs
 from op_engine.matrix_ops import (
     build_advection_matrix,
+    build_diffusion_matrix,
     make_constant_base_builder,
     make_stage_operator_factory,
 )
@@ -164,7 +165,7 @@ def _resolve_scalar(
     return scalar
 
 
-def _axis_spacing(
+def _uniform_axis_spacing(
     axis: str,
     *,
     axis_coords: Mapping[str, object],
@@ -172,28 +173,28 @@ def _axis_spacing(
 ) -> float:
     """Return the positive spacing of one static uniform coordinate axis."""
     if axis not in axis_coords:
-        msg = f"Advection operator axis {axis!r} has no axis_coords metadata."
+        msg = f"Operator axis {axis!r} has no axis_coords metadata."
         raise KeyError(msg)
     coordinates = np.asarray(axis_coords[axis], dtype=np.float64)
     if coordinates.shape != (size,):
         msg = (
-            f"Coordinates for advection axis {axis!r} must have shape {(size,)}; "
+            f"Coordinates for operator axis {axis!r} must have shape {(size,)}; "
             f"got {coordinates.shape}."
         )
         raise ValueError(msg)
     if size < 2:
-        msg = f"Advection operator axis {axis!r} must contain at least two cells."
+        msg = f"Operator axis {axis!r} must contain at least two cells."
         raise ValueError(msg)
     if not np.isfinite(coordinates).all():
-        msg = f"Coordinates for advection axis {axis!r} must be finite."
+        msg = f"Coordinates for operator axis {axis!r} must be finite."
         raise ValueError(msg)
     spacings = np.diff(coordinates)
     if not np.all(spacings > 0.0):
-        msg = f"Coordinates for advection axis {axis!r} must be strictly increasing."
+        msg = f"Coordinates for operator axis {axis!r} must be strictly increasing."
         raise ValueError(msg)
     if not np.allclose(spacings, spacings[0], rtol=1e-10, atol=1e-12):
         msg = (
-            f"Advection axis {axis!r} must be uniformly spaced; "
+            f"Operator axis {axis!r} must be uniformly spaced; "
             "non-uniform grids are not yet supported."
         )
         raise ValueError(msg)
@@ -277,7 +278,7 @@ def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
             params=params,
             field="advection velocity",
         )
-        dx = _axis_spacing(
+        dx = _uniform_axis_spacing(
             descriptor.axis,
             axis_coords=axis_coords,
             size=len(labels),
@@ -287,6 +288,24 @@ def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
             dx,
             velocity,
             bc=descriptor.bc or "absorbing",
+        )
+        row_source_operator = np.asarray(column_operator).T
+    elif descriptor.kind == "diffusion":
+        coefficient = _resolve_scalar(
+            descriptor.rate,
+            params=params,
+            field="diffusion rate",
+        )
+        dx = _uniform_axis_spacing(
+            descriptor.axis,
+            axis_coords=axis_coords,
+            size=len(labels),
+        )
+        column_operator = build_diffusion_matrix(
+            len(labels),
+            dx,
+            coefficient,
+            bc=descriptor.bc or "neumann",
         )
         row_source_operator = np.asarray(column_operator).T
     else:  # pragma: no cover - guarded by the public compiler
@@ -409,7 +428,7 @@ def _resolve_generator_array(
     return generator
 
 
-def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914
+def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
     descriptor: OperatorDescriptor,
     *,
     state_names: tuple[str, ...],
@@ -449,7 +468,7 @@ def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914
             xp=xp,
             dtype=reference.dtype,
         )
-        dx = _axis_spacing(
+        dx = _uniform_axis_spacing(
             descriptor.axis,
             axis_coords=axis_coords,
             size=len(labels),
@@ -459,6 +478,27 @@ def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914
             dx,
             velocity,
             bc=descriptor.bc or "absorbing",
+            reference=reference,
+        )
+        row_source_operator = xp.permute_dims(column_operator, (1, 0))
+    elif descriptor.kind == "diffusion":
+        coefficient = _resolve_scalar_array(
+            descriptor.rate,
+            params=params,
+            field="diffusion rate",
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        dx = _uniform_axis_spacing(
+            descriptor.axis,
+            axis_coords=axis_coords,
+            size=len(labels),
+        )
+        column_operator = build_diffusion_matrix(
+            len(labels),
+            dx,
+            coefficient,
+            bc=descriptor.bc or "neumann",
             reference=reference,
         )
         row_source_operator = xp.permute_dims(column_operator, (1, 0))
@@ -573,10 +613,15 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
         dtype=reference.dtype,
     )
     for descriptor in descriptors:
-        if descriptor.kind not in {"axis_kernel", "advection", "transport"}:
+        if descriptor.kind not in {
+            "axis_kernel",
+            "advection",
+            "diffusion",
+            "transport",
+        }:
             msg = (
                 f"Unsupported op_system operator kind {descriptor.kind!r}; "
-                "axis_kernel and advection operators can currently be compiled."
+                "axis_kernel, advection, and diffusion operators are supported."
             )
             raise ValueError(msg)
         contribution = _lift_axis_operator_array(
@@ -646,10 +691,15 @@ def compile_operator_descriptors(  # noqa: PLR0913
 
     base_operator = np.zeros((len(names), len(names)), dtype=np.float64)
     for descriptor in descriptors:
-        if descriptor.kind not in {"axis_kernel", "advection", "transport"}:
+        if descriptor.kind not in {
+            "axis_kernel",
+            "advection",
+            "diffusion",
+            "transport",
+        }:
             msg = (
                 f"Unsupported op_system operator kind {descriptor.kind!r}; "
-                "axis_kernel and advection operators can currently be compiled."
+                "axis_kernel, advection, and diffusion operators are supported."
             )
             raise ValueError(msg)
         base_operator += _lift_axis_operator(

@@ -31,6 +31,7 @@ def test_external_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     constraints = tmp_path / "constraints.txt"
     constraints.write_text(f"op-engine @ {core_root.as_uri()}\n")
     monkeypatch.setenv("PIP_CONSTRAINT", str(constraints))
+    monkeypatch.setenv("PIP_NO_CACHE_DIR", "1")
     external_provider_package(
         tmp_path,
         copy_files={
