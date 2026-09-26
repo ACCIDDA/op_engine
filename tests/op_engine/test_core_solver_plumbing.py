@@ -136,6 +136,49 @@ def test_fixed_euler_takes_one_full_step_per_output_interval() -> None:
     assert call_times == [0.0, 0.5]
 
 
+def test_fixed_rk4_takes_four_stages_per_output_interval() -> None:
+    """Fixed RK4 does not perform adaptive-only step doubling."""
+    core = _make_core(
+        n_states=1,
+        n_subgroups=1,
+        time_grid=np.asarray([0.0, 0.5, 1.0]),
+    )
+    core.set_initial_state(np.asarray([[1.0]]))
+    call_times: list[float] = []
+
+    def rhs(time: float, state: FloatArray) -> FloatArray:
+        call_times.append(time)
+        return -0.1 * state
+
+    CoreSolver(core).run(rhs, config=RunConfig(method="rk4"))
+
+    assert len(call_times) == 8
+    np.testing.assert_allclose(
+        call_times,
+        [0.0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0],
+    )
+
+
+def test_dopri5_reuses_fsal_stage_across_output_intervals() -> None:
+    """Dormand--Prince saves one RHS call after its first accepted step."""
+    core = _make_core(
+        n_states=1,
+        n_subgroups=1,
+        time_grid=np.asarray([0.0, 0.5, 1.0]),
+    )
+    core.set_initial_state(np.asarray([[1.0]]))
+    call_times: list[float] = []
+
+    def rhs(time: float, state: FloatArray) -> FloatArray:
+        call_times.append(time)
+        return -0.1 * state
+
+    CoreSolver(core).run(rhs, config=RunConfig(method="dopri5"))
+
+    assert len(call_times) == 13
+    assert call_times.count(0.5) == 2
+
+
 def test_adaptive_true_lands_exactly_on_next_output_time() -> None:
     """With adaptive=True, dt_init < dt_out, solver substeps but keeps output times."""
     tg = np.array([0.0, 1.0], dtype=float)

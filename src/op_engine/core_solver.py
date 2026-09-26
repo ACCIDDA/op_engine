@@ -12,6 +12,8 @@ Between consecutive output times, the solver may take either:
 Supported methods (keyword `method=`):
     - "euler":        Explicit Euler (order 1), adaptive via step-doubling.
     - "heun":         Explicit Heun / RK2 (order 2), embedded Euler estimator.
+    - "rk4":          Classic explicit Runge--Kutta (order 4).
+    - "dopri5":       Dormand--Prince 5(4), embedded adaptive estimator.
     - "imex-euler":   IMEX Euler: explicit Euler on F(t,y), implicit Euler on A.
                       Adaptive via step-doubling (IMEX step-doubling).
     - "imex-heun-tr": IMEX Heun-Trapezoidal: Heun on F, trapezoidal/CN on A.
@@ -60,6 +62,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.sparse import csr_matrix, identity
 
+from ._runge_kutta import EXPLICIT_TABLEAUS, ExplicitRungeKuttaTableau
 from ._typing import Array
 from .matrix_ops import (
     StageOperatorContext,
@@ -116,6 +119,8 @@ JacobianFunction = Callable[..., "OperatorLike"]
 MethodName = Literal[
     "euler",
     "heun",
+    "rk4",
+    "dopri5",
     "imex-euler",
     "imex-heun-tr",
     "imex-trbdf2",
@@ -131,10 +136,16 @@ _METHOD_ALIASES: dict[str, MethodName] = {
     "trap": "trapezoidal",
     "rosenbrock": "ros2",
     "rosenbrock-w": "ros2",
+    "dormand-prince": "dopri5",
+    "dormand-prince-5(4)": "dopri5",
+    "rk45": "dopri5",
+    "runge-kutta-4": "rk4",
 }
 _ALLOWED_METHODS: tuple[MethodName, ...] = (
     "euler",
     "heun",
+    "rk4",
+    "dopri5",
     "imex-euler",
     "imex-heun-tr",
     "imex-trbdf2",
@@ -143,6 +154,7 @@ _ALLOWED_METHODS: tuple[MethodName, ...] = (
     "bdf2",
     "ros2",
 )
+_EXPLICIT_METHODS = frozenset({"euler", "heun", "rk4", "dopri5"})
 
 
 def _normalize_method(method: str) -> MethodName:
@@ -494,6 +506,25 @@ class StepIO:
     out: NDArray[np.floating]
     err_out: NDArray[np.floating] | None = None
     y_prev: NDArray[np.floating] | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class ExplicitStepResult:
+    """Result and reusable stages from one explicit adaptive attempt.
+
+    Attributes:
+        state: Accepted-order candidate state.
+        error: Local error estimate.
+        controller_order: Order supplied to the existing step-size controller.
+        first_stage: Derivative at the attempted step's initial state.
+        last_stage: Derivative reusable by an FSAL method after acceptance.
+    """
+
+    state: Array
+    error: Array
+    controller_order: int
+    first_stage: Array
+    last_stage: Array | None
 
 
 class _LinearizedStepFunction(Protocol):
@@ -1685,7 +1716,7 @@ class CoreSolver:
         """Build a RunPlan for explicit methods.
 
         Args:
-            method_in: Explicit method ("euler" or "heun").
+            method_in: Explicit method name.
             op_default: Default operator spec (ignored for explicit methods).
             strict: If True, warn when operators are provided.
 
@@ -1876,7 +1907,7 @@ class CoreSolver:
         strict = bool(cfg.strict)
         adaptive = bool(cfg.adaptive)
 
-        if method_in in {"euler", "heun"}:
+        if method_in in _EXPLICIT_METHODS:
             return self._plan_for_explicit(method_in, op_default, strict=strict)
 
         if method_in in {"imex-euler", "imex-heun-tr"}:
@@ -2021,10 +2052,13 @@ class CoreSolver:
         t: float,
         dt: float,
         y: Array,
-    ) -> tuple[Array, Array, int]:
+        first_stage: Array | None = None,
+    ) -> ExplicitStepResult:
         """Return an Euler step and doubling error in ``y``'s namespace."""
         xp = _namespace_of(y)
-        f_n = self._rhs_array(rhs_func, t, y)
+        f_n = (
+            first_stage if first_stage is not None else self._rhs_array(rhs_func, t, y)
+        )
         y_full = cast("Array", xp.add(y, xp.multiply(f_n, dt)))
         y_half = cast("Array", xp.add(y, xp.multiply(f_n, 0.5 * dt)))
         f_half = self._rhs_array(rhs_func, t + 0.5 * dt, y_half)
@@ -2033,27 +2067,67 @@ class CoreSolver:
             xp.add(y_half, xp.multiply(f_half, 0.5 * dt)),
         )
         error = cast("Array", xp.subtract(y_two_half, y_full))
-        return y_two_half, error, 1
+        return ExplicitStepResult(y_two_half, error, 1, f_n, None)
 
-    def _step_explicit_heun(
+    @staticmethod
+    def _weighted_rk_state(
+        y: Array,
+        dt: float,
+        weights: tuple[float, ...],
+        stages: list[Array],
+    ) -> Array:
+        """Return ``y + dt * sum(weights[i] * stages[i])`` natively."""
+        xp = _namespace_of(y)
+        result = y
+        for weight, stage in zip(weights, stages, strict=True):
+            if weight != 0.0:
+                result = cast(
+                    "Array",
+                    xp.add(result, xp.multiply(stage, dt * weight)),
+                )
+        return result
+
+    def _evaluate_explicit_rk(  # noqa: PLR0913
         self,
         rhs_func: RHSFunction,
         *,
+        tableau: ExplicitRungeKuttaTableau,
         t: float,
         dt: float,
         y: Array,
-    ) -> tuple[Array, Array, int]:
-        """Return a Heun step and embedded Euler error in ``y``'s namespace."""
-        xp = _namespace_of(y)
-        f_n = self._rhs_array(rhs_func, t, y)
-        y_euler = cast("Array", xp.add(y, xp.multiply(f_n, dt)))
-        f_pred = self._rhs_array(rhs_func, t + dt, y_euler)
-        slope = xp.add(f_n, f_pred)
-        y_heun = cast("Array", xp.add(y, xp.multiply(slope, 0.5 * dt)))
-        error = cast("Array", xp.subtract(y_heun, y_euler))
-        return y_heun, error, 2
+        first_stage: Array | None = None,
+    ) -> tuple[Array, Array | None, Array, Array | None]:
+        """Evaluate one explicit tableau with optional first-stage reuse.
 
-    def _attempt_explicit_step(
+        Returns:
+            High-order state, optional embedded state, first stage, and an
+            optional FSAL stage for the next accepted step.
+        """
+        stages: list[Array] = []
+        for stage_index, (row, stage_time) in enumerate(
+            zip(tableau.a, tableau.c, strict=True)
+        ):
+            if stage_index == 0 and first_stage is not None:
+                derivative = first_stage
+            else:
+                stage_state = self._weighted_rk_state(y, dt, row, stages)
+                derivative = self._rhs_array(
+                    rhs_func,
+                    t + stage_time * dt,
+                    stage_state,
+                )
+            stages.append(derivative)
+
+        high = self._weighted_rk_state(y, dt, tableau.b, stages)
+        embedded = (
+            None
+            if tableau.b_embedded is None
+            else self._weighted_rk_state(y, dt, tableau.b_embedded, stages)
+        )
+        last_stage = stages[-1] if tableau.fsal else None
+        return high, embedded, stages[0], last_stage
+
+    def _attempt_explicit_step(  # noqa: PLR0913
         self,
         rhs_func: RHSFunction,
         *,
@@ -2061,11 +2135,13 @@ class CoreSolver:
         t: float,
         dt: float,
         y: Array,
-    ) -> tuple[Array, Array, int]:
+        first_stage: Array | None = None,
+    ) -> ExplicitStepResult:
         """Dispatch one functional explicit step.
 
         Returns:
-            Candidate state, local error estimate, and method order.
+            Candidate state, error estimate, controller order, and reusable
+            derivative stages.
 
         Raises:
             RuntimeError: If called with a non-explicit method.
@@ -2076,10 +2152,98 @@ class CoreSolver:
                 t=t,
                 dt=dt,
                 y=y,
+                first_stage=first_stage,
             )
-        if method == "heun":
-            return self._step_explicit_heun(rhs_func, t=t, dt=dt, y=y)
-        raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
+        tableau = EXPLICIT_TABLEAUS.get(method)
+        if tableau is None:
+            raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
+
+        high, embedded, stage_zero, last_stage = self._evaluate_explicit_rk(
+            rhs_func,
+            tableau=tableau,
+            t=t,
+            dt=dt,
+            y=y,
+            first_stage=first_stage,
+        )
+        xp = _namespace_of(y)
+        if embedded is not None:
+            if tableau.embedded_order is None:
+                raise RuntimeError(_INTERNAL_ERROR_ERR_OUT_MSG)
+            error = cast("Array", xp.subtract(high, embedded))
+            return ExplicitStepResult(
+                high,
+                error,
+                tableau.embedded_order,
+                stage_zero,
+                last_stage,
+            )
+
+        half, _embedded, _half_first, _half_last = self._evaluate_explicit_rk(
+            rhs_func,
+            tableau=tableau,
+            t=t,
+            dt=0.5 * dt,
+            y=y,
+            first_stage=stage_zero,
+        )
+        two_half, _embedded, _half_first, _half_last = self._evaluate_explicit_rk(
+            rhs_func,
+            tableau=tableau,
+            t=t + 0.5 * dt,
+            dt=0.5 * dt,
+            y=half,
+        )
+        error_scale = 1.0 / (2.0**tableau.order - 1.0)
+        error = cast(
+            "Array",
+            xp.multiply(xp.subtract(two_half, high), error_scale),
+        )
+        return ExplicitStepResult(
+            two_half,
+            error,
+            tableau.order,
+            stage_zero,
+            None,
+        )
+
+    def _step_explicit_fixed(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        method: MethodName,
+        t: float,
+        dt: float,
+        y: Array,
+        first_stage: Array | None = None,
+    ) -> tuple[Array, Array | None]:
+        """Take one fixed explicit step without adaptive-only error work.
+
+        Returns:
+            Next state and an optional FSAL stage for the following step.
+
+        Raises:
+            RuntimeError: If called with a non-explicit method.
+        """
+        if method == "euler":
+            return self._step_explicit_euler_once(
+                rhs_func,
+                t=t,
+                dt=dt,
+                y=y,
+            ), None
+        tableau = EXPLICIT_TABLEAUS.get(method)
+        if tableau is None:
+            raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=method))
+        high, _embedded, _stage_zero, last_stage = self._evaluate_explicit_rk(
+            rhs_func,
+            tableau=tableau,
+            t=t,
+            dt=dt,
+            y=y,
+            first_stage=first_stage,
+        )
+        return high, last_stage
 
     @staticmethod
     def _require_err_out(step: StepIO) -> NDArray[np.floating]:
@@ -2712,11 +2876,12 @@ class CoreSolver:
         adaptive_cfg: AdaptiveConfig,
         dt_ctrl: DtControllerConfig,
         accepted_steps: list[float],
-    ) -> Array:
+        first_stage: Array | None = None,
+    ) -> tuple[Array, Array | None]:
         """Advance an explicit method with functional adaptive substeps.
 
         Returns:
-            State at ``t1`` in the input state's namespace.
+            State at ``t1`` and an optional FSAL stage for the next interval.
 
         Raises:
             RuntimeError: If step rejection, minimum-dt, or step-count limits
@@ -2739,6 +2904,7 @@ class CoreSolver:
             dt = dt_out
 
         y_current = y0
+        cached_first_stage = first_stage
         n_internal = 0
         while t < target:
             if n_internal >= adaptive_cfg.max_steps:
@@ -2754,16 +2920,17 @@ class CoreSolver:
                 if rejects >= adaptive_cfg.max_reject:
                     raise RuntimeError(_TOO_MANY_REJECTS_ERROR_MSG)
 
-                y_try, error, order = self._attempt_explicit_step(
+                result = self._attempt_explicit_step(
                     rhs_func,
                     method=method,
                     t=t,
                     dt=dt,
                     y=y_current,
+                    first_stage=cached_first_stage,
                 )
                 error_norm = self._error_norm(
-                    error,
-                    y_try,
+                    result.error,
+                    result.state,
                     y_current,
                     rtol=adaptive_cfg.rtol,
                     atol=adaptive_cfg.atol,
@@ -2772,11 +2939,23 @@ class CoreSolver:
                 if error_norm <= 1.0:
                     accepted_steps.append(float(dt))
                     t += dt
-                    y_current = y_try
-                    dt = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
+                    y_current = result.state
+                    cached_first_stage = result.last_stage
+                    dt = self._propose_dt(
+                        dt,
+                        error_norm,
+                        result.controller_order,
+                        cfg=dt_ctrl,
+                    )
                     break
 
-                dt_new = self._propose_dt(dt, error_norm, order, cfg=dt_ctrl)
+                cached_first_stage = result.first_stage
+                dt_new = self._propose_dt(
+                    dt,
+                    error_norm,
+                    result.controller_order,
+                    cfg=dt_ctrl,
+                )
                 if dt_new <= dt_ctrl.dt_min and dt_ctrl.dt_min > 0.0:
                     raise RuntimeError(_DT_UNDERFLOW_ERROR_MSG)
                 dt = dt_new
@@ -2784,7 +2963,7 @@ class CoreSolver:
 
             n_internal += 1
 
-        return y_current
+        return y_current, cached_first_stage
 
     def _run_explicit(
         self,
@@ -2801,6 +2980,7 @@ class CoreSolver:
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
         schedule_steps: list[tuple[float, ...]] = []
+        first_stage: Array | None = None
 
         for idx in range(n_steps - 1):
             t0 = float(time_grid[idx])
@@ -2811,7 +2991,7 @@ class CoreSolver:
             y_current = self.core.get_current_state()
             if config.adaptive:
                 accepted_steps: list[float] = []
-                y_next = self._advance_explicit_adaptive_to_time(
+                y_next, first_stage = self._advance_explicit_adaptive_to_time(
                     rhs_func,
                     method=plan.method,
                     t0=t0,
@@ -2820,22 +3000,17 @@ class CoreSolver:
                     adaptive_cfg=config.adaptive_cfg,
                     dt_ctrl=config.dt_controller,
                     accepted_steps=accepted_steps,
+                    first_stage=first_stage,
                 )
                 schedule_steps.append(tuple(accepted_steps))
-            elif plan.method == "euler":
-                y_next = self._step_explicit_euler_once(
-                    rhs_func,
-                    t=t0,
-                    dt=t1 - t0,
-                    y=y_current,
-                )
             else:
-                y_next, _error, _order = self._attempt_explicit_step(
+                y_next, first_stage = self._step_explicit_fixed(
                     rhs_func,
                     method=plan.method,
                     t=t0,
                     dt=t1 - t0,
                     y=y_current,
+                    first_stage=first_stage,
                 )
             self.core.advance_timestep(y_next)
 
@@ -3135,6 +3310,7 @@ class CoreSolver:
         schedule: AdaptiveStepSchedule,
     ) -> None:
         """Replay accepted explicit steps with functional Array-API kernels."""
+        first_stage: Array | None = None
         for t0, interval_steps in zip(
             schedule.output_times[:-1],
             schedule.step_sizes,
@@ -3143,13 +3319,16 @@ class CoreSolver:
             t = t0
             state = self.core.get_current_state()
             for dt in interval_steps:
-                state, _error, _order = self._attempt_explicit_step(
+                result = self._attempt_explicit_step(
                     rhs_func,
                     method=plan.method,
                     t=t,
                     dt=dt,
                     y=state,
+                    first_stage=first_stage,
                 )
+                state = result.state
+                first_stage = result.last_stage
                 t += dt
             self.core.advance_timestep(state)
 
@@ -3251,7 +3430,7 @@ class CoreSolver:
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
 
-        if plan.method in {"euler", "heun"}:
+        if plan.method in _EXPLICIT_METHODS:
             self._replay_explicit_schedule(rhs_func, plan=plan, schedule=schedule)
         else:
             current_state = self.core.get_current_state()
@@ -3285,7 +3464,7 @@ class CoreSolver:
         cfg = config or RunConfig()
         plan = self._resolve_run_plan(cfg)
 
-        if plan.method in {"euler", "heun"}:
+        if plan.method in _EXPLICIT_METHODS:
             self._run_explicit(rhs_func, plan=plan, config=cfg)
             return
 
