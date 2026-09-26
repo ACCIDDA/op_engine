@@ -36,6 +36,7 @@ from flepimop2.engine.op_engine import (  # noqa: E402
     ExecutionMode,
     OpEngineEngineConfig,
     SolverMethod,
+    StateLayout,
     StochasticMethod,
 )
 
@@ -268,7 +269,44 @@ def test_engine_config_defaults_to_deterministic_execution() -> None:
     config = OpEngineEngineConfig()
 
     assert config.mode is ExecutionMode.DETERMINISTIC
+    assert config.state_layout is StateLayout.FLAT
     assert config.stochastic_method is StochasticMethod.TAU_LEAPING
+
+
+def test_engine_config_accepts_structured_fixed_explicit_layouts() -> None:
+    """Structured layouts are explicit opt-ins on the supported method surface."""
+    pytree = OpEngineEngineConfig(state_layout=StateLayout.PYTREE)
+    block = OpEngineEngineConfig(
+        state_layout=StateLayout.BLOCK,
+        block_axis="loc",
+        method=SolverMethod.RK4,
+    )
+
+    assert pytree.state_layout is StateLayout.PYTREE
+    assert block.block_axis == "loc"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"state_layout": StateLayout.PYTREE, "adaptive": True},
+        {
+            "state_layout": StateLayout.PYTREE,
+            "method": SolverMethod.IMPLICIT_EULER,
+        },
+        {
+            "state_layout": StateLayout.BLOCK,
+            "mode": ExecutionMode.STOCHASTIC,
+        },
+        {"state_layout": StateLayout.FLAT, "block_axis": "loc"},
+    ],
+)
+def test_engine_config_rejects_unsupported_structured_layouts(
+    kwargs: dict[str, object],
+) -> None:
+    """Unsupported structured combinations fail instead of flattening silently."""
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(**kwargs)  # type: ignore[arg-type]
 
 
 def test_engine_config_accepts_pure_direct_ssa() -> None:

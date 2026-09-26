@@ -91,7 +91,11 @@ from ._multistep import (
 )
 from ._rosenbrock import ROSENBROCK_W_TABLEAUS, RosenbrockWTableau
 from ._rosenbrock import evaluate_rosenbrock_w as evaluate_rosenbrock_w_tableau
-from ._runge_kutta import EXPLICIT_TABLEAUS, ExplicitRungeKuttaTableau
+from ._runge_kutta import (
+    EXPLICIT_TABLEAUS,
+    ExplicitRungeKuttaTableau,
+    evaluate_explicit_runge_kutta,
+)
 from ._sdirk import (
     SDIRK2_ALEXANDER,
     SdirkStepAttempt,
@@ -2637,29 +2641,19 @@ class CoreSolver:
             High-order state, optional embedded state, first stage, and an
             optional FSAL stage for the next accepted step.
         """
-        stages: list[Array] = []
-        for stage_index, (row, stage_time) in enumerate(
-            zip(tableau.a, tableau.c, strict=True)
-        ):
-            if stage_index == 0 and first_stage is not None:
-                derivative = first_stage
-            else:
-                stage_state = self._weighted_rk_state(y, dt, row, stages)
-                derivative = self._rhs_array(
-                    rhs_func,
-                    cast("Any", t) + stage_time * cast("Any", dt),
-                    stage_state,
-                )
-            stages.append(derivative)
-
-        high = self._weighted_rk_state(y, dt, tableau.b, stages)
-        embedded = (
-            None
-            if tableau.b_embedded is None
-            else self._weighted_rk_state(y, dt, tableau.b_embedded, stages)
+        return evaluate_explicit_runge_kutta(
+            tableau,
+            t=t,
+            dt=dt,
+            y=y,
+            rhs=lambda stage_time, stage_state: self._rhs_array(
+                rhs_func,
+                stage_time,
+                stage_state,
+            ),
+            weighted_sum=self._weighted_rk_state,
+            first_stage=first_stage,
         )
-        last_stage = stages[-1] if tableau.fsal else None
-        return high, embedded, stages[0], last_stage
 
     def _attempt_explicit_step(  # noqa: PLR0913
         self,

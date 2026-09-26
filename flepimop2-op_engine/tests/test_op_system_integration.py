@@ -38,6 +38,7 @@ from flepimop2.engine.op_engine import (
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
     SolverMethod,
+    StateLayout,
     StochasticMethod,
 )
 
@@ -156,6 +157,50 @@ def test_simulator_preserves_parameter_namespace_for_any_backend(
         np.asarray([[0.0, 2.0], [0.5, 1.9025]]),
         rtol=0.0,
         atol=1e-6,
+    )
+
+
+def test_pytree_layout_preserves_numpy_namespace() -> None:
+    """Structured execution remains Array-API based outside the JAX block path."""
+    axes = AxisCollection({
+        "loc": Axis(
+            name="loc",
+            kind="categorical",
+            size=2,
+            labels=("a", "b"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [{"name": "loc", "coords": ["a", "b"]}],
+            "state": ["X[loc]"],
+            "equations": {"X[loc]": "-rate * X[loc]"},
+            "initial_state": {
+                "X[loc]": {"shaped": "x0", "axes": ["loc"]},
+            },
+        }
+    )
+    result = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(state_layout=StateLayout.PYTREE),
+    ).run(
+        system,
+        np.asarray([0.0, 0.5], dtype=np.float64),
+        {},
+        {
+            "x0": ParameterValue(np.asarray([1.0, 2.0]), axes.resolve_shape(("loc",))),
+            "rate": _scalar(0.1),
+        },
+        model_state=system.model_state(axes),
+    )
+
+    assert result.__array_namespace__() is np
+    np.testing.assert_allclose(
+        result,
+        np.asarray([[0.0, 1.0, 2.0], [0.5, 0.95125, 1.9025]]),
+        rtol=0.0,
+        atol=1e-14,
     )
 
 
@@ -1014,3 +1059,111 @@ def test_hybrid_sampler_indices_do_not_restart_between_split_intervals() -> None
     )
 
     assert sampler.indices == [0, 1]
+
+
+def test_flat_pytree_and_block_layouts_agree_and_block_is_differentiable() -> (  # noqa: PLR0914
+    None
+):
+    """op_system block metadata drives one vmapped JAX solve without flattening."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    axes = AxisCollection({
+        "age": Axis(
+            name="age",
+            kind="categorical",
+            size=2,
+            labels=("young", "old"),
+        ),
+        "loc": Axis(
+            name="loc",
+            kind="categorical",
+            size=3,
+            labels=("a", "b", "c"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {"name": "age", "coords": ["young", "old"]},
+                {"name": "loc", "coords": ["a", "b", "c"]},
+            ],
+            "state": ["X[age, loc]", "Y[age, loc]"],
+            "equations": {
+                "X[age, loc]": "rate[loc] * X[age, loc]",
+                "Y[age, loc]": "-decay * Y[age, loc]",
+            },
+            "initial_state": {
+                "X[age, loc]": {"shaped": "x0", "axes": ["age", "loc"]},
+                "Y[age, loc]": {"shaped": "y0", "axes": ["age", "loc"]},
+            },
+            "factorize_axes": ["loc"],
+        }
+    )
+    times = np.asarray([0.0, 0.4, 1.0], dtype=np.float64)
+    rates = jnp.asarray([-0.1, -0.2, -0.3], dtype=jnp.float32)
+    x0 = jnp.asarray([[1.0, 2.0, 3.0], [1.5, 2.5, 3.5]], dtype=jnp.float32)
+    y0 = jnp.asarray([[4.0, 5.0, 6.0], [4.5, 5.5, 6.5]], dtype=jnp.float32)
+    state_shape = axes.resolve_shape(("age", "loc"))
+    rate_shape = axes.resolve_shape(("loc",))
+
+    def parameters(rate_values: Array) -> dict[str, ParameterValue]:
+        return {
+            "x0": ParameterValue(x0, state_shape),
+            "y0": ParameterValue(y0, state_shape),
+            "rate": ParameterValue(rate_values, rate_shape),
+            "decay": ParameterValue(jnp.asarray(0.15), ResolvedShape()),
+        }
+
+    def engine(layout: StateLayout) -> OpEngineFlepimop2Engine:
+        return OpEngineFlepimop2Engine(
+            state_change=StateChangeEnum.FLOW,
+            config=OpEngineEngineConfig(
+                method=SolverMethod.RK4,
+                fixed_max_step=0.125,
+                state_layout=layout,
+                block_axis="loc" if layout is StateLayout.BLOCK else None,
+            ),
+        )
+
+    flat_result = engine(StateLayout.FLAT).run(
+        system,
+        times,
+        {},
+        parameters(rates),
+        model_state=system.model_state(axes),
+    )
+    pytree_result = engine(StateLayout.PYTREE).run(
+        system,
+        times,
+        {},
+        parameters(rates),
+        model_state=system.model_state(axes),
+    )
+    block_engine = engine(StateLayout.BLOCK)
+    block_result = block_engine.run(
+        system,
+        times,
+        {},
+        parameters(rates),
+        model_state=system.model_state(axes),
+    )
+
+    np.testing.assert_allclose(pytree_result, flat_result, rtol=2e-6, atol=2e-7)
+    np.testing.assert_allclose(block_result, flat_result, rtol=2e-6, atol=2e-7)
+
+    def objective(rate_values: Array) -> Array:
+        result = block_engine.run(
+            system,
+            times,
+            {},
+            parameters(rate_values),
+            model_state=system.model_state(axes),
+        )
+        return result[-1, 1:].sum()
+
+    value, gradient = jax.jit(jax.value_and_grad(objective))(rates)
+    assert bool(jnp.isfinite(value))
+    assert gradient.shape == rates.shape
+    assert bool(jnp.all(jnp.isfinite(gradient)))
+    assert str(jax.make_jaxpr(objective)(rates)).count("scan[") == 1
