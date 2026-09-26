@@ -48,6 +48,45 @@ eager scalar checks. A traced non-NumPy path can validate shapes and static
 layout only; producers are responsible for maintaining generator, finiteness,
 and non-negative diffusion-coefficient invariants in dynamic parameter values.
 
+### Adaptive schedule replay
+
+Adaptive differentiation uses an explicit two-phase contract. First run the
+controller eagerly and retain its accepted mesh:
+
+```python
+discovered = engine.run_adaptive(
+    system,
+    times,
+    initial_state,
+    params,
+)
+schedule = discovered.schedule
+```
+
+Then replay the frozen mesh through the ordinary provider entry point:
+
+```python
+trajectory = engine.run(
+    system,
+    times,
+    initial_state,
+    params,
+    adaptive_schedule=schedule,
+)
+```
+
+The replay uses the same portable core kernels but bypasses error estimation
+and accept/reject decisions, so it can be enclosed by `jax.jit` and
+`jax.grad`. The schedule records and validates the solver method, output grid,
+and adaptive controller settings. Its gradients are conditional on that mesh:
+discover a fresh schedule after material parameter, tolerance, model, or
+output-grid changes. A run launched through `Simulator` exposes its discovered
+artifact as `engine.last_adaptive_schedule`.
+
+`run_adaptive()` also returns any nonlinear replay diagnostics. Call
+`result.require_converged()` after compiled execution before accepting a result
+whose method uses nonlinear stages.
+
 ## Stochastic reaction networks
 
 Set `mode: stochastic` to execute every named reaction artifact published by

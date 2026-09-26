@@ -5,6 +5,14 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Compact JAX fixed-step provider trajectories use a single `jax.lax.scan`
+  while the core retains backend-neutral functional step kernels (#123).
+- The flepimop2 provider exposes eager adaptive-schedule discovery and
+  validated frozen-mesh replay for conditional JAX JIT and differentiation
+  workflows (#127).
+
 ## [0.2.0] - 2026-09-26
 
 ### Added
