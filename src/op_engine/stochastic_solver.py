@@ -252,6 +252,79 @@ class NumpySSASampler:
         )
 
 
+def _validate_ssa_sample(
+    sample: SSASample,
+    *,
+    xp: Any,  # noqa: ANN401
+    n_events: int,
+) -> tuple[float, int]:
+    """Validate and extract one eager backend-specific random draw.
+
+    Returns:
+        Python waiting time and flattened event index.
+
+    Raises:
+        TypeError: If the sampler changes array namespaces.
+        ValueError: If either sampled value is invalid.
+    """
+    waiting_time = sample.waiting_time
+    flat_event_index = sample.flat_event_index
+    if (
+        _namespace_of(waiting_time) is not xp
+        or _namespace_of(flat_event_index) is not xp
+    ):
+        msg = "ssa_sampler must preserve the state array namespace"
+        raise TypeError(msg)
+    if waiting_time.shape != ():
+        raise ValueError(_INVALID_SSA_WAIT)
+    invalid_wait = xp.logical_or(
+        xp.logical_not(xp.isfinite(waiting_time)),
+        xp.less_equal(waiting_time, 0),
+    )
+    if bool(invalid_wait.item()):
+        raise ValueError(_INVALID_SSA_WAIT)
+
+    if flat_event_index.shape != ():
+        raise ValueError(_INVALID_SSA_INDEX)
+    invalid_index = xp.logical_or(
+        xp.logical_not(xp.isfinite(flat_event_index)),
+        xp.not_equal(flat_event_index, xp.round(flat_event_index)),
+    )
+    if bool(invalid_index.item()):
+        raise ValueError(_INVALID_SSA_INDEX)
+    index = int(flat_event_index.item())
+    if not 0 <= index < n_events:
+        raise ValueError(_INVALID_SSA_INDEX)
+    return float(waiting_time.item()), index
+
+
+def _draw_ssa_event(
+    propensity: Array,
+    ssa_sampler: SSASampler,
+    *,
+    draw_index: int,
+) -> tuple[float, int] | None:
+    """Draw an SSA event, or return no event for an absorbing state.
+
+    Returns:
+        Waiting time and event index, or no value when total rate is zero.
+    """
+    xp = _namespace_of(propensity)
+    total_rate = cast(
+        "Array",
+        xp.asarray(xp.sum(propensity), dtype=propensity.dtype),
+    )
+    if float(total_rate.item()) == 0.0:
+        return None
+    probabilities = cast("Array", xp.divide(propensity, total_rate))
+    sample = ssa_sampler(total_rate, probabilities, draw_index)
+    return _validate_ssa_sample(
+        sample,
+        xp=xp,
+        n_events=int(np.prod(propensity.shape)),
+    )
+
+
 class _ReactionNetwork:
     """Validated stoichiometry and shared batched reaction operations."""
 
@@ -571,79 +644,6 @@ class DirectSSASolver:
         """Return the number of reaction channels."""
         return self._network.n_reactions
 
-    @staticmethod
-    def _validate_sample(
-        sample: SSASample,
-        *,
-        xp: Any,  # noqa: ANN401
-        n_events: int,
-    ) -> tuple[float, int]:
-        """Validate and extract one eager backend-specific random draw.
-
-        Returns:
-            Python waiting time and flattened event index.
-
-        Raises:
-            TypeError: If the sampler changes array namespaces.
-            ValueError: If either sampled value is invalid.
-        """
-        waiting_time = sample.waiting_time
-        flat_event_index = sample.flat_event_index
-        if (
-            _namespace_of(waiting_time) is not xp
-            or _namespace_of(flat_event_index) is not xp
-        ):
-            msg = "ssa_sampler must preserve the state array namespace"
-            raise TypeError(msg)
-        if waiting_time.shape != ():
-            raise ValueError(_INVALID_SSA_WAIT)
-        invalid_wait = xp.logical_or(
-            xp.logical_not(xp.isfinite(waiting_time)),
-            xp.less_equal(waiting_time, 0),
-        )
-        if bool(invalid_wait.item()):
-            raise ValueError(_INVALID_SSA_WAIT)
-
-        if flat_event_index.shape != ():
-            raise ValueError(_INVALID_SSA_INDEX)
-        invalid_index = xp.logical_or(
-            xp.logical_not(xp.isfinite(flat_event_index)),
-            xp.not_equal(flat_event_index, xp.round(flat_event_index)),
-        )
-        if bool(invalid_index.item()):
-            raise ValueError(_INVALID_SSA_INDEX)
-        index = int(flat_event_index.item())
-        if not 0 <= index < n_events:
-            raise ValueError(_INVALID_SSA_INDEX)
-        return float(waiting_time.item()), index
-
-    def _draw_event(
-        self,
-        propensity: Array,
-        ssa_sampler: SSASampler,
-        *,
-        draw_index: int,
-    ) -> tuple[float, int] | None:
-        """Draw the next event, or return no event for an absorbing state.
-
-        Returns:
-            Waiting time and event index, or no value when total rate is zero.
-        """
-        xp = _namespace_of(propensity)
-        total_rate = cast(
-            "Array",
-            xp.asarray(xp.sum(propensity), dtype=propensity.dtype),
-        )
-        if float(total_rate.item()) == 0.0:
-            return None
-        probabilities = cast("Array", xp.divide(propensity, total_rate))
-        sample = ssa_sampler(total_rate, probabilities, draw_index)
-        return self._validate_sample(
-            sample,
-            xp=xp,
-            n_events=int(np.prod(self._network.reaction_shape)),
-        )
-
     def run(
         self,
         propensity_func: PropensityFunction,
@@ -690,7 +690,7 @@ class DirectSSASolver:
                         t=t,
                         state=state,
                     )
-                    event = self._draw_event(
+                    event = _draw_ssa_event(
                         propensity,
                         ssa_sampler,
                         draw_index=draw_index,

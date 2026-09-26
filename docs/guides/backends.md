@@ -63,20 +63,24 @@ contract remain identical across conforming array namespaces.
 
 ## Stochastic sampling boundary
 
-`DirectSSASolver` and `TauLeapingSolver` keep reaction-channel arithmetic in
-the state array's namespace but inject sampling through `SSASampler` and
-`PoissonSampler`, respectively. This is necessary because the Array API does
-not define random-number generation and because NumPy's stateful generator and
-JAX's explicit keys have intentionally different semantics.
+`DirectSSASolver`, `AdaptiveTauLeapingSolver`, and `TauLeapingSolver` keep
+reaction-channel arithmetic in the state array's namespace. Direct SSA injects
+an `SSASampler`, fixed tau injects a `PoissonSampler`, and adaptive tau uses
+both for exact critical events and noncritical firing counts. This is necessary
+because the Array API does not define random-number generation and because
+NumPy's stateful generator and JAX's explicit keys have intentionally different
+semantics.
 `NumpySSASampler` and `NumpyPoissonSampler` are provided as conveniences.
 JAX users can construct fresh keys from the stable direct-SSA `draw_index` or
 tau-leaping `step_index`.
 
-The current safety checks and stochastic event loops are eager, so neither
-stochastic solver is a JIT-compatible path. Moreover, categorical reaction
-events and integer Poisson samples do not have an ordinary pathwise derivative.
-JAX remains useful for eager array execution and for differentiating a
-deterministic version of the same model, but `jax.grad` through a sampled
-trajectory is not part of this API contract. Score-function, reparameterized,
-or other stochastic gradient estimators should be implemented explicitly by an
-inference/provider layer rather than implied by the array namespace.
+The current safety checks and stochastic event loops are eager, so these
+stochastic solvers are not JIT-compatible paths. Adaptive selection also reads
+drift/variance reductions, critical classifications, and accept/reject results
+back to Python. Moreover, categorical reaction events and integer Poisson
+samples do not have an ordinary pathwise derivative. JAX remains useful for
+eager array execution and for differentiating a deterministic version of the
+same model, but `jax.grad` through a sampled trajectory is not part of this API
+contract. Score-function, reparameterized, or other stochastic gradient
+estimators should be implemented explicitly by an inference/provider layer
+rather than implied by the array namespace.
