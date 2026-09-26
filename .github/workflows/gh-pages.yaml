@@ -42,7 +42,9 @@ jobs:
       contents: 'write'  # Needed to push to gh-pages
     steps:
       - name: 'Install just'
-        uses: 'extractions/setup-just@v3'
+        uses: 'taiki-e/install-action@v2'
+        with:
+          tool: 'just'
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
         with:
