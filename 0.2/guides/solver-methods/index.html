@@ -1,0 +1,1587 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.2/guides/solver-methods/">
+      
+      
+        <link rel="prev" href="../getting-started/">
+      
+      
+        <link rel="next" href="../linear-multistep-methods/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Choosing a Solver - op_engine Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#choosing-and-configuring-a-solver" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest version.
+  <a href="../../..">
+    <strong>Click here to go to latest.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            op_engine Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Choosing a Solver
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    op_engine Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/creating-a-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating A Release
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing a Solver
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing a Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#deterministic-method-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deterministic method guide
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stochastic-reaction-networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stochastic reaction networks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stochastic reaction networks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exact-direct-ssa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact direct SSA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bounded-adaptive-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounded adaptive tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-step-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed-step tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explicit-deterministic-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explicit deterministic methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#imex-methods-and-operator-factories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IMEX methods and operator factories
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linearly-implicit-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linearly implicit methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adaptivity-and-array-api-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptivity and Array-API backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../linear-multistep-methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Multistep Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nonlinear-solvers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solvers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../biogeochemical-network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biogeochemical Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/adaptive_tau/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adaptive Tau
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/core_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/matrix_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Matrix Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/model_core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/nonlinear_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/stochastic_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#deterministic-method-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deterministic method guide
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stochastic-reaction-networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stochastic reaction networks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stochastic reaction networks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exact-direct-ssa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact direct SSA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bounded-adaptive-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounded adaptive tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-step-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed-step tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explicit-deterministic-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explicit deterministic methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#imex-methods-and-operator-factories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IMEX methods and operator factories
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linearly-implicit-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linearly implicit methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adaptivity-and-array-api-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptivity and Array-API backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="choosing-and-configuring-a-solver">Choosing and configuring a solver<a class="headerlink" href="#choosing-and-configuring-a-solver" title="Permanent link">&para;</a></h1>
+<p><code>ModelCore</code> owns output times and state storage. Deterministic systems use
+<code>CoreSolver</code> and a method selected by <code>RunConfig</code>. Stochastic reaction networks
+use <code>DirectSSASolver</code> or <code>TauLeapingSolver</code>, because propensities and
+stoichiometry have different semantics from an ODE right-hand side. In every
+case the state array selects the Array-API namespace; choosing JAX instead of
+NumPy does not select a different numerical method.</p>
+<h2 id="deterministic-method-guide">Deterministic method guide<a class="headerlink" href="#deterministic-method-guide" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">Order</th>
+<th>Split/operator input</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>euler</code></td>
+<td style="text-align: right;">1</td>
+<td>None</td>
+<td>Debugging and first-order reference runs</td>
+</tr>
+<tr>
+<td><code>heun</code></td>
+<td style="text-align: right;">2</td>
+<td>None</td>
+<td>Default non-stiff explicit integration</td>
+</tr>
+<tr>
+<td><code>rk4</code></td>
+<td style="text-align: right;">4</td>
+<td>None</td>
+<td>Accurate fixed-step non-stiff integration</td>
+</tr>
+<tr>
+<td><code>dopri5</code></td>
+<td style="text-align: right;">5 (embedded 4)</td>
+<td>None</td>
+<td>Efficient adaptive non-stiff integration</td>
+</tr>
+<tr>
+<td><code>imex-euler</code></td>
+<td style="text-align: right;">1</td>
+<td>One implicit-Euler operator factory</td>
+<td>Robust first-order split systems</td>
+</tr>
+<tr>
+<td><code>imex-heun-tr</code></td>
+<td style="text-align: right;">2</td>
+<td>One trapezoidal operator factory</td>
+<td>Second-order explicit/implicit splitting</td>
+</tr>
+<tr>
+<td><code>imex-trbdf2</code></td>
+<td style="text-align: right;">2</td>
+<td>Trapezoidal and BDF2-stage factories</td>
+<td>Split systems needing stronger damping</td>
+</tr>
+<tr>
+<td><code>imex-ark3</code></td>
+<td style="text-align: right;">3 (embedded 2)</td>
+<td>One implicit-Euler stage factory</td>
+<td>Higher-order adaptive split systems</td>
+</tr>
+<tr>
+<td><code>implicit-euler</code></td>
+<td style="text-align: right;">1</td>
+<td>Jacobian callable</td>
+<td>One-linearization approximation with first-order damping</td>
+</tr>
+<tr>
+<td><code>trapezoidal</code></td>
+<td style="text-align: right;">2</td>
+<td>Jacobian callable</td>
+<td>One-linearization, second-order integration</td>
+</tr>
+<tr>
+<td><code>bdf2</code></td>
+<td style="text-align: right;">2</td>
+<td>Jacobian callable</td>
+<td>Uniform, fixed-step, one-linearization integration</td>
+</tr>
+<tr>
+<td><code>ros2</code></td>
+<td style="text-align: right;">2 (embedded 1)</td>
+<td>Jacobian callable</td>
+<td>L-stable linearly implicit integration</td>
+</tr>
+<tr>
+<td><code>sdirk2</code></td>
+<td style="text-align: right;">2</td>
+<td>Full RHS Jacobian and nonlinear solver</td>
+<td>L-stable fully nonlinear integration</td>
+</tr>
+</tbody>
+</table>
+<p><code>bdf2</code> currently requires a uniform output grid and <code>adaptive=False</code>. Its first
+step uses linearly implicit Euler because no previous state exists yet. The
+other methods support the built-in adaptive controller, subject to the
+compiled-control-flow boundary described below.</p>
+<p>The <a href="../linear-multistep-methods/">linear-multistep design note</a> records the
+coefficient/history contract, restart rules, and the current no-go decision on
+exposing BDF3 before variable-step and rejection semantics exist.</p>
+<h2 id="stochastic-reaction-networks">Stochastic reaction networks<a class="headerlink" href="#stochastic-reaction-networks" title="Permanent link">&para;</a></h2>
+<p>All stochastic solvers use one reaction contract: the stoichiometric matrix
+has shape <code>(n_species, n_reactions)</code>, while the propensity function returns
+the state shape with <code>n_reactions</code> replacing <code>n_species</code> on the configured
+reaction axis.</p>
+<h3 id="exact-direct-ssa">Exact direct SSA<a class="headerlink" href="#exact-direct-ssa" title="Permanent link">&para;</a></h3>
+<p><code>DirectSSASolver</code> implements
+<a href="https://doi.org/10.1021/j100540a008">Gillespie's direct method</a>. It samples one
+exponential waiting time and one categorical reaction/batch event, applies
+exactly one stoichiometric update, and repeats. A draw beyond an output boundary
+is retained rather than discarded, so adding observation times does not alter
+the simulated path. Zero total propensity is absorbing.</p>
+<p>Use direct SSA as the reference method for low-copy-number networks, rare-event
+questions, or checking a tau-leaping approximation. Its cost is proportional to
+the number of individual events, so tau-leaping is usually preferable when
+populations and firing rates are high.</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import DirectSSASolver, ModelCore, NumpySSASampler
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=2, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[20.0], [0.0]]))
+
+# A -&gt; B
+stoichiometry = np.asarray([[-1], [1]])
+
+
+def propensity(_time, state):
+    return 0.2 * state[0:1]
+
+
+DirectSSASolver(core, stoichiometry).run(
+    propensity,
+    NumpySSASampler(seed=2026),
+)
+</code></pre>
+<p>The direct method assumes propensities remain constant between reaction events,
+as in a time-homogeneous continuous-time Markov chain. Across batch cells it
+samples from the superposed event process; the result is equivalent to
+independent direct-method trajectories for independent batch cells.</p>
+<h3 id="bounded-adaptive-tau-leaping">Bounded adaptive tau-leaping<a class="headerlink" href="#bounded-adaptive-tau-leaping" title="Permanent link">&para;</a></h3>
+<p><code>AdaptiveTauLeapingSolver</code> implements the species-based pre-leap selector of
+<a href="https://doi.org/10.1063/1.2159468">Cao, Gillespie, and Petzold</a> together with
+their <a href="https://doi.org/10.1063/1.1992473">non-negative modified Poisson
+algorithm</a>. It needs both net stoichiometry
+and non-negative reactant stoichiometry. They are intentionally separate:
+net changes cannot reveal catalytic reactants or how many source molecules a
+reaction consumes.</p>
+<pre><code class="language-python">from op_engine import (
+    AdaptiveTauLeapingConfig,
+    AdaptiveTauLeapingSolver,
+    NumpyPoissonSampler,
+    NumpySSASampler,
+)
+
+# Net A -&gt; B changes and consumed reactants, respectively.
+stoichiometry = np.asarray([[-1], [1]])
+reactants = np.asarray([[1], [0]])
+
+solver = AdaptiveTauLeapingSolver(core, stoichiometry, reactants)
+solver.run(
+    propensity,
+    NumpyPoissonSampler(seed=2026),
+    NumpySSASampler(seed=2027),
+    config=AdaptiveTauLeapingConfig(leap_tolerance=0.03),
+)
+</code></pre>
+<p>The non-negativity strategy has three explicit layers:</p>
+<ol>
+<li><strong>Pre-leap selection.</strong> Species drift and variance from noncritical
+   reactions bound expected and stochastic population changes. The
+   <code>leap_tolerance</code> controls this approximation.</li>
+<li><strong>Bounded critical events.</strong> A channel is critical when fewer than
+   <code>critical_threshold</code> firings could exhaust a reactant. Across all critical
+   channel/batch events, at most one is selected by the exact-event sampler in
+   a leap. If all active channels are critical, the method is direct SSA.</li>
+<li><strong>Post-leap rejection.</strong> If noncritical Poisson firings still propose a
+   negative population, the proposal is discarded, the attempted tau is
+   halved, and fresh samples use new deterministic draw indices. No population
+   or firing count is clipped.</li>
+</ol>
+<p>When the selected tau is cheaper to execute event by event,
+<code>exact_fallback_multiplier</code> switches temporarily to direct SSA. Tightening
+<code>leap_tolerance</code> therefore approaches, and eventually crosses into, the exact
+reference path on low-count networks.</p>
+<p>Per-channel binomial firing was considered but is not used here. Although a
+binomial draw bounds one channel, independent binomials can still collectively
+overconsume a reactant shared by several channels. A true coupled-binomial
+scheme would need a distinct sampling contract. The critical-event bound plus
+explicit post-leap rejection gives a documented non-negative method without
+silently changing those reaction dependencies.</p>
+<h3 id="fixed-step-tau-leaping">Fixed-step tau-leaping<a class="headerlink" href="#fixed-step-tau-leaping" title="Permanent link">&para;</a></h3>
+<p>Fixed-step explicit tau-leaping approximates the number of firings in each
+reaction channel over a time interval with an independent Poisson draw. Supply
+a stoichiometric matrix with shape <code>(n_species, n_reactions)</code> and a propensity
+function whose reaction axis has length <code>n_reactions</code>:</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import (
+    ModelCore,
+    NumpyPoissonSampler,
+    TauLeapingConfig,
+    TauLeapingSolver,
+)
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=2, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[1_000.0], [0.0]]))
+
+# A -&gt; B
+stoichiometry = np.asarray([[-1], [1]])
+
+
+def propensity(_time, state):
+    return 0.2 * state[0:1]
+
+
+solver = TauLeapingSolver(core, stoichiometry)
+solver.run(
+    propensity,
+    NumpyPoissonSampler(seed=2026),
+    config=TauLeapingConfig(max_step=0.05),
+)
+</code></pre>
+<p><code>max_step=None</code> takes one leap per output interval. Setting <code>max_step</code> divides
+each interval into smaller leaps and clips the final leap so that it lands on
+the requested output time. The propensity is evaluated at the beginning of
+each leap.</p>
+<p>The core solver does not own random-number state. Instead, it receives a
+<code>PoissonSampler</code>, keeping PRNG details outside the numerical method. A JAX run
+can use an explicit key and the stable leap index:</p>
+<pre><code class="language-python">key = jax.random.key(2026)
+
+
+def poisson(mean, step_index):
+    return jax.random.poisson(jax.random.fold_in(key, step_index), mean)
+</code></pre>
+<p>This first implementation deliberately rejects a leap that produces a
+negative population. It neither clips counts nor changes the process
+silently. Reduce <code>max_step</code> for a better fixed-tau approximation, or use
+<code>AdaptiveTauLeapingSolver</code> when automatic leap selection and critical-event
+handling are required.</p>
+<p>Tau-leaping is currently an eager execution path: validation reads sampled
+counts and proposed populations back to Python. JAX arrays stay in their native
+namespace, but a sampled stochastic trajectory does not provide an ordinary
+pathwise <code>jax.grad</code> derivative. Differentiable deterministic counterparts can
+continue to use <code>CoreSolver</code>; gradient estimators for stochastic paths belong
+at a higher inference/provider layer.</p>
+<h2 id="explicit-deterministic-methods">Explicit deterministic methods<a class="headerlink" href="#explicit-deterministic-methods" title="Permanent link">&para;</a></h2>
+<p>Euler, Heun, classic RK4, and Dormand--Prince need only an RHS. The default is
+fixed-step Heun, with one step per output interval:</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import CoreSolver, ModelCore
+from op_engine.core_solver import AdaptiveConfig, RunConfig
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=1, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[1.0]]))
+
+
+def rhs(_time, state):
+    return -0.5 * state
+
+
+config = RunConfig(
+    method=&quot;heun&quot;,
+    adaptive=True,
+    adaptive_cfg=AdaptiveConfig(rtol=1e-6, atol=1e-9),
+)
+CoreSolver(core).run(rhs, config=config)
+</code></pre>
+<p>With <code>adaptive=False</code>, every adjacent pair of output times defines one solver
+step. With <code>adaptive=True</code>, the controller may take multiple internal steps but
+still stores only the requested output times.</p>
+<p>Heun, RK4, and Dormand--Prince share one validated explicit Runge--Kutta
+tableau kernel. <code>rk4</code> takes four RHS stages per fixed step. Under adaptivity it
+uses step doubling to estimate error, so <code>dopri5</code> is normally the more efficient
+adaptive choice: its embedded fourth-order formula estimates error using the
+same seven stages as its fifth-order solution. Dormand--Prince also reuses its
+final stage as the first stage of the next accepted step (FSAL), including
+across output-time boundaries.</p>
+<p><code>dopri5</code>, <code>rk45</code>, and <code>dormand-prince</code> select the same canonical method. Dense
+output is not currently exposed; the solver lands on and stores the requested
+output times instead of interpolating between accepted internal steps.</p>
+<h2 id="imex-methods-and-operator-factories">IMEX methods and operator factories<a class="headerlink" href="#imex-methods-and-operator-factories" title="Permanent link">&para;</a></h2>
+<p>IMEX methods solve a split system</p>
+<p>[
+  y' = A(t, y)y + F(t, y),
+]</p>
+<p>where the RHS callable supplies <code>F</code> and an operator factory supplies the
+implicit part. A resolved operator tuple is either <code>(L, R)</code> or
+<code>(predictor, L, R)</code>, with the core solving <code>L @ y_next = R @ x</code> along the
+configured operator axis.</p>
+<p>Use a <code>StageOperatorFactory</code> whenever the output spacing is non-uniform or
+adaptive stepping is enabled. The factory receives the attempted full-step
+size, a stage scale, and <code>StageOperatorContext</code>, so it can rebuild operators
+for the actual stage time and state.</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import CoreSolver, ModelCore, build_diffusion_matrix
+from op_engine.core_solver import OperatorSpecs, RunConfig
+from op_engine.matrix_ops import (
+    StageOperatorContext,
+    make_stage_operator_factory,
+)
+
+n_cells = 32
+dx = 1.0 / n_cells
+diffusivity = 0.02
+times = np.linspace(0.0, 1.0, 21)
+
+core = ModelCore(n_states=n_cells, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.ones((n_cells, 1)))
+
+
+def reaction(_time, state):
+    return -0.1 * state
+
+
+def diffusion(ctx: StageOperatorContext):
+    return build_diffusion_matrix(
+        n_cells,
+        dx,
+        diffusivity,
+        bc=&quot;neumann&quot;,
+        reference=ctx.y,
+    )
+
+
+trapezoidal = make_stage_operator_factory(diffusion, scheme=&quot;trapezoidal&quot;)
+config = RunConfig(
+    method=&quot;imex-heun-tr&quot;,
+    operators=OperatorSpecs(default=trapezoidal),
+)
+CoreSolver(core, operator_axis=&quot;state&quot;).run(reaction, config=config)
+</code></pre>
+<p>For <code>imex-trbdf2</code>, provide both stage schemes:</p>
+<pre><code class="language-python">implicit_euler = make_stage_operator_factory(diffusion, scheme=&quot;implicit-euler&quot;)
+config = RunConfig(
+    method=&quot;imex-trbdf2&quot;,
+    operators=OperatorSpecs(tr=trapezoidal, bdf2=implicit_euler),
+)
+</code></pre>
+<p><code>imex-ark3</code> uses the five-stage ARS(4,4,3) additive Runge--Kutta
+tableau from <a href="https://doi.org/10.1016/S0168-9274(97)00056-1">Ascher, Ruuth, and Spiteri
+(1997)</a>. Its implicit
+half is L-stable and stiffly accurate. A shared <code>c=1/2</code> stage supplies a
+second-order explicit/implicit midpoint estimate, so adaptive error control
+does not use step doubling.</p>
+<pre><code class="language-python">implicit_euler = make_stage_operator_factory(diffusion, scheme=&quot;implicit-euler&quot;)
+config = RunConfig(
+    method=&quot;imex-ark3&quot;,
+    operators=OperatorSpecs(default=implicit_euler),
+)
+</code></pre>
+<p>This method always requires a <code>StageOperatorFactory</code>, including on a uniform
+fixed-step grid. For each non-explicit stage the factory receives the attempted
+full-step size, the DIRK diagonal coefficient as <code>scale</code>, the actual stage
+time, and the assembled stage base in <code>StageOperatorContext.y</code>. It must build
+an implicit-Euler left operator <code>I - dt * scale * A</code>. Predictor tuples are not
+accepted, and the returned right operator is not applied: the additive kernel
+has already assembled all previous explicit and implicit stage contributions.
+The implicit derivative is then recovered from the solved stage equation,
+which avoids a duplicate callback for <code>A @ y</code> and keeps the method portable
+across Array-API namespaces.</p>
+<p><code>imex-ars443</code> and <code>ars443</code> are aliases for <code>imex-ark3</code>.</p>
+<p>The flepimop2 provider can compile typed <code>op_system</code> <code>axis_kernel</code>, <code>advection</code>,
+and <code>diffusion</code> descriptors into these same factories. Descriptor parsing and
+axis-label resolution belong to the provider; the numerical builders and
+stepping methods remain in <code>op_engine</code>.</p>
+<h2 id="linearly-implicit-methods">Linearly implicit methods<a class="headerlink" href="#linearly-implicit-methods" title="Permanent link">&para;</a></h2>
+<p>The methods historically named <code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code>, as
+well as the Rosenbrock method, take a Jacobian callable. The callable returns an
+operator acting along <code>operator_axis</code>:</p>
+<pre><code class="language-python">def jacobian(_time, state):
+    xp = state.__array_namespace__()
+    return xp.multiply(xp.eye(state.shape[0], dtype=state.dtype), -0.5)
+
+
+config = RunConfig(method=&quot;ros2&quot;, jacobian=jacobian)
+CoreSolver(core, operator_axis=&quot;state&quot;).run(rhs, config=config)
+</code></pre>
+<p><code>ros2</code> uses two increment stages and one Jacobian evaluation per attempted
+step. Both stages solve with the same matrix
+<code>I - (1 - 1/sqrt(2)) * dt * J</code>; the accepted second-order state and embedded
+first-order state provide the adaptive error estimate. The coefficient table,
+formal orders, and controller order are declared together and validated when
+the module is imported.</p>
+<p>Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
+optional NumPy acceleration path and are not a JAX differentiation path.</p>
+<p>The first three methods perform a single linearization; they do not iterate a
+nonlinear residual to convergence. <code>sdirk2</code> instead solves each stage through
+the <a href="../nonlinear-solvers/">nonlinear solver contract</a>, with a distinct full
+flattened Jacobian and explicit convergence diagnostics.</p>
+<h2 id="adaptivity-and-array-api-backends">Adaptivity and Array-API backends<a class="headerlink" href="#adaptivity-and-array-api-backends" title="Permanent link">&para;</a></h2>
+<p><code>AdaptiveConfig</code> sets tolerances and attempt limits; <code>DtControllerConfig</code> sets
+step-size bounds and growth factors. Their static scalar values are validated
+when the configuration is constructed. Checks that depend on the time grid,
+state shape, or resolved operators occur when <code>CoreSolver</code> builds its run plan.</p>
+<p>Fixed-step explicit, dense IMEX, and dense linearly implicit methods use
+ordinary Array-API operations. With JAX arrays, those same methods can run
+under <code>jax.jit</code> and be differentiated with <code>jax.grad</code>; no JAX-specific solver
+implementation is selected.</p>
+<p>The built-in adaptive controller uses eager Python loops and scalar acceptance
+decisions. It preserves JAX arrays, and an eager <code>jax.grad</code> differentiates the
+accepted sequence of native steps, but the live controller is not itself
+JIT-compatible.</p>
+<p>For compiled differentiation, record the accepted mesh at representative
+parameters and replay it:</p>
+<pre><code class="language-python">solver = CoreSolver(reference_core)
+solver.run(rhs, config=config)
+schedule = solver.last_adaptive_schedule
+assert schedule is not None
+
+# Construct a fresh core and solver inside the function being transformed.
+solver = CoreSolver(differentiable_core)
+diagnostics = solver.replay_adaptive_schedule(rhs, schedule, config=config)
+</code></pre>
+<p><code>jax.jit(jax.value_and_grad(...))</code> can trace the replay because its step count
+and step sizes are static, while array-valued model inputs remain dynamic. The
+gradient is conditional on that mesh: replay does not differentiate the
+accept/reject decisions. Refresh the schedule when parameters, tolerances, the
+method, or other model structure change materially.</p>
+<p>For SDIRK2, replay returns array-valued nonlinear diagnostics as part of the
+compiled result. Inspect <code>diagnostics.require_converged()</code> after execution and
+discard the replayed state and derivatives if any frozen-mesh stage failed.</p>
+<p>A live compiled controller or specialized adjoint implementation can still
+belong in an external provider and may return a trajectory through
+<code>ModelCore.apply_trajectory</code>. It should reuse the portable method semantics
+rather than define a JAX-only numerical method.</p>
+<p>See <a href="../backends/">Backend and solve-strategy boundaries</a> for the complete
+portability contract and <a href="../biogeochemical-network/">the biogeochemical tutorial</a>
+for a larger IMEX splitting example.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
