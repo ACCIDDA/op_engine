@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pytest
+from scipy.sparse import csr_matrix
 
 from op_engine.core_solver import (
     AdaptiveConfig,
@@ -209,11 +210,14 @@ def test_adaptive_true_lands_exactly_on_next_output_time() -> None:
     assert np.isclose(float(core.get_current_state()[0, 0]), 1.0, atol=1e-12, rtol=0.0)
 
 
-def test_numpy_implicit_adaptive_schedule_replays_the_accepted_mesh() -> None:
-    """NumPy replay reproduces a live adaptive linearly implicit trajectory."""
+@pytest.mark.parametrize("method", ["trapezoidal", "ros2"])
+def test_numpy_implicit_adaptive_schedule_replays_the_accepted_mesh(
+    method: str,
+) -> None:
+    """NumPy replay reproduces live adaptive linearly implicit trajectories."""
     time_grid = np.asarray([0.0, 0.3, 0.7])
     config = RunConfig(
-        method="trapezoidal",
+        method=method,
         adaptive=True,
         adaptive_cfg=AdaptiveConfig(rtol=1e-4, atol=1e-7, dt_init=0.05),
         jacobian=lambda _time, _state: np.asarray([[-0.3]]),
@@ -240,6 +244,30 @@ def test_numpy_implicit_adaptive_schedule_replays_the_accepted_mesh() -> None:
     assert live_core.state_array is not None
     assert replay_core.state_array is not None
     np.testing.assert_allclose(replay_core.state_array, live_core.state_array)
+
+
+def test_ros2_sparse_and_dense_jacobians_agree() -> None:
+    """The shared ROS2 tableau retains the optional SciPy sparse solve path."""
+    time_grid = np.asarray([0.0, 0.05, 0.1])
+    generator = np.asarray([[-20.0, 2.0], [1.0, -4.0]])
+
+    def run(*, sparse: bool) -> FloatArray:
+        core = _make_core(n_states=2, n_subgroups=1, time_grid=time_grid)
+        core.set_initial_state(np.asarray([[1.0], [0.25]]))
+
+        def rhs(_time: float, state: FloatArray) -> FloatArray:
+            return generator @ state
+
+        def jacobian(_time: float, _state: FloatArray) -> FloatArray | csr_matrix:
+            return csr_matrix(generator) if sparse else generator
+
+        CoreSolver(core).run(
+            rhs,
+            config=RunConfig(method="ros2", jacobian=jacobian),
+        )
+        return core.get_current_state()
+
+    np.testing.assert_allclose(run(sparse=True), run(sparse=False), rtol=1e-13)
 
 
 def test_adaptive_schedule_replay_requires_adaptive_matching_grid() -> None:

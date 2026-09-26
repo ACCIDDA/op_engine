@@ -52,7 +52,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 from numbers import Integral
@@ -62,6 +62,8 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.sparse import csr_matrix, identity
 
+from ._rosenbrock import ROSENBROCK_W_TABLEAUS, RosenbrockWTableau
+from ._rosenbrock import evaluate_rosenbrock_w as evaluate_rosenbrock_w_tableau
 from ._runge_kutta import EXPLICIT_TABLEAUS, ExplicitRungeKuttaTableau
 from ._typing import Array
 from .matrix_ops import (
@@ -1279,7 +1281,70 @@ class CoreSolver:
             right_op=right_op,
         )
 
-    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914, PLR0915
+    @staticmethod
+    def _weighted_array_state(
+        base: Array,
+        base_weight: float,
+        weights: tuple[float, ...],
+        stages: Sequence[Array],
+    ) -> Array:
+        """Return a weighted state/stage sum in ``base``'s namespace."""
+        xp = _namespace_of(base)
+        result = cast("Array", xp.multiply(base, base_weight))
+        for weight, stage in zip(weights, stages, strict=True):
+            if weight != 0.0:
+                result = cast(
+                    "Array",
+                    xp.add(result, xp.multiply(stage, weight)),
+                )
+        return result
+
+    def _evaluate_rosenbrock_w_array(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        jacobian: JacobianFunction,
+        *,
+        tableau: RosenbrockWTableau,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> tuple[Array, Array]:
+        """Evaluate one dense Rosenbrock-W tableau in ``y``'s namespace.
+
+        Returns:
+            Accepted and embedded states.
+        """
+        jac = jacobian(float(t), y)
+        left_op, right_op = self._build_dense_stage_operators(
+            jac,
+            y,
+            dt_scale=tableau.gamma * dt,
+            trapezoidal=False,
+        )
+
+        def solve(stage_rhs: Array) -> Array:
+            return self._apply_operator_solve_array(
+                stage_rhs,
+                predictor=None,
+                left_op=left_op,
+                right_op=right_op,
+            )
+
+        return evaluate_rosenbrock_w_tableau(
+            tableau=tableau,
+            t=t,
+            dt=dt,
+            y=y,
+            rhs=lambda stage_time, stage_state: self._rhs_array(
+                rhs_func,
+                stage_time,
+                stage_state,
+            ),
+            solve=solve,
+            weighted_sum=self._weighted_array_state,
+        )
+
+    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914
         self,
         rhs_func: RHSFunction,
         *,
@@ -1487,42 +1552,17 @@ class CoreSolver:
             return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
 
         if plan.method == "ros2":
-            f_n = self._rhs_array(rhs_func, t, y)
-            jac = plan.jacobian(float(t), y)
-            gamma = float(1.0 - 1.0 / np.sqrt(2.0))
-            left_op, right_op = self._build_dense_stage_operators(
-                jac,
-                y,
-                dt_scale=gamma * dt,
-                trapezoidal=False,
+            tableau = ROSENBROCK_W_TABLEAUS[plan.method]
+            y_high, y_low = self._evaluate_rosenbrock_w_array(
+                rhs_func,
+                plan.jacobian,
+                tableau=tableau,
+                t=t,
+                dt=dt,
+                y=y,
             )
-            k1 = self._apply_operator_solve_array(
-                f_n,
-                predictor=None,
-                left_op=left_op,
-                right_op=right_op,
-            )
-            state_pred = cast(
-                "Array",
-                xp.add(y, xp.multiply(k1, gamma * dt)),
-            )
-            f_pred = self._rhs_array(rhs_func, t + dt, state_pred)
-            k2_rhs = cast(
-                "Array",
-                xp.add(f_pred, xp.multiply(k1, -2.0 * gamma)),
-            )
-            k2 = self._apply_operator_solve_array(
-                k2_rhs,
-                predictor=None,
-                left_op=left_op,
-                right_op=right_op,
-            )
-            y_high = cast(
-                "Array",
-                xp.add(y, xp.multiply(xp.add(k1, k2), 0.5 * dt)),
-            )
-            y_low = cast("Array", xp.add(y, xp.multiply(k1, dt)))
-            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+            error = cast("Array", xp.subtract(y_high, y_low))
+            return y_high, error, tableau.controller_order
 
         raise RuntimeError(_UNKNOWN_METHOD_ERROR_MSG.format(method=plan.method))
 
@@ -2738,65 +2778,45 @@ class CoreSolver:
         """Rosenbrock-W 2(1) pair (linearly implicit, stiff ODEs).
 
         Returns:
-            Method order (2).
+            Controller order for the embedded error estimate.
         """
         err_out = self._require_err_out(step)
-
-        self._rhs_into(self._f_n, rhs_func, step.t, step.y)
+        tableau = ROSENBROCK_W_TABLEAUS["ros2"]
         jac_op = self._as_scipy_operator(jacobian(float(step.t), step.y))
-
-        gamma = float(1.0 - 1.0 / np.sqrt(2.0))
-        c21 = -2.0 * gamma
         left_op, right_op = build_implicit_euler_operators(
             jac_op,
-            dt_scale=gamma * step.dt,
+            dt_scale=tableau.gamma * step.dt,
         )
 
-        # k1 solve: (I - gamma h J) k1 = f_n
-        self._apply_operator_solve_with_ops(
-            self._f_n,
-            predictor=None,
-            left_op=left_op,
-            right_op=right_op,
-            out=self._y_half,
+        def solve(stage_rhs: Array) -> Array:
+            stage = np.empty_like(step.y)
+            self._apply_operator_solve_with_ops(
+                cast("NDArray[np.floating]", stage_rhs),
+                predictor=None,
+                left_op=left_op,
+                right_op=right_op,
+                out=stage,
+            )
+            return stage
+
+        high, embedded = evaluate_rosenbrock_w_tableau(
+            tableau=tableau,
+            t=step.t,
+            dt=step.dt,
+            y=cast("Array", step.y),
+            rhs=lambda stage_time, stage_state: self._rhs_array(
+                rhs_func,
+                stage_time,
+                stage_state,
+            ),
+            solve=solve,
+            weighted_sum=self._weighted_array_state,
         )
-
-        # Stage state y + a21 * h * k1 (a21 = gamma)
-        np.copyto(self._state_pred, step.y)
-        self._state_pred += gamma * step.dt * self._y_half
-
-        self._rhs_into(
-            self._f_pred,
-            rhs_func,
-            step.t + step.dt,
-            self._state_pred,
-        )
-
-        # k2 RHS: f(y + a21 h k1) + c21 * k1
-        np.copyto(self._rhs_buffer, self._f_pred)
-        self._rhs_buffer += c21 * self._y_half
-
-        self._apply_operator_solve_with_ops(
-            self._rhs_buffer,
-            predictor=None,
-            left_op=left_op,
-            right_op=right_op,
-            out=self._y_two_half,
-        )
-
-        # High-order update y + h*(b1 k1 + b2 k2) with b1=b2=0.5
-        np.copyto(self._rhs_buffer, self._y_half)
-        self._rhs_buffer += self._y_two_half
-        self._rhs_buffer *= 0.5 * step.dt
-        self._rhs_buffer += step.y
-        np.copyto(step.out, self._rhs_buffer)
-
-        # Embedded first-order: y + h*k1
-        np.copyto(err_out, step.y)
-        err_out += step.dt * self._y_half
-
-        np.subtract(step.out, err_out, out=err_out)
-        return 2
+        high_numpy = cast("NDArray[np.floating]", high)
+        embedded_numpy = cast("NDArray[np.floating]", embedded)
+        np.copyto(step.out, high_numpy)
+        np.subtract(high_numpy, embedded_numpy, out=err_out)
+        return tableau.controller_order
 
     # ------------------------------------------------------------------
     # Dispatch helpers

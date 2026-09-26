@@ -21,7 +21,7 @@ numerical method.
 | `implicit-euler` | 1 | Jacobian callable | Stiff systems where first-order damping is useful |
 | `trapezoidal` | 2 | Jacobian callable | Second-order linearly implicit integration |
 | `bdf2` | 2 | Jacobian callable | Uniform, fixed-step stiff integration |
-| `ros2` | 2 | Jacobian callable | Second-order Rosenbrock-W integration |
+| `ros2` | 2 (embedded 1) | Jacobian callable | L-stable linearly implicit integration |
 
 `bdf2` currently requires a uniform output grid and `adaptive=False`. Its first
 step uses linearly implicit Euler because no previous state exists yet. The
@@ -226,6 +226,13 @@ def jacobian(_time, state):
 config = RunConfig(method="ros2", jacobian=jacobian)
 CoreSolver(core, operator_axis="state").run(rhs, config=config)
 ```
+
+`ros2` uses two increment stages and one Jacobian evaluation per attempted
+step. Both stages solve with the same matrix
+`I - (1 - 1/sqrt(2)) * dt * J`; the accepted second-order state and embedded
+first-order state provide the adaptive error estimate. The coefficient table,
+formal orders, and controller order are declared together and validated when
+the module is imported.
 
 Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
 optional NumPy acceleration path and are not a JAX differentiation path.
