@@ -8,22 +8,28 @@
       
       
       
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.1/guides/biogeochemical-network/">
       
+      
+        <link rel="prev" href="../solver-methods/">
+      
+      
+        <link rel="next" href="../backends/">
       
       
         
       
       
-      <link rel="icon" href="/op_engine/0.1/assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>op_engine Documentation</title>
+        <title>Biogeochemical Network - op_engine Documentation</title>
       
     
     
-      <link rel="stylesheet" href="/op_engine/0.1/assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -42,9 +48,9 @@
       
     
     
-      <link rel="stylesheet" href="/op_engine/0.1/assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("/op_engine/0.1",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -61,6 +67,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#biogeochemical-network-tutorial" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -72,12 +83,12 @@
             <div class="md-banner__inner md-grid md-typeset">
               
   You're not viewing the latest version.
-  <a href="..//op_engine/0.1">
+  <a href="../../..">
     <strong>Click here to go to latest.</strong>
   </a>
 
             </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("/op_engine/0.1"),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
           </aside>
         
       </div>
@@ -89,7 +100,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/op_engine/0.1/." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+    <a href="../.." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -109,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              Biogeochemical Network
             
           </span>
         </div>
@@ -199,7 +210,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/op_engine/0.1/." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+    <a href="../.." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -229,7 +240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -303,7 +314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/development/creating-a-release/" class="md-nav__link">
+      <a href="../../development/creating-a-release/" class="md-nav__link">
         
   
   
@@ -335,18 +346,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
@@ -367,7 +380,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -385,7 +398,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/guides/getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -413,7 +426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/guides/solver-methods/" class="md-nav__link">
+      <a href="../solver-methods/" class="md-nav__link">
         
   
   
@@ -438,10 +451,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/op_engine/0.1/guides/biogeochemical-network/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biogeochemical Network
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -457,6 +497,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#run-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-and-reaction-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State and reaction term
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compare-the-three-splits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare the three splits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choose-when-operators-are-rebuilt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose when operators are rebuilt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-the-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read the diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -469,7 +584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/guides/backends/" class="md-nav__link">
+      <a href="../backends/" class="md-nav__link">
         
   
   
@@ -551,7 +666,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/api-reference/core_solver/" class="md-nav__link">
+      <a href="../../api-reference/core_solver/" class="md-nav__link">
         
   
   
@@ -579,7 +694,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/api-reference/matrix_ops/" class="md-nav__link">
+      <a href="../../api-reference/matrix_ops/" class="md-nav__link">
         
   
   
@@ -607,7 +722,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/op_engine/0.1/api-reference/model_core/" class="md-nav__link">
+      <a href="../../api-reference/model_core/" class="md-nav__link">
         
   
   
@@ -652,6 +767,71 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#run-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-and-reaction-term" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State and reaction term
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compare-the-three-splits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare the three splits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choose-when-operators-are-rebuilt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose when operators are rebuilt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-the-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read the diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -664,8 +844,140 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+
+<h1 id="biogeochemical-network-tutorial">Biogeochemical network tutorial<a class="headerlink" href="#biogeochemical-network-tutorial" title="Permanent link">&para;</a></h1>
+<p>The repository's
+<a href="https://github.com/ACCIDDA/op_engine/blob/main/examples/biogeochemical_network.py"><code>biogeochemical_network.py</code></a>
+example compares explicit and IMEX methods on a size-structured
+phytoplankton-zooplankton model. It is both a numerical diagnostic and an
+example of stage-dependent operator construction.</p>
+<p>This example deliberately uses NumPy, SciPy, and Matplotlib so it can compare
+against <code>scipy.integrate.solve_ivp</code> and produce figures. The core splitting
+pattern is portable, but the complete example is not intended as a JAX program.</p>
+<h2 id="run-it">Run it<a class="headerlink" href="#run-it" title="Permanent link">&para;</a></h2>
+<p>From a development checkout:</p>
+<pre><code class="language-bash">uv sync --dev
+uv run python examples/biogeochemical_network.py
+</code></pre>
+<p>Outputs are written to <code>examples/output/biogeochemical/</code>:</p>
+<ul>
+<li>bin trajectories comparing explicit Heun with SciPy RK45;</li>
+<li>bin trajectories comparing IMEX Euler and IMEX TR-BDF2 with SciPy BDF;</li>
+<li>a runtime-versus-output-spacing figure;</li>
+<li>CSV, text, and JSON metadata describing the run.</li>
+</ul>
+<p>The default run covers twenty simulated years and includes a runtime sweep. For
+quick experimentation, reduce <code>total_time_days</code>, <code>sweep_total_days</code>, or
+<code>n_bins</code> in <code>main()</code>.</p>
+<h2 id="state-and-reaction-term">State and reaction term<a class="headerlink" href="#state-and-reaction-term" title="Permanent link">&para;</a></h2>
+<p>For <code>n</code> size bins, the flattened state contains <code>n</code> phytoplankton values
+followed by <code>n</code> zooplankton values. <code>ModelCore</code> stores this as <code>(2n, 1)</code>, where
+the first dimension is the operator axis and the singleton dimension is the
+subgroup axis.</p>
+<p>The reaction callable contains the terms assigned to the explicit partition.
+For an IMEX run, <code>run_op_engine()</code> separately constructs the selected matrix
+<code>A(t, y_stage)</code> and passes only the remainder as the explicit RHS. This avoids
+counting a process in both partitions.</p>
+<h2 id="compare-the-three-splits">Compare the three splits<a class="headerlink" href="#compare-the-three-splits" title="Permanent link">&para;</a></h2>
+<p>The example defines three progressively richer implicit partitions:</p>
+<table>
+<thead>
+<tr>
+<th>Split</th>
+<th>Terms placed in <code>A(t, y)</code></th>
+<th>Diagnostic purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>Linear phytoplankton loss and zooplankton mortality</td>
+<td>Minimal, mostly time-dependent implicit part</td>
+</tr>
+<tr>
+<td>B</td>
+<td>Split A plus the state-dependent phytoplankton grazing sink</td>
+<td>Move the dominant dissipative diagonal term implicit</td>
+</tr>
+<tr>
+<td>C</td>
+<td>Split B plus scaled phytoplankton/zooplankton cross-coupling</td>
+<td>Test a larger block operator without making every nonlinear term implicit</td>
+</tr>
+</tbody>
+</table>
+<p>The comparison is useful because an IMEX result depends on both the integrator
+and the partition. Compare methods under the same split before attributing a
+difference to the time integrator. The example uses split B for its canonical
+figures and runs all three splits in the timing diagnostics.</p>
+<p><code>ETA_CROSS</code> controls the cross-coupling admitted to split C. It is a model-split
+choice, not a solver tolerance.</p>
+<h2 id="choose-when-operators-are-rebuilt">Choose when operators are rebuilt<a class="headerlink" href="#choose-when-operators-are-rebuilt" title="Permanent link">&para;</a></h2>
+<p><code>OPERATOR_MODE</code> controls the information used by
+<code>make_base_builder_for_split()</code>:</p>
+<ul>
+<li><code>"frozen"</code> builds <code>A</code> once from the initial state and time;</li>
+<li><code>"time"</code> rebuilds it at each stage time while retaining the initial state;</li>
+<li><code>"stage_state"</code> rebuilds it from both <code>StageOperatorContext.t</code> and
+  <code>StageOperatorContext.y</code>.</li>
+</ul>
+<p>The default, <code>"stage_state"</code>, demonstrates the general nonlinear-splitting
+contract. The builder is wrapped by <code>make_stage_operator_factory()</code>:</p>
+<pre><code class="language-python">base_builder = make_base_builder_for_split(
+    split,
+    model=model,
+    y0_flat=run.y0_flat,
+)
+
+if method == &quot;imex-heun-tr&quot;:
+    operators = OperatorSpecs(
+        default=make_stage_operator_factory(
+            base_builder,
+            scheme=&quot;trapezoidal&quot;,
+        ),
+    )
+elif method == &quot;imex-trbdf2&quot;:
+    operators = OperatorSpecs(
+        tr=make_stage_operator_factory(base_builder, scheme=&quot;trapezoidal&quot;),
+        bdf2=make_stage_operator_factory(base_builder, scheme=&quot;implicit-euler&quot;),
+    )
+</code></pre>
+<p>This factory boundary is important. Adaptive attempts and TR-BDF2 stages use
+different effective step sizes, so precomputed <code>(L, R)</code> matrices would be wrong
+unless the step size were fixed and uniform.</p>
+<h2 id="read-the-diagnostics">Read the diagnostics<a class="headerlink" href="#read-the-diagnostics" title="Permanent link">&para;</a></h2>
+<p>Use the outputs as checks, not as a universal benchmark:</p>
+<ol>
+<li>Compare Heun against RK45 to check the unsplit reaction implementation.</li>
+<li>Compare IMEX methods against BDF on the same output grid.</li>
+<li>Compare splits A, B, and C at the same method and tolerances.</li>
+<li>Inspect convergence as output spacing decreases before comparing runtimes.</li>
+<li>Check the manifest for operator mode, tolerances, split settings, and output
+   paths before interpreting a figure.</li>
+</ol>
+<p>The example clips negative stage values when <code>CLIP_NONNEGATIVE</code> is enabled.
+That stabilization choice can affect the numerical comparison and should be
+reported alongside the solver and split.</p>
+<p>For small, copyable configurations, start with the
+<a href="../solver-methods/">solver-method guide</a>. Use this example when you need to see
+how stage time, stage state, and alternative partitions fit together in a full
+workflow.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -702,10 +1014,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/op_engine/0.1", "features": [], "search": "/op_engine/0.1/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="/op_engine/0.1/assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
