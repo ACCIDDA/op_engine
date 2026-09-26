@@ -3,6 +3,7 @@
 
 This module verifies:
 - First-order upwind advection across Array-API namespaces.
+- Second-order centered diffusion across Array-API namespaces.
 - Laplacian construction for supported boundary conditions.
 - Crank-Nicolson operator construction (dense/sparse autodispatch).
 - Predictor-corrector construction for dense and sparse base matrices.
@@ -34,6 +35,7 @@ from op_engine.matrix_ops import (
     StageOperatorContext,
     build_advection_matrix,
     build_crank_nicolson_operator,
+    build_diffusion_matrix,
     build_identity_operator,
     build_implicit_euler_operators,
     build_laplacian_tridiag,
@@ -201,6 +203,125 @@ def test_advection_rejects_invalid_structural_inputs() -> None:
         build_advection_matrix(2, 1.0, np.ones(2))
     with pytest.raises(ValueError, match="velocity must be finite"):
         build_advection_matrix(2, 1.0, np.inf)
+
+
+# -------------------------------------------------------------------
+# Portable diffusion
+# -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("bc", "expected"),
+    [
+        pytest.param(
+            "neumann",
+            np.asarray([[-4.0, 4.0, 0.0], [4.0, -8.0, 4.0], [0.0, 4.0, -4.0]]),
+            id="neumann",
+        ),
+        pytest.param(
+            "absorbing",
+            np.asarray([[-8.0, 4.0, 0.0], [4.0, -8.0, 4.0], [0.0, 4.0, -8.0]]),
+            id="absorbing",
+        ),
+        pytest.param(
+            "periodic",
+            np.asarray([[-8.0, 4.0, 4.0], [4.0, -8.0, 4.0], [4.0, 4.0, -8.0]]),
+            id="periodic",
+        ),
+    ],
+)
+def test_diffusion_stencil_structure(
+    bc: str,
+    expected: NDArray[np.floating],
+) -> None:
+    """Boundary modes select the expected centered finite-difference stencil."""
+    observed = build_diffusion_matrix(3, 0.5, 1.0, bc=bc)
+
+    assert isinstance(observed, np.ndarray)
+    np.testing.assert_array_equal(observed, expected)
+
+
+@pytest.mark.parametrize("bc", ["neumann", "reflecting", "periodic"])
+@pytest.mark.parametrize("n_cells", [2, 7])
+def test_diffusion_conservative_boundaries_have_zero_column_sums(
+    bc: str,
+    n_cells: int,
+) -> None:
+    """No-flux and periodic diffusion conserve total state."""
+    operator = build_diffusion_matrix(n_cells, 0.25, 0.3, bc=bc)
+
+    np.testing.assert_allclose(
+        np.asarray(operator).sum(axis=0),
+        np.zeros(n_cells),
+        rtol=0.0,
+        atol=0.0,
+    )
+
+
+def test_diffusion_periodic_spatial_error_is_second_order() -> None:
+    """The centered periodic Laplacian converges at second order."""
+    errors: list[float] = []
+    for n_cells in (32, 64):
+        dx = 1.0 / n_cells
+        coordinate = np.arange(n_cells, dtype=np.float64) * dx
+        state = np.sin(2.0 * np.pi * coordinate)
+        expected = -4.0 * np.pi**2 * state
+        operator = build_diffusion_matrix(n_cells, dx, 1.0, bc="periodic")
+        observed = operator @ state
+        errors.append(float(np.sqrt(np.mean((observed - expected) ** 2))))
+
+    convergence_ratio = errors[0] / errors[1]
+    assert 3.8 < convergence_ratio < 4.2
+
+
+def test_diffusion_coefficient_is_jittable_and_differentiable() -> None:
+    """The matrix stays in JAX and preserves gradients through diffusivity."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    state = jnp.asarray([1.0, 2.0, 4.0, 8.0], dtype=jnp.float32)
+
+    def objective(coefficient: object) -> object:
+        operator = build_diffusion_matrix(
+            state.size,
+            0.25,
+            coefficient,
+            bc="periodic",
+            reference=state,
+        )
+        tendency = operator @ state
+        return jnp.sum(tendency * tendency)
+
+    coefficient = jnp.asarray(0.5, dtype=jnp.float32)
+    value, gradient = jax.jit(jax.value_and_grad(objective))(coefficient)
+    operator = build_diffusion_matrix(
+        state.size,
+        0.25,
+        coefficient,
+        bc="periodic",
+        reference=state,
+    )
+
+    assert operator.__array_namespace__() is jnp
+    assert gradient == pytest.approx(
+        2.0 * float(value) / float(coefficient),
+        rel=1e-6,
+    )
+
+
+def test_diffusion_rejects_invalid_structural_inputs() -> None:
+    """Grid, boundary, coefficient shape, and eager values are validated."""
+    with pytest.raises(ValueError, match="grid size must be at least 2"):
+        build_diffusion_matrix(1, 1.0, 1.0)
+    with pytest.raises(ValueError, match="dx must be finite and positive"):
+        build_diffusion_matrix(2, 0.0, 1.0)
+    with pytest.raises(ValueError, match="Unknown diffusion bc"):
+        build_diffusion_matrix(2, 1.0, 1.0, bc="open")
+    with pytest.raises(ValueError, match="coefficient must be scalar"):
+        build_diffusion_matrix(2, 1.0, np.ones(2))
+    with pytest.raises(ValueError, match="coefficient must be finite"):
+        build_diffusion_matrix(2, 1.0, np.inf)
+    with pytest.raises(ValueError, match="coefficient must be non-negative"):
+        build_diffusion_matrix(2, 1.0, -1.0)
 
 
 # -------------------------------------------------------------------

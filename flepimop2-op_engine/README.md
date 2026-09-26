@@ -28,7 +28,9 @@ Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, or
 dense IMEX/implicit methods. Typed dense operator descriptors are compiled in
 the evolving state's namespace, so descriptor parameters remain traceable too.
 The compiler supports row-source axis-kernel generators and first-order upwind
-advection on uniform axes, including dynamic signed velocities.
-The NumPy path applies op_system's value-dependent generator validation. A
-traced non-NumPy path can validate shapes and static layout only; producers are
-responsible for maintaining generator invariants in dynamic parameter values.
+advection plus centered diffusion on uniform axes, including dynamic signed
+velocities and diffusion coefficients.
+The NumPy path applies op_system's value-dependent generator validation and
+eager scalar checks. A traced non-NumPy path can validate shapes and static
+layout only; producers are responsible for maintaining generator, finiteness,
+and non-negative diffusion-coefficient invariants in dynamic parameter values.
