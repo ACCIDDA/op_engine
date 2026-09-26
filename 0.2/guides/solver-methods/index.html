@@ -1479,8 +1479,11 @@ stepping methods remain in <code>op_engine</code>.</p>
 <p>The methods historically named <code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code>, as
 well as the Rosenbrock method, take a Jacobian callable. The callable returns an
 operator acting along <code>operator_axis</code>:</p>
-<pre><code class="language-python">def jacobian(_time, state):
-    xp = state.__array_namespace__()
+<pre><code class="language-python">from op_engine import array_namespace
+
+
+def jacobian(_time, state):
+    xp = array_namespace(state)
     return xp.multiply(xp.eye(state.shape[0], dtype=state.dtype), -0.5)
 
 

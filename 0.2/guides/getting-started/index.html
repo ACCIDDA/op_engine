@@ -458,10 +458,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#numpy-and-jax-solves" class="md-nav__link">
+  <a href="#array-backend-solves" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NumPy and JAX solves
+        Array-backend solves
       
     </span>
   </a>
@@ -873,10 +873,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#numpy-and-jax-solves" class="md-nav__link">
+  <a href="#array-backend-solves" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NumPy and JAX solves
+        Array-backend solves
       
     </span>
   </a>
@@ -919,18 +919,24 @@ def decay(_time, state):
 CoreSolver(core).run(decay)
 solution = core.state_array
 </code></pre>
-<h2 id="numpy-and-jax-solves">NumPy and JAX solves<a class="headerlink" href="#numpy-and-jax-solves" title="Permanent link">&para;</a></h2>
-<p>NumPy 2 and JAX arrays implement <code>__array_namespace__()</code>. Passing either one to
+<h2 id="array-backend-solves">Array-backend solves<a class="headerlink" href="#array-backend-solves" title="Permanent link">&para;</a></h2>
+<p><code>array-api-compat</code> discovers the numerical namespace from NumPy, JAX, CuPy,
+PyTorch, and other supported native arrays. Passing an array to
 <code>set_initial_state</code> selects the namespace for state storage, history, solver
-stages, and adaptive error control. No backend argument is needed. An RHS should
-derive operations from its state when it needs namespace functions:</p>
-<pre><code class="language-python">def portable_decay(_time, state):
-    xp = state.__array_namespace__()
+stages, and adaptive error control. No backend argument is needed. An RHS
+should derive operations from its state when it needs namespace functions:</p>
+<pre><code class="language-python">from op_engine import array_namespace
+
+
+def portable_decay(_time, state):
+    xp = array_namespace(state)
     return xp.multiply(state, -0.25)
 </code></pre>
 <p>Dense implicit and IMEX operators are converted into the state's namespace and
 solved with its Array-API <code>linalg.solve</code> implementation. This provides the
-portable correctness path for NumPy, JAX, and other conforming backends.</p>
+portable correctness path for NumPy, JAX, PyTorch, and other supported
+backends. Array portability alone does not promise backend compilation,
+automatic differentiation, sparse support, or random-number semantics.</p>
 <p>Sparse acceleration is an optional second tier. SciPy sparse operators retain
 cached factorization for NumPy state. Installing <code>op-engine[cupy]</code> registers the
 matching <code>cupyx.scipy.sparse</code> adapter; CuPy is never imported when it is not

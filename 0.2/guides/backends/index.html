@@ -945,14 +945,21 @@
 
 
 <h1 id="backend-and-solve-strategy-boundaries">Backend and solve-strategy boundaries<a class="headerlink" href="#backend-and-solve-strategy-boundaries" title="Permanent link">&para;</a></h1>
-<p><code>op_engine</code> selects the numerical namespace from the state array. Explicit,
+<p><code>op_engine</code> selects the numerical namespace from the state array with
+<code>array_api_compat.array_namespace()</code>. This supports arrays with the standard
+<code>__array_namespace__</code> protocol and native arrays such as <code>torch.Tensor</code>
+through compatibility namespaces. Explicit,
 dense linearly implicit, and IMEX methods use that namespace's Array-API
 operations, including <code>linalg.solve</code>. The numerical method does not change when
 the array namespace changes.</p>
 <p>Namespace portability and automatic differentiation are related but distinct.
 The Array API does not define <code>grad</code>, <code>jit</code>, or traced control flow. A namespace
 such as JAX can nevertheless differentiate the ordinary <code>op_engine</code> methods
-because their fixed-step numerical operations remain in that namespace.</p>
+because their fixed-step numerical operations remain in that namespace.
+The optional <code>torch</code> dependency group qualifies representative eager
+fixed-step kernels with PyTorch autograd. Compiler integration and complete
+method qualification remain provider/backend capabilities rather than
+consequences of namespace selection.</p>
 <h2 id="portable-fixed-step-methods">Portable fixed-step methods<a class="headerlink" href="#portable-fixed-step-methods" title="Permanent link">&para;</a></h2>
 <p>With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX
 (including paired ARK3), and dense linearly implicit methods can be used inside
