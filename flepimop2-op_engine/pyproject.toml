@@ -31,6 +31,13 @@ classifiers = [
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 
+[project.optional-dependencies]
+jax = [
+  "jax>=0.4.32; python_version < '3.13'",
+  "jax>=0.4.36; python_version == '3.13'",
+  "jax>=0.7.1; python_version >= '3.14'",
+]
+
 [project.urls]
 Repository = "https://github.com/ACCIDDA/op_engine"
 Documentation = "https://accidda.github.io/op_engine/"
@@ -82,6 +89,9 @@ convention = "google"
 dev = [
   "flepimop2-op-system>=0.2.0",
   "op-system>=0.2.0",
+  "jax>=0.4.32; python_version < '3.13'",
+  "jax>=0.4.36; python_version == '3.13'",
+  "jax>=0.7.1; python_version >= '3.14'",
   "pytest>=8.4.2",
   "ruff>=0.13.3,<0.15",
   "mypy>=1.18.2",

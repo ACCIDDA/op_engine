@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
 from flepimop2.axis import Axis, AxisCollection, ResolvedShape
 from flepimop2.backend.abc import BackendABC
 from flepimop2.configuration import SimulateSpecificationModel
@@ -241,3 +242,84 @@ def test_axis_kernel_generator_runs_as_flat_imex_operator() -> None:
     expected = np.linalg.solve(half_step_left, expected)
     np.testing.assert_allclose(result[1, 1:], expected, rtol=0.0, atol=1e-14)
     np.testing.assert_allclose(result[1, 1:].sum(), 1.0, rtol=0.0, atol=1e-14)
+
+
+def test_real_op_system_is_jittable_and_differentiable_through_provider() -> None:  # noqa: PLR0914
+    """Portable Heun retains JAX state and parameter gradients end to end."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "state": ["X"],
+            "equations": {"X": "rate * X"},
+            "initial_state": {"X": 0.0},
+        }
+    )
+    engine = _engine()
+    times = np.asarray([0.0, 0.25, 1.0], dtype=np.float64)
+    scalar_shape = ResolvedShape()
+
+    def solve(rate: object, initial: object) -> object:
+        result = engine.run(
+            system,
+            times,
+            {"X": ParameterValue(initial, scalar_shape)},
+            {"rate": ParameterValue(rate, scalar_shape)},
+        )
+        return result[-1, 1]
+
+    rate = jnp.asarray(-0.3, dtype=jnp.float32)
+    initial = jnp.asarray(1.2, dtype=jnp.float32)
+    value, gradients = jax.jit(jax.value_and_grad(solve, argnums=(0, 1)))(
+        rate,
+        initial,
+    )
+
+    steps = (0.25, 0.75)
+    factors = tuple(1.0 - 0.3 * dt + 0.5 * (-0.3 * dt) ** 2 for dt in steps)
+    factor_derivatives = tuple(dt - 0.3 * dt**2 for dt in steps)
+    expected_value = 1.2 * factors[0] * factors[1]
+    expected_rate_grad = 1.2 * (
+        factor_derivatives[0] * factors[1] + factors[0] * factor_derivatives[1]
+    )
+    expected_initial_grad = factors[0] * factors[1]
+
+    assert value == pytest.approx(expected_value, rel=2e-6)
+    assert gradients[0] == pytest.approx(expected_rate_grad, rel=2e-6)
+    assert gradients[1] == pytest.approx(expected_initial_grad, rel=2e-6)
+
+    result = engine.run(
+        system,
+        times,
+        {"X": ParameterValue(initial, scalar_shape)},
+        {"rate": ParameterValue(rate, scalar_shape)},
+    )
+    assert result.__array_namespace__() is jnp
+
+
+def test_state_namespace_controls_mixed_parameter_inputs() -> None:
+    """A declared JAX state seed controls mixed parameter evaluation."""
+    jnp = pytest.importorskip("jax.numpy")
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "state": ["X"],
+            "equations": {"X": "rate * X"},
+            "initial_state": {"X": "x0"},
+        }
+    )
+    scalar_shape = ResolvedShape()
+
+    result = _engine().run(
+        system,
+        np.asarray([0.0, 1.0], dtype=np.float64),
+        {},
+        {
+            "rate": ParameterValue(np.asarray(-0.3), scalar_shape),
+            "x0": ParameterValue(jnp.asarray(1.0), scalar_shape),
+        },
+    )
+
+    assert result.__array_namespace__() is jnp
+    assert float(result[-1, 1]) == pytest.approx(0.745, rel=2e-6)
