@@ -842,11 +842,12 @@ The Array API does not define <code>grad</code>, <code>jit</code>, or traced con
 such as JAX can nevertheless differentiate the ordinary <code>op_engine</code> methods
 because their fixed-step numerical operations remain in that namespace.</p>
 <h2 id="portable-fixed-step-methods">Portable fixed-step methods<a class="headerlink" href="#portable-fixed-step-methods" title="Permanent link">&para;</a></h2>
-<p>With JAX state, fixed-step Euler, Heun, dense IMEX, and dense linearly implicit
-methods can be used inside <code>jax.jit</code> and differentiated with <code>jax.grad</code>. Dynamic
-values can include the initial state, RHS parameters, dense operator values, and
-Jacobian values. The time grid, method selection, state shape, and Python solver
-configuration are structural inputs and must remain static during a trace.</p>
+<p>With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX, and
+dense linearly implicit methods can be used inside <code>jax.jit</code> and differentiated
+with <code>jax.grad</code>. Dynamic values can include the initial state, RHS parameters,
+dense operator values, and Jacobian values. The time grid, method selection,
+state shape, and Python solver configuration are structural inputs and must
+remain static during a trace.</p>
 <p>Sparse acceleration is backend-specific. SciPy sparse solves are not a JAX
 differentiation path; use dense JAX operators when gradients through a solve are
 required.</p>
@@ -855,8 +856,8 @@ JAX array namespace, and <code>jax.grad</code> can differentiate the numerical o
 on the branch accepted by the nominal solve. Step acceptance itself extracts
 scalar error values and uses Python loops and branches, however, so a live
 <code>adaptive=True</code> solve is not a JAX-<code>jit</code>-compatible execution path. This
-limitation belongs to the controller, not to the Euler, Heun, IMEX, or linearly
-implicit formulas.</p>
+limitation belongs to the controller, not to the explicit Runge--Kutta, IMEX,
+or linearly implicit formulas.</p>
 <h2 id="adaptive-controller-boundary">Adaptive-controller boundary<a class="headerlink" href="#adaptive-controller-boundary" title="Permanent link">&para;</a></h2>
 <p>After a successful adaptive run, <code>CoreSolver.last_adaptive_schedule</code> contains
 the accepted internal step sizes. A new solver can pass that value to
