@@ -160,7 +160,7 @@ def test_jax_fixed_explicit_trajectory_is_one_differentiable_scan(
     jnp = pytest.importorskip("jax.numpy")
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
-        config=OpEngineEngineConfig(method=method),
+        config=OpEngineEngineConfig(method=method, fixed_max_step=0.00075),
     )
     system = _GoodSystem()
     times = np.linspace(0.0, 1.0, 1001, dtype=np.float64)

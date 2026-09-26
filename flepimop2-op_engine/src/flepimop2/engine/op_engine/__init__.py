@@ -33,6 +33,7 @@ from op_engine.core_solver import (
     AdaptiveStepSchedule,
     CoreSolver,
     NonlinearIntegrationDiagnostics,
+    fixed_step_sizes,
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
 from op_engine.stochastic_solver import (
@@ -367,24 +368,46 @@ def _run_jax_fixed_explicit_trajectory(
     *,
     method: SolverMethod,
     times: np.ndarray,
+    fixed_max_step: float | None,
 ) -> None:
     """Run a fixed explicit solve as one compact JAX scan."""
     import jax  # noqa: PLC0415
 
     initial_state = solver.core.get_current_state()
     xp = _namespace_of(initial_state)
-    time_values = cast("Array", xp.asarray(times, dtype=initial_state.dtype))
-    step_times = _array_item(time_values, slice(None, -1))
-    step_sizes = cast(
-        "Array",
-        xp.subtract(_array_item(time_values, slice(1, None)), step_times),
-    )
 
     if times.size == 1:
         solver.core.apply_trajectory(
             cast("Array", xp.expand_dims(initial_state, axis=0))
         )
         return
+
+    interval_steps = tuple(
+        fixed_step_sizes(float(start), float(end), fixed_max_step)
+        for start, end in itertools.pairwise(times)
+    )
+    flat_step_sizes: list[float] = []
+    flat_step_times: list[float] = []
+    for start, steps in zip(times[:-1], interval_steps, strict=True):
+        step_time = float(start)
+        for step_size in steps:
+            flat_step_times.append(step_time)
+            flat_step_sizes.append(step_size)
+            step_time += step_size
+    output_indices = (
+        np.cumsum(
+            np.asarray(tuple(len(steps) for steps in interval_steps), dtype=np.int64)
+        )
+        - 1
+    )
+    step_times = cast(
+        "Array",
+        xp.asarray(tuple(flat_step_times), dtype=initial_state.dtype),
+    )
+    step_sizes = cast(
+        "Array",
+        xp.asarray(tuple(flat_step_sizes), dtype=initial_state.dtype),
+    )
 
     if method is SolverMethod.DOPRI5:
         first_state, first_stage = solver.fixed_explicit_step(
@@ -398,8 +421,8 @@ def _run_jax_fixed_explicit_trajectory(
             msg = "Dormand--Prince fixed steps must return an FSAL stage."
             raise RuntimeError(msg)
 
-        if times.size == 2:
-            tail = cast("Array", xp.expand_dims(first_state, axis=0))
+        if len(flat_step_sizes) == 1:
+            internal_tail = cast("Array", xp.expand_dims(first_state, axis=0))
         else:
 
             def advance_dopri5(
@@ -429,7 +452,7 @@ def _run_jax_fixed_explicit_trajectory(
                     _array_item(step_sizes, slice(1, None)),
                 ),
             )
-            tail = cast(
+            internal_tail = cast(
                 "Array",
                 xp.concat(
                     (xp.expand_dims(first_state, axis=0), remaining_tail),
@@ -449,15 +472,16 @@ def _run_jax_fixed_explicit_trajectory(
             )
             return next_state, next_state
 
-        _final_state, tail = jax.lax.scan(
+        _final_state, internal_tail = jax.lax.scan(
             advance,
             initial_state,
             (step_times, step_sizes),
         )
 
+    saved_tail = _array_item(internal_tail, output_indices)
     trajectory = cast(
         "Array",
-        xp.concat((xp.expand_dims(initial_state, axis=0), tail), axis=0),
+        xp.concat((xp.expand_dims(initial_state, axis=0), saved_tail), axis=0),
     )
     solver.core.apply_trajectory(trajectory)
 
@@ -1202,6 +1226,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 rhs,
                 method=method,
                 times=times,
+                fixed_max_step=run_cfg.fixed_max_step,
             )
         else:
             diagnostics = solver.run(rhs, config=run_cfg)

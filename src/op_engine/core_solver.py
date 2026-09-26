@@ -6,7 +6,8 @@ configured time grid. In the updated semantics, ModelCore.time_grid is treated
 as *output times*: the times at which the user wants a stored solution state.
 
 Between consecutive output times, the solver may take either:
-- exactly one step of size dt = t_{i+1} - t_i (adaptive=False), or
+- one or more fixed steps bounded by ``RunConfig.fixed_max_step``
+  (adaptive=False), or
 - multiple internal adaptive substeps that land exactly on t_{i+1} (adaptive=True).
 
 Supported methods (keyword `method=`):
@@ -149,6 +150,11 @@ _ARRAY_API_ERROR_MSG = (
 _SCHEDULE_TIME_GRID_ERROR_MSG = (
     "Adaptive schedule output_times must match the ModelCore time_grid"
 )
+_FIXED_MAX_STEP_ERROR_MSG = "fixed_max_step must be finite and positive when provided"
+_FIXED_STEP_MODE_ERROR_MSG = (
+    "fixed_max_step is supported only for fixed-step explicit methods"
+)
+_MAX_FIXED_STEPS_PER_INTERVAL = 1_000_000
 
 
 # =============================================================================
@@ -447,6 +453,65 @@ class AdaptiveStepSchedule:
                 raise ValueError(msg)
 
 
+def fixed_step_sizes(
+    t0: float,
+    t1: float,
+    max_step: float | None,
+) -> tuple[float, ...]:
+    """Partition one output interval into deterministic fixed steps.
+
+    The first steps use ``max_step`` and the final step absorbs the remainder,
+    so the partition lands on ``t1`` without changing the stored output grid.
+
+    Args:
+        t0: Output interval start.
+        t1: Output interval end.
+        max_step: Maximum internal step, or ``None`` for one full interval step.
+
+    Returns:
+        Positive internal step sizes that sum to ``t1 - t0``.
+
+    Raises:
+        ValueError: If the interval or maximum step is invalid, or if the
+            partition would be unreasonably large.
+    """
+    start = float(t0)
+    end = float(t1)
+    if not math.isfinite(start) or not math.isfinite(end) or end <= start:
+        raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
+
+    interval = end - start
+    if max_step is None:
+        return (interval,)
+    step_limit = float(max_step)
+    if not math.isfinite(step_limit) or step_limit <= 0.0:
+        raise ValueError(_FIXED_MAX_STEP_ERROR_MSG)
+    if step_limit >= interval:
+        return (interval,)
+
+    ratio = interval / step_limit
+    if not math.isfinite(ratio) or ratio > _MAX_FIXED_STEPS_PER_INTERVAL:
+        msg = (
+            "fixed_max_step requires more than "
+            f"{_MAX_FIXED_STEPS_PER_INTERVAL} steps in one output interval"
+        )
+        raise ValueError(msg)
+
+    tolerance = 16.0 * np.finfo(float).eps * max(1.0, abs(ratio))
+    step_count = max(1, math.ceil(ratio - tolerance))
+    if step_count == 1:
+        return (interval,)
+
+    final_step = interval - step_limit * (step_count - 1)
+    if final_step <= 0.0:
+        # A ratio within rounding tolerance of an integer may make the direct
+        # subtraction non-positive. Keep the same count and absorb roundoff in
+        # the final step instead of adding a spurious tiny step.
+        final_step = step_limit + final_step
+        step_count -= 1
+    return (step_limit,) * (step_count - 1) + (final_step,)
+
+
 class NonlinearIntegrationDiagnostics(NamedTuple):
     """Array-valued nonlinear diagnostics for one integration or replay.
 
@@ -678,6 +743,8 @@ class RunConfig:
         jacobian: Optional Jacobian function for linearly implicit methods.
         nonlinear: Full-system Jacobian and backend-neutral nonlinear solver.
         gamma: Optional TR-BDF2 gamma (if None, uses default).
+        fixed_max_step: Maximum explicit fixed-step size between output times.
+            ``None`` retains one step per output interval.
     """
 
     method: str = "heun"
@@ -689,6 +756,7 @@ class RunConfig:
     jacobian: JacobianFunction | None = None
     nonlinear: NonlinearMethodConfig | None = None
     gamma: float | None = None
+    fixed_max_step: float | None = None
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -699,6 +767,14 @@ class RunConfig:
         """
         method = _normalize_method(self.method)
         object.__setattr__(self, "method", method)
+
+        if self.fixed_max_step is not None:
+            fixed_max_step = float(self.fixed_max_step)
+            if not np.isfinite(fixed_max_step) or fixed_max_step <= 0.0:
+                raise ValueError(_FIXED_MAX_STEP_ERROR_MSG)
+            object.__setattr__(self, "fixed_max_step", fixed_max_step)
+            if self.adaptive or method not in _EXPLICIT_METHODS:
+                raise ValueError(_FIXED_STEP_MODE_ERROR_MSG)
 
         if not isinstance(self.dt_controller, DtControllerConfig):
             msg = "dt_controller must be a DtControllerConfig"
@@ -3499,14 +3575,18 @@ class CoreSolver:
                 )
                 schedule_steps.append(tuple(accepted_steps))
             else:
-                y_next, first_stage = self._step_explicit_fixed(
-                    rhs_func,
-                    method=plan.method,
-                    t=t0,
-                    dt=t1 - t0,
-                    y=y_current,
-                    first_stage=first_stage,
-                )
+                t = t0
+                y_next = y_current
+                for dt in fixed_step_sizes(t0, t1, config.fixed_max_step):
+                    y_next, first_stage = self._step_explicit_fixed(
+                        rhs_func,
+                        method=plan.method,
+                        t=t,
+                        dt=dt,
+                        y=y_next,
+                        first_stage=first_stage,
+                    )
+                    t += dt
             self.core.advance_timestep(y_next)
 
         if config.adaptive:

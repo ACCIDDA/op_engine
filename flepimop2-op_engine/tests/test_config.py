@@ -44,6 +44,7 @@ def test_engine_config_defaults_to_run_config() -> None:
     assert isinstance(run, RunConfig)
     assert run.method == "heun"
     assert run.adaptive is False
+    assert run.fixed_max_step is None
     assert run.strict is True
 
     # Adaptive config defaults
@@ -93,6 +94,31 @@ def test_engine_config_round_trips_selected_fields() -> None:
     assert run.dt_controller.safety == pytest.approx(0.95)
     assert run.dt_controller.fac_min == pytest.approx(0.5)
     assert run.dt_controller.fac_max == pytest.approx(2.0)
+
+
+def test_engine_config_round_trips_fixed_max_step() -> None:
+    """The provider forwards its fixed integration-step policy to core."""
+    run = OpEngineEngineConfig(fixed_max_step=0.125).to_run_config()
+
+    assert run.fixed_max_step == pytest.approx(0.125)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"fixed_max_step": 0.0},
+        {"fixed_max_step": float("inf")},
+        {"fixed_max_step": 0.1, "adaptive": True},
+        {"fixed_max_step": 0.1, "method": SolverMethod.IMPLICIT_EULER},
+        {"fixed_max_step": 0.1, "mode": ExecutionMode.STOCHASTIC},
+    ],
+)
+def test_engine_config_rejects_invalid_fixed_step_policy(
+    kwargs: dict[str, object],
+) -> None:
+    """Invalid or ignored fixed-step settings fail during provider parsing."""
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(**kwargs)  # type: ignore[arg-type]
 
 
 def test_engine_config_allows_unknown_fields() -> None:

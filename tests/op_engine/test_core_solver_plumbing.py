@@ -7,8 +7,8 @@ high-order accuracy (handled in a separate accuracy/convergence file).
 They are written to match the current CoreSolver behavior:
 
 - ModelCore.time_grid is treated as *output times*.
-- If adaptive=False, the solver takes exactly one attempted step per output interval.
-  (Some methods internally use step-doubling kernels even in the non-adaptive path.)
+- If adaptive=False, the solver takes one attempted step per output interval unless
+  ``fixed_max_step`` requests smaller explicit integration steps.
 - Explicit methods ("euler", "heun") ignore operators and emit RuntimeWarning
   when strict=True and operators are provided.
 - IMEX methods require operators (or factories) and require factories when dt varies.
@@ -135,6 +135,67 @@ def test_fixed_euler_takes_one_full_step_per_output_interval() -> None:
         atol=1e-14,
     )
     assert call_times == [0.0, 0.5]
+
+
+def test_fixed_euler_substeps_without_storing_internal_states() -> None:
+    """A remainder step lands on each output while history stays output-sized."""
+    tg = np.asarray([0.0, 0.5, 1.0], dtype=float)
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=tg)
+    core.set_initial_state(np.asarray([[10.0]], dtype=float))
+    call_times: list[float] = []
+
+    def rhs_decay(time: float, state: FloatArray) -> FloatArray:
+        call_times.append(time)
+        return -0.1 * state
+
+    CoreSolver(core).run(
+        rhs_decay,
+        config=RunConfig(method="euler", fixed_max_step=0.2),
+    )
+
+    assert core.state_array is not None
+    assert core.state_array.shape == (3, 1, 1)
+    np.testing.assert_allclose(call_times, [0.0, 0.2, 0.4, 0.5, 0.7, 0.9])
+
+
+@pytest.mark.parametrize("method", ["euler", "heun", "rk4", "dopri5"])
+def test_fixed_substeps_match_an_explicitly_expanded_grid(method: str) -> None:
+    """All explicit methods share the same deterministic internal-step mesh."""
+    output_times = np.asarray([0.0, 0.5, 1.0])
+    expanded_times = np.asarray([0.0, 0.2, 0.4, 0.5, 0.7, 0.9, 1.0])
+
+    def solve(times: FloatArray, fixed_max_step: float | None) -> FloatArray:
+        core = _make_core(n_states=1, n_subgroups=1, time_grid=times)
+        core.set_initial_state(np.asarray([[1.0]]))
+        CoreSolver(core).run(
+            lambda _time, state: -0.3 * state,
+            config=RunConfig(method=method, fixed_max_step=fixed_max_step),
+        )
+        assert core.state_array is not None
+        return core.state_array[:, 0, 0]
+
+    compact = solve(output_times, 0.2)
+    expanded = solve(expanded_times, None)
+    np.testing.assert_allclose(compact, expanded[[0, 3, 6]], rtol=1e-13, atol=1e-14)
+
+
+@pytest.mark.parametrize("method", ["euler", "heun", "rk4", "dopri5"])
+def test_fixed_substeps_are_invariant_to_aligned_save_frequency(method: str) -> None:
+    """Adding save points on the fixed mesh does not change shared states."""
+    coarse_times = np.asarray([0.0, 1.0, 2.0])
+    fine_times = np.asarray([0.0, 0.5, 1.0, 1.5, 2.0])
+
+    def solve(times: FloatArray) -> FloatArray:
+        core = _make_core(n_states=1, n_subgroups=1, time_grid=times)
+        core.set_initial_state(np.asarray([[1.0]]))
+        CoreSolver(core).run(
+            lambda time, state: -(0.2 + 0.05 * time) * state,
+            config=RunConfig(method=method, fixed_max_step=0.25),
+        )
+        assert core.state_array is not None
+        return core.state_array[:, 0, 0]
+
+    np.testing.assert_allclose(solve(coarse_times), solve(fine_times)[::2])
 
 
 def test_fixed_rk4_takes_four_stages_per_output_interval() -> None:

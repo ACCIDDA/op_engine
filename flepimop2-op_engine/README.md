@@ -48,6 +48,23 @@ eager scalar checks. A traced non-NumPy path can validate shapes and static
 layout only; producers are responsible for maintaining generator, finiteness,
 and non-negative diffusion-coefficient invariants in dynamic parameter values.
 
+For explicit methods, `fixed_max_step` separates integration accuracy from the
+requested output grid while retaining that compact scan:
+
+```yaml
+engine:
+  module: flepimop2.engine.op_engine
+  state_change: flow
+  config:
+    method: rk4
+    fixed_max_step: 0.25
+```
+
+Each output interval is partitioned into bounded internal steps, including a
+final remainder, but the returned trajectory contains only requested output
+times. The setting is mutually exclusive with `adaptive: true` and does not
+apply to stochastic mode (`tau_max_step` controls fixed tau-leaping).
+
 ### Adaptive schedule replay
 
 Adaptive differentiation uses an explicit two-phase contract. First run the

@@ -7,6 +7,9 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Explicit fixed-step runs can bound their internal integration step with
+  `fixed_max_step` independently of requested output times, including compact
+  differentiable JAX provider trajectories (#130).
 - Compact JAX fixed-step provider trajectories use a single `jax.lax.scan`
   while the core retains backend-neutral functional step kernels (#123).
 - The flepimop2 provider exposes eager adaptive-schedule discovery and
