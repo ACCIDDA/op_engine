@@ -505,6 +505,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stochastic reaction networks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exact-direct-ssa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact direct SSA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-step-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed-step tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -919,6 +947,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stochastic reaction networks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exact-direct-ssa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact direct SSA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-step-tau-leaping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed-step tau-leaping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -985,10 +1041,10 @@
 <h1 id="choosing-and-configuring-a-solver">Choosing and configuring a solver<a class="headerlink" href="#choosing-and-configuring-a-solver" title="Permanent link">&para;</a></h1>
 <p><code>ModelCore</code> owns output times and state storage. Deterministic systems use
 <code>CoreSolver</code> and a method selected by <code>RunConfig</code>. Stochastic reaction networks
-use <code>TauLeapingSolver</code>, because propensities and stoichiometry have different
-semantics from an ODE right-hand side. In both cases the state array selects the
-Array-API namespace; choosing JAX instead of NumPy does not select a different
-numerical method.</p>
+use <code>DirectSSASolver</code> or <code>TauLeapingSolver</code>, because propensities and
+stoichiometry have different semantics from an ODE right-hand side. In every
+case the state array selects the Array-API namespace; choosing JAX instead of
+NumPy does not select a different numerical method.</p>
 <h2 id="deterministic-method-guide">Deterministic method guide<a class="headerlink" href="#deterministic-method-guide" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1088,6 +1144,47 @@ compiled-control-flow boundary described below.</p>
 coefficient/history contract, restart rules, and the current no-go decision on
 exposing BDF3 before variable-step and rejection semantics exist.</p>
 <h2 id="stochastic-reaction-networks">Stochastic reaction networks<a class="headerlink" href="#stochastic-reaction-networks" title="Permanent link">&para;</a></h2>
+<p>Both stochastic solvers use one reaction contract: the stoichiometric matrix
+has shape <code>(n_species, n_reactions)</code>, while the propensity function returns
+the state shape with <code>n_reactions</code> replacing <code>n_species</code> on the configured
+reaction axis.</p>
+<h3 id="exact-direct-ssa">Exact direct SSA<a class="headerlink" href="#exact-direct-ssa" title="Permanent link">&para;</a></h3>
+<p><code>DirectSSASolver</code> implements
+<a href="https://doi.org/10.1021/j100540a008">Gillespie's direct method</a>. It samples one
+exponential waiting time and one categorical reaction/batch event, applies
+exactly one stoichiometric update, and repeats. A draw beyond an output boundary
+is retained rather than discarded, so adding observation times does not alter
+the simulated path. Zero total propensity is absorbing.</p>
+<p>Use direct SSA as the reference method for low-copy-number networks, rare-event
+questions, or checking a tau-leaping approximation. Its cost is proportional to
+the number of individual events, so tau-leaping is usually preferable when
+populations and firing rates are high.</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import DirectSSASolver, ModelCore, NumpySSASampler
+
+times = np.linspace(0.0, 4.0, 41)
+core = ModelCore(n_states=2, n_subgroups=1, time_grid=times)
+core.set_initial_state(np.asarray([[20.0], [0.0]]))
+
+# A -&gt; B
+stoichiometry = np.asarray([[-1], [1]])
+
+
+def propensity(_time, state):
+    return 0.2 * state[0:1]
+
+
+DirectSSASolver(core, stoichiometry).run(
+    propensity,
+    NumpySSASampler(seed=2026),
+)
+</code></pre>
+<p>The direct method assumes propensities remain constant between reaction events,
+as in a time-homogeneous continuous-time Markov chain. Across batch cells it
+samples from the superposed event process; the result is equivalent to
+independent direct-method trajectories for independent batch cells.</p>
+<h3 id="fixed-step-tau-leaping">Fixed-step tau-leaping<a class="headerlink" href="#fixed-step-tau-leaping" title="Permanent link">&para;</a></h3>
 <p>Fixed-step explicit tau-leaping approximates the number of firings in each
 reaction channel over a time interval with an independent Poisson draw. Supply
 a stoichiometric matrix with shape <code>(n_species, n_reactions)</code> and a propensity
