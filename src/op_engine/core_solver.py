@@ -52,7 +52,7 @@ import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Integral
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, TypeAlias, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -424,6 +424,21 @@ class StepIO:
     out: NDArray[np.floating]
     err_out: NDArray[np.floating] | None = None
     y_prev: NDArray[np.floating] | None = None
+
+
+class _LinearizedStepFunction(Protocol):
+    """Shared signature for NumPy/SciPy linearized step implementations."""
+
+    def __call__(
+        self,
+        solver: CoreSolver,
+        rhs_func: RHSFunction,
+        /,
+        *,
+        step: StepIO,
+        jacobian: JacobianFunction,
+    ) -> int:
+        """Attempt one step and return its method order."""
 
 
 @dataclass(slots=True)
@@ -2547,7 +2562,14 @@ class CoreSolver:
     # Dispatch helpers
     # ------------------------------------------------------------------
 
-    def _attempt_step(  # noqa: C901, PLR0911
+    _LINEARIZED_STEP_FUNCTIONS: ClassVar[dict[MethodName, _LinearizedStepFunction]] = {
+        "implicit-euler": _step_implicit_euler_linearized,
+        "trapezoidal": _trapezoidal_linearized_step,
+        "bdf2": _step_bdf2_linearized,
+        "ros2": _step_rosenbrock_w2,
+    }
+
+    def _attempt_step(
         self,
         rhs_func: RHSFunction,
         *,
@@ -2580,34 +2602,12 @@ class CoreSolver:
                 step=step,
                 op_spec=plan.op_default,
             )
-        if plan.method == "implicit-euler":
+        linearized_step = self._LINEARIZED_STEP_FUNCTIONS.get(plan.method)
+        if linearized_step is not None:
             if plan.jacobian is None:
                 raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
-            return self._step_implicit_euler_linearized(
-                rhs_func,
-                step=step,
-                jacobian=plan.jacobian,
-            )
-        if plan.method == "trapezoidal":
-            if plan.jacobian is None:
-                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
-            return self._trapezoidal_linearized_step(
-                rhs_func,
-                step=step,
-                jacobian=plan.jacobian,
-            )
-        if plan.method == "bdf2":
-            if plan.jacobian is None:
-                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
-            return self._step_bdf2_linearized(
-                rhs_func,
-                step=step,
-                jacobian=plan.jacobian,
-            )
-        if plan.method == "ros2":
-            if plan.jacobian is None:
-                raise RuntimeError(_INTERNAL_ERROR_OP_AXIS_MSG)
-            return self._step_rosenbrock_w2(
+            return linearized_step(
+                self,
                 rhs_func,
                 step=step,
                 jacobian=plan.jacobian,
