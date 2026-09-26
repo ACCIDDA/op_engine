@@ -137,6 +137,7 @@ class ReplayCheckpoint(StrEnum):
 class StochasticMethod(StrEnum):
     """Discrete reaction-network methods exposed by the provider."""
 
+    ADAPTIVE_TAU_LEAPING = "adaptive-tau-leaping"
     DIRECT_SSA = "direct-ssa"
     TAU_LEAPING = "tau-leaping"
 
@@ -153,6 +154,19 @@ class OpEngineEngineConfig(BaseModel):
     random_seed: int | None = Field(default=None, ge=0)
     tau_max_step: float | None = Field(default=None, gt=0.0)
     stochastic_max_steps: int = Field(default=1_000_000, ge=1)
+    tau_leap_tolerance: float = Field(
+        default=0.03,
+        gt=0.0,
+        lt=1.0,
+        allow_inf_nan=False,
+    )
+    tau_critical_threshold: int = Field(default=10, ge=0)
+    tau_exact_fallback_multiplier: float = Field(
+        default=10.0,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
+    tau_max_retries: int = Field(default=20, ge=0)
     ssa_max_events: int = Field(default=1_000_000, ge=1)
     state_layout: StateLayout = StateLayout.FLAT
     block_axis: str | None = None
@@ -222,6 +236,15 @@ class OpEngineEngineConfig(BaseModel):
             raise ValueError(msg)
         if self.fixed_max_step is not None and self.mode is ExecutionMode.STOCHASTIC:
             msg = "fixed_max_step does not apply in stochastic mode; use tau_max_step."
+            raise ValueError(msg)
+        if (
+            self.stochastic_method is StochasticMethod.ADAPTIVE_TAU_LEAPING
+            and self.tau_max_step is not None
+        ):
+            msg = (
+                "tau_max_step applies to fixed tau-leaping only; adaptive "
+                "tau-leaping selects its own bounded step."
+            )
             raise ValueError(msg)
         return self
 

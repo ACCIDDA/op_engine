@@ -67,8 +67,8 @@ op-engine = { path = "..", editable = true }
 flepimop2 = { git = "https://github.com/ACCIDDA/flepimop2", rev = "58aa384f1f71abc367bf42c84890c7613c135757" }
 # Reproducible development pins for the op_system 0.4 provider contract.
 # Published wheel metadata continues to use the registry requirements above.
-flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "71a3942807e4d6cc92b2ce518f51425c5d0f627d", subdirectory = "flepimop2-op_system" }
-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "71a3942807e4d6cc92b2ce518f51425c5d0f627d" }
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "faab2f4ed6d59134d4345aacde5ef79bfb94f374", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "faab2f4ed6d59134d4345aacde5ef79bfb94f374" }
 
 
 [tool.ruff.format]

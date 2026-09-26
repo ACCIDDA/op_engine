@@ -143,6 +143,56 @@ def test_summed_axis_channels_share_the_pinned_destination(
     np.testing.assert_array_equal(stoichiometry[:, 10:14], expected)
 
 
+def test_legacy_reactions_keep_source_fallback_but_are_incomplete(
+    network: CompiledReactionNetwork,
+) -> None:
+    """Omitted declarations remain usable without claiming catalyst safety."""
+    expected = np.zeros((12, 4), dtype=np.int64)
+    for cell in range(4):
+        expected[cell, cell] = 1
+
+    assert network.reactants_complete is False
+    np.testing.assert_array_equal(network.reactant_stoichiometry[:, :4], expected)
+
+
+def test_explicit_reactants_expand_multiplicity_and_grouped_catalysts() -> None:
+    """Provider channels preserve molecular order beyond net stoichiometry."""
+    system = OpSystemSystem(
+        spec={
+            "kind": "transitions",
+            "axes": [
+                {"name": "age", "coords": ["a0", "a1"]},
+                {"name": "vax", "coords": ["u", "v"]},
+            ],
+            "state": ["S[age,vax]", "E[age,vax]", "I[age]"],
+            "transitions": [
+                {
+                    "name": "infect",
+                    "from": "S[age,vax]",
+                    "to": "E[age,vax]",
+                    "rate": "beta * I[age]",
+                    "reactants": [
+                        {"state": "S[age,vax]", "order": 2},
+                        {"state": "I[age]", "order": 1},
+                    ],
+                },
+            ],
+        }
+    )
+    compiled = compile_reaction_network(
+        system,
+        {"beta": np.asarray(0.1)},
+        n_state=10,
+    )
+    expected = np.zeros((10, 4), dtype=np.int64)
+    expected[[0, 1, 2, 3], [0, 1, 2, 3]] = 2
+    expected[8, [0, 1]] = 1
+    expected[9, [2, 3]] = 1
+
+    assert compiled.reactants_complete is True
+    np.testing.assert_array_equal(compiled.reactant_stoichiometry, expected)
+
+
 def test_propensities_follow_flat_channel_order(
     network: CompiledReactionNetwork,
 ) -> None:

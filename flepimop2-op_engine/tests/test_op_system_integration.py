@@ -817,25 +817,26 @@ class _ConstantSSASampler:
         )
 
 
-def _single_reaction_system() -> OpSystemSystem:
+def _single_reaction_system(*, complete_reactants: bool = False) -> OpSystemSystem:
     """Build a one-cell transition system for stochastic integration tests.
 
     Returns:
         Compiled flepimop2 op_system provider.
     """
+    transition: dict[str, object] = {
+        "name": "infect",
+        "from": "S[group]",
+        "to": "I[group]",
+        "rate": "beta",
+    }
+    if complete_reactants:
+        transition["reactants"] = [{"state": "S[group]", "order": 1}]
     return OpSystemSystem(
         spec={
             "kind": "transitions",
             "axes": [{"name": "group", "coords": ["g0"]}],
             "state": ["S[group]", "I[group]"],
-            "transitions": [
-                {
-                    "name": "infect",
-                    "from": "S[group]",
-                    "to": "I[group]",
-                    "rate": "beta",
-                }
-            ],
+            "transitions": [transition],
         }
     )
 
@@ -1006,6 +1007,79 @@ def test_negative_tau_proposal_fails_instead_of_clipping() -> None:
             {"beta": _scalar(1.0)},
             poisson_sampler=_ExcessivePoissonSampler(),
         )
+
+
+def test_adaptive_tau_requires_authoritative_reactant_metadata() -> None:
+    """Legacy source inference cannot be mistaken for a complete network."""
+    system = _single_reaction_system()
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=StochasticMethod.ADAPTIVE_TAU_LEAPING,
+            tau_critical_threshold=0,
+            tau_exact_fallback_multiplier=0.0,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="complete molecular reactant metadata"):
+        engine.run(
+            system,
+            np.asarray([0.0, 0.1]),
+            _named_initial_state(
+                system,
+                (np.asarray(10.0), np.asarray(0.0)),
+            ),
+            {"beta": _scalar(0.1)},
+            poisson_sampler=_UnitPoissonSampler(),
+            ssa_sampler=_ConstantSSASampler(1.0),
+        )
+
+
+def test_adaptive_tau_runs_same_typed_network_with_numpy_and_eager_jax() -> None:
+    """Complete metadata drives backend-preserving adaptive provider runs."""
+    jnp = pytest.importorskip("jax.numpy")
+    system = _single_reaction_system(complete_reactants=True)
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=StochasticMethod.ADAPTIVE_TAU_LEAPING,
+            tau_leap_tolerance=0.5,
+            tau_critical_threshold=0,
+            tau_exact_fallback_multiplier=0.0,
+        ),
+    )
+    times = np.asarray([0.0, 0.1])
+    params = {"beta": _scalar(0.1)}
+
+    numpy_result = engine.run(
+        system,
+        times,
+        _named_initial_state(
+            system,
+            (np.asarray(10.0), np.asarray(0.0)),
+        ),
+        params,
+        poisson_sampler=_UnitPoissonSampler(),
+        ssa_sampler=_ConstantSSASampler(1.0),
+    )
+    jax_result = engine.run(
+        system,
+        times,
+        _named_initial_state(
+            system,
+            (jnp.asarray(10.0), jnp.asarray(0.0)),
+        ),
+        params,
+        poisson_sampler=_UnitPoissonSampler(),
+        ssa_sampler=_ConstantSSASampler(1.0),
+    )
+
+    expected = np.asarray([[0.0, 10.0, 0.0], [0.1, 9.0, 1.0]])
+    np.testing.assert_array_equal(numpy_result, expected)
+    np.testing.assert_allclose(np.asarray(jax_result), expected, rtol=1e-7, atol=0.0)
+    assert jax_result.__array_namespace__() is jnp
 
 
 def test_hybrid_selected_channels_jump_and_residual_stays_deterministic() -> None:

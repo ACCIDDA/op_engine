@@ -200,7 +200,7 @@ raw transition configuration. It expands each typed reaction's source cells
 into flat channels and compiles the associated transition, source-only,
 pinned-axis, and summed-axis bookkeeping into one stoichiometric matrix.
 
-Two methods are available:
+Three methods are available:
 
 ```yaml
 engine:
@@ -208,17 +208,17 @@ engine:
   state_change: flow
   config:
     mode: stochastic
-    stochastic_method: tau-leaping  # or direct-ssa
+    stochastic_method: tau-leaping  # adaptive-tau-leaping or direct-ssa
     random_seed: 90210              # NumPy convenience path
     tau_max_step: 0.1               # fixed tau-leaping only
 ```
 
 `tau-leaping` accepts `tau_max_step` and `stochastic_max_steps`.
 `direct-ssa` accepts `ssa_max_events`; its exact interpretation requires
-propensities to remain time-homogeneous between events. Both methods preserve
-the usual `(time, state...)` provider trajectory and fail visibly on invalid
-propensities, invalid random draws, or negative states. Populations are never
-silently clipped.
+propensities to remain time-homogeneous between events. All three methods
+preserve the usual `(time, state...)` provider trajectory and fail visibly on
+invalid propensities, invalid random draws, or negative states. Populations are
+never silently clipped.
 
 NumPy arrays use seeded `NumpyPoissonSampler` or `NumpySSASampler` instances.
 Other namespaces inject a `poisson_sampler=` or `ssa_sampler=` callable into
@@ -228,14 +228,21 @@ so functional PRNG implementations can derive reproducible keys without
 mutable state. This keeps JAX and other random libraries outside op_engine's
 core dependency set.
 
-Adaptive tau-leaping is not exposed by this provider yet. Its pre-leap
-selector needs the molecular reactant order, including catalytic reactants.
-The current typed op_system artifact describes source consumption and target
-scatter exactly, but an arbitrary propensity expression does not expose enough
-information to infer that reactant-order matrix safely. The required producer
-contract is tracked in [op_system #222](https://github.com/ACCIDDA/op_system/issues/222);
-until it exists, provider configuration rejects any implication that adaptive
-tau-leaping is available.
+`adaptive-tau-leaping` uses the bounded Cao--Gillespie--Petzold implementation
+and accepts `stochastic_max_steps`, `tau_leap_tolerance`,
+`tau_critical_threshold`, `tau_exact_fallback_multiplier`, and
+`tau_max_retries`. It requires every selected op_system transition to declare
+an explicit `reactants` list. This is intentionally stricter than fixed tau or
+direct SSA: source/target changes cannot reveal catalytic reactants or
+molecular multiplicity, and the provider never guesses them from a propensity
+expression. A source-only zero-order reaction declares `reactants: []`.
+
+Adaptive tau uses both a Poisson sampler and an SSA sampler because critical
+events and low-count fallbacks are exact. NumPy supplies both from
+`random_seed`; other namespaces inject both callables. Its eager stochastic
+trajectory is not a pathwise-differentiable computation. JAX still preserves
+array placement and remains available for deterministic differentiation, but a
+stochastic gradient estimator must be supplied explicitly above this layer.
 
 ## Hybrid execution
 
