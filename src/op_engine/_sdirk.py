@@ -13,6 +13,7 @@ from .nonlinear_solver import (
     NonlinearProblem,
     NonlinearSolveDiagnostics,
     NonlinearSolver,
+    NonlinearSolveResult,
     _namespace_of,
 )
 
@@ -123,7 +124,12 @@ class SdirkStepResult:
 
     state: Array
     converged: Array
-    stage_diagnostics: tuple[NonlinearSolveDiagnostics, ...]
+    stage_results: tuple[NonlinearSolveResult, ...]
+
+    @property
+    def stage_diagnostics(self) -> tuple[NonlinearSolveDiagnostics, ...]:
+        """Return diagnostics in deterministic stage order."""
+        return tuple(result.diagnostics for result in self.stage_results)
 
 
 @dataclass(slots=True, frozen=True)
@@ -134,7 +140,12 @@ class SdirkStepAttempt:
     error: Array
     converged: Array
     controller_order: int
-    stage_diagnostics: tuple[NonlinearSolveDiagnostics, ...]
+    stage_results: tuple[NonlinearSolveResult, ...]
+
+    @property
+    def stage_diagnostics(self) -> tuple[NonlinearSolveDiagnostics, ...]:
+        """Return full, first-half, then second-half stage diagnostics."""
+        return tuple(result.diagnostics for result in self.stage_results)
 
 
 def _weighted_state(
@@ -258,7 +269,7 @@ def evaluate_sdirk_step(  # noqa: PLR0913
     n_unknowns = math.prod(y.shape)
     identity = xp.eye(n_unknowns, dtype=y.dtype)
     derivatives: list[Array] = []
-    diagnostics: list[NonlinearSolveDiagnostics] = []
+    stage_results: list[NonlinearSolveResult] = []
     converged: Array | None = None
 
     for stage_index, (row, stage_time) in enumerate(
@@ -280,7 +291,7 @@ def evaluate_sdirk_step(  # noqa: PLR0913
             ),
             base,
         )
-        diagnostics.append(stage_result.diagnostics)
+        stage_results.append(stage_result)
         converged = (
             stage_result.diagnostics.converged
             if converged is None
@@ -295,7 +306,7 @@ def evaluate_sdirk_step(  # noqa: PLR0913
         msg = "SDIRK tableau unexpectedly contained no stages"
         raise RuntimeError(msg)
     state = _weighted_state(y, dt, tableau.b, derivatives)
-    return SdirkStepResult(state, converged, tuple(diagnostics))
+    return SdirkStepResult(state, converged, tuple(stage_results))
 
 
 def attempt_sdirk_step(  # noqa: PLR0913
@@ -350,17 +361,17 @@ def attempt_sdirk_step(  # noqa: PLR0913
             xp.logical_and(first_half.converged, second_half.converged),
         ),
     )
-    all_diagnostics = (
-        *full.stage_diagnostics,
-        *first_half.stage_diagnostics,
-        *second_half.stage_diagnostics,
+    all_stage_results = (
+        *full.stage_results,
+        *first_half.stage_results,
+        *second_half.stage_results,
     )
     return SdirkStepAttempt(
         state=second_half.state,
         error=error,
         converged=converged,
         controller_order=tableau.order,
-        stage_diagnostics=all_diagnostics,
+        stage_results=all_stage_results,
     )
 
 

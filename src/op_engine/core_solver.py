@@ -24,6 +24,7 @@ Supported methods (keyword `method=`):
     - "trapezoidal": One-linearization trapezoidal approximation (order 2).
     - "bdf2":        One-linearization BDF2 approximation (order 2).
     - "ros2":        L-stable Rosenbrock-W 2(1).
+    - "sdirk2":      L-stable Alexander SDIRK2 with full nonlinear stages.
 
 IMEX structure:
     We assume a split system:
@@ -57,10 +58,19 @@ from __future__ import annotations
 import math
 import warnings
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import pairwise
 from numbers import Integral
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, TypeAlias, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Literal,
+    NamedTuple,
+    Protocol,
+    TypeAlias,
+    cast,
+)
 
 import numpy as np
 from numpy.typing import NDArray
@@ -75,12 +85,25 @@ from ._multistep import (
 from ._rosenbrock import ROSENBROCK_W_TABLEAUS, RosenbrockWTableau
 from ._rosenbrock import evaluate_rosenbrock_w as evaluate_rosenbrock_w_tableau
 from ._runge_kutta import EXPLICIT_TABLEAUS, ExplicitRungeKuttaTableau
+from ._sdirk import (
+    SDIRK2_ALEXANDER,
+    SdirkStepAttempt,
+    attempt_sdirk_step,
+    evaluate_sdirk_step,
+)
 from ._typing import Array
 from .matrix_ops import (
     StageOperatorContext,
     build_implicit_euler_operators,
     build_trapezoidal_operators,
     implicit_solve,
+)
+from .nonlinear_solver import (
+    DenseNewtonSolver,
+    NonlinearConvergenceError,
+    NonlinearSolveDiagnostics,
+    NonlinearSolver,
+    NonlinearSolveResult,
 )
 
 if TYPE_CHECKING:
@@ -128,6 +151,7 @@ _SCHEDULE_TIME_GRID_ERROR_MSG = (
 
 RHSFunction = Callable[..., Array]
 JacobianFunction = Callable[..., "OperatorLike"]
+FullRhsJacobianFunction = Callable[[float, Array], Array]
 MethodName = Literal[
     "euler",
     "heun",
@@ -140,6 +164,7 @@ MethodName = Literal[
     "trapezoidal",
     "bdf2",
     "ros2",
+    "sdirk2",
 ]
 
 _METHOD_ALIASES: dict[str, MethodName] = {
@@ -152,6 +177,8 @@ _METHOD_ALIASES: dict[str, MethodName] = {
     "dormand-prince-5(4)": "dopri5",
     "rk45": "dopri5",
     "runge-kutta-4": "rk4",
+    "sdirk": "sdirk2",
+    "alexander-sdirk2": "sdirk2",
 }
 _ALLOWED_METHODS: tuple[MethodName, ...] = (
     "euler",
@@ -165,6 +192,7 @@ _ALLOWED_METHODS: tuple[MethodName, ...] = (
     "trapezoidal",
     "bdf2",
     "ros2",
+    "sdirk2",
 )
 _EXPLICIT_METHODS = frozenset({"euler", "heun", "rk4", "dopri5"})
 
@@ -409,6 +437,175 @@ class AdaptiveStepSchedule:
                 raise ValueError(msg)
 
 
+class NonlinearIntegrationDiagnostics(NamedTuple):
+    """Array-valued nonlinear diagnostics for one integration or replay.
+
+    Every field is in the state array's namespace, so the record can cross a
+    compiled JAX boundary. ``stages_per_step`` maps flattened stage fields back
+    to attempted steps. Rejected adaptive attempts remain present with
+    ``step_accepted=False``.
+    """
+
+    converged: Array
+    step_converged: Array
+    step_accepted: Array
+    step_sizes: Array
+    stages_per_step: Array
+    stage_converged: Array
+    iterations: Array
+    residual_evaluations: Array
+    jacobian_evaluations: Array
+    initial_residual_norm: Array
+    residual_norm: Array
+    step_norm: Array
+
+    def require_converged(self) -> NonlinearIntegrationDiagnostics:
+        """Return valid diagnostics or invalidate a failed compiled replay.
+
+        Returns:
+            This unchanged diagnostic record.
+
+        Raises:
+            NonlinearIntegrationConvergenceError: If an accepted or replayed
+                step contains a failed nonlinear stage.
+        """
+        if not bool(self.converged.item()):
+            raise NonlinearIntegrationConvergenceError(self)
+        return self
+
+
+class NonlinearIntegrationConvergenceError(RuntimeError):
+    """Raised after validating failed array-valued integration diagnostics."""
+
+    def __init__(self, diagnostics: NonlinearIntegrationDiagnostics) -> None:
+        """Store diagnostics for the invalid integration or frozen mesh."""
+        self.diagnostics = diagnostics
+        failed = np.logical_and(
+            np.asarray(diagnostics.step_accepted),
+            np.logical_not(np.asarray(diagnostics.step_converged)),
+        )
+        super().__init__(
+            f"{int(np.count_nonzero(failed))} accepted nonlinear step(s) "
+            "did not converge"
+        )
+
+
+@dataclass(slots=True, frozen=True)
+class _NonlinearAttemptRecord:
+    """Internal mapping from one step attempt to its stage diagnostics."""
+
+    dt: float
+    accepted: bool
+    converged: Array
+    stage_diagnostics: tuple[NonlinearSolveDiagnostics, ...]
+
+
+def _collect_nonlinear_diagnostics(
+    reference: Array,
+    records: Sequence[_NonlinearAttemptRecord],
+    *,
+    complete: bool,
+) -> NonlinearIntegrationDiagnostics:
+    """Flatten attempted-step diagnostics in ``reference``'s namespace.
+
+    Returns:
+        Compiled-safe integration diagnostics.
+    """
+    xp = _namespace_of(reference)
+    if not records:
+        empty_float = cast("Array", xp.asarray((), dtype=reference.dtype))
+        empty_bool = cast("Array", xp.asarray((), dtype=xp.bool))
+        empty_int = cast("Array", xp.asarray((), dtype=xp.int32))
+        return NonlinearIntegrationDiagnostics(
+            converged=cast("Array", xp.asarray(complete, dtype=xp.bool)),
+            step_converged=empty_bool,
+            step_accepted=empty_bool,
+            step_sizes=empty_float,
+            stages_per_step=empty_int,
+            stage_converged=empty_bool,
+            iterations=empty_int,
+            residual_evaluations=empty_int,
+            jacobian_evaluations=empty_int,
+            initial_residual_norm=empty_float,
+            residual_norm=empty_float,
+            step_norm=empty_float,
+        )
+
+    step_converged = cast(
+        "Array",
+        xp.stack(tuple(record.converged for record in records)),
+    )
+    step_accepted = cast(
+        "Array",
+        xp.asarray(tuple(record.accepted for record in records), dtype=xp.bool),
+    )
+    step_valid = xp.logical_or(xp.logical_not(step_accepted), step_converged)
+    converged = cast(
+        "Array",
+        xp.logical_and(
+            xp.asarray(complete, dtype=xp.bool),
+            xp.all(step_valid),
+        ),
+    )
+    stage_diagnostics = tuple(
+        diagnostics for record in records for diagnostics in record.stage_diagnostics
+    )
+
+    return NonlinearIntegrationDiagnostics(
+        converged=converged,
+        step_converged=step_converged,
+        step_accepted=step_accepted,
+        step_sizes=cast(
+            "Array",
+            xp.asarray(tuple(record.dt for record in records), dtype=reference.dtype),
+        ),
+        stages_per_step=cast(
+            "Array",
+            xp.asarray(
+                tuple(len(record.stage_diagnostics) for record in records),
+                dtype=xp.int32,
+            ),
+        ),
+        stage_converged=cast(
+            "Array",
+            xp.stack(tuple(item.converged for item in stage_diagnostics)),
+        ),
+        iterations=cast(
+            "Array",
+            xp.asarray(
+                tuple(item.iterations for item in stage_diagnostics),
+                dtype=xp.int32,
+            ),
+        ),
+        residual_evaluations=cast(
+            "Array",
+            xp.asarray(
+                tuple(item.residual_evaluations for item in stage_diagnostics),
+                dtype=xp.int32,
+            ),
+        ),
+        jacobian_evaluations=cast(
+            "Array",
+            xp.asarray(
+                tuple(item.jacobian_evaluations for item in stage_diagnostics),
+                dtype=xp.int32,
+            ),
+        ),
+        initial_residual_norm=cast(
+            "Array",
+            xp.stack(tuple(item.initial_residual_norm for item in stage_diagnostics)),
+        ),
+        residual_norm=cast(
+            "Array",
+            xp.stack(tuple(item.residual_norm for item in stage_diagnostics)),
+        ),
+        step_norm=cast(
+            "Array",
+            xp.stack(tuple(item.step_norm for item in stage_diagnostics)),
+        ),
+    )
+
+
 @dataclass(slots=True, frozen=True)
 class OperatorSpecs:
     """Operator specifications for implicit/IMEX methods.
@@ -426,6 +623,37 @@ class OperatorSpecs:
 
 
 @dataclass(slots=True, frozen=True)
+class NonlinearMethodConfig:
+    """Configuration for fully nonlinear integration methods.
+
+    The Jacobian acts on the entire flattened RHS state. It is deliberately
+    separate from :attr:`RunConfig.jacobian`, whose operators act only along
+    ``CoreSolver.operator_axis`` for linearly implicit methods.
+
+    Attributes:
+        rhs_jacobian: Dense full-system Jacobian with shape
+            ``(state.size, state.size)``.
+        solver: Backend-neutral nonlinear solver implementation.
+    """
+
+    rhs_jacobian: FullRhsJacobianFunction
+    solver: NonlinearSolver = field(default_factory=DenseNewtonSolver)
+
+    def __post_init__(self) -> None:
+        """Validate the method boundary without selecting an array backend.
+
+        Raises:
+            TypeError: If a callback or nonlinear solver is invalid.
+        """
+        if not callable(self.rhs_jacobian):
+            msg = "rhs_jacobian must be callable"
+            raise TypeError(msg)
+        if not isinstance(self.solver, NonlinearSolver):
+            msg = "solver must implement the NonlinearSolver protocol"
+            raise TypeError(msg)
+
+
+@dataclass(slots=True, frozen=True)
 class RunConfig:
     """Configuration for CoreSolver.run.
 
@@ -438,6 +666,7 @@ class RunConfig:
         adaptive_cfg: Parameters controlling error tolerances and limits.
         operators: Operator specifications for implicit/IMEX methods.
         jacobian: Optional Jacobian function for linearly implicit methods.
+        nonlinear: Full-system Jacobian and backend-neutral nonlinear solver.
         gamma: Optional TR-BDF2 gamma (if None, uses default).
     """
 
@@ -448,6 +677,7 @@ class RunConfig:
     adaptive_cfg: AdaptiveConfig = AdaptiveConfig()
     operators: OperatorSpecs = OperatorSpecs()
     jacobian: JacobianFunction | None = None
+    nonlinear: NonlinearMethodConfig | None = None
     gamma: float | None = None
 
     def __post_init__(self) -> None:
@@ -469,6 +699,11 @@ class RunConfig:
         if not isinstance(self.operators, OperatorSpecs):
             msg = "operators must be an OperatorSpecs"
             raise TypeError(msg)
+        if self.nonlinear is not None and not isinstance(
+            self.nonlinear, NonlinearMethodConfig
+        ):
+            msg = "nonlinear must be a NonlinearMethodConfig"
+            raise TypeError(msg)
 
         if method == "imex-trbdf2" and self.gamma is not None:
             gamma = float(self.gamma)
@@ -489,6 +724,7 @@ class RunPlan:
         op_tr: TR-stage operator spec for TR-BDF2.
         op_bdf2: BDF2-stage operator spec for TR-BDF2.
         jacobian: Optional Jacobian function for linearly implicit methods.
+        nonlinear: Configuration for fully nonlinear methods.
     """
 
     method: MethodName
@@ -497,6 +733,7 @@ class RunPlan:
     op_tr: CoreOperators | StageOperatorFactory | None
     op_bdf2: CoreOperators | StageOperatorFactory | None
     jacobian: JacobianFunction | None
+    nonlinear: NonlinearMethodConfig | None = None
 
 
 @dataclass(slots=True)
@@ -708,6 +945,7 @@ class CoreSolver:
         self._f_extrap: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
 
         self._last_adaptive_schedule: AdaptiveStepSchedule | None = None
+        self._last_nonlinear_diagnostics: NonlinearIntegrationDiagnostics | None = None
 
         # Validate operator sizes if default spec is a static tuple
         if operators is not None and not callable(operators):
@@ -720,6 +958,13 @@ class CoreSolver:
     def last_adaptive_schedule(self) -> AdaptiveStepSchedule | None:
         """Return the schedule recorded or replayed by the latest adaptive run."""
         return self._last_adaptive_schedule
+
+    @property
+    def last_nonlinear_diagnostics(
+        self,
+    ) -> NonlinearIntegrationDiagnostics | None:
+        """Return nonlinear diagnostics from the latest SDIRK run or replay."""
+        return self._last_nonlinear_diagnostics
 
     # ------------------------------------------------------------------
     # Axis / operator helpers
@@ -1992,6 +2237,23 @@ class CoreSolver:
                 op_tr=None,
                 op_bdf2=None,
                 jacobian=jac_required,
+            )
+
+        if method_in == "sdirk2":
+            if cfg.nonlinear is None:
+                msg = (
+                    "Method 'sdirk2' requires NonlinearMethodConfig with a full "
+                    "flattened rhs_jacobian"
+                )
+                raise ValueError(msg)
+            return RunPlan(
+                method=method_in,
+                gamma=None,
+                op_default=None,
+                op_tr=None,
+                op_bdf2=None,
+                jacobian=None,
+                nonlinear=cfg.nonlinear,
             )
 
         operators_trbdf2 = OperatorSpecs(
@@ -3335,6 +3597,310 @@ class CoreSolver:
 
         return self._y_curr
 
+    @staticmethod
+    def _require_nonlinear_plan(plan: RunPlan) -> NonlinearMethodConfig:
+        """Return a resolved nonlinear configuration.
+
+        Raises:
+            RuntimeError: If a nonlinear method has an inconsistent plan.
+        """
+        if plan.nonlinear is None:
+            msg = "Internal error: nonlinear method configuration is missing"
+            raise RuntimeError(msg)
+        return plan.nonlinear
+
+    @staticmethod
+    def _first_eager_failed_stage(
+        stage_results: Sequence[NonlinearSolveResult],
+    ) -> NonlinearSolveResult | None:
+        """Return the first eager failure, or ``None`` while array tracing."""
+        for result in stage_results:
+            try:
+                converged = bool(result.diagnostics.converged.item())
+            except (TypeError, ValueError):
+                return None
+            if not converged:
+                return result
+        return None
+
+    def _update_nonlinear_diagnostics(
+        self,
+        reference: Array,
+        records: Sequence[_NonlinearAttemptRecord],
+        *,
+        complete: bool,
+    ) -> NonlinearIntegrationDiagnostics:
+        """Build, store, and return the current nonlinear diagnostic record.
+
+        Returns:
+            Current compiled-safe nonlinear diagnostics.
+        """
+        diagnostics = _collect_nonlinear_diagnostics(
+            reference,
+            records,
+            complete=complete,
+        )
+        self._last_nonlinear_diagnostics = diagnostics
+        return diagnostics
+
+    def _advance_sdirk_adaptive_to_time(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        t0: float,
+        t1: float,
+        y0: Array,
+        adaptive_cfg: AdaptiveConfig,
+        dt_ctrl: DtControllerConfig,
+        accepted_steps: list[float],
+        records: list[_NonlinearAttemptRecord],
+        diagnostics_reference: Array,
+    ) -> Array:
+        """Advance SDIRK2 adaptively, rejecting ordinary nonconvergence.
+
+        Returns:
+            State at ``t1`` in the input namespace.
+
+        Raises:
+            RuntimeError: If rejection, minimum-dt, or step limits are exceeded.
+        """
+        nonlinear = self._require_nonlinear_plan(plan)
+        t = float(t0)
+        target = float(t1)
+        dt_out = target - t
+        dt = float(adaptive_cfg.dt_init) if adaptive_cfg.dt_init is not None else dt_out
+        dt = min(dt, dt_ctrl.dt_max)
+        y_current = y0
+        n_internal = 0
+
+        while t < target:
+            if n_internal >= adaptive_cfg.max_steps:
+                raise RuntimeError(_MAX_STEPS_ERROR_MSG)
+            remaining = target - t
+            if remaining <= 0.0:
+                break
+            dt = min(dt, remaining)
+
+            rejects = 0
+            while True:
+                if rejects >= adaptive_cfg.max_reject:
+                    raise RuntimeError(_TOO_MANY_REJECTS_ERROR_MSG)
+                attempt = attempt_sdirk_step(
+                    tableau=SDIRK2_ALEXANDER,
+                    nonlinear_solver=nonlinear.solver,
+                    rhs=rhs_func,
+                    rhs_jacobian=nonlinear.rhs_jacobian,
+                    t=t,
+                    dt=dt,
+                    y=y_current,
+                )
+                converged = bool(attempt.converged.item())
+                if not converged:
+                    records.append(
+                        _NonlinearAttemptRecord(
+                            dt=dt,
+                            accepted=False,
+                            converged=attempt.converged,
+                            stage_diagnostics=attempt.stage_diagnostics,
+                        )
+                    )
+                    self._update_nonlinear_diagnostics(
+                        diagnostics_reference,
+                        records,
+                        complete=False,
+                    )
+                    dt_new = dt * min(0.5, dt_ctrl.fac_min)
+                    if dt_new <= dt_ctrl.dt_min and dt_ctrl.dt_min > 0.0:
+                        raise RuntimeError(_DT_UNDERFLOW_ERROR_MSG)
+                    dt = dt_new
+                    rejects += 1
+                    continue
+
+                error_norm = self._error_norm(
+                    attempt.error,
+                    attempt.state,
+                    y_current,
+                    rtol=adaptive_cfg.rtol,
+                    atol=adaptive_cfg.atol,
+                )
+                accepted = error_norm <= 1.0
+                records.append(
+                    _NonlinearAttemptRecord(
+                        dt=dt,
+                        accepted=accepted,
+                        converged=attempt.converged,
+                        stage_diagnostics=attempt.stage_diagnostics,
+                    )
+                )
+                self._update_nonlinear_diagnostics(
+                    diagnostics_reference,
+                    records,
+                    complete=False,
+                )
+                if accepted:
+                    accepted_steps.append(float(dt))
+                    t += dt
+                    y_current = attempt.state
+                    dt = self._propose_dt(
+                        dt,
+                        error_norm,
+                        attempt.controller_order,
+                        cfg=dt_ctrl,
+                    )
+                    break
+
+                dt_new = self._propose_dt(
+                    dt,
+                    error_norm,
+                    attempt.controller_order,
+                    cfg=dt_ctrl,
+                )
+                if dt_new <= dt_ctrl.dt_min and dt_ctrl.dt_min > 0.0:
+                    raise RuntimeError(_DT_UNDERFLOW_ERROR_MSG)
+                dt = dt_new
+                rejects += 1
+
+            n_internal += 1
+
+        return y_current
+
+    def _run_sdirk(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        config: RunConfig,
+    ) -> NonlinearIntegrationDiagnostics:
+        """Run fixed or live-adaptive SDIRK2 with public diagnostics.
+
+        Returns:
+            Array-valued nonlinear integration diagnostics.
+
+        Raises:
+            NonlinearConvergenceError: If a fixed eager stage does not converge.
+            ValueError: If an output interval is not strictly increasing.
+        """
+        nonlinear = self._require_nonlinear_plan(plan)
+        time_grid = np.asarray(self.core.time_grid, dtype=float)
+        reference = self.core.get_current_state()
+        records: list[_NonlinearAttemptRecord] = []
+        schedule_steps: list[tuple[float, ...]] = []
+
+        for index in range(int(self.core.n_timesteps) - 1):
+            t0 = float(time_grid[index])
+            t1 = float(time_grid[index + 1])
+            if t1 <= t0:
+                raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
+            current_state = self.core.get_current_state()
+
+            if config.adaptive:
+                accepted_steps: list[float] = []
+                next_state = self._advance_sdirk_adaptive_to_time(
+                    rhs_func,
+                    plan=plan,
+                    t0=t0,
+                    t1=t1,
+                    y0=current_state,
+                    adaptive_cfg=config.adaptive_cfg,
+                    dt_ctrl=config.dt_controller,
+                    accepted_steps=accepted_steps,
+                    records=records,
+                    diagnostics_reference=reference,
+                )
+                schedule_steps.append(tuple(accepted_steps))
+            else:
+                result = evaluate_sdirk_step(
+                    tableau=SDIRK2_ALEXANDER,
+                    nonlinear_solver=nonlinear.solver,
+                    rhs=rhs_func,
+                    rhs_jacobian=nonlinear.rhs_jacobian,
+                    t=t0,
+                    dt=t1 - t0,
+                    y=current_state,
+                )
+                failed = self._first_eager_failed_stage(result.stage_results)
+                records.append(
+                    _NonlinearAttemptRecord(
+                        dt=t1 - t0,
+                        accepted=failed is None,
+                        converged=result.converged,
+                        stage_diagnostics=result.stage_diagnostics,
+                    )
+                )
+                self._update_nonlinear_diagnostics(
+                    reference,
+                    records,
+                    complete=False,
+                )
+                if failed is not None:
+                    raise NonlinearConvergenceError(failed)
+                next_state = result.state
+
+            self.core.advance_timestep(next_state)
+
+        if config.adaptive:
+            self._last_adaptive_schedule = AdaptiveStepSchedule(
+                output_times=tuple(float(value) for value in time_grid),
+                step_sizes=tuple(schedule_steps),
+            )
+        return self._update_nonlinear_diagnostics(
+            reference,
+            records,
+            complete=True,
+        )
+
+    def _replay_sdirk_schedule(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        schedule: AdaptiveStepSchedule,
+    ) -> NonlinearIntegrationDiagnostics:
+        """Replay an SDIRK2 mesh and return compiled-safe diagnostics.
+
+        Returns:
+            Diagnostics for every replayed step and nonlinear stage.
+        """
+        nonlinear = self._require_nonlinear_plan(plan)
+        reference = self.core.get_current_state()
+        records: list[_NonlinearAttemptRecord] = []
+
+        for t0, interval_steps in zip(
+            schedule.output_times[:-1],
+            schedule.step_sizes,
+            strict=True,
+        ):
+            t = t0
+            state = self.core.get_current_state()
+            for dt in interval_steps:
+                attempt: SdirkStepAttempt = attempt_sdirk_step(
+                    tableau=SDIRK2_ALEXANDER,
+                    nonlinear_solver=nonlinear.solver,
+                    rhs=rhs_func,
+                    rhs_jacobian=nonlinear.rhs_jacobian,
+                    t=t,
+                    dt=dt,
+                    y=state,
+                )
+                records.append(
+                    _NonlinearAttemptRecord(
+                        dt=dt,
+                        accepted=True,
+                        converged=attempt.converged,
+                        stage_diagnostics=attempt.stage_diagnostics,
+                    )
+                )
+                state = attempt.state
+                t += dt
+            self.core.advance_timestep(state)
+
+        return self._update_nonlinear_diagnostics(
+            reference,
+            records,
+            complete=True,
+        )
+
     # ------------------------------------------------------------------
     # Public run loop
     # ------------------------------------------------------------------
@@ -3453,7 +4019,7 @@ class CoreSolver:
         schedule: AdaptiveStepSchedule,
         *,
         config: RunConfig,
-    ) -> None:
+    ) -> NonlinearIntegrationDiagnostics | None:
         """Replay a recorded adaptive mesh through the configured method.
 
         Replay bypasses error norms and accept/reject decisions while invoking
@@ -3465,6 +4031,9 @@ class CoreSolver:
             rhs_func: Function computing the explicit RHS F(t, y).
             schedule: Accepted step mesh recorded by an adaptive run.
             config: Matching adaptive run configuration.
+
+        Returns:
+            Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.
 
         Raises:
             TypeError: If schedule has the wrong type or the state changes array
@@ -3479,9 +4048,18 @@ class CoreSolver:
             raise ValueError(msg)
 
         self._last_adaptive_schedule = None
+        self._last_nonlinear_diagnostics = None
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
 
+        if plan.method == "sdirk2":
+            diagnostics = self._replay_sdirk_schedule(
+                rhs_func,
+                plan=plan,
+                schedule=schedule,
+            )
+            self._last_adaptive_schedule = schedule
+            return diagnostics
         if plan.method in _EXPLICIT_METHODS:
             self._replay_explicit_schedule(rhs_func, plan=plan, schedule=schedule)
         else:
@@ -3500,30 +4078,43 @@ class CoreSolver:
                 )
 
         self._last_adaptive_schedule = schedule
+        return None
 
-    def run(self, rhs_func: RHSFunction, *, config: RunConfig | None = None) -> None:
+    def run(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        config: RunConfig | None = None,
+    ) -> NonlinearIntegrationDiagnostics | None:
         """Advance the ModelCore state through its time grid.
 
         Args:
             rhs_func: Function computing the explicit RHS F(t, y).
             config: Optional run configuration. If None, defaults are used.
 
+        Returns:
+            Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.
+
         Raises:
             TypeError: If the state changes array ecosystems during a run.
             ValueError: If invalid parameters are provided.
         """
         self._last_adaptive_schedule = None
+        self._last_nonlinear_diagnostics = None
         cfg = config or RunConfig()
         plan = self._resolve_run_plan(cfg)
 
+        if plan.method == "sdirk2":
+            return self._run_sdirk(rhs_func, plan=plan, config=cfg)
+
         if plan.method in _EXPLICIT_METHODS:
             self._run_explicit(rhs_func, plan=plan, config=cfg)
-            return
+            return None
 
         current_state = self.core.get_current_state()
         if not isinstance(current_state, np.ndarray):
             self._run_array_implicit(rhs_func, plan=plan, config=cfg)
-            return
+            return None
 
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
@@ -3581,3 +4172,4 @@ class CoreSolver:
                 output_times=tuple(float(value) for value in time_grid),
                 step_sizes=tuple(schedule_steps),
             )
+        return None

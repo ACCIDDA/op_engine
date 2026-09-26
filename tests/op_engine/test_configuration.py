@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from op_engine import DenseNewtonSolver, NonlinearMethodConfig
 from op_engine.core_solver import (
     AdaptiveConfig,
     AdaptiveStepSchedule,
@@ -37,6 +38,30 @@ def test_run_config_normalizes_explicit_runge_kutta_aliases(
 ) -> None:
     """Common higher-order names resolve to stable canonical method names."""
     assert RunConfig(method=alias).method == canonical
+
+
+@pytest.mark.parametrize("alias", ["sdirk", "alexander-sdirk2"])
+def test_run_config_normalizes_sdirk2_aliases(alias: str) -> None:
+    """The public nonlinear method has stable descriptive aliases."""
+    assert RunConfig(method=alias).method == "sdirk2"
+
+
+def test_nonlinear_method_config_validates_protocol_boundary() -> None:
+    """Nonlinear configuration stores callbacks and a backend-neutral protocol."""
+    config = NonlinearMethodConfig(
+        rhs_jacobian=lambda _time, _state: np.asarray([[1.0]])
+    )
+
+    assert isinstance(config.solver, DenseNewtonSolver)
+    with pytest.raises(TypeError, match="rhs_jacobian"):
+        NonlinearMethodConfig(rhs_jacobian=None)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="NonlinearSolver"):
+        NonlinearMethodConfig(
+            rhs_jacobian=lambda _time, _state: np.asarray([[1.0]]),
+            solver=object(),  # type: ignore[arg-type]
+        )
+    with pytest.raises(TypeError, match="NonlinearMethodConfig"):
+        RunConfig(nonlinear=object())  # type: ignore[arg-type]
 
 
 def test_run_config_rejects_unknown_method_at_construction() -> None:

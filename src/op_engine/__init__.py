@@ -5,7 +5,12 @@ from __future__ import annotations
 from importlib.metadata import version as _metadata_version
 
 from ._typing import Array
-from .core_solver import CoreSolver
+from .core_solver import (
+    CoreSolver,
+    NonlinearIntegrationConvergenceError,
+    NonlinearIntegrationDiagnostics,
+    NonlinearMethodConfig,
+)
 from .matrix_ops import (
     DiffusionConfig,
     GridGeometry,
@@ -59,7 +64,10 @@ __all__ = [
     "ModelCore",
     "NewtonConfig",
     "NonlinearConvergenceError",
+    "NonlinearIntegrationConvergenceError",
+    "NonlinearIntegrationDiagnostics",
     "NonlinearJacobian",
+    "NonlinearMethodConfig",
     "NonlinearProblem",
     "NonlinearResidual",
     "NonlinearSolveDiagnostics",
