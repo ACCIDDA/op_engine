@@ -29,7 +29,7 @@ from flepimop2.parameter.abc import ParameterValue
 from flepimop2.parameter.sparse_table import SparseTableParameter
 from flepimop2.simulator import Simulator
 from flepimop2.system.op_system import OpSystemSystem
-from flepimop2.typing import StateChangeEnum
+from flepimop2.typing import ArrayBackend, StateChangeEnum
 from op_engine import SSASample
 from op_engine.matrix_ops import build_advection_matrix, build_diffusion_matrix
 
@@ -114,6 +114,48 @@ def test_simulator_runs_real_op_system_with_shared_seed_parameter() -> None:
         np.asarray([[0.0, 10.0, 0.0, 0.0], [0.5, 9.5125, 0.4875, 0.0]]),
         rtol=0.0,
         atol=1e-14,
+    )
+
+
+@pytest.mark.parametrize("backend", [ArrayBackend.NUMPY, ArrayBackend.JAX])
+def test_simulator_preserves_parameter_namespace_for_any_backend(
+    backend: ArrayBackend,
+) -> None:
+    """The pending flepimop2 broker preserves inputs for the portable engine."""
+    xp = pytest.importorskip("jax.numpy") if backend is ArrayBackend.JAX else np
+
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "state": ["X"],
+            "equations": {"X": "rate * X"},
+            "initial_state": {"X": "seed"},
+        }
+    )
+    engine = _engine()
+    simulator = Simulator(
+        system,
+        engine,
+        _NoopBackend(),
+        simulate_config=SimulateSpecificationModel(times=[0.0, 0.5]),
+    )
+    shape = ResolvedShape()
+
+    result = simulator.run(
+        initial_state={},
+        params={
+            "seed": ParameterValue(xp.asarray(2.0), shape),
+            "rate": ParameterValue(xp.asarray(-0.1), shape),
+        },
+    )
+
+    assert engine.backend is ArrayBackend.ANY
+    assert result.__array_namespace__() is xp
+    np.testing.assert_allclose(
+        np.asarray(result),
+        np.asarray([[0.0, 2.0], [0.5, 1.9025]]),
+        rtol=0.0,
+        atol=1e-6,
     )
 
 
