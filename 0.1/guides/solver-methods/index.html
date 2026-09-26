@@ -978,9 +978,9 @@ numerical method.</p>
 </tr>
 <tr>
 <td><code>ros2</code></td>
-<td style="text-align: right;">2</td>
+<td style="text-align: right;">2 (embedded 1)</td>
 <td>Jacobian callable</td>
-<td>Second-order Rosenbrock-W integration</td>
+<td>L-stable linearly implicit integration</td>
 </tr>
 </tbody>
 </table>
@@ -1155,6 +1155,12 @@ callable returns an operator acting along <code>operator_axis</code>:</p>
 config = RunConfig(method=&quot;ros2&quot;, jacobian=jacobian)
 CoreSolver(core, operator_axis=&quot;state&quot;).run(rhs, config=config)
 </code></pre>
+<p><code>ros2</code> uses two increment stages and one Jacobian evaluation per attempted
+step. Both stages solve with the same matrix
+<code>I - (1 - 1/sqrt(2)) * dt * J</code>; the accepted second-order state and embedded
+first-order state provide the adaptive error estimate. The coefficient table,
+formal orders, and controller order are declared together and validated when
+the module is imported.</p>
 <p>Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
 optional NumPy acceleration path and are not a JAX differentiation path.</p>
 <h2 id="adaptivity-and-array-api-backends">Adaptivity and Array-API backends<a class="headerlink" href="#adaptivity-and-array-api-backends" title="Permanent link">&para;</a></h2>
