@@ -75,6 +75,16 @@ class SolverMethod(StrEnum):
         """Whether this method requires a Jacobian."""
         return self in _IMPLICIT_METHODS
 
+    @property
+    def is_explicit(self) -> bool:
+        """Whether this method is an explicit Runge--Kutta method."""
+        return self in {
+            SolverMethod.EULER,
+            SolverMethod.HEUN,
+            SolverMethod.RK4,
+            SolverMethod.DOPRI5,
+        }
+
 
 _IMPLICIT_METHODS: frozenset[SolverMethod] = frozenset(
     {
@@ -115,6 +125,11 @@ class OpEngineEngineConfig(BaseModel):
     stochastic_max_steps: int = Field(default=1_000_000, ge=1)
     ssa_max_events: int = Field(default=1_000_000, ge=1)
     adaptive: bool = False
+    fixed_max_step: float | None = Field(
+        default=None,
+        gt=0.0,
+        allow_inf_nan=False,
+    )
     strict: bool = True
     rtol: float = Field(default=1e-6, ge=0.0)
     atol: float = Field(default=1e-9, ge=0.0)
@@ -160,6 +175,14 @@ class OpEngineEngineConfig(BaseModel):
         if len(self.stochastic_reactions) != len(set(self.stochastic_reactions)):
             msg = "stochastic_reactions must not contain duplicates."
             raise ValueError(msg)
+        if self.fixed_max_step is not None and (
+            self.adaptive or not self.method.is_explicit
+        ):
+            msg = "fixed_max_step is supported only for fixed-step explicit methods."
+            raise ValueError(msg)
+        if self.fixed_max_step is not None and self.mode is ExecutionMode.STOCHASTIC:
+            msg = "fixed_max_step does not apply in stochastic mode; use tau_max_step."
+            raise ValueError(msg)
         return self
 
     def to_run_config(self) -> RunConfig:
@@ -171,6 +194,7 @@ class OpEngineEngineConfig(BaseModel):
         return RunConfig(
             method=self.method,
             adaptive=self.adaptive,
+            fixed_max_step=self.fixed_max_step,
             strict=self.strict,
             adaptive_cfg=AdaptiveConfig(rtol=self.rtol, atol=self.atol),
             dt_controller=DtControllerConfig(

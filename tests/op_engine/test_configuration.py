@@ -76,6 +76,28 @@ def test_run_config_rejects_unknown_method_at_construction() -> None:
         RunConfig(method="not-a-method")
 
 
+@pytest.mark.parametrize("fixed_max_step", [0.0, -1.0, np.nan, np.inf])
+def test_run_config_rejects_invalid_fixed_max_step(fixed_max_step: float) -> None:
+    """Fixed integration steps must have a finite positive upper bound."""
+    with pytest.raises(ValueError, match="fixed_max_step"):
+        RunConfig(fixed_max_step=fixed_max_step)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"adaptive": True, "fixed_max_step": 0.1},
+        {"method": "implicit-euler", "fixed_max_step": 0.1},
+    ],
+)
+def test_run_config_rejects_incompatible_fixed_step_modes(
+    kwargs: dict[str, object],
+) -> None:
+    """A fixed explicit step policy cannot be silently ignored."""
+    with pytest.raises(ValueError, match="fixed-step explicit"):
+        RunConfig(**kwargs)  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize("gamma", [0.0, 1.0, np.nan, np.inf])
 def test_run_config_rejects_invalid_trbdf2_gamma(gamma: float) -> None:
     """TR-BDF2 gamma is bounded at configuration construction."""

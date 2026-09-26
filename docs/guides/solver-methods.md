@@ -236,8 +236,22 @@ CoreSolver(core).run(rhs, config=config)
 ```
 
 With `adaptive=False`, every adjacent pair of output times defines one solver
-step. With `adaptive=True`, the controller may take multiple internal steps but
-still stores only the requested output times.
+step by default. Set `fixed_max_step` to bound explicit Euler, Heun, RK4, or
+Dormand--Prince integration steps independently of the output grid:
+
+```python
+config = RunConfig(method="rk4", fixed_max_step=0.25)
+```
+
+Each output interval then uses as many full `fixed_max_step` steps as fit plus
+a final remainder step that lands exactly on the next output time. Only the
+requested output states are stored. Output grids aligned with the fixed-step
+mesh can therefore be made more or less frequent without changing states at
+shared times. `fixed_max_step` is incompatible with `adaptive=True`; adaptive
+methods use their controller configuration instead.
+
+With `adaptive=True`, the controller may take multiple internal steps but still
+stores only the requested output times.
 
 Heun, RK4, and Dormand--Prince share one validated explicit Runge--Kutta
 tableau kernel. `rk4` takes four RHS stages per fixed step. Under adaptivity it
