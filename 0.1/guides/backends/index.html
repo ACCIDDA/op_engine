@@ -469,10 +469,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#optional-diffrax-tsit5-strategy" class="md-nav__link">
+  <a href="#adaptive-controller-boundary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional Diffrax Tsit5 strategy
+        Adaptive-controller boundary
       
     </span>
   </a>
@@ -699,10 +699,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#optional-diffrax-tsit5-strategy" class="md-nav__link">
+  <a href="#adaptive-controller-boundary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional Diffrax Tsit5 strategy
+        Adaptive-controller boundary
       
     </span>
   </a>
@@ -749,51 +749,19 @@ JAX array namespace, but step acceptance extracts scalar error values and uses
 Python loops and branches. Consequently, <code>adaptive=True</code> on the portable methods
 is not currently a JAX-<code>jit</code>-compatible execution path. This limitation belongs
 to the controller, not to the Euler, Heun, IMEX, or linearly implicit formulas.</p>
-<h2 id="optional-diffrax-tsit5-strategy">Optional Diffrax Tsit5 strategy<a class="headerlink" href="#optional-diffrax-tsit5-strategy" title="Permanent link">&para;</a></h2>
-<p><code>diffrax-tsit5</code> is an optional JAX-specific adaptive strategy. It is not required
-for differentiation of the portable fixed-step methods. It is useful when a run
-specifically requires a compiled adaptive controller, checkpointed adjoints, or
-other Diffrax capabilities.</p>
-<p>Install the optional dependencies:</p>
-<pre><code class="language-bash">pip install &quot;op_engine[jax]&quot;
-</code></pre>
-<p>Initialize <code>ModelCore</code> with JAX state and select the adaptive method:</p>
-<pre><code class="language-python">import jax.numpy as jnp
-import numpy as np
-
-from op_engine import CoreSolver, ModelCore
-from op_engine.core_solver import AdaptiveConfig, RunConfig
-from op_engine.model_core import ModelCoreOptions
-
-times = np.linspace(0.0, 10.0, 101, dtype=np.float32)
-core = ModelCore(
-    1,
-    1,
-    times,
-    options=ModelCoreOptions(dtype=np.float32),
-)
-core.set_initial_state(jnp.asarray([[1.0]], dtype=jnp.float32))
-
-
-def decay(_time, state):
-    return -0.2 * state
-
-
-config = RunConfig(
-    method=&quot;diffrax-tsit5&quot;,
-    adaptive=True,
-    adaptive_cfg=AdaptiveConfig(rtol=1e-6, atol=1e-8),
-)
-CoreSolver(core).run(decay, config=config)
-</code></pre>
-<p>The method uses Diffrax <code>Tsit5</code>, <code>PIDController</code>, and
-<code>RecursiveCheckpointAdjoint</code>, saving at every <code>ModelCore.time_grid</code> entry.
-The RHS and initial state must already be JAX-native; the solver rejects NumPy
-state instead of silently moving it to another device.</p>
-<p>The first Diffrax slice supports ordinary array state and a single deterministic
-RHS. Shaped PyTree/provider execution, block and draw
-batching, history/DDE terms, and hybrid CTMC execution are separate follow-up
-capabilities. Existing Array-API and sparse-accelerated methods remain unchanged.</p>
+<h2 id="adaptive-controller-boundary">Adaptive-controller boundary<a class="headerlink" href="#adaptive-controller-boundary" title="Permanent link">&para;</a></h2>
+<p>The built-in adaptive controller preserves the active array namespace, but its
+step acceptance is intentionally eager Python control flow. It is therefore not
+a JAX-<code>jit</code>-compatible controller even though the numerical step formulas are
+differentiable.</p>
+<p>Projects that require a compiled adaptive controller, checkpointed adjoints, or
+other solver-specific capabilities can provide those at an external plugin or
+provider boundary. A specialized integration may return a complete trajectory
+and adopt it through <code>ModelCore.apply_trajectory</code>; it does not need to add a
+backend-specific method to <code>CoreSolver</code>.</p>
+<p>This keeps optional packages such as Diffrax out of the core dependency and
+method surfaces. The portable fixed-step methods and their differentiation
+contract remain identical across conforming array namespaces.</p>
 
 
 
