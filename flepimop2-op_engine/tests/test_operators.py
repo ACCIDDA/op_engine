@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from op_engine.matrix_ops import StageOperatorContext
+from op_engine.matrix_ops import StageOperatorContext, build_advection_matrix
 from op_system import OperatorDescriptor
 
 from flepimop2.engine.op_engine.operators import (
@@ -44,6 +44,21 @@ def _generator_descriptor(
         velocity=2.0,
         kernel={"form": "generator", "params": {"matrix": "G"}},
         apply_to=apply_to,
+    )
+
+
+def _advection_descriptor() -> OperatorDescriptor:
+    """Build a typed advection descriptor for the test immune axis.
+
+    Returns:
+        An advection descriptor for a periodic uniform grid.
+    """
+    return OperatorDescriptor(
+        axis="imm",
+        kind="advection",
+        velocity=2.0,
+        bc="periodic",
+        apply_to=("X[imm]",),
     )
 
 
@@ -93,6 +108,60 @@ def test_generator_lifts_over_other_axes_and_apply_to() -> None:
 
     np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
     np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
+
+
+def test_advection_lifts_portable_operator_over_selected_states() -> None:
+    """Typed advection uses axis coordinates and the portable upwind stencil."""
+    state_names = (
+        "X__imm_x0",
+        "X__imm_x1",
+        "X__imm_x2",
+        "Y__imm_x0",
+        "Y__imm_x1",
+        "Y__imm_x2",
+    )
+    specs = compile_operator_descriptors(
+        (_advection_descriptor(),),
+        method="imex-euler",
+        state_names=state_names,
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_coords={"imm": np.asarray([0.0, 0.5, 1.0])},
+        params={},
+    )
+
+    assert callable(specs.default)
+    dt = 0.2
+    left, right = specs.default(
+        dt,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((len(state_names), 1))),
+    )
+    observed = (np.eye(len(state_names)) - np.asarray(left)) / dt
+    expected = np.zeros_like(observed)
+    expected[:3, :3] = build_advection_matrix(
+        3,
+        0.5,
+        2.0,
+        bc="periodic",
+    )
+
+    np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
+    np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
+
+
+def test_advection_rejects_nonuniform_axis_coordinates() -> None:
+    """The current finite-volume compiler reports its uniform-grid boundary."""
+    with pytest.raises(ValueError, match="must be uniformly spaced"):
+        compile_operator_descriptors(
+            (_advection_descriptor(),),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1", "x2")},
+            axis_coords={"imm": np.asarray([0.0, 0.5, 1.5])},
+            params={},
+        )
 
 
 def test_generator_uses_shared_op_system_validation() -> None:

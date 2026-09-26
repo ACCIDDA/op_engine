@@ -27,6 +27,7 @@ import numpy as np
 
 from op_engine.core_solver import OperatorSpecs
 from op_engine.matrix_ops import (
+    build_advection_matrix,
     make_constant_base_builder,
     make_stage_operator_factory,
 )
@@ -163,6 +164,42 @@ def _resolve_scalar(
     return scalar
 
 
+def _axis_spacing(
+    axis: str,
+    *,
+    axis_coords: Mapping[str, object],
+    size: int,
+) -> float:
+    """Return the positive spacing of one static uniform coordinate axis."""
+    if axis not in axis_coords:
+        msg = f"Advection operator axis {axis!r} has no axis_coords metadata."
+        raise KeyError(msg)
+    coordinates = np.asarray(axis_coords[axis], dtype=np.float64)
+    if coordinates.shape != (size,):
+        msg = (
+            f"Coordinates for advection axis {axis!r} must have shape {(size,)}; "
+            f"got {coordinates.shape}."
+        )
+        raise ValueError(msg)
+    if size < 2:
+        msg = f"Advection operator axis {axis!r} must contain at least two cells."
+        raise ValueError(msg)
+    if not np.isfinite(coordinates).all():
+        msg = f"Coordinates for advection axis {axis!r} must be finite."
+        raise ValueError(msg)
+    spacings = np.diff(coordinates)
+    if not np.all(spacings > 0.0):
+        msg = f"Coordinates for advection axis {axis!r} must be strictly increasing."
+        raise ValueError(msg)
+    if not np.allclose(spacings, spacings[0], rtol=1e-10, atol=1e-12):
+        msg = (
+            f"Advection axis {axis!r} must be uniformly spaced; "
+            "non-uniform grids are not yet supported."
+        )
+        raise ValueError(msg)
+    return float(spacings[0])
+
+
 def _resolve_generator(
     descriptor: OperatorDescriptor,
     *,
@@ -212,25 +249,49 @@ def _resolve_generator(
     return generator
 
 
-def _lift_generator(
+def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
     descriptor: OperatorDescriptor,
     *,
     state_names: tuple[str, ...],
     axis_order: tuple[str, ...],
     axis_labels: Mapping[str, tuple[str, ...]],
+    axis_coords: Mapping[str, object],
     params: Mapping[str, object],
 ) -> NDArray[np.float64]:
-    """Lift one row-source generator into the expanded flat state layout."""
+    """Lift one axis operator into the expanded flat state layout."""
     if descriptor.axis not in axis_labels:
         msg = f"Operator references unknown axis {descriptor.axis!r}."
         raise KeyError(msg)
     labels = axis_labels[descriptor.axis]
-    generator = _resolve_generator(descriptor, params=params, size=len(labels))
-    velocity = _resolve_scalar(
-        descriptor.velocity,
-        params=params,
-        field="axis_kernel velocity",
-    )
+    if descriptor.kind == "axis_kernel":
+        generator = _resolve_generator(descriptor, params=params, size=len(labels))
+        velocity = _resolve_scalar(
+            descriptor.velocity,
+            params=params,
+            field="axis_kernel velocity",
+        )
+        row_source_operator = velocity * generator
+    elif descriptor.kind in {"advection", "transport"}:
+        velocity = _resolve_scalar(
+            descriptor.velocity,
+            params=params,
+            field="advection velocity",
+        )
+        dx = _axis_spacing(
+            descriptor.axis,
+            axis_coords=axis_coords,
+            size=len(labels),
+        )
+        column_operator = build_advection_matrix(
+            len(labels),
+            dx,
+            velocity,
+            bc=descriptor.bc or "absorbing",
+        )
+        row_source_operator = np.asarray(column_operator).T
+    else:  # pragma: no cover - guarded by the public compiler
+        msg = f"Unsupported op_system operator kind {descriptor.kind!r}."
+        raise ValueError(msg)
     selected_bases = _apply_to_bases(descriptor)
     groups: dict[tuple[str, tuple[tuple[str, str], ...]], dict[str, int]] = {}
     for index, state_name in enumerate(state_names):
@@ -274,9 +335,9 @@ def _lift_generator(
             source_index = coordinate_indices[source_label]
             for target_position, target_label in enumerate(labels):
                 target_index = coordinate_indices[target_label]
-                flat[target_index, source_index] += (
-                    velocity * generator[source_position, target_position]
-                )
+                flat[target_index, source_index] += row_source_operator[
+                    source_position, target_position
+                ]
     return flat
 
 
@@ -348,35 +409,62 @@ def _resolve_generator_array(
     return generator
 
 
-def _lift_generator_array(  # noqa: PLR0913, PLR0914
+def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914
     descriptor: OperatorDescriptor,
     *,
     state_names: tuple[str, ...],
     axis_order: tuple[str, ...],
     axis_labels: Mapping[str, tuple[str, ...]],
+    axis_coords: Mapping[str, object],
     params: Mapping[str, object],
     reference: Array,
 ) -> Array:
-    """Lift a generator with a static index map and namespace-native matmul."""
+    """Lift an axis operator with a static map and namespace-native matmul."""
     if descriptor.axis not in axis_labels:
         msg = f"Operator references unknown axis {descriptor.axis!r}."
         raise KeyError(msg)
     labels = axis_labels[descriptor.axis]
     xp = _array_namespace(reference)
-    generator = _resolve_generator_array(
-        descriptor,
-        params=params,
-        size=len(labels),
-        xp=xp,
-        dtype=reference.dtype,
-    )
-    velocity = _resolve_scalar_array(
-        descriptor.velocity,
-        params=params,
-        field="axis_kernel velocity",
-        xp=xp,
-        dtype=reference.dtype,
-    )
+    if descriptor.kind == "axis_kernel":
+        generator = _resolve_generator_array(
+            descriptor,
+            params=params,
+            size=len(labels),
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        velocity = _resolve_scalar_array(
+            descriptor.velocity,
+            params=params,
+            field="axis_kernel velocity",
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        row_source_operator = xp.multiply(generator, velocity)
+    elif descriptor.kind in {"advection", "transport"}:
+        velocity = _resolve_scalar_array(
+            descriptor.velocity,
+            params=params,
+            field="advection velocity",
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        dx = _axis_spacing(
+            descriptor.axis,
+            axis_coords=axis_coords,
+            size=len(labels),
+        )
+        column_operator = build_advection_matrix(
+            len(labels),
+            dx,
+            velocity,
+            bc=descriptor.bc or "absorbing",
+            reference=reference,
+        )
+        row_source_operator = xp.permute_dims(column_operator, (1, 0))
+    else:  # pragma: no cover - guarded by the public compiler
+        msg = f"Unsupported op_system operator kind {descriptor.kind!r}."
+        raise ValueError(msg)
 
     selected_bases = _apply_to_bases(descriptor)
     groups: dict[tuple[str, tuple[tuple[str, str], ...]], dict[str, int]] = {}
@@ -431,8 +519,7 @@ def _lift_generator_array(  # noqa: PLR0913, PLR0914
                 lift_map[flat_position, kernel_position] += 1.0
 
     lift_array = xp.asarray(lift_map, dtype=reference.dtype)
-    scaled_generator = xp.multiply(generator, velocity)
-    kernel_values = xp.reshape(scaled_generator, (kernel_size * kernel_size,))
+    kernel_values = xp.reshape(row_source_operator, (kernel_size * kernel_size,))
     flat_values = xp.matmul(lift_array, kernel_values)
     return cast("Array", xp.reshape(flat_values, (flat_size, flat_size)))
 
@@ -475,6 +562,7 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
     state_names: tuple[str, ...],
     axis_order: tuple[str, ...],
     axis_labels: Mapping[str, tuple[str, ...]],
+    axis_coords: Mapping[str, object],
     params: Mapping[str, object],
     reference: Array,
 ) -> OperatorSpecs:
@@ -485,17 +573,18 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
         dtype=reference.dtype,
     )
     for descriptor in descriptors:
-        if descriptor.kind != "axis_kernel":
+        if descriptor.kind not in {"axis_kernel", "advection", "transport"}:
             msg = (
-                f"Unsupported op_system operator kind {descriptor.kind!r}; only "
-                "axis_kernel generators can currently be compiled."
+                f"Unsupported op_system operator kind {descriptor.kind!r}; "
+                "axis_kernel and advection operators can currently be compiled."
             )
             raise ValueError(msg)
-        contribution = _lift_generator_array(
+        contribution = _lift_axis_operator_array(
             descriptor,
             state_names=state_names,
             axis_order=axis_order,
             axis_labels=axis_labels,
+            axis_coords=axis_coords,
             params=params,
             reference=reference,
         )
@@ -526,6 +615,7 @@ def compile_operator_descriptors(  # noqa: PLR0913
     state_names: object,
     axis_order: object,
     axis_labels: object,
+    axis_coords: object | None = None,
     params: Mapping[str, object],
     reference: Array | None = None,
 ) -> OperatorSpecs:
@@ -533,6 +623,15 @@ def compile_operator_descriptors(  # noqa: PLR0913
     names = _require_string_sequence(state_names, name="state_names")
     axes = _require_string_sequence(axis_order, name="axis_order")
     labels = _axis_label_map(axis_labels)
+    if axis_coords is None:
+        coordinates: Mapping[str, object] = {}
+    elif isinstance(axis_coords, Mapping) and all(
+        isinstance(axis, str) for axis in axis_coords
+    ):
+        coordinates = cast("Mapping[str, object]", axis_coords)
+    else:
+        msg = "system option 'axis_coords' must be a mapping with string keys."
+        raise TypeError(msg)
     if reference is not None and not isinstance(reference, np.ndarray):
         return _compile_array_operator_descriptors(
             descriptors,
@@ -540,23 +639,25 @@ def compile_operator_descriptors(  # noqa: PLR0913
             state_names=names,
             axis_order=axes,
             axis_labels=labels,
+            axis_coords=coordinates,
             params=params,
             reference=reference,
         )
 
     base_operator = np.zeros((len(names), len(names)), dtype=np.float64)
     for descriptor in descriptors:
-        if descriptor.kind != "axis_kernel":
+        if descriptor.kind not in {"axis_kernel", "advection", "transport"}:
             msg = (
-                f"Unsupported op_system operator kind {descriptor.kind!r}; only "
-                "axis_kernel generators can currently be compiled."
+                f"Unsupported op_system operator kind {descriptor.kind!r}; "
+                "axis_kernel and advection operators can currently be compiled."
             )
             raise ValueError(msg)
-        base_operator += _lift_generator(
+        base_operator += _lift_axis_operator(
             descriptor,
             state_names=names,
             axis_order=axes,
             axis_labels=labels,
+            axis_coords=coordinates,
             params=params,
         )
 

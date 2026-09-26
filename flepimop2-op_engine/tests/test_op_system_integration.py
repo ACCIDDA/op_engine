@@ -30,6 +30,7 @@ from flepimop2.parameter.sparse_table import SparseTableParameter
 from flepimop2.simulator import Simulator
 from flepimop2.system.op_system import OpSystemSystem
 from flepimop2.typing import StateChangeEnum
+from op_engine.matrix_ops import build_advection_matrix
 
 from flepimop2.engine.op_engine import (
     OpEngineEngineConfig,
@@ -324,6 +325,89 @@ def test_axis_kernel_parameters_are_jittable_and_differentiable() -> None:  # no
     assert value == pytest.approx(expected_value, rel=2e-5)
     assert derivatives[0] == pytest.approx(expected_speed_derivative, rel=2e-5)
     assert derivatives[1] == pytest.approx(expected_generator_derivative, rel=2e-5)
+
+
+def test_advection_parameter_is_jittable_and_differentiable() -> None:
+    """Typed advection retains a dynamic velocity through the real JAX path."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    axes = AxisCollection({
+        "imm": Axis(
+            name="imm",
+            kind="ordinal",
+            size=3,
+            labels=("x0", "x1", "x2"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {
+                    "name": "imm",
+                    "type": "ordinal",
+                    "coords": ["x0", "x1", "x2"],
+                }
+            ],
+            "state": ["X[imm]"],
+            "equations": {"X[imm]": "0 * X[imm]"},
+            "initial_state": {
+                "X[imm]": {"shaped": "x_init", "axes": ["imm"]},
+            },
+            "operators": [
+                {
+                    "kind": "advection",
+                    "axis": "imm",
+                    "velocity": "speed",
+                    "bc": "periodic",
+                }
+            ],
+        }
+    )
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
+    )
+    times = np.asarray([0.0, 0.2], dtype=np.float64)
+    scalar_shape = ResolvedShape()
+    state_shape = axes.resolve_shape(("imm",))
+    initial = jnp.asarray([1.0, 0.0, 0.0], dtype=jnp.float32)
+
+    def final_target(speed: object) -> object:
+        result = engine.run(
+            system,
+            times,
+            {},
+            {
+                "speed": ParameterValue(speed, scalar_shape),
+                "x_init": ParameterValue(initial, state_shape),
+            },
+            model_state=system.model_state(axes),
+        )
+        assert result.__array_namespace__() is jnp
+        return result[-1, 2]
+
+    speed = jnp.asarray(0.5, dtype=jnp.float32)
+    value, derivative = jax.jit(jax.value_and_grad(final_target))(speed)
+
+    def expected_target(speed_value: float) -> float:
+        operator = np.asarray(
+            build_advection_matrix(3, 1.0, speed_value, bc="periodic")
+        )
+        half_step_left = np.eye(3) - 0.1 * operator
+        expected = np.linalg.solve(half_step_left, np.asarray(initial))
+        expected = np.linalg.solve(half_step_left, expected)
+        return float(expected[1])
+
+    epsilon = 1e-5
+    expected_value = expected_target(float(speed))
+    expected_derivative = (
+        expected_target(float(speed) + epsilon)
+        - expected_target(float(speed) - epsilon)
+    ) / (2.0 * epsilon)
+
+    assert value == pytest.approx(expected_value, rel=2e-6)
+    assert derivative == pytest.approx(expected_derivative, rel=2e-4)
 
 
 def test_real_op_system_is_jittable_and_differentiable_through_provider() -> None:  # noqa: PLR0914
