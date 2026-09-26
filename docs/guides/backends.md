@@ -59,3 +59,21 @@ backend-specific method to `CoreSolver`.
 This keeps optional packages such as Diffrax out of the core dependency and
 method surfaces. The portable fixed-step methods and their differentiation
 contract remain identical across conforming array namespaces.
+
+## Stochastic sampling boundary
+
+`TauLeapingSolver` keeps reaction-channel arithmetic in the state array's
+namespace but injects Poisson sampling through a `PoissonSampler`. This is
+necessary because the Array API does not define random-number generation and
+because NumPy's stateful generator and JAX's explicit keys have intentionally
+different semantics. `NumpyPoissonSampler` is provided as a convenience; JAX
+users can construct a fresh key for each leap from the solver's stable
+`step_index`.
+
+The current safety checks are eager, so tau-leaping is not a JIT-compatible
+path. Moreover, integer Poisson samples do not have an ordinary pathwise
+derivative. JAX remains useful for array execution and for differentiating a
+deterministic version of the same model, but `jax.grad` through the sampled
+trajectory is not part of this API contract. Score-function, reparameterized,
+or other stochastic gradient estimators should be implemented explicitly by
+an inference/provider layer rather than implied by the array namespace.
