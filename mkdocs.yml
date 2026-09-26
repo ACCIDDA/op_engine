@@ -48,10 +48,12 @@ nav:
   - Guides:
       - Getting Started: guides/getting-started.md
       - Choosing a Solver: guides/solver-methods.md
+      - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Biogeochemical Network: guides/biogeochemical-network.md
       - Backend Strategies: guides/backends.md
   - API Reference:
       - Core Solver: api-reference/core_solver.md
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
+      - Nonlinear Solver: api-reference/nonlinear_solver.md
       - Stochastic Solver: api-reference/stochastic_solver.md

@@ -29,6 +29,19 @@ from .matrix_ops import (
     smooth,
 )
 from .model_core import ModelCore
+from .nonlinear_solver import (
+    DenseNewtonSolver,
+    JacobianVectorProduct,
+    NewtonConfig,
+    NonlinearConvergenceError,
+    NonlinearJacobian,
+    NonlinearProblem,
+    NonlinearResidual,
+    NonlinearSolveDiagnostics,
+    NonlinearSolver,
+    NonlinearSolveResult,
+    require_converged,
+)
 from .stochastic_solver import (
     NumpyPoissonSampler,
     PoissonSampler,
@@ -39,9 +52,19 @@ from .stochastic_solver import (
 __all__ = [
     "Array",
     "CoreSolver",
+    "DenseNewtonSolver",
     "DiffusionConfig",
     "GridGeometry",
+    "JacobianVectorProduct",
     "ModelCore",
+    "NewtonConfig",
+    "NonlinearConvergenceError",
+    "NonlinearJacobian",
+    "NonlinearProblem",
+    "NonlinearResidual",
+    "NonlinearSolveDiagnostics",
+    "NonlinearSolveResult",
+    "NonlinearSolver",
     "NumpyPoissonSampler",
     "Operator",
     "PoissonSampler",
@@ -63,6 +86,7 @@ __all__ = [
     "matrix_grouped_count",
     "matrix_grouped_sum",
     "matrix_masked_sum",
+    "require_converged",
     "smooth",
 ]
 

@@ -318,7 +318,7 @@ def _solve_jax_adaptive_method(
     ],
 )
 def test_numpy_and_jax_implicit_methods_agree(method: str) -> None:
-    """Every existing dense implicit method preserves its input namespace."""
+    """Every existing dense linearly implicit method preserves its namespace."""
     jnp = pytest.importorskip("jax.numpy")
     numpy_result = _solve_implicit_method(use_jax=False, method=method)
     jax_result = _solve_implicit_method(use_jax=True, method=method)

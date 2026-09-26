@@ -1,9 +1,9 @@
 # Backend and solve-strategy boundaries
 
-`op_engine` selects the numerical namespace from the state array. Explicit and
-dense implicit/IMEX methods use that namespace's Array-API operations, including
-`linalg.solve`. The numerical method does not change when the array namespace
-changes.
+`op_engine` selects the numerical namespace from the state array. Explicit,
+dense linearly implicit, and IMEX methods use that namespace's Array-API
+operations, including `linalg.solve`. The numerical method does not change when
+the array namespace changes.
 
 Namespace portability and automatic differentiation are related but distinct.
 The Array API does not define `grad`, `jit`, or traced control flow. A namespace

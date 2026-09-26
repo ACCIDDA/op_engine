@@ -437,7 +437,7 @@ def test_imex_methods_convergence_order_on_linear_split_against_numerical_refere
 
 
 # -----------------------------------------------------------------------------
-# 2b) Fully implicit / Rosenbrock (Jacobian-driven) methods
+# 2b) Jacobian-driven linearly implicit methods
 # -----------------------------------------------------------------------------
 
 

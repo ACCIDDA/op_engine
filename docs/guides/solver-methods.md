@@ -18,9 +18,9 @@ numerical method.
 | `imex-euler` | 1 | One implicit-Euler operator factory | Robust first-order split systems |
 | `imex-heun-tr` | 2 | One trapezoidal operator factory | Second-order explicit/implicit splitting |
 | `imex-trbdf2` | 2 | Trapezoidal and BDF2-stage factories | Split systems needing stronger damping |
-| `implicit-euler` | 1 | Jacobian callable | Stiff systems where first-order damping is useful |
-| `trapezoidal` | 2 | Jacobian callable | Second-order linearly implicit integration |
-| `bdf2` | 2 | Jacobian callable | Uniform, fixed-step stiff integration |
+| `implicit-euler` | 1 | Jacobian callable | One-linearization approximation with first-order damping |
+| `trapezoidal` | 2 | Jacobian callable | One-linearization, second-order integration |
+| `bdf2` | 2 | Jacobian callable | Uniform, fixed-step, one-linearization integration |
 | `ros2` | 2 (embedded 1) | Jacobian callable | L-stable linearly implicit integration |
 
 `bdf2` currently requires a uniform output grid and `adaptive=False`. Its first
@@ -214,8 +214,9 @@ stepping methods remain in `op_engine`.
 
 ## Linearly implicit methods
 
-The fully implicit and Rosenbrock methods take a Jacobian callable. The
-callable returns an operator acting along `operator_axis`:
+The methods historically named `implicit-euler`, `trapezoidal`, and `bdf2`, as
+well as the Rosenbrock method, take a Jacobian callable. The callable returns an
+operator acting along `operator_axis`:
 
 ```python
 def jacobian(_time, state):
@@ -236,6 +237,11 @@ the module is imported.
 
 Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
 optional NumPy acceleration path and are not a JAX differentiation path.
+
+The first three methods perform a single linearization; they do not iterate a
+nonlinear residual to convergence. See the [nonlinear solver
+contract](nonlinear-solvers.md) for the boundary required by future SDIRK and
+fully implicit Runge--Kutta methods.
 
 ## Adaptivity and Array-API backends
 
