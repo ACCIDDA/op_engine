@@ -31,9 +31,15 @@ Install the JAX runtime for portable fixed-step JIT and differentiation:
 pip install "flepimop2-op_engine[jax]"
 ```
 
-Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, or
-dense IMEX/implicit methods. Typed dense operator descriptors are compiled in
-the evolving state's namespace, so descriptor parameters remain traceable too.
+Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, RK4,
+Dormand--Prince 5(4), or dense IMEX/implicit methods. Fixed-step explicit JAX
+trajectories use one `jax.lax.scan` and one complete-history assignment, so the
+traced program does not grow with the number of output times. Dormand--Prince
+reuses its FSAL stage between scan iterations. This compact trace is not a
+promise of constant-memory reverse-mode differentiation; JAX's transformation
+and checkpointing choices still govern gradient storage. Typed dense operator
+descriptors are compiled in the evolving state's namespace, so descriptor
+parameters remain traceable too.
 The compiler supports row-source axis-kernel generators and first-order upwind
 advection plus centered diffusion on uniform axes, including dynamic signed
 velocities and diffusion coefficients.

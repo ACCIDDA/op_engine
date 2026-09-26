@@ -54,6 +54,8 @@ class SolverMethod(StrEnum):
 
     EULER = "euler"
     HEUN = "heun"
+    RK4 = "rk4"
+    DOPRI5 = "dopri5"
     IMEX_EULER = "imex-euler"
     IMEX_HEUN_TR = "imex-heun-tr"
     IMEX_TRBDF2 = "imex-trbdf2"

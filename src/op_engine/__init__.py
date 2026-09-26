@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from importlib.metadata import version as _metadata_version
 
-from ._typing import Array
+from ._typing import Array as Array
+from ._typing import Scalar as Scalar
 from .adaptive_tau import AdaptiveTauLeapingConfig, AdaptiveTauLeapingSolver
 from .core_solver import (
     CoreSolver,
@@ -89,6 +90,7 @@ __all__ = [
     "PoissonSampler",
     "SSASample",
     "SSASampler",
+    "Scalar",
     "TauLeapingConfig",
     "TauLeapingSolver",
     "build_advection_matrix",

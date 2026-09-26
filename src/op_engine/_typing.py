@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, TypeAlias, runtime_checkable
 
 
 @runtime_checkable
@@ -35,4 +35,8 @@ class Array(Protocol):
         """Return a scalar value from a zero-dimensional array."""
 
 
-__all__ = ["Array"]
+Scalar: TypeAlias = float | Array
+"""A Python float or a backend-native rank-zero numerical array."""
+
+
+__all__ = ["Array", "Scalar"]
