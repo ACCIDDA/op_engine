@@ -28,6 +28,10 @@ step uses linearly implicit Euler because no previous state exists yet. The
 other methods support the built-in adaptive controller, subject to the
 compiled-control-flow boundary described below.
 
+The [linear-multistep design note](linear-multistep-methods.md) records the
+coefficient/history contract, restart rules, and the current no-go decision on
+exposing BDF3 before variable-step and rejection semantics exist.
+
 ## Stochastic reaction networks
 
 Fixed-step explicit tau-leaping approximates the number of firings in each

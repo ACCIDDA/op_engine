@@ -48,6 +48,7 @@ nav:
   - Guides:
       - Getting Started: guides/getting-started.md
       - Choosing a Solver: guides/solver-methods.md
+      - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Biogeochemical Network: guides/biogeochemical-network.md
       - Backend Strategies: guides/backends.md
