@@ -39,7 +39,13 @@ pip install "op_engine[jax]"
 With flepimop2 adapter:
 
 ```bash
-pip install "op_engine[flepimop2]"
+pip install flepimop2-op-engine
+```
+
+To use the op_system provider contract as well:
+
+```bash
+pip install "flepimop2-op-engine[op-system]"
 ```
 
 ## Quickstart

@@ -1,6 +1,6 @@
 [project]
 name = "op_engine"
-version = "0.1.1"
+version = "0.2.0"
 description = "Multiphysics integration engine for ODEs and PDEs using implicit-explicit operator splitting"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11,<3.15"
@@ -26,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: MIT License",
 ]
 

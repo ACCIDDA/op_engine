@@ -2,6 +2,13 @@
 
 Provider package that adapts `op_engine` to `flepimop2`.
 
+Install the provider directly, or include its op_system integration extra:
+
+```bash
+pip install flepimop2-op-engine
+pip install "flepimop2-op-engine[op-system]"
+```
+
 For systems supplied by `flepimop2-op_system`, the provider consumes the
 compiled `state_names`, `initial_state`, and `axis_labels` options to assemble
 the flat solver state. Scalar seeds may be shared by multiple state cells, and

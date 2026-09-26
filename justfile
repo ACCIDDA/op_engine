@@ -116,18 +116,19 @@ build-test-provider:
 	cd ..
 	uv run --with build python -m build --wheel --outdir "${CLEANROOM}/core-dist"
 	uv venv --python "${UV_PYTHON_VERSION:-3.12}" "${CLEANROOM}/venv"
-	uv pip install --python "${CLEANROOM}/venv/bin/python" "flepimop2 @ git+https://github.com/ACCIDDA/flepimop2.git@main"
-	uv pip install --python "${CLEANROOM}/venv/bin/python" "${CLEANROOM}/core-dist"/*.whl
-	uv pip install --python "${CLEANROOM}/venv/bin/python" --no-deps "${CLEANROOM}/provider-dist"/*.whl
-	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
+	uv pip install --python "${CLEANROOM}/venv/bin/python" --resolution lowest-direct --find-links "${CLEANROOM}/core-dist" "${CLEANROOM}/provider-dist"/*.whl
+	uv pip install --python "${CLEANROOM}/venv/bin/python" pytest
 	cp flepimop2-op_engine/pyproject.toml "${CLEANROOM}/pyproject.toml"
 	cp flepimop2-op_engine/README.md "${CLEANROOM}/README.md"
 	cp flepimop2-op_engine/LICENSE "${CLEANROOM}/LICENSE"
 	cp -R flepimop2-op_engine/src "${CLEANROOM}/src"
 	cp -R flepimop2-op_engine/tests "${CLEANROOM}/tests"
 	cd "${CLEANROOM}"
+	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests/test_config.py tests/test_engine.py --quiet --exitfirst
+	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
 	export PATH="${CLEANROOM}/venv/bin:${PATH}"
 	export PIP_FIND_LINKS="${CLEANROOM}/core-dist"
+	export OP_ENGINE_TEST_DIST="${CLEANROOM}/core-dist"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
 
 build-test: build-test-core build-test-provider

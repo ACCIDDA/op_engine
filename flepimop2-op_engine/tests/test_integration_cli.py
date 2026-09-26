@@ -16,6 +16,7 @@
 
 """Integration test for external provider functionality."""
 
+import os
 import re
 from pathlib import Path
 
@@ -27,9 +28,15 @@ from flepimop2.testing import external_provider_package, flepimop2_run
 def test_external_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Run a simulation with an installed external op_engine provider package."""
     cwd = Path(__file__).parent.resolve()
-    core_root = cwd.parents[1]
+    dist_dir = os.environ.get("OP_ENGINE_TEST_DIST")
+    if dist_dir is None:
+        core_requirement = cwd.parents[1].as_uri()
+    else:
+        wheels = sorted(Path(dist_dir).glob("op_engine-*.whl"))
+        assert len(wheels) == 1
+        core_requirement = wheels[0].as_uri()
     constraints = tmp_path / "constraints.txt"
-    constraints.write_text(f"op-engine @ {core_root.as_uri()}\n")
+    constraints.write_text(f"op-engine @ {core_requirement}\n")
     monkeypatch.setenv("PIP_CONSTRAINT", str(constraints))
     monkeypatch.setenv("PIP_NO_CACHE_DIR", "1")
     external_provider_package(
