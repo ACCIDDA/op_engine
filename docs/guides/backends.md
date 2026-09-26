@@ -63,18 +63,20 @@ contract remain identical across conforming array namespaces.
 
 ## Stochastic sampling boundary
 
-`TauLeapingSolver` keeps reaction-channel arithmetic in the state array's
-namespace but injects Poisson sampling through a `PoissonSampler`. This is
-necessary because the Array API does not define random-number generation and
-because NumPy's stateful generator and JAX's explicit keys have intentionally
-different semantics. `NumpyPoissonSampler` is provided as a convenience; JAX
-users can construct a fresh key for each leap from the solver's stable
-`step_index`.
+`DirectSSASolver` and `TauLeapingSolver` keep reaction-channel arithmetic in
+the state array's namespace but inject sampling through `SSASampler` and
+`PoissonSampler`, respectively. This is necessary because the Array API does
+not define random-number generation and because NumPy's stateful generator and
+JAX's explicit keys have intentionally different semantics.
+`NumpySSASampler` and `NumpyPoissonSampler` are provided as conveniences.
+JAX users can construct fresh keys from the stable direct-SSA `draw_index` or
+tau-leaping `step_index`.
 
-The current safety checks are eager, so tau-leaping is not a JIT-compatible
-path. Moreover, integer Poisson samples do not have an ordinary pathwise
-derivative. JAX remains useful for array execution and for differentiating a
-deterministic version of the same model, but `jax.grad` through the sampled
+The current safety checks and stochastic event loops are eager, so neither
+stochastic solver is a JIT-compatible path. Moreover, categorical reaction
+events and integer Poisson samples do not have an ordinary pathwise derivative.
+JAX remains useful for eager array execution and for differentiating a
+deterministic version of the same model, but `jax.grad` through a sampled
 trajectory is not part of this API contract. Score-function, reparameterized,
-or other stochastic gradient estimators should be implemented explicitly by
-an inference/provider layer rather than implied by the array namespace.
+or other stochastic gradient estimators should be implemented explicitly by an
+inference/provider layer rather than implied by the array namespace.
