@@ -119,6 +119,21 @@ class StateLayout(StrEnum):
     BLOCK = "block"
 
 
+class AdaptiveReplayMode(StrEnum):
+    """Execution strategy for a frozen adaptive schedule."""
+
+    AUTO = "auto"
+    UNROLLED = "unrolled"
+    COMPACT = "compact"
+
+
+class ReplayCheckpoint(StrEnum):
+    """Rematerialization policy for compact JAX replay."""
+
+    NONE = "none"
+    STEP = "step"
+
+
 class StochasticMethod(StrEnum):
     """Discrete reaction-network methods exposed by the provider."""
 
@@ -142,6 +157,9 @@ class OpEngineEngineConfig(BaseModel):
     state_layout: StateLayout = StateLayout.FLAT
     block_axis: str | None = None
     adaptive: bool = False
+    adaptive_replay: AdaptiveReplayMode = AdaptiveReplayMode.AUTO
+    replay_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
+    schedule_tag: str | None = None
     fixed_max_step: float | None = Field(
         default=None,
         gt=0.0,
@@ -230,6 +248,22 @@ class OpEngineEngineConfig(BaseModel):
         if self.block_axis is not None and self.state_layout is not StateLayout.BLOCK:
             msg = "block_axis may be set only when state_layout='block'."
             raise ValueError(msg)
+        if self.adaptive_replay is AdaptiveReplayMode.COMPACT and (
+            not self.adaptive or not self.method.is_explicit
+        ):
+            msg = (
+                "adaptive_replay='compact' requires adaptive=True and an "
+                "explicit method."
+            )
+            raise ValueError(msg)
+        if self.replay_checkpoint is not ReplayCheckpoint.NONE and (
+            self.adaptive_replay is not AdaptiveReplayMode.COMPACT
+        ):
+            msg = "Replay checkpointing requires adaptive_replay='compact'."
+            raise ValueError(msg)
+        if self.schedule_tag is not None and not self.schedule_tag.strip():
+            msg = "schedule_tag must not be empty when provided."
+            raise ValueError(msg)
         return self
 
     def to_run_config(
@@ -272,8 +306,10 @@ class OpEngineEngineConfig(BaseModel):
 
 
 __all__ = [
+    "AdaptiveReplayMode",
     "ExecutionMode",
     "OpEngineEngineConfig",
+    "ReplayCheckpoint",
     "SolverMethod",
     "StateLayout",
     "StochasticMethod",

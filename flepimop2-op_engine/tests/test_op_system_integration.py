@@ -204,7 +204,7 @@ def test_pytree_layout_preserves_numpy_namespace() -> None:
     )
 
 
-def test_simulator_discovers_schedule_for_jitted_provider_replay() -> None:
+def test_simulator_schedule_supports_compact_jitted_replay() -> None:  # noqa: PLR0914
     """A Simulator discovery mesh supports conditional JAX provider gradients."""
     jax = pytest.importorskip("jax")
     jnp = pytest.importorskip("jax.numpy")
@@ -246,6 +246,7 @@ def test_simulator_discovers_schedule_for_jitted_provider_replay() -> None:
     schedule = engine.last_adaptive_schedule
     assert schedule is not None
     assert schedule.method is SolverMethod.DOPRI5
+    assert schedule.context_signature is not None
     assert discovered.__array_namespace__() is jnp
 
     def replay(replay_rate: Array, replay_initial: Array) -> Array:
@@ -261,6 +262,12 @@ def test_simulator_discovers_schedule_for_jitted_provider_replay() -> None:
         )
         return result[-1, 1]
 
+    replay_jaxpr = jax.make_jaxpr(replay)(rate, initial)
+    scan_equations = [
+        equation
+        for equation in replay_jaxpr.jaxpr.eqns
+        if equation.primitive.name == "scan"
+    ]
     value, gradients = jax.jit(jax.value_and_grad(replay, argnums=(0, 1)))(
         rate,
         initial,
@@ -271,6 +278,27 @@ def test_simulator_discovers_schedule_for_jitted_provider_replay() -> None:
     assert value == pytest.approx(expected_value, rel=2e-5)
     assert gradients[0] == pytest.approx(expected_value, rel=3e-5)
     assert gradients[1] == pytest.approx(expected_factor, rel=3e-5)
+    assert len(scan_equations) == 1
+
+    changed_system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "state": ["X"],
+            "equations": {"X": "2 * rate * X"},
+            "initial_state": {"X": "seed"},
+        }
+    )
+    with pytest.raises(ValueError, match="context does not match"):
+        engine.run(
+            changed_system,
+            times,
+            {},
+            {
+                "seed": ParameterValue(initial, shape),
+                "rate": ParameterValue(rate, shape),
+            },
+            adaptive_schedule=schedule,
+        )
 
 
 def test_routing_sparse_table_and_shaped_initial_state_run_end_to_end() -> None:

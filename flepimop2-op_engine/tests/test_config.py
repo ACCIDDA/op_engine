@@ -33,8 +33,10 @@ from op_engine.core_solver import (  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
 from flepimop2.engine.op_engine import (  # noqa: E402
+    AdaptiveReplayMode,
     ExecutionMode,
     OpEngineEngineConfig,
+    ReplayCheckpoint,
     SolverMethod,
     StateLayout,
     StochasticMethod,
@@ -270,6 +272,8 @@ def test_engine_config_defaults_to_deterministic_execution() -> None:
 
     assert config.mode is ExecutionMode.DETERMINISTIC
     assert config.state_layout is StateLayout.FLAT
+    assert config.adaptive_replay is AdaptiveReplayMode.AUTO
+    assert config.replay_checkpoint is ReplayCheckpoint.NONE
     assert config.stochastic_method is StochasticMethod.TAU_LEAPING
 
 
@@ -305,6 +309,42 @@ def test_engine_config_rejects_unsupported_structured_layouts(
     kwargs: dict[str, object],
 ) -> None:
     """Unsupported structured combinations fail instead of flattening silently."""
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_engine_config_accepts_compact_checkpointed_replay() -> None:
+    """Explicit adaptive methods expose an opt-in rematerialized scan."""
+    config = OpEngineEngineConfig(
+        method=SolverMethod.DOPRI5,
+        adaptive=True,
+        adaptive_replay=AdaptiveReplayMode.COMPACT,
+        replay_checkpoint=ReplayCheckpoint.STEP,
+        schedule_tag="model-v2",
+    )
+
+    assert config.adaptive_replay is AdaptiveReplayMode.COMPACT
+    assert config.replay_checkpoint is ReplayCheckpoint.STEP
+    assert config.schedule_tag == "model-v2"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"adaptive_replay": AdaptiveReplayMode.COMPACT},
+        {
+            "adaptive": True,
+            "method": SolverMethod.SDIRK2,
+            "adaptive_replay": AdaptiveReplayMode.COMPACT,
+        },
+        {"adaptive": True, "replay_checkpoint": ReplayCheckpoint.STEP},
+        {"schedule_tag": "  "},
+    ],
+)
+def test_engine_config_rejects_invalid_replay_policies(
+    kwargs: dict[str, object],
+) -> None:
+    """Checkpointing and forced compact replay fail outside their surface."""
     with pytest.raises(ValidationError):
         OpEngineEngineConfig(**kwargs)  # type: ignore[arg-type]
 
