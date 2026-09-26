@@ -89,6 +89,11 @@ def _namespace_of(value: object) -> Any:  # noqa: ANN401
     return namespace()
 
 
+def _is_jax_namespace(namespace: object) -> bool:
+    """Return whether an Array-API namespace is JAX's NumPy namespace."""
+    return getattr(namespace, "__name__", "") == "jax.numpy"
+
+
 def _array_item(value: Array, key: object) -> Array:
     """Index an Array while keeping the shared public protocol minimal."""
     return cast("_IndexableArray", value)[key]
@@ -184,7 +189,7 @@ def _rhs_from_stepper(
             raise ValueError(msg)
 
         flat_state = _array_item(state_arr, (slice(None), 0))
-        out = stepper(np.float64(time), cast("Any", flat_state))
+        out = stepper(cast("Any", time), cast("Any", flat_state))
         out_xp = _namespace_of(out)
         if out_xp is not xp:
             msg = "System stepper must preserve the state array namespace."
@@ -233,6 +238,48 @@ def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
     xp = _namespace_of(y0)
     core.set_initial_state(cast("Array", xp.reshape(y0, (n_states, 1))))
     return core
+
+
+def _run_jax_fixed_explicit_trajectory(
+    solver: CoreSolver,
+    rhs: Callable[[float, Array], Array],
+    *,
+    method: SolverMethod,
+    times: np.ndarray,
+) -> None:
+    """Run a fixed explicit solve as one compact JAX scan."""
+    import jax  # noqa: PLC0415
+
+    initial_state = solver.core.get_current_state()
+    xp = _namespace_of(initial_state)
+    time_values = cast("Array", xp.asarray(times, dtype=initial_state.dtype))
+    step_times = _array_item(time_values, slice(None, -1))
+    step_sizes = cast(
+        "Array",
+        xp.subtract(_array_item(time_values, slice(1, None)), step_times),
+    )
+
+    def advance(state: Array, step: tuple[Array, Array]) -> tuple[Array, Array]:
+        time, dt = step
+        next_state, _next_stage = solver.fixed_explicit_step(
+            rhs,
+            method=method.value,
+            t=cast("float", time),
+            dt=cast("float", dt),
+            y=state,
+        )
+        return next_state, next_state
+
+    _final_state, tail = jax.lax.scan(
+        advance,
+        initial_state,
+        (step_times, step_sizes),
+    )
+    trajectory = cast(
+        "Array",
+        xp.concat((xp.expand_dims(initial_state, axis=0), tail), axis=0),
+    )
+    solver.core.apply_trajectory(trajectory)
 
 
 def _last_state(core: ModelCore, *, n_state: int) -> Array:
@@ -852,7 +899,27 @@ class OpEngineFlepimop2Engine(EngineABC):
             operators=operators.default if is_imex else None,
             operator_axis=operator_axis,
         )
-        solver.run(rhs, config=run_cfg)
+        state_namespace = _namespace_of(y0)
+        use_jax_scan = (
+            _is_jax_namespace(state_namespace)
+            and not run_cfg.adaptive
+            and method
+            in {
+                SolverMethod.EULER,
+                SolverMethod.HEUN,
+                SolverMethod.RK4,
+                SolverMethod.DOPRI5,
+            }
+        )
+        if use_jax_scan:
+            _run_jax_fixed_explicit_trajectory(
+                solver,
+                rhs,
+                method=method,
+                times=times,
+            )
+        else:
+            solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)
         # flepimop2#343 will generalize this inherited annotation to Array.

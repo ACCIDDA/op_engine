@@ -53,7 +53,7 @@ class _GoodStepper:
     ) -> np.ndarray:
         _ = time
         _ = params
-        return np.asarray(state, dtype=np.float64)
+        return state
 
 
 class _GoodSystem(SystemABC, module="test_good"):
@@ -148,6 +148,40 @@ def test_engine_run_identity_rhs_behavior() -> None:
     state_values = out[:, 1]
     assert state_values[1] >= state_values[0]
     assert state_values[2] >= state_values[1]
+
+
+@pytest.mark.parametrize("method", [SolverMethod.RK4, SolverMethod.DOPRI5])
+def test_jax_fixed_explicit_trajectory_is_one_differentiable_scan(
+    method: SolverMethod,
+) -> None:
+    """Long JAX trajectories stay compact and differentiable."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=method),
+    )
+    system = _GoodSystem()
+    times = np.linspace(0.0, 1.0, 1001, dtype=np.float64)
+    _initial, model_state = _initial_state(1.0)
+
+    def solve(initial: object) -> object:
+        result = engine.run(
+            system,
+            times,
+            {"x0": ParameterValue(initial, ResolvedShape())},
+            {},
+            model_state=model_state,
+        )
+        return result[-1, 1]
+
+    initial = jnp.asarray(1.0, dtype=jnp.float32)
+    jaxpr = jax.make_jaxpr(solve)(initial)
+    assert str(jaxpr).count("scan[") == 1
+
+    value, derivative = jax.jit(jax.value_and_grad(solve))(initial)
+    assert value == pytest.approx(np.e, rel=2e-5)
+    assert derivative == pytest.approx(np.e, rel=2e-5)
 
 
 # -----------------------------------------------------------------------------

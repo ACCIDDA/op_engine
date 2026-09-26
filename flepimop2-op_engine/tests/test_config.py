@@ -111,7 +111,15 @@ def test_engine_config_allows_unknown_fields() -> None:
 def test_engine_config_rejects_unknown_method() -> None:
     """Engine config validates method name."""
     with pytest.raises(ValidationError):
-        OpEngineEngineConfig(method="rk4")  # type: ignore[arg-type]
+        OpEngineEngineConfig(method="bogus")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("method", [SolverMethod.RK4, SolverMethod.DOPRI5])
+def test_engine_config_exposes_high_order_explicit_methods(
+    method: SolverMethod,
+) -> None:
+    """The provider exposes core's high-order explicit methods."""
+    assert OpEngineEngineConfig(method=method).to_run_config().method == method.value
 
 
 def test_engine_config_gamma_bounds_validation() -> None:

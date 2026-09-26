@@ -1944,7 +1944,10 @@ class CoreSolver:
             ValueError: If the RHS result has an unexpected shape.
         """
         xp = _namespace_of(y)
-        result = rhs_func(float(t), y)
+        # Preserve traced scalar times. Coercing here with ``float`` would
+        # concretize JAX tracers and prevent callers from placing fixed steps
+        # inside backend-native loop primitives such as ``jax.lax.scan``.
+        result = rhs_func(t, y)
         result_xp = _namespace_of(result)
         if result_xp is not xp:
             msg = (
@@ -2696,6 +2699,49 @@ class CoreSolver:
             first_stage=first_stage,
         )
         return high, last_stage
+
+    def fixed_explicit_step(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        method: str,
+        t: float,
+        dt: float,
+        y: Array,
+        first_stage: Array | None = None,
+    ) -> tuple[Array, Array | None]:
+        """Take one functional fixed step with an explicit method.
+
+        This boundary does not mutate :class:`ModelCore` history, so callers
+        can compose it with backend-native loop primitives and apply the
+        completed trajectory once.
+
+        Args:
+            rhs_func: Function computing the explicit RHS F(t, y).
+            method: Explicit solver method name.
+            t: Step start time.
+            dt: Step size.
+            y: State at the step start.
+            first_stage: Optional cached FSAL stage.
+
+        Returns:
+            Next state and an optional FSAL stage for the following step.
+
+        Raises:
+            ValueError: If ``method`` is not an explicit method.
+        """
+        normalized_method = _normalize_method(method)
+        if normalized_method not in _EXPLICIT_METHODS:
+            msg = f"Method '{method}' is not an explicit solver method"
+            raise ValueError(msg)
+        return self._step_explicit_fixed(
+            rhs_func,
+            method=normalized_method,
+            t=t,
+            dt=dt,
+            y=y,
+            first_stage=first_stage,
+        )
 
     @staticmethod
     def _require_err_out(step: StepIO) -> NDArray[np.floating]:
