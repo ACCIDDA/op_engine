@@ -441,6 +441,42 @@ class ModelCore:
 
         self.current_step = 0
 
+    def apply_trajectory(self, trajectory: Array) -> None:
+        """Adopt a complete trajectory produced by a whole-grid solver.
+
+        This provides one functional update for strategies such as Diffrax that
+        return every requested output at once. It avoids replaying immutable
+        history through one concatenation per time point.
+
+        Args:
+            trajectory: Array shaped ``(n_timesteps, *state_shape)``.
+
+        Raises:
+            TypeError: If the trajectory changes the active array namespace.
+            ValueError: If the trajectory shape is invalid.
+        """
+        state_namespace = _namespace_of(self.current_state)
+        trajectory_namespace = _namespace_of(trajectory)
+        if trajectory_namespace is not state_namespace:
+            msg = "Trajectory must preserve the current state array namespace."
+            raise TypeError(msg)
+
+        adopted = cast(
+            "Array",
+            state_namespace.asarray(trajectory, dtype=self.current_state.dtype),
+        )
+        expected_shape = (self.n_timesteps, *self.state_shape)
+        if adopted.shape != expected_shape:
+            msg = (
+                f"Trajectory shape {adopted.shape} does not match expected "
+                f"{expected_shape}."
+            )
+            raise ValueError(msg)
+
+        self.current_state = _array_slice(adopted, -1)
+        self.state_array = adopted if self.store_history else None
+        self.current_step = self.n_timesteps - 1
+
     def get_current_state(self) -> Array:
         """
         Return the current state.

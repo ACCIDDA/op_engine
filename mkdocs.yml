@@ -46,6 +46,7 @@ nav:
   - Development:
       - Creating A Release: development/creating-a-release.md
   - Guides:
+      - Backend Strategies: guides/backends.md
       - Getting Started: guides/getting-started.md
   - API Reference:
       - Core Solver: api-reference/core_solver.md

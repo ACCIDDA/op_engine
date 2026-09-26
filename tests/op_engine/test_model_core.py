@@ -435,3 +435,33 @@ def test_dtype_propagation() -> None:
     assert core.dt_grid.dtype == np.float32
     if core.state_array is not None:
         assert core.state_array.dtype == np.float32
+
+
+def test_apply_trajectory_updates_current_state_and_history() -> None:
+    """Whole-grid updates replace history and land on the final timestep."""
+    core = ModelCore(
+        n_states=2,
+        n_subgroups=1,
+        time_grid=np.asarray([0.0, 0.5, 1.0]),
+    )
+    core.set_initial_state(np.zeros(core.state_shape))
+    trajectory = np.arange(6, dtype=float).reshape(3, 2, 1)
+
+    core.apply_trajectory(trajectory)
+
+    assert core.current_step == 2
+    assert core.state_array is not None
+    np.testing.assert_array_equal(core.state_array, trajectory)
+    np.testing.assert_array_equal(core.get_current_state(), trajectory[-1])
+
+
+def test_apply_trajectory_rejects_wrong_shape() -> None:
+    """Whole-grid updates validate the time and state dimensions together."""
+    core = ModelCore(
+        n_states=1,
+        n_subgroups=1,
+        time_grid=np.asarray([0.0, 1.0]),
+    )
+
+    with pytest.raises(ValueError, match="Trajectory shape"):
+        core.apply_trajectory(np.zeros((3, 1, 1)))

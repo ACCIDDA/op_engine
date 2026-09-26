@@ -12,6 +12,8 @@ Between consecutive output times, the solver may take either:
 Supported methods (keyword `method=`):
     - "euler":        Explicit Euler (order 1), adaptive via step-doubling.
     - "heun":         Explicit Heun / RK2 (order 2), embedded Euler estimator.
+    - "diffrax-tsit5": Differentiable adaptive Tsit5 for JAX state, provided by
+                        the optional ``jax`` extra.
     - "imex-euler":   IMEX Euler: explicit Euler on F(t,y), implicit Euler on A.
                       Adaptive via step-doubling (IMEX step-doubling).
     - "imex-heun-tr": IMEX Heun-Trapezoidal: Heun on F, trapezoidal/CN on A.
@@ -51,6 +53,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
+from importlib import import_module
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
 
 import numpy as np
@@ -99,6 +102,14 @@ _UNSUPPORTED_OPERATOR_TYPE_MSG = (
 _ARRAY_API_ERROR_MSG = (
     "Explicit solver arrays must implement __array_namespace__(); got {type_name}."
 )
+_DIFFRAX_ADAPTIVE_ERROR_MSG = "Method 'diffrax-tsit5' requires adaptive=True."
+_DIFFRAX_CONFIGURATION_ERROR_MSG = (
+    "Method 'diffrax-tsit5' does not yet support operators or a Jacobian."
+)
+_DIFFRAX_DEPENDENCY_ERROR_MSG = (
+    "Method 'diffrax-tsit5' requires optional dependencies. "
+    "Install them with `pip install 'op_engine[jax]'`."
+)
 
 
 # =============================================================================
@@ -111,6 +122,7 @@ MethodName = Literal[
     "euler",
     "heun",
     "imex-euler",
+    "diffrax-tsit5",
     "imex-heun-tr",
     "imex-trbdf2",
     "implicit-euler",
@@ -1447,6 +1459,7 @@ class CoreSolver:
             "cn": "trapezoidal",
             "crank-nicolson": "trapezoidal",
             "trap": "trapezoidal",
+            "tsit5": "diffrax-tsit5",
             "rosenbrock": "ros2",
             "rosenbrock-w": "ros2",
         }
@@ -1456,6 +1469,7 @@ class CoreSolver:
             "euler",
             "heun",
             "imex-euler",
+            "diffrax-tsit5",
             "imex-heun-tr",
             "imex-trbdf2",
             "implicit-euler",
@@ -1694,6 +1708,25 @@ class CoreSolver:
 
         strict = bool(cfg.strict)
         adaptive = bool(cfg.adaptive)
+
+        if method_in == "diffrax-tsit5":
+            if not adaptive:
+                raise ValueError(_DIFFRAX_ADAPTIVE_ERROR_MSG)
+            if (
+                op_default is not None
+                or op_tr is not None
+                or op_bdf2 is not None
+                or jacobian is not None
+            ):
+                raise ValueError(_DIFFRAX_CONFIGURATION_ERROR_MSG)
+            return RunPlan(
+                method=method_in,
+                gamma=None,
+                op_default=None,
+                op_tr=None,
+                op_bdf2=None,
+                jacobian=None,
+            )
 
         if method_in in {"euler", "heun"}:
             return self._plan_for_explicit(method_in, op_default, strict=strict)
@@ -2915,6 +2948,34 @@ class CoreSolver:
 
         return self._y_curr
 
+    def _run_diffrax(self, rhs_func: RHSFunction, *, config: RunConfig) -> None:
+        """Run the optional differentiable Tsit5 strategy over the output grid.
+
+        Raises:
+            ImportError: If the optional JAX/Diffrax dependencies are unavailable.
+        """
+        if self.core.n_timesteps <= 1:
+            return
+
+        try:
+            strategy_module = import_module("op_engine._diffrax")
+        except ModuleNotFoundError as exc:
+            raise ImportError(_DIFFRAX_DEPENDENCY_ERROR_MSG) from exc
+        solve_tsit5 = cast("Callable[..., Array]", strategy_module.solve_tsit5)
+
+        trajectory = solve_tsit5(
+            rhs_func,
+            np.asarray(self.core.time_grid, dtype=self.dtype),
+            self.core.get_current_state(),
+            rtol=config.adaptive_cfg.rtol,
+            atol=config.adaptive_cfg.atol,
+            dt_init=config.adaptive_cfg.dt_init,
+            dt_min=config.dt_controller.dt_min,
+            dt_max=config.dt_controller.dt_max,
+            max_steps=config.adaptive_cfg.max_steps,
+        )
+        self.core.apply_trajectory(trajectory)
+
     # ------------------------------------------------------------------
     # Public run loop
     # ------------------------------------------------------------------
@@ -2932,6 +2993,9 @@ class CoreSolver:
         """
         cfg = config or RunConfig()
         plan = self._resolve_run_plan(cfg)
+        if plan.method == "diffrax-tsit5":
+            self._run_diffrax(rhs_func, config=cfg)
+            return
 
         if plan.method in {"euler", "heun"}:
             self._run_explicit(rhs_func, plan=plan, config=cfg)
