@@ -84,12 +84,34 @@ _IMPLICIT_METHODS: frozenset[SolverMethod] = frozenset(
 )
 
 
+class ExecutionMode(StrEnum):
+    """Provider execution modes."""
+
+    DETERMINISTIC = "deterministic"
+    STOCHASTIC = "stochastic"
+    HYBRID = "hybrid"
+
+
+class StochasticMethod(StrEnum):
+    """Discrete reaction-network methods exposed by the provider."""
+
+    DIRECT_SSA = "direct-ssa"
+    TAU_LEAPING = "tau-leaping"
+
+
 class OpEngineEngineConfig(BaseModel):
     """Configuration schema for op_engine when used as a flepimop2 engine."""
 
     model_config = ConfigDict(extra="allow")
 
+    mode: ExecutionMode = ExecutionMode.DETERMINISTIC
     method: SolverMethod = SolverMethod.HEUN
+    stochastic_method: StochasticMethod = StochasticMethod.TAU_LEAPING
+    stochastic_reactions: tuple[str, ...] = ()
+    random_seed: int | None = Field(default=None, ge=0)
+    tau_max_step: float | None = Field(default=None, gt=0.0)
+    stochastic_max_steps: int = Field(default=1_000_000, ge=1)
+    ssa_max_events: int = Field(default=1_000_000, ge=1)
     adaptive: bool = False
     strict: bool = True
     rtol: float = Field(default=1e-6, ge=0.0)
@@ -106,7 +128,8 @@ class OpEngineEngineConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_explicit_empty_operators(self) -> OpEngineEngineConfig:
         if (
-            self.method.startswith("imex-")
+            self.mode is not ExecutionMode.STOCHASTIC
+            and self.method.startswith("imex-")
             and "operators" in self.model_fields_set
             and not _has_operator_specs(_coerce_operator_specs(self.operators))
         ):
@@ -115,6 +138,25 @@ class OpEngineEngineConfig(BaseModel):
                 "but none were populated. Provide at least one stage "
                 "or omit operators to use system options."
             )
+            raise ValueError(msg)
+        if self.mode is ExecutionMode.HYBRID and not self.stochastic_reactions:
+            msg = "Hybrid mode requires at least one stochastic_reactions entry."
+            raise ValueError(msg)
+        if self.mode is ExecutionMode.HYBRID and self.method.is_implicit:
+            msg = (
+                "Hybrid residual drift cannot reuse the full-system Jacobian "
+                f"required by '{self.method}'; select an explicit or IMEX method."
+            )
+            raise ValueError(msg)
+        if (
+            self.mode is not ExecutionMode.HYBRID
+            and "stochastic_reactions" in self.model_fields_set
+            and self.stochastic_reactions
+        ):
+            msg = "stochastic_reactions selects the jump partition in hybrid mode only."
+            raise ValueError(msg)
+        if len(self.stochastic_reactions) != len(set(self.stochastic_reactions)):
+            msg = "stochastic_reactions must not contain duplicates."
             raise ValueError(msg)
         return self
 
@@ -142,8 +184,10 @@ class OpEngineEngineConfig(BaseModel):
 
 
 __all__ = [
+    "ExecutionMode",
     "OpEngineEngineConfig",
     "SolverMethod",
+    "StochasticMethod",
     "_coerce_operator_specs",
     "_has_operator_specs",
 ]

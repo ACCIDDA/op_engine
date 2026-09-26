@@ -24,7 +24,12 @@ pydantic = pytest.importorskip("pydantic")
 from op_engine.core_solver import OperatorSpecs, RunConfig  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
-from flepimop2.engine.op_engine import OpEngineEngineConfig, SolverMethod  # noqa: E402
+from flepimop2.engine.op_engine import (  # noqa: E402
+    ExecutionMode,
+    OpEngineEngineConfig,
+    SolverMethod,
+    StochasticMethod,
+)
 
 
 def _has_any_operator_specs(specs: OperatorSpecs) -> bool:
@@ -184,3 +189,62 @@ def test_engine_config_imex_with_operators_still_valid() -> None:
 
     assert isinstance(run.operators, OperatorSpecs)
     assert _has_any_operator_specs(run.operators)
+
+
+def test_engine_config_defaults_to_deterministic_execution() -> None:
+    """Existing configurations retain deterministic Heun behavior."""
+    config = OpEngineEngineConfig()
+
+    assert config.mode is ExecutionMode.DETERMINISTIC
+    assert config.stochastic_method is StochasticMethod.TAU_LEAPING
+
+
+def test_engine_config_accepts_pure_direct_ssa() -> None:
+    """Pure stochastic execution can select exact direct SSA."""
+    config = OpEngineEngineConfig(
+        mode=ExecutionMode.STOCHASTIC,
+        stochastic_method=StochasticMethod.DIRECT_SSA,
+        random_seed=42,
+    )
+
+    assert config.ssa_max_events == 1_000_000
+
+
+def test_hybrid_mode_requires_a_unique_jump_partition() -> None:
+    """Hybrid execution cannot silently select no channels or duplicates."""
+    with pytest.raises(ValidationError, match="requires at least one"):
+        OpEngineEngineConfig(mode=ExecutionMode.HYBRID)
+    with pytest.raises(ValidationError, match="must not contain duplicates"):
+        OpEngineEngineConfig(
+            mode=ExecutionMode.HYBRID,
+            stochastic_reactions=("infect", "infect"),
+        )
+
+
+def test_stochastic_reaction_selection_is_hybrid_only() -> None:
+    """A pure stochastic run always consumes the complete typed network."""
+    with pytest.raises(ValidationError, match="hybrid mode only"):
+        OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_reactions=("infect",),
+        )
+
+
+@pytest.mark.parametrize("method", list(SolverMethod))
+def test_hybrid_mode_rejects_methods_requiring_the_full_jacobian(
+    method: SolverMethod,
+) -> None:
+    """The full deterministic Jacobian is invalid after jump-drift subtraction."""
+    if not method.is_implicit:
+        OpEngineEngineConfig(
+            mode=ExecutionMode.HYBRID,
+            method=method,
+            stochastic_reactions=("infect",),
+        )
+        return
+    with pytest.raises(ValidationError, match="cannot reuse the full-system Jacobian"):
+        OpEngineEngineConfig(
+            mode=ExecutionMode.HYBRID,
+            method=method,
+            stochastic_reactions=("infect",),
+        )
