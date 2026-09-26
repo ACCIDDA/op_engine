@@ -983,14 +983,16 @@ the discrete accept/reject decision. Refresh the schedule as optimization
 parameters move, and always refresh it after a material model or tolerance
 change. A schedule is validated against the output grid, while matching the
 method and other configuration is the caller's responsibility.</p>
-<p>Schedule replay statically unrolls the accepted steps when JAX traces it. For
-very long meshes, a provider may instead implement bounded, masked compiled
-control flow around the same portable kernels.</p>
-<p>Projects that require a compiled adaptive controller, checkpointed adjoints, or
-other solver-specific capabilities can provide those at an external plugin or
-provider boundary. A specialized integration may return a complete trajectory
-and adopt it through <code>ModelCore.apply_trajectory</code>; it does not need to add a
-backend-specific method to <code>CoreSolver</code>.</p>
+<p>Direct <code>CoreSolver</code> schedule replay statically unrolls accepted steps when JAX
+traces it. The optional flepimop2 provider consumes the same functional kernels
+but defaults explicit JAX replay to one compact <code>lax.scan</code>. Its forced compact
+mode can also checkpoint/rematerialize each step for long reverse-mode solves;
+non-JAX and nonlinear-diagnostic paths retain portable core replay.</p>
+<p>Projects that require a compiled adaptive controller or other solver-specific
+capabilities can provide those at an external plugin or provider boundary. A
+specialized integration may return a complete trajectory and adopt it through
+<code>ModelCore.apply_trajectory</code>; it does not need to add a backend-specific method
+to <code>CoreSolver</code>.</p>
 <p>This keeps optional packages such as Diffrax out of the core dependency and
 method surfaces. The portable fixed-step methods and their differentiation
 contract remain identical across conforming array namespaces.</p>
