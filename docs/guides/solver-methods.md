@@ -22,6 +22,7 @@ numerical method.
 | `trapezoidal` | 2 | Jacobian callable | One-linearization, second-order integration |
 | `bdf2` | 2 | Jacobian callable | Uniform, fixed-step, one-linearization integration |
 | `ros2` | 2 (embedded 1) | Jacobian callable | L-stable linearly implicit integration |
+| `sdirk2` | 2 | Full RHS Jacobian and nonlinear solver | L-stable fully nonlinear integration |
 
 `bdf2` currently requires a uniform output grid and `adaptive=False`. Its first
 step uses linearly implicit Euler because no previous state exists yet. The
@@ -243,9 +244,9 @@ Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
 optional NumPy acceleration path and are not a JAX differentiation path.
 
 The first three methods perform a single linearization; they do not iterate a
-nonlinear residual to convergence. See the [nonlinear solver
-contract](nonlinear-solvers.md) for the boundary required by future SDIRK and
-fully implicit Runge--Kutta methods.
+nonlinear residual to convergence. `sdirk2` instead solves each stage through
+the [nonlinear solver contract](nonlinear-solvers.md), with a distinct full
+flattened Jacobian and explicit convergence diagnostics.
 
 ## Adaptivity and Array-API backends
 
@@ -275,7 +276,7 @@ assert schedule is not None
 
 # Construct a fresh core and solver inside the function being transformed.
 solver = CoreSolver(differentiable_core)
-solver.replay_adaptive_schedule(rhs, schedule, config=config)
+diagnostics = solver.replay_adaptive_schedule(rhs, schedule, config=config)
 ```
 
 `jax.jit(jax.value_and_grad(...))` can trace the replay because its step count
@@ -283,6 +284,10 @@ and step sizes are static, while array-valued model inputs remain dynamic. The
 gradient is conditional on that mesh: replay does not differentiate the
 accept/reject decisions. Refresh the schedule when parameters, tolerances, the
 method, or other model structure change materially.
+
+For SDIRK2, replay returns array-valued nonlinear diagnostics as part of the
+compiled result. Inspect `diagnostics.require_converged()` after execution and
+discard the replayed state and derivatives if any frozen-mesh stage failed.
 
 A live compiled controller or specialized adjoint implementation can still
 belong in an external provider and may return a trajectory through
