@@ -38,6 +38,11 @@ Issues = "https://github.com/ACCIDDA/op_engine/issues"
 cupy = [
     "cupy>=13",
 ]
+jax = [
+    "diffrax>=0.7.0",
+    "jax>=0.4.38",
+    "lineax>=0.0.8",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -45,7 +50,9 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "jax>=0.4.32",
+    "diffrax>=0.7.0",
+    "jax>=0.4.38",
+    "lineax>=0.0.8",
     "mkdocs>=1.6.1",
     "mypy>=1.18.2",
     "matplotlib>=3.8",
