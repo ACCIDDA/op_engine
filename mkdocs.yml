@@ -46,8 +46,10 @@ nav:
   - Development:
       - Creating A Release: development/creating-a-release.md
   - Guides:
-      - Backend Strategies: guides/backends.md
       - Getting Started: guides/getting-started.md
+      - Choosing a Solver: guides/solver-methods.md
+      - Biogeochemical Network: guides/biogeochemical-network.md
+      - Backend Strategies: guides/backends.md
   - API Reference:
       - Core Solver: api-reference/core_solver.md
       - Matrix Ops: api-reference/matrix_ops.md
