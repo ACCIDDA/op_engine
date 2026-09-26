@@ -428,13 +428,6 @@ def test_imex_methods_convergence_order_on_linear_split_against_numerical_refere
     assert np.isfinite(p1)
     assert np.isfinite(p2)
 
-    if method == "ros2":
-        # Rosenbrock-W implementation empirically converges near first order on
-        # this linear decay; enforce improvement without requiring full order 2.
-        assert p1 > 0.9
-        assert p2 > 0.9
-        return
-
     if expected_order < 1.5:
         assert p1 > 0.7
         assert p2 > 0.7
@@ -498,19 +491,62 @@ def test_implicit_methods_convergence_order_on_linear_decay(
     assert np.isfinite(p1)
     assert np.isfinite(p2)
 
-    if method == "ros2":
-        # Rosenbrock-W implementation empirically converges near first order on
-        # this linear decay; enforce improvement without requiring full order 2.
-        assert p1 > 0.9
-        assert p2 > 0.9
-        return
-
     if expected_order < 1.5:
         assert p1 > 0.7
         assert p2 > 0.7
     else:
         assert p1 > 1.3
         assert p2 > 1.3
+
+
+def test_ros2_has_second_order_on_nonlinear_decay() -> None:
+    """ROS2 retains its formal order when the Jacobian varies with state."""
+
+    def rhs_decay(_t: float, y: FloatArray) -> FloatArray:
+        return -(y * y)
+
+    def jac_decay(_t: float, y: FloatArray) -> FloatArray:
+        return -2.0 * y
+
+    errors = []
+    for dt in (0.1, 0.05, 0.025):
+        result = _run_scalar(
+            ScalarRunCase(
+                method="ros2",
+                time_grid=_time_grid_uniform(1.0, dt),
+                y0=1.0,
+                rhs=rhs_decay,
+                jacobian=jac_decay,
+            )
+        )
+        errors.append(abs(result - 0.5))
+
+    p1, p2 = _orders_from_errors(errors)
+    assert p1 > 1.8
+    assert p2 > 1.8
+
+
+def test_ros2_damps_a_very_stiff_decay_mode() -> None:
+    """The L-stable ROS2 formula damps rather than amplifies a large negative mode."""
+    rate = -1000.0
+
+    def rhs_decay(_t: float, y: FloatArray) -> FloatArray:
+        return rate * y
+
+    def jac_decay(_t: float, _y: FloatArray) -> FloatArray:
+        return np.asarray([[rate]], dtype=np.float64)
+
+    result = _run_scalar(
+        ScalarRunCase(
+            method="ros2",
+            time_grid=np.asarray([0.0, 1.0]),
+            y0=1.0,
+            rhs=rhs_decay,
+            jacobian=jac_decay,
+        )
+    )
+
+    assert abs(result) < 0.01
 
 
 # -----------------------------------------------------------------------------
