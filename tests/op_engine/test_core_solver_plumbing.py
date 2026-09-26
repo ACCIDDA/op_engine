@@ -91,6 +91,32 @@ def test_run_stores_exactly_output_times_history_on() -> None:
     assert core.state_array.shape[0] == tg.size
 
 
+def test_fixed_euler_takes_one_full_step_per_output_interval() -> None:
+    """Non-adaptive Euler neither estimates error nor takes hidden half-steps."""
+    tg = np.asarray([0.0, 0.5, 1.0], dtype=float)
+    core = _make_core(n_states=1, n_subgroups=1, time_grid=tg)
+    core.set_initial_state(np.asarray([[10.0]], dtype=float))
+    call_times: list[float] = []
+
+    def rhs_decay(time: float, state: FloatArray) -> FloatArray:
+        call_times.append(time)
+        return -0.1 * state
+
+    CoreSolver(core).run(
+        rhs_decay,
+        config=RunConfig(method="euler", adaptive=False),
+    )
+
+    assert core.state_array is not None
+    np.testing.assert_allclose(
+        core.state_array[:, 0, 0],
+        np.asarray([10.0, 9.5, 9.025]),
+        rtol=0.0,
+        atol=1e-14,
+    )
+    assert call_times == [0.0, 0.5]
+
+
 def test_adaptive_true_lands_exactly_on_next_output_time() -> None:
     """With adaptive=True, dt_init < dt_out, solver substeps but keeps output times."""
     tg = np.array([0.0, 1.0], dtype=float)

@@ -1820,6 +1820,19 @@ class CoreSolver:
     # One-step kernels (write into provided out arrays)
     # ------------------------------------------------------------------
 
+    def _step_explicit_euler_once(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> Array:
+        """Return one explicit Euler step in ``y``'s namespace."""
+        xp = _namespace_of(y)
+        f_n = self._rhs_array(rhs_func, t, y)
+        return cast("Array", xp.add(y, xp.multiply(f_n, dt)))
+
     def _step_explicit_euler_doubling(
         self,
         rhs_func: RHSFunction,
@@ -2636,6 +2649,13 @@ class CoreSolver:
                     y0=y_current,
                     adaptive_cfg=config.adaptive_cfg,
                     dt_ctrl=config.dt_controller,
+                )
+            elif plan.method == "euler":
+                y_next = self._step_explicit_euler_once(
+                    rhs_func,
+                    t=t0,
+                    dt=t1 - t0,
+                    y=y_current,
                 )
             else:
                 y_next, _error, _order = self._attempt_explicit_step(
