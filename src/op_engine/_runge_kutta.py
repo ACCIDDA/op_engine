@@ -5,6 +5,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from numbers import Integral
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+    from typing import TypeVar
+
+    from ._typing import Scalar
+
+    StateT = TypeVar("StateT")
 
 
 @dataclass(slots=True, frozen=True)
@@ -125,6 +134,53 @@ class ExplicitRungeKuttaTableau:
     def n_stages(self) -> int:
         """Return the number of RHS stages per uncached step."""
         return len(self.c)
+
+
+def evaluate_explicit_runge_kutta(  # noqa: PLR0913
+    tableau: ExplicitRungeKuttaTableau,
+    *,
+    t: Scalar,
+    dt: Scalar,
+    y: StateT,
+    rhs: Callable[[Scalar, StateT], StateT],
+    weighted_sum: Callable[
+        [StateT, Scalar, tuple[float, ...], Sequence[StateT]],
+        StateT,
+    ],
+    first_stage: StateT | None = None,
+) -> tuple[StateT, StateT | None, StateT, StateT | None]:
+    """Evaluate one explicit tableau over an arbitrary state algebra.
+
+    ``weighted_sum`` owns the state representation and computes
+    ``y + dt * sum(weights[i] * stages[i])``. This keeps the validated method
+    coefficients shared by dense arrays and structured provider states.
+
+    Returns:
+        High-order state, optional embedded state, first stage, and optional
+        FSAL stage for the next accepted step.
+    """
+    stages: list[StateT] = []
+    for stage_index, (row, stage_time) in enumerate(
+        zip(tableau.a, tableau.c, strict=True)
+    ):
+        if stage_index == 0 and first_stage is not None:
+            derivative = first_stage
+        else:
+            stage_state = weighted_sum(y, dt, row, stages)
+            derivative = rhs(
+                cast("Scalar", cast("Any", t) + stage_time * cast("Any", dt)),
+                stage_state,
+            )
+        stages.append(derivative)
+
+    high = weighted_sum(y, dt, tableau.b, stages)
+    embedded = (
+        None
+        if tableau.b_embedded is None
+        else weighted_sum(y, dt, tableau.b_embedded, stages)
+    )
+    last_stage = stages[-1] if tableau.fsal else None
+    return high, embedded, stages[0], last_stage
 
 
 HEUN_EULER = ExplicitRungeKuttaTableau(

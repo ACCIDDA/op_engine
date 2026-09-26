@@ -111,6 +111,14 @@ class ExecutionMode(StrEnum):
     HYBRID = "hybrid"
 
 
+class StateLayout(StrEnum):
+    """State representation used inside deterministic integration."""
+
+    FLAT = "flat"
+    PYTREE = "pytree"
+    BLOCK = "block"
+
+
 class StochasticMethod(StrEnum):
     """Discrete reaction-network methods exposed by the provider."""
 
@@ -131,6 +139,8 @@ class OpEngineEngineConfig(BaseModel):
     tau_max_step: float | None = Field(default=None, gt=0.0)
     stochastic_max_steps: int = Field(default=1_000_000, ge=1)
     ssa_max_events: int = Field(default=1_000_000, ge=1)
+    state_layout: StateLayout = StateLayout.FLAT
+    block_axis: str | None = None
     adaptive: bool = False
     fixed_max_step: float | None = Field(
         default=None,
@@ -153,7 +163,7 @@ class OpEngineEngineConfig(BaseModel):
     operators: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def _validate_explicit_empty_operators(self) -> OpEngineEngineConfig:
+    def _validate_execution_configuration(self) -> OpEngineEngineConfig:
         if (
             self.mode is not ExecutionMode.STOCHASTIC
             and self.method.startswith("imex-")
@@ -194,6 +204,31 @@ class OpEngineEngineConfig(BaseModel):
             raise ValueError(msg)
         if self.fixed_max_step is not None and self.mode is ExecutionMode.STOCHASTIC:
             msg = "fixed_max_step does not apply in stochastic mode; use tau_max_step."
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_state_layout(self) -> OpEngineEngineConfig:
+        """Reject layouts that the selected execution path cannot preserve.
+
+        Returns:
+            This validated configuration.
+
+        Raises:
+            ValueError: If layout, mode, method, or block-axis settings conflict.
+        """
+        if self.state_layout is not StateLayout.FLAT:
+            if self.mode is not ExecutionMode.DETERMINISTIC:
+                msg = "Structured state layouts require deterministic mode."
+                raise ValueError(msg)
+            if self.adaptive or not self.method.is_explicit:
+                msg = (
+                    "Structured state layouts currently support fixed-step "
+                    "explicit methods only."
+                )
+                raise ValueError(msg)
+        if self.block_axis is not None and self.state_layout is not StateLayout.BLOCK:
+            msg = "block_axis may be set only when state_layout='block'."
             raise ValueError(msg)
         return self
 
@@ -240,6 +275,7 @@ __all__ = [
     "ExecutionMode",
     "OpEngineEngineConfig",
     "SolverMethod",
+    "StateLayout",
     "StochasticMethod",
     "_coerce_operator_specs",
     "_has_operator_specs",

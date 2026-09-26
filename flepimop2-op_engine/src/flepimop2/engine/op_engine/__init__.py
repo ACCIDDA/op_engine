@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import itertools
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
@@ -29,6 +30,10 @@ from flepimop2.exceptions import ValidationIssue
 from flepimop2.typing import IdentifierString, StateChangeEnum  # noqa: TC002
 from pydantic import Field, PrivateAttr
 
+from op_engine._runge_kutta import (
+    EXPLICIT_TABLEAUS,
+    evaluate_explicit_runge_kutta,
+)
 from op_engine.core_solver import (
     AdaptiveStepSchedule,
     CoreSolver,
@@ -50,6 +55,7 @@ from .config import (
     ExecutionMode,
     OpEngineEngineConfig,
     SolverMethod,
+    StateLayout,
     StochasticMethod,
     _coerce_operator_specs,
     _has_operator_specs,
@@ -61,7 +67,7 @@ from .operators import (
 from .reactions import CompiledReactionNetwork, compile_reaction_network
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from flepimop2.parameter.abc import ModelStateSpecification, ParameterValue
     from flepimop2.system.abc import SystemABC, SystemProtocol
@@ -73,6 +79,8 @@ if TYPE_CHECKING:
     from op_engine.nonlinear_solver import NonlinearSolver
     from op_engine.stochastic_solver import PoissonSampler, SSASampler
 
+    StateTree = dict[str, Array]
+
 
 class _IndexableArray(Protocol):
     """Internal indexing surface kept out of the public Array protocol."""
@@ -80,6 +88,15 @@ class _IndexableArray(Protocol):
     def __getitem__(self, key: object) -> Array:
         """Return one array item or slice."""
         ...
+
+
+class _BlockAxisInfo(Protocol):
+    """Structural surface consumed from op_system's block metadata."""
+
+    name: str
+    size: int
+    state_axis_pos: dict[str, int]
+    param_axis_pos: dict[str, int | None]
 
 
 _ARRAY_API_ERROR = (
@@ -396,31 +413,16 @@ def _run_jax_fixed_explicit_trajectory(
         )
         return
 
-    interval_steps = tuple(
-        fixed_step_sizes(float(start), float(end), fixed_max_step)
-        for start, end in itertools.pairwise(times)
-    )
-    flat_step_sizes: list[float] = []
-    flat_step_times: list[float] = []
-    for start, steps in zip(times[:-1], interval_steps, strict=True):
-        step_time = float(start)
-        for step_size in steps:
-            flat_step_times.append(step_time)
-            flat_step_sizes.append(step_size)
-            step_time += step_size
-    output_indices = (
-        np.cumsum(
-            np.asarray(tuple(len(steps) for steps in interval_steps), dtype=np.int64)
-        )
-        - 1
+    flat_step_times, flat_step_sizes, output_indices = _fixed_step_plan(
+        times, fixed_max_step
     )
     step_times = cast(
         "Array",
-        xp.asarray(tuple(flat_step_times), dtype=initial_state.dtype),
+        xp.asarray(flat_step_times, dtype=initial_state.dtype),
     )
     step_sizes = cast(
         "Array",
-        xp.asarray(tuple(flat_step_sizes), dtype=initial_state.dtype),
+        xp.asarray(flat_step_sizes, dtype=initial_state.dtype),
     )
 
     if method is SolverMethod.DOPRI5:
@@ -498,6 +500,464 @@ def _run_jax_fixed_explicit_trajectory(
         xp.concat((xp.expand_dims(initial_state, axis=0), saved_tail), axis=0),
     )
     solver.core.apply_trajectory(trajectory)
+
+
+def _fixed_step_plan(
+    times: np.ndarray,
+    fixed_max_step: float | None,
+) -> tuple[tuple[float, ...], tuple[float, ...], np.ndarray]:
+    """Expand output intervals into fixed internal steps.
+
+    Returns:
+        Internal step start times, step sizes, and indices of requested output
+        states in the internal trajectory tail.
+    """
+    interval_steps = tuple(
+        fixed_step_sizes(float(start), float(end), fixed_max_step)
+        for start, end in itertools.pairwise(times)
+    )
+    flat_step_sizes: list[float] = []
+    flat_step_times: list[float] = []
+    for start, steps in zip(times[:-1], interval_steps, strict=True):
+        step_time = float(start)
+        for step_size in steps:
+            flat_step_times.append(step_time)
+            flat_step_sizes.append(step_size)
+            step_time += step_size
+    output_indices = (
+        np.cumsum(
+            np.asarray(tuple(len(steps) for steps in interval_steps), dtype=np.int64)
+        )
+        - 1
+    )
+    return tuple(flat_step_times), tuple(flat_step_sizes), output_indices
+
+
+def _tree_weighted_sum(
+    state: StateTree,
+    dt: Scalar,
+    weights: tuple[float, ...],
+    stages: Sequence[StateTree],
+) -> StateTree:
+    """Apply one Runge--Kutta weighted sum leaf by leaf."""
+    result: StateTree = {}
+    for name, value in state.items():
+        xp = _namespace_of(value)
+        increment = cast("Array", xp.zeros_like(value))
+        for weight, stage in zip(weights, stages, strict=True):
+            increment = cast(
+                "Array", xp.add(increment, xp.multiply(weight, stage[name]))
+            )
+        result[name] = cast("Array", xp.add(value, xp.multiply(dt, increment)))
+    return result
+
+
+def _structured_explicit_step(
+    rhs: Callable[[Scalar, StateTree], StateTree],
+    *,
+    method: SolverMethod,
+    t: Scalar,
+    dt: Scalar,
+    state: StateTree,
+    first_stage: StateTree | None = None,
+) -> tuple[StateTree, StateTree | None]:
+    """Advance one explicit fixed step without flattening the state tree."""
+    if method is SolverMethod.EULER:
+        derivative = rhs(t, state)
+        return _tree_weighted_sum(state, dt, (1.0,), (derivative,)), None
+
+    tableau = EXPLICIT_TABLEAUS[method.value]
+    next_state, _embedded, _stage_zero, last_stage = evaluate_explicit_runge_kutta(
+        tableau,
+        t=t,
+        dt=dt,
+        y=state,
+        rhs=rhs,
+        weighted_sum=_tree_weighted_sum,
+        first_stage=first_stage,
+    )
+    return next_state, last_stage
+
+
+def _validate_state_tree(
+    result: object,
+    reference: StateTree,
+    *,
+    source: str,
+) -> StateTree:
+    """Validate a structured RHS result against its input tree."""
+    if not isinstance(result, Mapping):
+        msg = f"{source} must return a mapping of state-template arrays."
+        raise TypeError(msg)
+    if tuple(result) != tuple(reference):
+        msg = (
+            f"{source} returned keys {tuple(result)!r}; expected {tuple(reference)!r}."
+        )
+        raise ValueError(msg)
+
+    checked: StateTree = {}
+    for name, reference_value in reference.items():
+        value = result[name]
+        if getattr(value, "shape", None) != reference_value.shape:
+            msg = (
+                f"{source} returned shape {getattr(value, 'shape', None)} for "
+                f"{name!r}; expected {reference_value.shape}."
+            )
+            raise ValueError(msg)
+        value_array = cast("Array", value)
+        if _namespace_of(value_array) is not _namespace_of(reference_value):
+            msg = f"{source} must preserve the array namespace for {name!r}."
+            raise TypeError(msg)
+        checked[name] = value_array
+    return checked
+
+
+def _structured_rhs(
+    stepper: Callable[..., object],
+    params: Mapping[str, object],
+    *,
+    source: str,
+) -> Callable[[Scalar, StateTree], StateTree]:
+    """Bind parameters and validate a structured system stepper."""
+
+    def rhs(time: Scalar, state: StateTree) -> StateTree:
+        result = stepper(cast("Any", time), state, **params)
+        return _validate_state_tree(result, state, source=source)
+
+    return rhs
+
+
+def _run_python_fixed_explicit_pytree(
+    rhs: Callable[[Scalar, StateTree], StateTree],
+    initial_state: StateTree,
+    *,
+    method: SolverMethod,
+    times: np.ndarray,
+    fixed_max_step: float | None,
+) -> StateTree:
+    """Integrate a PyTree with an eager namespace-polymorphic fixed loop."""
+    if times.size == 1:
+        return {
+            name: cast("Array", _namespace_of(value).expand_dims(value, axis=0))
+            for name, value in initial_state.items()
+        }
+
+    step_times, step_sizes, output_indices = _fixed_step_plan(times, fixed_max_step)
+    output_index_set = {int(index) for index in output_indices}
+    state = initial_state
+    first_stage: StateTree | None = None
+    saved: dict[str, list[Array]] = {
+        name: [value] for name, value in initial_state.items()
+    }
+    for step_index, (step_time, step_size) in enumerate(
+        zip(step_times, step_sizes, strict=True)
+    ):
+        state, first_stage = _structured_explicit_step(
+            rhs,
+            method=method,
+            t=cast("Scalar", step_time),
+            dt=cast("Scalar", step_size),
+            state=state,
+            first_stage=first_stage,
+        )
+        if step_index in output_index_set:
+            for name, value in state.items():
+                saved[name].append(value)
+
+    return {
+        name: cast("Array", _namespace_of(values[0]).stack(tuple(values), axis=0))
+        for name, values in saved.items()
+    }
+
+
+def _run_jax_fixed_explicit_pytree(
+    rhs: Callable[[Scalar, StateTree], StateTree],
+    initial_state: StateTree,
+    *,
+    method: SolverMethod,
+    times: np.ndarray,
+    fixed_max_step: float | None,
+) -> StateTree:
+    """Integrate a PyTree with one compact JAX scan."""
+    import jax  # noqa: PLC0415
+
+    first_value = next(iter(initial_state.values()))
+    xp = _namespace_of(first_value)
+    if times.size == 1:
+        return {
+            name: cast("Array", xp.expand_dims(value, axis=0))
+            for name, value in initial_state.items()
+        }
+
+    flat_times, flat_sizes, output_indices = _fixed_step_plan(times, fixed_max_step)
+    step_times = cast("Array", xp.asarray(flat_times, dtype=first_value.dtype))
+    step_sizes = cast("Array", xp.asarray(flat_sizes, dtype=first_value.dtype))
+
+    if method is SolverMethod.DOPRI5:
+        first_state, first_stage = _structured_explicit_step(
+            rhs,
+            method=method,
+            t=_array_item(step_times, 0),
+            dt=_array_item(step_sizes, 0),
+            state=initial_state,
+        )
+        if first_stage is None:
+            msg = "Dormand--Prince fixed steps must return an FSAL stage."
+            raise RuntimeError(msg)
+
+        if len(flat_sizes) == 1:
+            internal_tail = {
+                name: cast("Array", xp.expand_dims(value, axis=0))
+                for name, value in first_state.items()
+            }
+        else:
+
+            def advance_dopri5(
+                carry: tuple[StateTree, StateTree],
+                step: tuple[Array, Array],
+            ) -> tuple[tuple[StateTree, StateTree], StateTree]:
+                state, stage = carry
+                time, dt = step
+                next_state, next_stage = _structured_explicit_step(
+                    rhs,
+                    method=method,
+                    t=time,
+                    dt=dt,
+                    state=state,
+                    first_stage=stage,
+                )
+                if next_stage is None:
+                    msg = "Dormand--Prince fixed steps must return an FSAL stage."
+                    raise RuntimeError(msg)
+                return (next_state, next_stage), next_state
+
+            (_final_state, _final_stage), remaining_tail = jax.lax.scan(
+                advance_dopri5,
+                (first_state, first_stage),
+                (
+                    _array_item(step_times, slice(1, None)),
+                    _array_item(step_sizes, slice(1, None)),
+                ),
+            )
+            internal_tail = {
+                name: cast(
+                    "Array",
+                    xp.concat(
+                        (
+                            xp.expand_dims(first_state[name], axis=0),
+                            remaining_tail[name],
+                        ),
+                        axis=0,
+                    ),
+                )
+                for name in first_state
+            }
+    else:
+
+        def advance(
+            state: StateTree,
+            step: tuple[Array, Array],
+        ) -> tuple[StateTree, StateTree]:
+            time, dt = step
+            next_state, _next_stage = _structured_explicit_step(
+                rhs,
+                method=method,
+                t=time,
+                dt=dt,
+                state=state,
+            )
+            return next_state, next_state
+
+        _final_state, internal_tail = jax.lax.scan(
+            advance,
+            initial_state,
+            (step_times, step_sizes),
+        )
+
+    return {
+        name: cast(
+            "Array",
+            xp.concat(
+                (
+                    xp.expand_dims(initial_state[name], axis=0),
+                    _array_item(internal_tail[name], output_indices),
+                ),
+                axis=0,
+            ),
+        )
+        for name in initial_state
+    }
+
+
+def _run_fixed_explicit_pytree(
+    rhs: Callable[[Scalar, StateTree], StateTree],
+    initial_state: StateTree,
+    *,
+    method: SolverMethod,
+    times: np.ndarray,
+    fixed_max_step: float | None,
+) -> StateTree:
+    """Dispatch structured fixed integration without changing namespaces."""
+    first_value = next(iter(initial_state.values()))
+    if _is_jax_namespace(_namespace_of(first_value)):
+        return _run_jax_fixed_explicit_pytree(
+            rhs,
+            initial_state,
+            method=method,
+            times=times,
+            fixed_max_step=fixed_max_step,
+        )
+    return _run_python_fixed_explicit_pytree(
+        rhs,
+        initial_state,
+        method=method,
+        times=times,
+        fixed_max_step=fixed_max_step,
+    )
+
+
+def _flat_state_to_pytree(
+    state: Array,
+    template_shapes: Mapping[str, object],
+) -> StateTree:
+    """View a flat provider state as template-keyed array leaves."""
+    xp = _namespace_of(state)
+    result: StateTree = {}
+    offset = 0
+    for name, shape_obj in template_shapes.items():
+        if not isinstance(name, str) or not isinstance(shape_obj, tuple):
+            msg = "template_shapes must map strings to shape tuples."
+            raise TypeError(msg)
+        shape = tuple(int(size) for size in shape_obj)
+        size = math.prod(shape)
+        values = _array_item(state, slice(offset, offset + size))
+        result[name] = cast("Array", xp.reshape(values, shape))
+        offset += size
+    if offset != state.shape[0]:
+        msg = (
+            f"template_shapes cover {offset} state cells, but the assembled "
+            f"state contains {state.shape[0]}."
+        )
+        raise ValueError(msg)
+    return result
+
+
+def _flatten_pytree_trajectory(
+    trajectory: StateTree,
+    template_shapes: Mapping[str, object],
+) -> Array:
+    """Flatten structured history only at the public result boundary."""
+    first_value = next(iter(trajectory.values()))
+    xp = _namespace_of(first_value)
+    n_times = int(first_value.shape[0])
+    leaves = tuple(
+        cast("Array", xp.reshape(trajectory[name], (n_times, -1)))
+        for name in template_shapes
+    )
+    return cast("Array", xp.concat(leaves, axis=1))
+
+
+def _select_block_axis(
+    block_axes: object,
+    requested_name: str | None,
+) -> _BlockAxisInfo:
+    """Select the block callable's published factorization axis."""
+    if not isinstance(block_axes, tuple | list) or not block_axes:
+        msg = "Block state layout requires non-empty system option 'block_axes'."
+        raise ValueError(msg)
+    info = cast("_BlockAxisInfo", block_axes[0])
+    if requested_name is not None and requested_name != info.name:
+        msg = (
+            f"Block stepper is compiled for axis {info.name!r}, not requested "
+            f"axis {requested_name!r}."
+        )
+        raise ValueError(msg)
+    return info
+
+
+def _run_structured_deterministic(
+    system: SystemABC,
+    times: np.ndarray,
+    y0: Array,
+    raw_params: Mapping[str, object],
+    config: OpEngineEngineConfig,
+) -> Array:
+    """Run an explicit fixed solve with a PyTree or block-PyTree state."""
+    template_shapes = system.option("template_shapes", None)
+    pytree_stepper = system.option("pytree_stepper_fn", None)
+    if not isinstance(template_shapes, Mapping) or not callable(pytree_stepper):
+        msg = (
+            "Structured state layout requires callable system option "
+            "'pytree_stepper_fn' and mapping option 'template_shapes'."
+        )
+        raise TypeError(msg)
+    initial_tree = _flat_state_to_pytree(y0, template_shapes)
+
+    if config.state_layout is StateLayout.PYTREE:
+        rhs = _structured_rhs(
+            pytree_stepper,
+            raw_params,
+            source="system option 'pytree_stepper_fn'",
+        )
+        trajectory = _run_fixed_explicit_pytree(
+            rhs,
+            initial_tree,
+            method=config.method,
+            times=times,
+            fixed_max_step=config.fixed_max_step,
+        )
+        return _flatten_pytree_trajectory(trajectory, template_shapes)
+
+    import jax  # noqa: PLC0415
+
+    if not _is_jax_namespace(_namespace_of(y0)):
+        msg = "Block state layout requires JAX arrays for vmap execution."
+        raise TypeError(msg)
+    block_stepper = system.option("block_pytree_stepper_fn", None)
+    block_shapes = system.option("block_template_shapes", None)
+    if not callable(block_stepper) or not isinstance(block_shapes, Mapping):
+        msg = (
+            "Block state layout requires callable system option "
+            "'block_pytree_stepper_fn' and mapping option "
+            "'block_template_shapes'."
+        )
+        raise TypeError(msg)
+    block_info = _select_block_axis(system.option("block_axes", ()), config.block_axis)
+    if set(block_info.state_axis_pos) != set(initial_tree):
+        msg = (
+            f"Block axis {block_info.name!r} must be present in every state "
+            "template for full-solve vmap execution."
+        )
+        raise ValueError(msg)
+
+    state_in_axes = {name: block_info.state_axis_pos[name] for name in initial_tree}
+    param_in_axes = {name: block_info.param_axis_pos.get(name) for name in raw_params}
+    out_axes = {name: block_info.state_axis_pos[name] + 1 for name in initial_tree}
+
+    def solve_block(
+        block_state: StateTree,
+        block_params: Mapping[str, object],
+    ) -> StateTree:
+        rhs = _structured_rhs(
+            block_stepper,
+            block_params,
+            source="system option 'block_pytree_stepper_fn'",
+        )
+        return _run_jax_fixed_explicit_pytree(
+            rhs,
+            block_state,
+            method=config.method,
+            times=times,
+            fixed_max_step=config.fixed_max_step,
+        )
+
+    trajectory = jax.vmap(
+        solve_block,
+        in_axes=(state_in_axes, param_in_axes),
+        out_axes=out_axes,
+        axis_size=block_info.size,
+    )(initial_tree, raw_params)
+    return _flatten_pytree_trajectory(trajectory, template_shapes)
 
 
 def _last_state(core: ModelCore, *, n_state: int) -> Array:
@@ -976,6 +1436,53 @@ class OpEngineFlepimop2Engine(EngineABC):
         method = self.config.method
         is_imex = method.is_imex
 
+        if self.config.state_layout is not StateLayout.FLAT:
+            template_shapes = system.option("template_shapes", None)
+            pytree_stepper = system.option("pytree_stepper_fn", None)
+            if not isinstance(template_shapes, Mapping) or not callable(pytree_stepper):
+                issues.append(
+                    ValidationIssue(
+                        msg=(
+                            f"State layout '{self.config.state_layout.value}' "
+                            "requires op_system PyTree stepper and shape metadata."
+                        ),
+                        kind="missing_structured_state",
+                    ),
+                )
+            if self.config.state_layout is StateLayout.BLOCK:
+                block_stepper = system.option("block_pytree_stepper_fn", None)
+                block_shapes = system.option("block_template_shapes", None)
+                block_axes = system.option("block_axes", ())
+                if (
+                    not callable(block_stepper)
+                    or not isinstance(block_shapes, Mapping)
+                    or not isinstance(block_axes, tuple | list)
+                    or not block_axes
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            msg=(
+                                "Block state layout requires op_system block "
+                                "stepper, shape, and axis metadata."
+                            ),
+                            kind="missing_block_state",
+                        ),
+                    )
+                elif (
+                    self.config.block_axis is not None
+                    and getattr(block_axes[0], "name", None) != self.config.block_axis
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            msg=(
+                                "The published block stepper is compiled for "
+                                f"axis {getattr(block_axes[0], 'name', None)!r}, "
+                                f"not {self.config.block_axis!r}."
+                            ),
+                            kind="incompatible_block_axis",
+                        ),
+                    )
+
         if is_imex and not _has_operator_specs(
             _coerce_operator_specs(self.config.operators),
         ):
@@ -1133,6 +1640,18 @@ class OpEngineFlepimop2Engine(EngineABC):
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
         n_state = int(y0.shape[0])
         method = self.config.method
+
+        if self.config.state_layout is not StateLayout.FLAT:
+            structured_states = _run_structured_deterministic(
+                system,
+                times,
+                y0,
+                raw_params,
+                self.config,
+            )
+            return _ExecutionResult(
+                trajectory=_format_result(times, structured_states),
+            )
 
         if mode is ExecutionMode.STOCHASTIC:
             stochastic_network = compile_reaction_network(
@@ -1296,5 +1815,6 @@ __all__ = [
     "OpEngineEngineConfig",
     "OpEngineFlepimop2Engine",
     "SolverMethod",
+    "StateLayout",
     "StochasticMethod",
 ]

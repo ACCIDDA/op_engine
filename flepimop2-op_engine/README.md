@@ -65,6 +65,49 @@ final remainder, but the returned trajectory contains only requested output
 times. The setting is mutually exclusive with `adaptive: true` and does not
 apply to stochastic mode (`tau_max_step` controls fixed tau-leaping).
 
+### Structured and block state execution
+
+The default `state_layout: flat` remains the compatibility path. An op_system
+model that publishes `pytree_stepper_fn` and `template_shapes` can instead keep
+each state template as its natural N-dimensional leaf throughout explicit
+fixed-step integration:
+
+```yaml
+engine:
+  module: flepimop2.engine.op_engine
+  state_change: flow
+  config:
+    method: rk4
+    fixed_max_step: 0.25
+    state_layout: pytree
+```
+
+For a model whose op_system spec declares a separable `factorize_axes` entry,
+`state_layout: block` consumes the published block stepper and axis positions.
+With JAX arrays it applies `vmap` to the complete fixed-step solve while the
+time integration remains one compact `lax.scan` shared across all blocks:
+
+```yaml
+config:
+  method: rk4
+  state_layout: block
+  block_axis: loc
+```
+
+PyTree execution is array-namespace polymorphic; block execution currently
+requires JAX because it relies on `vmap`. Both layouts use op_engine's own
+validated Euler, Heun, RK4, and Dormand--Prince coefficients—Diffrax is not an
+execution dependency. Until flepimop2 defines a structured engine-result
+contract, the provider flattens only the completed history at its public
+`(time, state...)` result boundary. Structured layouts intentionally reject
+adaptive, IMEX/implicit, hybrid, stochastic, and missing-metadata combinations
+instead of silently falling back to the flat path.
+
+Run `uv run python benchmarks/structured_blocks.py` to compare compile time,
+median runtime, host allocation peaks, and device peak bytes (when reported by
+the JAX backend) as the number of independent blocks grows. The script emits
+CSV so scaling records can be retained alongside migration decisions.
+
 The provider advertises every canonical `CoreSolver` method. Fully nonlinear
 `sdirk2` reads its distinct full flattened Jacobian from
 `system.option("rhs_jacobian")`; a custom backend-neutral `NonlinearSolver` may
