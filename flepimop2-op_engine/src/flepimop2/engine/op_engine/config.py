@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from op_engine.core_solver import (
     AdaptiveConfig,
     DtControllerConfig,
+    NonlinearMethodConfig,
     OperatorSpecs,
     RunConfig,
 )
@@ -64,6 +65,7 @@ class SolverMethod(StrEnum):
     TRAPEZOIDAL = "trapezoidal"
     BDF2 = "bdf2"
     ROS2 = "ros2"
+    SDIRK2 = "sdirk2"
 
     @property
     def is_imex(self) -> bool:
@@ -74,6 +76,11 @@ class SolverMethod(StrEnum):
     def is_implicit(self) -> bool:
         """Whether this method requires a Jacobian."""
         return self in _IMPLICIT_METHODS
+
+    @property
+    def is_nonlinear(self) -> bool:
+        """Whether this method requires a full nonlinear solve."""
+        return self is SolverMethod.SDIRK2
 
     @property
     def is_explicit(self) -> bool:
@@ -133,6 +140,9 @@ class OpEngineEngineConfig(BaseModel):
     strict: bool = True
     rtol: float = Field(default=1e-6, ge=0.0)
     atol: float = Field(default=1e-9, ge=0.0)
+    dt_init: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    max_reject: int = Field(default=25, ge=1)
+    max_steps: int = Field(default=1_000_000, ge=1)
     dt_min: float = Field(default=0.0, ge=0.0)
     dt_max: float = Field(default=float("inf"), gt=0.0)
     safety: float = Field(default=0.9, gt=0.0)
@@ -159,7 +169,9 @@ class OpEngineEngineConfig(BaseModel):
         if self.mode is ExecutionMode.HYBRID and not self.stochastic_reactions:
             msg = "Hybrid mode requires at least one stochastic_reactions entry."
             raise ValueError(msg)
-        if self.mode is ExecutionMode.HYBRID and self.method.is_implicit:
+        if self.mode is ExecutionMode.HYBRID and (
+            self.method.is_implicit or self.method.is_nonlinear
+        ):
             msg = (
                 "Hybrid residual drift cannot reuse the full-system Jacobian "
                 f"required by '{self.method}'; select an explicit or IMEX method."
@@ -185,8 +197,16 @@ class OpEngineEngineConfig(BaseModel):
             raise ValueError(msg)
         return self
 
-    def to_run_config(self) -> RunConfig:
+    def to_run_config(
+        self,
+        *,
+        nonlinear: NonlinearMethodConfig | None = None,
+    ) -> RunConfig:
         """Convert this provider config to an op_engine `RunConfig`.
+
+        Args:
+            nonlinear: Full-system nonlinear method configuration resolved from
+                system options when SDIRK2 is selected.
 
         Returns:
             `RunConfig` derived from this provider configuration.
@@ -196,7 +216,13 @@ class OpEngineEngineConfig(BaseModel):
             adaptive=self.adaptive,
             fixed_max_step=self.fixed_max_step,
             strict=self.strict,
-            adaptive_cfg=AdaptiveConfig(rtol=self.rtol, atol=self.atol),
+            adaptive_cfg=AdaptiveConfig(
+                rtol=self.rtol,
+                atol=self.atol,
+                dt_init=self.dt_init,
+                max_reject=self.max_reject,
+                max_steps=self.max_steps,
+            ),
             dt_controller=DtControllerConfig(
                 dt_min=self.dt_min,
                 dt_max=self.dt_max,
@@ -205,6 +231,7 @@ class OpEngineEngineConfig(BaseModel):
                 fac_max=self.fac_max,
             ),
             operators=_coerce_operator_specs(self.operators) or OperatorSpecs(),
+            nonlinear=nonlinear,
             gamma=self.gamma,
         )
 

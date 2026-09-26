@@ -65,6 +65,14 @@ final remainder, but the returned trajectory contains only requested output
 times. The setting is mutually exclusive with `adaptive: true` and does not
 apply to stochastic mode (`tau_max_step` controls fixed tau-leaping).
 
+The provider advertises every canonical `CoreSolver` method. Fully nonlinear
+`sdirk2` reads its distinct full flattened Jacobian from
+`system.option("rhs_jacobian")`; a custom backend-neutral `NonlinearSolver` may
+be supplied through `system.option("nonlinear_solver")`, otherwise the portable
+dense Newton solver is used. This is deliberately separate from the
+operator-axis `system.option("jacobian")` consumed by linearly implicit and
+Rosenbrock methods.
+
 ### Adaptive schedule replay
 
 Adaptive differentiation uses an explicit two-phase contract. First run the
@@ -99,6 +107,11 @@ and adaptive controller settings. Its gradients are conditional on that mesh:
 discover a fresh schedule after material parameter, tolerance, model, or
 output-grid changes. A run launched through `Simulator` exposes its discovered
 artifact as `engine.last_adaptive_schedule`.
+
+In addition to `rtol`, `atol`, and controller bounds, provider configuration
+exposes `dt_init`, `max_reject`, and `max_steps`. These bound adaptive discovery
+work per output interval and are recorded in the replay artifact, so changing
+one requires a fresh schedule.
 
 `run_adaptive()` also returns any nonlinear replay diagnostics. Call
 `result.require_converged()` after compiled execution before accepting a result
@@ -144,7 +157,10 @@ Adaptive tau-leaping is not exposed by this provider yet. Its pre-leap
 selector needs the molecular reactant order, including catalytic reactants.
 The current typed op_system artifact describes source consumption and target
 scatter exactly, but an arbitrary propensity expression does not expose enough
-information to infer that reactant-order matrix safely.
+information to infer that reactant-order matrix safely. The required producer
+contract is tracked in [op_system #222](https://github.com/ACCIDDA/op_system/issues/222);
+until it exists, provider configuration rejects any implication that adaptive
+tau-leaping is available.
 
 ## Hybrid execution
 
