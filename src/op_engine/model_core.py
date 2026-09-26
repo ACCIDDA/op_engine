@@ -16,9 +16,11 @@ only manages state, time, and shape/axis metadata in a solver-friendly manner.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import numpy as np
+
+from ._array import array_namespace as _namespace_of
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -49,22 +51,6 @@ _STEP_OOB_ERROR = "Step out of bounds"
 _FINAL_TIMESTEP_ERROR = "Simulation has already reached final timestep"
 _DT_INDEX_OOB_ERROR = "dt index out of bounds: {idx}"
 _TIME_INDEX_OOB_ERROR = "time index out of bounds: {idx}"
-_ARRAY_API_ERROR = (
-    "ModelCore state inputs must implement __array_namespace__() "
-    "(for example NumPy >= 2.0 or JAX arrays); got {type_name}."
-)
-
-
-def _namespace_of(value: object) -> Any:  # noqa: ANN401
-    """Return the Array-API namespace advertised by ``value``.
-
-    Raises:
-        TypeError: If ``value`` does not advertise an array namespace.
-    """
-    namespace = getattr(value, "__array_namespace__", None)
-    if namespace is None:
-        raise TypeError(_ARRAY_API_ERROR.format(type_name=type(value).__name__))
-    return namespace()
 
 
 class _IndexableArray(Protocol):

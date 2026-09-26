@@ -8,13 +8,13 @@ from dataclasses import dataclass
 from numbers import Integral
 from typing import cast
 
+from ._array import array_namespace as _namespace_of
 from ._typing import Array
 from .nonlinear_solver import (
     NonlinearProblem,
     NonlinearSolveDiagnostics,
     NonlinearSolver,
     NonlinearSolveResult,
-    _namespace_of,
 )
 
 ImplicitRhs = Callable[[float, Array], Array]

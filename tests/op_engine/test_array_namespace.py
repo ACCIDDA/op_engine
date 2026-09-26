@@ -8,7 +8,14 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import pytest
 
-from op_engine import Array, CoreSolver, ModelCore, Scalar, implicit_solve
+from op_engine import (
+    Array,
+    CoreSolver,
+    ModelCore,
+    Scalar,
+    array_namespace,
+    implicit_solve,
+)
 from op_engine.core_solver import AdaptiveConfig, AdaptiveStepSchedule, RunConfig
 from op_engine.model_core import ModelCoreOptions
 
@@ -78,6 +85,57 @@ def _solve_explicit(
 def test_array_protocol_is_exported_and_runtime_checkable() -> None:
     """The public protocol matches NumPy's Array-API surface."""
     assert isinstance(np.asarray([1.0]), Array)
+
+
+def test_array_namespace_rejects_unsupported_values_consistently() -> None:
+    """Namespace discovery wraps compatibility-library implementation details."""
+    with pytest.raises(
+        TypeError,
+        match="op_engine numerical inputs must be supported array objects",
+    ):
+        array_namespace(object())
+
+
+def test_array_namespace_remains_jittable_and_differentiable_with_jax() -> None:
+    """Compatibility discovery does not break JAX tracing or gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+
+    def squared_norm(value: Array) -> Array:
+        xp = array_namespace(value)
+        return cast("Array", xp.sum(xp.square(value)))
+
+    gradient = jax.jit(jax.grad(squared_norm))(
+        jnp.asarray([1.0, -2.0], dtype=jnp.float32)
+    )
+
+    np.testing.assert_allclose(np.asarray(gradient), [2.0, -4.0])
+
+
+def test_fixed_explicit_step_accepts_raw_torch_tensor_when_available() -> None:
+    """A native Torch tensor uses the compatibility namespace and autograd."""
+    torch = pytest.importorskip("torch")
+    core = ModelCore(1, 1, np.asarray([0.0, 0.2]))
+    solver = CoreSolver(core)
+    initial = torch.tensor([[1.0]], dtype=torch.float64, requires_grad=True)
+
+    def rhs(_time: Scalar, state: Array) -> Array:
+        xp = array_namespace(state)
+        return cast("Array", xp.multiply(state, -0.25))
+
+    result, _stage = solver.fixed_explicit_step(
+        rhs,
+        method="rk4",
+        t=0.0,
+        dt=0.2,
+        y=initial,
+    )
+    result.sum().backward()
+
+    assert isinstance(result, torch.Tensor)
+    assert result.detach().item() == pytest.approx(0.9512294270833334)
+    assert initial.grad is not None
+    assert initial.grad.item() == pytest.approx(0.9512294270833334)
 
 
 def test_model_core_options_no_longer_store_backend_module() -> None:

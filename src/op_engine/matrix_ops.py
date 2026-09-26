@@ -48,6 +48,8 @@ from scipy.sparse import coo_matrix, csr_matrix, diags, identity, issparse, kron
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import factorized as sparse_factorized
 
+from ._array import array_namespace as _namespace_of
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -211,9 +213,6 @@ _UNKNOWN_SCHEME_ERROR = "Unknown scheme: {scheme}"
 _BASE_BUILDER_ERROR = (
     "base_builder must return a dense ndarray or csr_matrix; got {typ}"
 )
-_ARRAY_API_SOLVE_ERROR = (
-    "Dense implicit-solve inputs must implement __array_namespace__(); got {type_name}."
-)
 _SPARSE_ECOSYSTEM_ERROR = (
     "Sparse operators from the '{ecosystem_id}' ecosystem require a compatible "
     "state array; use dense operators for cross-backend fallback."
@@ -283,7 +282,9 @@ def build_advection_matrix(
         raise ValueError(msg)
 
     namespace_source: object = reference if reference is not None else velocity
-    if getattr(namespace_source, "__array_namespace__", None) is None:
+    try:
+        _namespace_of(namespace_source)
+    except TypeError:
         namespace_source = np.asarray(namespace_source)
     xp = _namespace_of(namespace_source)
     source_dtype = cast("Any", namespace_source).dtype
@@ -377,7 +378,9 @@ def build_diffusion_matrix(  # noqa: C901
         raise ValueError(msg)
 
     namespace_source: object = reference if reference is not None else coefficient
-    if getattr(namespace_source, "__array_namespace__", None) is None:
+    try:
+        _namespace_of(namespace_source)
+    except TypeError:
         namespace_source = np.asarray(namespace_source)
     xp = _namespace_of(namespace_source)
     source_dtype = cast("Any", namespace_source).dtype
@@ -1105,20 +1108,6 @@ def _find_sparse_adapter(
         if adapter.issparse(left_op) and adapter.issparse(right_op):
             return adapter
     return None
-
-
-def _namespace_of(value: object) -> Any:  # noqa: ANN401
-    """Return the Array-API namespace for a dense solve input.
-
-    Raises:
-        TypeError: If the input does not advertise an Array-API namespace.
-    """
-    namespace = getattr(value, "__array_namespace__", None)
-    if namespace is None:
-        raise TypeError(
-            _ARRAY_API_SOLVE_ERROR.format(type_name=type(value).__name__),
-        )
-    return namespace()
 
 
 def _dense_operator_array(op: object, *, xp: Any, dtype: object) -> Array:  # noqa: ANN401

@@ -83,6 +83,7 @@ from ._additive_runge_kutta import (
     AdditiveRungeKuttaTableau,
     evaluate_additive_runge_kutta,
 )
+from ._array import array_namespace as _namespace_of
 from ._multistep import (
     BDF2,
     MultistepHistory,
@@ -265,20 +266,6 @@ StageOperatorFactory = Callable[[float, float, StageOperatorContext], CoreOperat
 
 # What the current (NumPy/SciPy) implicit_solve backend actually accepts.
 ScipyOperator: TypeAlias = NDArray[np.floating] | csr_matrix
-
-
-def _namespace_of(value: object) -> Any:  # noqa: ANN401
-    """Return the Array-API namespace advertised by ``value``.
-
-    Raises:
-        TypeError: If ``value`` does not advertise an array namespace.
-    """
-    namespace = getattr(value, "__array_namespace__", None)
-    if namespace is None:
-        raise TypeError(
-            _ARRAY_API_ERROR_MSG.format(type_name=type(value).__name__),
-        )
-    return namespace()
 
 
 # =============================================================================

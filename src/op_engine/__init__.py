@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import version as _metadata_version
 
+from ._array import array_namespace as array_namespace
 from ._typing import Array as Array
 from ._typing import Scalar as Scalar
 from .adaptive_tau import AdaptiveTauLeapingConfig, AdaptiveTauLeapingSolver
@@ -93,6 +94,7 @@ __all__ = [
     "Scalar",
     "TauLeapingConfig",
     "TauLeapingSolver",
+    "array_namespace",
     "build_advection_matrix",
     "build_crank_nicolson_operator",
     "build_diffusion_matrix",
