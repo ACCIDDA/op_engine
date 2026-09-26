@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from importlib import import_module
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -34,9 +34,12 @@ from op_engine.matrix_ops import (
 if TYPE_CHECKING:
     from types import ModuleType
 
+    from flepimop2.typing import Array
     from numpy.typing import NDArray
     from op_system import OperatorDescriptor
 
+    from op_engine.core_solver import CoreOperators, StageOperatorFactory
+    from op_engine.matrix_ops import StageOperatorContext
 
 _STATE_LABEL_SAFE_RE = re.compile(r"[^A-Za-z0-9_]")
 
@@ -277,6 +280,245 @@ def _lift_generator(
     return flat
 
 
+def _array_namespace(value: object) -> Any:  # noqa: ANN401
+    """Return the namespace advertised by a dense operator reference."""
+    namespace = getattr(value, "__array_namespace__", None)
+    if namespace is None:
+        msg = "Dense portable operator compilation requires an Array-API reference."
+        raise TypeError(msg)
+    return namespace()
+
+
+def _resolve_scalar_array(
+    value: str | float | None,
+    *,
+    params: Mapping[str, object],
+    field: str,
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array:
+    """Resolve a scalar without materializing dynamic values on the host."""
+    resolved: object = 1.0 if value is None else value
+    if isinstance(resolved, str):
+        if resolved not in params:
+            msg = f"{field} references missing parameter {resolved!r}."
+            raise KeyError(msg)
+        resolved = params[resolved]
+    arr = cast("Array", xp.asarray(resolved, dtype=dtype))
+    if arr.shape != ():
+        msg = f"{field} must resolve to a scalar; got shape {arr.shape}."
+        raise ValueError(msg)
+    return arr
+
+
+def _resolve_generator_array(
+    descriptor: OperatorDescriptor,
+    *,
+    params: Mapping[str, object],
+    size: int,
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array:
+    """Resolve an axis-kernel generator in the state array namespace."""
+    kernel = descriptor.kernel
+    if not isinstance(kernel, Mapping) or kernel.get("form") != "generator":
+        msg = (
+            "Only op_system axis_kernel operators with "
+            "kernel.form='generator' are supported by the IMEX provider."
+        )
+        raise ValueError(msg)
+    kernel_params = kernel.get("params")
+    if not isinstance(kernel_params, Mapping) or "matrix" not in kernel_params:
+        msg = "axis_kernel generator requires kernel.params.matrix."
+        raise ValueError(msg)
+    matrix_ref = kernel_params["matrix"]
+    matrix_value: object = matrix_ref
+    if isinstance(matrix_ref, str):
+        if matrix_ref not in params:
+            msg = f"axis_kernel matrix references missing parameter {matrix_ref!r}."
+            raise KeyError(msg)
+        matrix_value = params[matrix_ref]
+    generator = cast("Array", xp.asarray(matrix_value, dtype=dtype))
+    if generator.shape != (size, size):
+        msg = (
+            f"axis_kernel generator for axis {descriptor.axis!r} must have "
+            f"shape {(size, size)}; got {generator.shape}."
+        )
+        raise ValueError(msg)
+    return generator
+
+
+def _lift_generator_array(  # noqa: PLR0913, PLR0914
+    descriptor: OperatorDescriptor,
+    *,
+    state_names: tuple[str, ...],
+    axis_order: tuple[str, ...],
+    axis_labels: Mapping[str, tuple[str, ...]],
+    params: Mapping[str, object],
+    reference: Array,
+) -> Array:
+    """Lift a generator with a static index map and namespace-native matmul."""
+    if descriptor.axis not in axis_labels:
+        msg = f"Operator references unknown axis {descriptor.axis!r}."
+        raise KeyError(msg)
+    labels = axis_labels[descriptor.axis]
+    xp = _array_namespace(reference)
+    generator = _resolve_generator_array(
+        descriptor,
+        params=params,
+        size=len(labels),
+        xp=xp,
+        dtype=reference.dtype,
+    )
+    velocity = _resolve_scalar_array(
+        descriptor.velocity,
+        params=params,
+        field="axis_kernel velocity",
+        xp=xp,
+        dtype=reference.dtype,
+    )
+
+    selected_bases = _apply_to_bases(descriptor)
+    groups: dict[tuple[str, tuple[tuple[str, str], ...]], dict[str, int]] = {}
+    for index, state_name in enumerate(state_names):
+        base, coords = _parse_expanded_state_name(state_name, axes=axis_order)
+        if selected_bases and base not in selected_bases:
+            continue
+        if descriptor.axis not in coords:
+            continue
+        other_coords = tuple(
+            (axis, coords[axis])
+            for axis in axis_order
+            if axis != descriptor.axis and axis in coords
+        )
+        group = groups.setdefault((base, other_coords), {})
+        coordinate = coords[descriptor.axis]
+        if coordinate in group:
+            msg = (
+                f"State layout repeats coordinate {coordinate!r} on axis "
+                f"{descriptor.axis!r} for base {base!r}."
+            )
+            raise ValueError(msg)
+        group[coordinate] = index
+
+    if not groups:
+        msg = (
+            f"Operator axis {descriptor.axis!r} does not occur in any selected "
+            "expanded state."
+        )
+        raise ValueError(msg)
+
+    flat_size = len(state_names)
+    kernel_size = len(labels)
+    lift_map = np.zeros(
+        (flat_size * flat_size, kernel_size * kernel_size),
+        dtype=np.float64,
+    )
+    expected_coordinates = set(labels)
+    for (base, _other_coords), coordinate_indices in groups.items():
+        if set(coordinate_indices) != expected_coordinates:
+            msg = (
+                f"Expanded state group for {base!r} does not cover every "
+                f"coordinate of axis {descriptor.axis!r}."
+            )
+            raise ValueError(msg)
+        for source_position, source_label in enumerate(labels):
+            source_index = coordinate_indices[source_label]
+            for target_position, target_label in enumerate(labels):
+                target_index = coordinate_indices[target_label]
+                flat_position = target_index * flat_size + source_index
+                kernel_position = source_position * kernel_size + target_position
+                lift_map[flat_position, kernel_position] += 1.0
+
+    lift_array = xp.asarray(lift_map, dtype=reference.dtype)
+    scaled_generator = xp.multiply(generator, velocity)
+    kernel_values = xp.reshape(scaled_generator, (kernel_size * kernel_size,))
+    flat_values = xp.matmul(lift_array, kernel_values)
+    return cast("Array", xp.reshape(flat_values, (flat_size, flat_size)))
+
+
+def _make_array_stage_factory(
+    base_operator: Array,
+    *,
+    scheme: str,
+) -> StageOperatorFactory:
+    """Build dense stage matrices in the stage state's namespace."""
+
+    def factory(
+        dt: float,
+        scale: float,
+        ctx: StageOperatorContext,
+    ) -> CoreOperators:
+        xp = _array_namespace(ctx.y)
+        operator = xp.asarray(base_operator, dtype=ctx.y.dtype)
+        identity = xp.eye(operator.shape[0], dtype=ctx.y.dtype)
+        dt_scale = dt * scale
+        if scheme == "implicit-euler":
+            left = xp.subtract(identity, xp.multiply(operator, dt_scale))
+            return cast("CoreOperators", (left, identity))
+        if scheme == "trapezoidal":
+            half_scale = 0.5 * dt_scale
+            scaled = xp.multiply(operator, half_scale)
+            left = xp.subtract(identity, scaled)
+            right = xp.add(identity, scaled)
+            return cast("CoreOperators", (left, right))
+        msg = f"Unknown dense Array-API operator scheme {scheme!r}."
+        raise ValueError(msg)
+
+    return factory
+
+
+def _compile_array_operator_descriptors(  # noqa: PLR0913
+    descriptors: tuple[OperatorDescriptor, ...],
+    *,
+    method: str,
+    state_names: tuple[str, ...],
+    axis_order: tuple[str, ...],
+    axis_labels: Mapping[str, tuple[str, ...]],
+    params: Mapping[str, object],
+    reference: Array,
+) -> OperatorSpecs:
+    """Compile typed descriptors without coercing dynamic values through NumPy."""
+    xp = _array_namespace(reference)
+    base_operator = xp.zeros(
+        (len(state_names), len(state_names)),
+        dtype=reference.dtype,
+    )
+    for descriptor in descriptors:
+        if descriptor.kind != "axis_kernel":
+            msg = (
+                f"Unsupported op_system operator kind {descriptor.kind!r}; only "
+                "axis_kernel generators can currently be compiled."
+            )
+            raise ValueError(msg)
+        contribution = _lift_generator_array(
+            descriptor,
+            state_names=state_names,
+            axis_order=axis_order,
+            axis_labels=axis_labels,
+            params=params,
+            reference=reference,
+        )
+        base_operator = xp.add(base_operator, contribution)
+
+    implicit_euler = _make_array_stage_factory(
+        cast("Array", base_operator),
+        scheme="implicit-euler",
+    )
+    trapezoidal = _make_array_stage_factory(
+        cast("Array", base_operator),
+        scheme="trapezoidal",
+    )
+    if method == "imex-euler":
+        return OperatorSpecs(default=implicit_euler)
+    if method == "imex-heun-tr":
+        return OperatorSpecs(default=trapezoidal)
+    if method == "imex-trbdf2":
+        return OperatorSpecs(tr=trapezoidal, bdf2=implicit_euler)
+    msg = f"Typed system operators require an IMEX method; got {method!r}."
+    raise ValueError(msg)
+
+
 def compile_operator_descriptors(  # noqa: PLR0913
     descriptors: tuple[OperatorDescriptor, ...],
     *,
@@ -285,11 +527,23 @@ def compile_operator_descriptors(  # noqa: PLR0913
     axis_order: object,
     axis_labels: object,
     params: Mapping[str, object],
+    reference: Array | None = None,
 ) -> OperatorSpecs:
     """Compile supported typed descriptors into method-specific stage factories."""
     names = _require_string_sequence(state_names, name="state_names")
     axes = _require_string_sequence(axis_order, name="axis_order")
     labels = _axis_label_map(axis_labels)
+    if reference is not None and not isinstance(reference, np.ndarray):
+        return _compile_array_operator_descriptors(
+            descriptors,
+            method=method,
+            state_names=names,
+            axis_order=axes,
+            axis_labels=labels,
+            params=params,
+            reference=reference,
+        )
+
     base_operator = np.zeros((len(names), len(names)), dtype=np.float64)
     for descriptor in descriptors:
         if descriptor.kind != "axis_kernel":
