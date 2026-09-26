@@ -546,6 +546,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sdirk2-contract-prototype" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SDIRK2 contract prototype
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -871,6 +882,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sdirk2-contract-prototype" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SDIRK2 contract prototype
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -990,9 +1012,21 @@ or a custom solve behind the same protocol. For example, JAX provides
 for roots whose gradients are defined by the implicit function theorem. That
 package-specific mechanism does not enter the core configuration or alter the
 portable default's semantics.</p>
-<p>An SDIRK prototype should be added only after its stage residuals, warm starts,
-nonconvergence handling, and diagnostic propagation can be expressed entirely
-through this contract.</p>
+<h2 id="sdirk2-contract-prototype">SDIRK2 contract prototype<a class="headerlink" href="#sdirk2-contract-prototype" title="Permanent link">&para;</a></h2>
+<p>The private prototype uses the two-stage, second-order, L-stable SDIRK formula
+from <a href="https://epubs.siam.org/doi/10.1137/0714068">Alexander (1977)</a>, with
+<code>gamma = 1 - 1/sqrt(2)</code>, coefficient rows <code>(gamma)</code> and
+<code>(1 - gamma, gamma)</code>, and weights equal to the final row. It is stiffly
+accurate: a converged final stage is the accepted state.</p>
+<p>Every stage constructs a <code>NonlinearProblem</code>, starts from its explicit
+lower-triangular predictor, and returns its <code>NonlinearSolveDiagnostics</code> without
+a host decision. The step-doubling prototype evaluates one full step and two
+half steps, scales their difference by <code>1 / (2**order - 1)</code>, and combines all
+six stage-convergence flags for an adaptive controller.</p>
+<p>The prototype is intentionally not a selectable <code>CoreSolver</code>/<code>RunConfig</code>
+method yet. Exposing it as a production method first requires a public place to
+return fixed-step and compiled-replay stage diagnostics; silently discarding
+those diagnostics would violate the failure contract above.</p>
 
 
 
