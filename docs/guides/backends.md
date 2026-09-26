@@ -28,57 +28,19 @@ Python loops and branches. Consequently, `adaptive=True` on the portable methods
 is not currently a JAX-`jit`-compatible execution path. This limitation belongs
 to the controller, not to the Euler, Heun, IMEX, or linearly implicit formulas.
 
-## Optional Diffrax Tsit5 strategy
+## Adaptive-controller boundary
 
-`diffrax-tsit5` is an optional JAX-specific adaptive strategy. It is not required
-for differentiation of the portable fixed-step methods. It is useful when a run
-specifically requires a compiled adaptive controller, checkpointed adjoints, or
-other Diffrax capabilities.
+The built-in adaptive controller preserves the active array namespace, but its
+step acceptance is intentionally eager Python control flow. It is therefore not
+a JAX-`jit`-compatible controller even though the numerical step formulas are
+differentiable.
 
-Install the optional dependencies:
+Projects that require a compiled adaptive controller, checkpointed adjoints, or
+other solver-specific capabilities can provide those at an external plugin or
+provider boundary. A specialized integration may return a complete trajectory
+and adopt it through `ModelCore.apply_trajectory`; it does not need to add a
+backend-specific method to `CoreSolver`.
 
-```bash
-pip install "op_engine[jax]"
-```
-
-Initialize `ModelCore` with JAX state and select the adaptive method:
-
-```python
-import jax.numpy as jnp
-import numpy as np
-
-from op_engine import CoreSolver, ModelCore
-from op_engine.core_solver import AdaptiveConfig, RunConfig
-from op_engine.model_core import ModelCoreOptions
-
-times = np.linspace(0.0, 10.0, 101, dtype=np.float32)
-core = ModelCore(
-    1,
-    1,
-    times,
-    options=ModelCoreOptions(dtype=np.float32),
-)
-core.set_initial_state(jnp.asarray([[1.0]], dtype=jnp.float32))
-
-
-def decay(_time, state):
-    return -0.2 * state
-
-
-config = RunConfig(
-    method="diffrax-tsit5",
-    adaptive=True,
-    adaptive_cfg=AdaptiveConfig(rtol=1e-6, atol=1e-8),
-)
-CoreSolver(core).run(decay, config=config)
-```
-
-The method uses Diffrax `Tsit5`, `PIDController`, and
-`RecursiveCheckpointAdjoint`, saving at every `ModelCore.time_grid` entry.
-The RHS and initial state must already be JAX-native; the solver rejects NumPy
-state instead of silently moving it to another device.
-
-The first Diffrax slice supports ordinary array state and a single deterministic
-RHS. Shaped PyTree/provider execution, block and draw
-batching, history/DDE terms, and hybrid CTMC execution are separate follow-up
-capabilities. Existing Array-API and sparse-accelerated methods remain unchanged.
+This keeps optional packages such as Diffrax out of the core dependency and
+method surfaces. The portable fixed-step methods and their differentiation
+contract remain identical across conforming array namespaces.

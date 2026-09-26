@@ -12,7 +12,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 
 ## Core surface
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
-- `CoreSolver`: portable explicit and dense IMEX/implicit methods, plus an optional Diffrax Tsit5 adaptive strategy; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
+- `CoreSolver`: portable explicit and dense IMEX/implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
 - `matrix_ops`: Laplacian/Crank–Nicolson/implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
@@ -22,7 +22,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 pip install op_engine
 ```
 
-With the optional JAX-specific adaptive strategy:
+With JAX as the array namespace:
 
 ```bash
 pip install "op_engine[jax]"
@@ -94,14 +94,14 @@ the dense correctness path.
 With JAX arrays, the fixed-step Euler, Heun, dense IMEX, and dense linearly
 implicit methods can be used under `jax.jit` and differentiated with `jax.grad`.
 This includes gradients through dynamic RHS parameters, initial state, and dense
-operator or Jacobian values. Diffrax is not required for those operations.
+operator or Jacobian values. No separate solver implementation is required.
 
 The portable adaptive controller is eager-only under JAX: it keeps state arrays
 in JAX, but its step acceptance uses Python scalar extraction and control flow.
-Use fixed steps when compiling the portable methods. The optional
-`diffrax-tsit5` strategy is available for workloads that specifically need a
-compiled adaptive controller or checkpointed adjoints. See the
-[backend guide](docs/guides/backends.md) for the capability boundary.
+Use fixed steps when compiling the portable methods. Compiled adaptive
+controllers and checkpointed adjoints are outside the core Array-API method
+contract and can be provided by specialized external integrations. See the
+[backend guide](docs/guides/backends.md) for the precise boundary.
 
 ### IMEX with operators (tuple form)
 
@@ -133,7 +133,7 @@ solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
 
 ## Public API
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
-- `CoreSolver`: portable explicit and dense IMEX/implicit stepping plus optional JAX-specific `diffrax-tsit5` adaptive integration.
+- `CoreSolver`: portable explicit and dense IMEX/implicit stepping selected by the state array namespace.
 - Operator utilities (`matrix_ops`): Laplacian builders, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.
 - Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. The adapter merges any `mixing_kernels` already computed by op_system (no automatic generation) and consumes config-supplied IMEX operator specs (dict or `OperatorSpecs`), forwarding the chosen `operator_axis` to `CoreSolver`.

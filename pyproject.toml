@@ -39,9 +39,7 @@ cupy = [
     "cupy>=13",
 ]
 jax = [
-    "diffrax>=0.7.0",
     "jax>=0.4.38",
-    "lineax>=0.0.8",
 ]
 
 [build-system]
@@ -50,9 +48,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "diffrax>=0.7.0",
     "jax>=0.4.38",
-    "lineax>=0.0.8",
     "mkdocs>=1.6.1",
     "mypy>=1.18.2",
     "matplotlib>=3.8",
