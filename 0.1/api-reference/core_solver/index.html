@@ -782,6 +782,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.last_nonlinear_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        last_nonlinear_diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#op_engine.core_solver.CoreSolver.replay_adaptive_schedule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -866,6 +877,73 @@
       
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearIntegrationConvergenceError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearIntegrationConvergenceError
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearIntegrationDiagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearIntegrationDiagnostics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NonlinearIntegrationDiagnostics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearIntegrationDiagnostics.require_converged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        require_converged
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearMethodConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearMethodConfig
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NonlinearMethodConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearMethodConfig.__post_init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __post_init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1259,6 +1337,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.last_nonlinear_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        last_nonlinear_diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#op_engine.core_solver.CoreSolver.replay_adaptive_schedule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1343,6 +1432,73 @@
       
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearIntegrationConvergenceError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearIntegrationConvergenceError
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearIntegrationDiagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearIntegrationDiagnostics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NonlinearIntegrationDiagnostics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearIntegrationDiagnostics.require_converged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        require_converged
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearMethodConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearMethodConfig
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NonlinearMethodConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.NonlinearMethodConfig.__post_init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __post_init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1532,7 +1688,8 @@ as <em>output times</em>: the times at which the user wants a stored solution st
     - "implicit-euler": One-linearization Euler approximation (order 1).
     - "trapezoidal": One-linearization trapezoidal approximation (order 2).
     - "bdf2":        One-linearization BDF2 approximation (order 2).
-    - "ros2":        L-stable Rosenbrock-W 2(1).</p>
+    - "ros2":        L-stable Rosenbrock-W 2(1).
+    - "sdirk2":      L-stable Alexander SDIRK2 with full nonlinear stages.</p>
 
 
 <details class="imex-structure" open>
@@ -1625,7 +1782,7 @@ optionally with a preprocessing predictor:
           <tr class="doc-section-item">
             <td><code><span title="op_engine.core_solver.AdaptiveAdvanceParams.plan">plan</span></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunPlan(method, gamma, op_default, op_tr, op_bdf2, jacobian)
+                  <code><a class="autorefs autorefs-internal" title="RunPlan(method, gamma, op_default, op_tr, op_bdf2, jacobian, nonlinear=None)
 
   
       dataclass
@@ -1881,35 +2038,7 @@ optionally with a preprocessing predictor:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
-<span class="normal">314</span>
-<span class="normal">315</span>
-<span class="normal">316</span>
-<span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span>
-<span class="normal">325</span>
-<span class="normal">326</span>
-<span class="normal">327</span>
-<span class="normal">328</span>
-<span class="normal">329</span>
-<span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">334</span>
 <span class="normal">335</span>
 <span class="normal">336</span>
 <span class="normal">337</span>
@@ -1919,7 +2048,35 @@ optionally with a preprocessing predictor:
 <span class="normal">341</span>
 <span class="normal">342</span>
 <span class="normal">343</span>
-<span class="normal">344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static adaptive-step parameters without coercing arrays.</span>
 
 <span class="sd">    Raises:</span>
@@ -2091,35 +2248,7 @@ a live solve while keeping loop lengths and step sizes static.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
-<span class="normal">370</span>
-<span class="normal">371</span>
-<span class="normal">372</span>
-<span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">391</span>
 <span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
@@ -2137,7 +2266,35 @@ a live solve while keeping loop lengths and step sizes static.</p>
 <span class="normal">406</span>
 <span class="normal">407</span>
 <span class="normal">408</span>
-<span class="normal">409</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize and validate the recorded mesh.</span>
 
 <span class="sd">    Raises:</span>
@@ -2288,71 +2445,72 @@ a live solve while keeping loop lengths and step sizes static.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span>
-<span class="normal">662</span>
-<span class="normal">663</span>
-<span class="normal">664</span>
-<span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span>
-<span class="normal">672</span>
-<span class="normal">673</span>
-<span class="normal">674</span>
-<span class="normal">675</span>
-<span class="normal">676</span>
-<span class="normal">677</span>
-<span class="normal">678</span>
-<span class="normal">679</span>
-<span class="normal">680</span>
-<span class="normal">681</span>
-<span class="normal">682</span>
-<span class="normal">683</span>
-<span class="normal">684</span>
-<span class="normal">685</span>
-<span class="normal">686</span>
-<span class="normal">687</span>
-<span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span>
-<span class="normal">694</span>
-<span class="normal">695</span>
-<span class="normal">696</span>
-<span class="normal">697</span>
-<span class="normal">698</span>
-<span class="normal">699</span>
-<span class="normal">700</span>
-<span class="normal">701</span>
-<span class="normal">702</span>
-<span class="normal">703</span>
-<span class="normal">704</span>
-<span class="normal">705</span>
-<span class="normal">706</span>
-<span class="normal">707</span>
-<span class="normal">708</span>
-<span class="normal">709</span>
-<span class="normal">710</span>
-<span class="normal">711</span>
-<span class="normal">712</span>
-<span class="normal">713</span>
-<span class="normal">714</span>
-<span class="normal">715</span>
-<span class="normal">716</span>
-<span class="normal">717</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span>
+<span class="normal">893</span>
+<span class="normal">894</span>
+<span class="normal">895</span>
+<span class="normal">896</span>
+<span class="normal">897</span>
+<span class="normal">898</span>
+<span class="normal">899</span>
+<span class="normal">900</span>
+<span class="normal">901</span>
+<span class="normal">902</span>
+<span class="normal">903</span>
+<span class="normal">904</span>
+<span class="normal">905</span>
+<span class="normal">906</span>
+<span class="normal">907</span>
+<span class="normal">908</span>
+<span class="normal">909</span>
+<span class="normal">910</span>
+<span class="normal">911</span>
+<span class="normal">912</span>
+<span class="normal">913</span>
+<span class="normal">914</span>
+<span class="normal">915</span>
+<span class="normal">916</span>
+<span class="normal">917</span>
+<span class="normal">918</span>
+<span class="normal">919</span>
+<span class="normal">920</span>
+<span class="normal">921</span>
+<span class="normal">922</span>
+<span class="normal">923</span>
+<span class="normal">924</span>
+<span class="normal">925</span>
+<span class="normal">926</span>
+<span class="normal">927</span>
+<span class="normal">928</span>
+<span class="normal">929</span>
+<span class="normal">930</span>
+<span class="normal">931</span>
+<span class="normal">932</span>
+<span class="normal">933</span>
+<span class="normal">934</span>
+<span class="normal">935</span>
+<span class="normal">936</span>
+<span class="normal">937</span>
+<span class="normal">938</span>
+<span class="normal">939</span>
+<span class="normal">940</span>
+<span class="normal">941</span>
+<span class="normal">942</span>
+<span class="normal">943</span>
+<span class="normal">944</span>
+<span class="normal">945</span>
+<span class="normal">946</span>
+<span class="normal">947</span>
+<span class="normal">948</span>
+<span class="normal">949</span>
+<span class="normal">950</span>
+<span class="normal">951</span>
+<span class="normal">952</span>
+<span class="normal">953</span>
+<span class="normal">954</span>
+<span class="normal">955</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">operators</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2410,6 +2568,7 @@ a live solve while keeping loop lengths and step sizes static.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_f_extrap</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rhs_buffer</span><span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_nonlinear_diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="c1"># Validate operator sizes if default spec is a static tuple</span>
     <span class="k">if</span> <span class="n">operators</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">operators</span><span class="p">):</span>
@@ -2447,6 +2606,28 @@ a live solve while keeping loop lengths and step sizes static.</p>
     <div class="doc doc-contents ">
 
         <p>Return the schedule recorded or replayed by the latest adaptive run.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="op_engine.core_solver.CoreSolver.last_nonlinear_diagnostics" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">last_nonlinear_diagnostics</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.CoreSolver.last_nonlinear_diagnostics" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return nonlinear diagnostics from the latest SDIRK run or replay.</p>
 
     </div>
 
@@ -2525,7 +2706,7 @@ JAX state, the static Python schedule can therefore be traced by
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, gamma=None)
+                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, nonlinear=None, gamma=None)
 
   
       dataclass
@@ -2538,6 +2719,29 @@ JAX state, the static Python schedule can therefore be traced by
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Array-valued nonlinear diagnostics for SDIRK2, otherwise <code>None</code>.</p>
+              </div>
             </td>
           </tr>
       </tbody>
@@ -2580,65 +2784,78 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3450</span>
-<span class="normal">3451</span>
-<span class="normal">3452</span>
-<span class="normal">3453</span>
-<span class="normal">3454</span>
-<span class="normal">3455</span>
-<span class="normal">3456</span>
-<span class="normal">3457</span>
-<span class="normal">3458</span>
-<span class="normal">3459</span>
-<span class="normal">3460</span>
-<span class="normal">3461</span>
-<span class="normal">3462</span>
-<span class="normal">3463</span>
-<span class="normal">3464</span>
-<span class="normal">3465</span>
-<span class="normal">3466</span>
-<span class="normal">3467</span>
-<span class="normal">3468</span>
-<span class="normal">3469</span>
-<span class="normal">3470</span>
-<span class="normal">3471</span>
-<span class="normal">3472</span>
-<span class="normal">3473</span>
-<span class="normal">3474</span>
-<span class="normal">3475</span>
-<span class="normal">3476</span>
-<span class="normal">3477</span>
-<span class="normal">3478</span>
-<span class="normal">3479</span>
-<span class="normal">3480</span>
-<span class="normal">3481</span>
-<span class="normal">3482</span>
-<span class="normal">3483</span>
-<span class="normal">3484</span>
-<span class="normal">3485</span>
-<span class="normal">3486</span>
-<span class="normal">3487</span>
-<span class="normal">3488</span>
-<span class="normal">3489</span>
-<span class="normal">3490</span>
-<span class="normal">3491</span>
-<span class="normal">3492</span>
-<span class="normal">3493</span>
-<span class="normal">3494</span>
-<span class="normal">3495</span>
-<span class="normal">3496</span>
-<span class="normal">3497</span>
-<span class="normal">3498</span>
-<span class="normal">3499</span>
-<span class="normal">3500</span>
-<span class="normal">3501</span>
-<span class="normal">3502</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4016</span>
+<span class="normal">4017</span>
+<span class="normal">4018</span>
+<span class="normal">4019</span>
+<span class="normal">4020</span>
+<span class="normal">4021</span>
+<span class="normal">4022</span>
+<span class="normal">4023</span>
+<span class="normal">4024</span>
+<span class="normal">4025</span>
+<span class="normal">4026</span>
+<span class="normal">4027</span>
+<span class="normal">4028</span>
+<span class="normal">4029</span>
+<span class="normal">4030</span>
+<span class="normal">4031</span>
+<span class="normal">4032</span>
+<span class="normal">4033</span>
+<span class="normal">4034</span>
+<span class="normal">4035</span>
+<span class="normal">4036</span>
+<span class="normal">4037</span>
+<span class="normal">4038</span>
+<span class="normal">4039</span>
+<span class="normal">4040</span>
+<span class="normal">4041</span>
+<span class="normal">4042</span>
+<span class="normal">4043</span>
+<span class="normal">4044</span>
+<span class="normal">4045</span>
+<span class="normal">4046</span>
+<span class="normal">4047</span>
+<span class="normal">4048</span>
+<span class="normal">4049</span>
+<span class="normal">4050</span>
+<span class="normal">4051</span>
+<span class="normal">4052</span>
+<span class="normal">4053</span>
+<span class="normal">4054</span>
+<span class="normal">4055</span>
+<span class="normal">4056</span>
+<span class="normal">4057</span>
+<span class="normal">4058</span>
+<span class="normal">4059</span>
+<span class="normal">4060</span>
+<span class="normal">4061</span>
+<span class="normal">4062</span>
+<span class="normal">4063</span>
+<span class="normal">4064</span>
+<span class="normal">4065</span>
+<span class="normal">4066</span>
+<span class="normal">4067</span>
+<span class="normal">4068</span>
+<span class="normal">4069</span>
+<span class="normal">4070</span>
+<span class="normal">4071</span>
+<span class="normal">4072</span>
+<span class="normal">4073</span>
+<span class="normal">4074</span>
+<span class="normal">4075</span>
+<span class="normal">4076</span>
+<span class="normal">4077</span>
+<span class="normal">4078</span>
+<span class="normal">4079</span>
+<span class="normal">4080</span>
+<span class="normal">4081</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="n">schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Replay a recorded adaptive mesh through the configured method.</span>
 
 <span class="sd">    Replay bypasses error norms and accept/reject decisions while invoking</span>
@@ -2650,6 +2867,9 @@ ecosystems during replay.</p>
 <span class="sd">        rhs_func: Function computing the explicit RHS F(t, y).</span>
 <span class="sd">        schedule: Accepted step mesh recorded by an adaptive run.</span>
 <span class="sd">        config: Matching adaptive run configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If schedule has the wrong type or the state changes array</span>
@@ -2664,9 +2884,18 @@ ecosystems during replay.</p>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_nonlinear_diagnostics</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate_schedule_time_grid</span><span class="p">(</span><span class="n">schedule</span><span class="p">)</span>
     <span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_run_plan</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">plan</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">"sdirk2"</span><span class="p">:</span>
+        <span class="n">diagnostics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_replay_sdirk_schedule</span><span class="p">(</span>
+            <span class="n">rhs_func</span><span class="p">,</span>
+            <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
+            <span class="n">schedule</span><span class="o">=</span><span class="n">schedule</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="n">schedule</span>
+        <span class="k">return</span> <span class="n">diagnostics</span>
     <span class="k">if</span> <span class="n">plan</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="n">_EXPLICIT_METHODS</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_replay_explicit_schedule</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span> <span class="n">schedule</span><span class="o">=</span><span class="n">schedule</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -2685,6 +2914,7 @@ ecosystems during replay.</p>
             <span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="n">schedule</span>
+    <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2737,7 +2967,7 @@ ecosystems during replay.</p>
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, gamma=None)
+                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, nonlinear=None, gamma=None)
 
   
       dataclass
@@ -2750,6 +2980,29 @@ ecosystems during replay.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Array-valued nonlinear diagnostics for SDIRK2, otherwise <code>None</code>.</p>
+              </div>
             </td>
           </tr>
       </tbody>
@@ -2791,108 +3044,133 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3504</span>
-<span class="normal">3505</span>
-<span class="normal">3506</span>
-<span class="normal">3507</span>
-<span class="normal">3508</span>
-<span class="normal">3509</span>
-<span class="normal">3510</span>
-<span class="normal">3511</span>
-<span class="normal">3512</span>
-<span class="normal">3513</span>
-<span class="normal">3514</span>
-<span class="normal">3515</span>
-<span class="normal">3516</span>
-<span class="normal">3517</span>
-<span class="normal">3518</span>
-<span class="normal">3519</span>
-<span class="normal">3520</span>
-<span class="normal">3521</span>
-<span class="normal">3522</span>
-<span class="normal">3523</span>
-<span class="normal">3524</span>
-<span class="normal">3525</span>
-<span class="normal">3526</span>
-<span class="normal">3527</span>
-<span class="normal">3528</span>
-<span class="normal">3529</span>
-<span class="normal">3530</span>
-<span class="normal">3531</span>
-<span class="normal">3532</span>
-<span class="normal">3533</span>
-<span class="normal">3534</span>
-<span class="normal">3535</span>
-<span class="normal">3536</span>
-<span class="normal">3537</span>
-<span class="normal">3538</span>
-<span class="normal">3539</span>
-<span class="normal">3540</span>
-<span class="normal">3541</span>
-<span class="normal">3542</span>
-<span class="normal">3543</span>
-<span class="normal">3544</span>
-<span class="normal">3545</span>
-<span class="normal">3546</span>
-<span class="normal">3547</span>
-<span class="normal">3548</span>
-<span class="normal">3549</span>
-<span class="normal">3550</span>
-<span class="normal">3551</span>
-<span class="normal">3552</span>
-<span class="normal">3553</span>
-<span class="normal">3554</span>
-<span class="normal">3555</span>
-<span class="normal">3556</span>
-<span class="normal">3557</span>
-<span class="normal">3558</span>
-<span class="normal">3559</span>
-<span class="normal">3560</span>
-<span class="normal">3561</span>
-<span class="normal">3562</span>
-<span class="normal">3563</span>
-<span class="normal">3564</span>
-<span class="normal">3565</span>
-<span class="normal">3566</span>
-<span class="normal">3567</span>
-<span class="normal">3568</span>
-<span class="normal">3569</span>
-<span class="normal">3570</span>
-<span class="normal">3571</span>
-<span class="normal">3572</span>
-<span class="normal">3573</span>
-<span class="normal">3574</span>
-<span class="normal">3575</span>
-<span class="normal">3576</span>
-<span class="normal">3577</span>
-<span class="normal">3578</span>
-<span class="normal">3579</span>
-<span class="normal">3580</span>
-<span class="normal">3581</span>
-<span class="normal">3582</span>
-<span class="normal">3583</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4083</span>
+<span class="normal">4084</span>
+<span class="normal">4085</span>
+<span class="normal">4086</span>
+<span class="normal">4087</span>
+<span class="normal">4088</span>
+<span class="normal">4089</span>
+<span class="normal">4090</span>
+<span class="normal">4091</span>
+<span class="normal">4092</span>
+<span class="normal">4093</span>
+<span class="normal">4094</span>
+<span class="normal">4095</span>
+<span class="normal">4096</span>
+<span class="normal">4097</span>
+<span class="normal">4098</span>
+<span class="normal">4099</span>
+<span class="normal">4100</span>
+<span class="normal">4101</span>
+<span class="normal">4102</span>
+<span class="normal">4103</span>
+<span class="normal">4104</span>
+<span class="normal">4105</span>
+<span class="normal">4106</span>
+<span class="normal">4107</span>
+<span class="normal">4108</span>
+<span class="normal">4109</span>
+<span class="normal">4110</span>
+<span class="normal">4111</span>
+<span class="normal">4112</span>
+<span class="normal">4113</span>
+<span class="normal">4114</span>
+<span class="normal">4115</span>
+<span class="normal">4116</span>
+<span class="normal">4117</span>
+<span class="normal">4118</span>
+<span class="normal">4119</span>
+<span class="normal">4120</span>
+<span class="normal">4121</span>
+<span class="normal">4122</span>
+<span class="normal">4123</span>
+<span class="normal">4124</span>
+<span class="normal">4125</span>
+<span class="normal">4126</span>
+<span class="normal">4127</span>
+<span class="normal">4128</span>
+<span class="normal">4129</span>
+<span class="normal">4130</span>
+<span class="normal">4131</span>
+<span class="normal">4132</span>
+<span class="normal">4133</span>
+<span class="normal">4134</span>
+<span class="normal">4135</span>
+<span class="normal">4136</span>
+<span class="normal">4137</span>
+<span class="normal">4138</span>
+<span class="normal">4139</span>
+<span class="normal">4140</span>
+<span class="normal">4141</span>
+<span class="normal">4142</span>
+<span class="normal">4143</span>
+<span class="normal">4144</span>
+<span class="normal">4145</span>
+<span class="normal">4146</span>
+<span class="normal">4147</span>
+<span class="normal">4148</span>
+<span class="normal">4149</span>
+<span class="normal">4150</span>
+<span class="normal">4151</span>
+<span class="normal">4152</span>
+<span class="normal">4153</span>
+<span class="normal">4154</span>
+<span class="normal">4155</span>
+<span class="normal">4156</span>
+<span class="normal">4157</span>
+<span class="normal">4158</span>
+<span class="normal">4159</span>
+<span class="normal">4160</span>
+<span class="normal">4161</span>
+<span class="normal">4162</span>
+<span class="normal">4163</span>
+<span class="normal">4164</span>
+<span class="normal">4165</span>
+<span class="normal">4166</span>
+<span class="normal">4167</span>
+<span class="normal">4168</span>
+<span class="normal">4169</span>
+<span class="normal">4170</span>
+<span class="normal">4171</span>
+<span class="normal">4172</span>
+<span class="normal">4173</span>
+<span class="normal">4174</span>
+<span class="normal">4175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">RunConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Advance the ModelCore state through its time grid.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        rhs_func: Function computing the explicit RHS F(t, y).</span>
 <span class="sd">        config: Optional run configuration. If None, defaults are used.</span>
 
+<span class="sd">    Returns:</span>
+<span class="sd">        Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.</span>
+
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If the state changes array ecosystems during a run.</span>
 <span class="sd">        ValueError: If invalid parameters are provided.</span>
 <span class="sd">    """</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_nonlinear_diagnostics</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">RunConfig</span><span class="p">()</span>
     <span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_run_plan</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">plan</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">"sdirk2"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_sdirk</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="n">plan</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="n">_EXPLICIT_METHODS</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_explicit</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
-        <span class="k">return</span>
+        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="n">current_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">current_state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_array_implicit</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
-        <span class="k">return</span>
+        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="n">time_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">time_grid</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
     <span class="n">n_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">)</span>
@@ -2950,6 +3228,7 @@ ecosystems during replay.</p>
             <span class="n">output_times</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">time_grid</span><span class="p">),</span>
             <span class="n">step_sizes</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">schedule_steps</span><span class="p">),</span>
         <span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3113,33 +3392,33 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span>
-<span class="normal">266</span>
-<span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static timestep-controller parameters.</span>
 
 <span class="sd">    Raises:</span>
@@ -3571,6 +3850,383 @@ ecosystems during replay.</p>
 
 
 
+<h3 id="op_engine.core_solver.NonlinearIntegrationConvergenceError" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">NonlinearIntegrationConvergenceError</span><span class="p">(</span><span class="n">diagnostics</span><span class="p">)</span></code>
+
+<a href="#op_engine.core_solver.NonlinearIntegrationConvergenceError" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="RuntimeError">RuntimeError</span></code></p>
+
+
+
+        <p>Raised after validating failed array-valued integration diagnostics.</p>
+
+        <p>Store diagnostics for the invalid integration or frozen mesh.</p>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Store diagnostics for the invalid integration or frozen mesh."""</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">diagnostics</span> <span class="o">=</span> <span class="n">diagnostics</span>
+    <span class="n">failed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">diagnostics</span><span class="o">.</span><span class="n">step_accepted</span><span class="p">),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">diagnostics</span><span class="o">.</span><span class="n">step_converged</span><span class="p">)),</span>
+    <span class="p">)</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">failed</span><span class="p">))</span><span class="si">}</span><span class="s2"> accepted nonlinear step(s) "</span>
+        <span class="s2">"did not converge"</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.NonlinearIntegrationDiagnostics" class="doc doc-heading">
+            <code>NonlinearIntegrationDiagnostics</code>
+
+
+<a href="#op_engine.core_solver.NonlinearIntegrationDiagnostics" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.NamedTuple">NamedTuple</span></code></p>
+
+
+
+        <p>Array-valued nonlinear diagnostics for one integration or replay.</p>
+<p>Every field is in the state array's namespace, so the record can cross a
+compiled JAX boundary. <code>stages_per_step</code> maps flattened stage fields back
+to attempted steps. Rejected adaptive attempts remain present with
+<code>step_accepted=False</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.core_solver.NonlinearIntegrationDiagnostics.require_converged" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">require_converged</span><span class="p">()</span></code>
+
+<a href="#op_engine.core_solver.NonlinearIntegrationDiagnostics.require_converged" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return valid diagnostics or invalidate a failed compiled replay.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>This unchanged diagnostic record.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationConvergenceError(diagnostics) (op_engine.core_solver.NonlinearIntegrationConvergenceError)" href="#op_engine.core_solver.NonlinearIntegrationConvergenceError">NonlinearIntegrationConvergenceError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If an accepted or replayed
+step contains a failed nonlinear stage.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return valid diagnostics or invalidate a failed compiled replay.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        This unchanged diagnostic record.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        NonlinearIntegrationConvergenceError: If an accepted or replayed</span>
+<span class="sd">            step contains a failed nonlinear stage.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">converged</span><span class="o">.</span><span class="n">item</span><span class="p">()):</span>
+        <span class="k">raise</span> <span class="n">NonlinearIntegrationConvergenceError</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.core_solver.NonlinearMethodConfig" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">NonlinearMethodConfig</span><span class="p">(</span><span class="n">rhs_jacobian</span><span class="p">,</span> <span class="n">solver</span><span class="o">=</span><span class="n">DenseNewtonSolver</span><span class="p">())</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.NonlinearMethodConfig" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Configuration for fully nonlinear integration methods.</p>
+<p>The Jacobian acts on the entire flattened RHS state. It is deliberately
+separate from :attr:<code>RunConfig.jacobian</code>, whose operators act only along
+<code>CoreSolver.operator_axis</code> for linearly implicit methods.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.NonlinearMethodConfig.rhs_jacobian">rhs_jacobian</span></code></td>
+            <td>
+                  <code><span title="op_engine.core_solver.FullRhsJacobianFunction">FullRhsJacobianFunction</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dense full-system Jacobian with shape
+<code>(state.size, state.size)</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.NonlinearMethodConfig.solver">solver</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearSolver (op_engine.nonlinear_solver.NonlinearSolver)" href="../nonlinear_solver/#op_engine.nonlinear_solver.NonlinearSolver">NonlinearSolver</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Backend-neutral nonlinear solver implementation.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.core_solver.NonlinearMethodConfig.__post_init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">__post_init__</span><span class="p">()</span></code>
+
+<a href="#op_engine.core_solver.NonlinearMethodConfig.__post_init__" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Validate the method boundary without selecting an array backend.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a callback or nonlinear solver is invalid.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Validate the method boundary without selecting an array backend.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If a callback or nonlinear solver is invalid.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rhs_jacobian</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"rhs_jacobian must be callable"</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">solver</span><span class="p">,</span> <span class="n">NonlinearSolver</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"solver must implement the NonlinearSolver protocol"</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h3 id="op_engine.core_solver.OperatorLike" class="doc doc-heading">
             <code>OperatorLike</code>
 
@@ -3797,9 +4453,9 @@ and as a fallback for TR/BDF2 stages.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Apply the predictor to a 2D array."""</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
@@ -3821,7 +4477,7 @@ and as a fallback for TR/BDF2 stages.</p>
 
 
 <h3 id="op_engine.core_solver.RunConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'heun'</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'heun'</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nonlinear</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -3938,6 +4594,21 @@ method downshifts may occur.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.nonlinear">nonlinear</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearMethodConfig(rhs_jacobian, solver=DenseNewtonSolver())
+
+  
+      dataclass
+   (op_engine.core_solver.NonlinearMethodConfig)" href="#op_engine.core_solver.NonlinearMethodConfig">NonlinearMethodConfig</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Full-system Jacobian and backend-neutral nonlinear solver.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code><span title="op_engine.core_solver.RunConfig.gamma">gamma</span></code></td>
             <td>
                   <code><span title="float">float</span> | None</code>
@@ -4021,30 +4692,35 @@ method downshifts may occur.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">453</span>
-<span class="normal">454</span>
-<span class="normal">455</span>
-<span class="normal">456</span>
-<span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span>
+<span class="normal">692</span>
+<span class="normal">693</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
+<span class="normal">697</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize the method and validate context-free configuration.</span>
 
 <span class="sd">    Raises:</span>
@@ -4062,6 +4738,11 @@ method downshifts may occur.</p>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">operators</span><span class="p">,</span> <span class="n">OperatorSpecs</span><span class="p">):</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="s2">"operators must be an OperatorSpecs"</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nonlinear</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nonlinear</span><span class="p">,</span> <span class="n">NonlinearMethodConfig</span>
+    <span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"nonlinear must be a NonlinearMethodConfig"</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"imex-trbdf2"</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -4087,7 +4768,7 @@ method downshifts may occur.</p>
 
 
 <h3 id="op_engine.core_solver.RunPlan" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">RunPlan</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">op_default</span><span class="p">,</span> <span class="n">op_tr</span><span class="p">,</span> <span class="n">op_bdf2</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">RunPlan</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">op_default</span><span class="p">,</span> <span class="n">op_tr</span><span class="p">,</span> <span class="n">op_bdf2</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">nonlinear</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -4177,6 +4858,21 @@ method downshifts may occur.</p>
             <td>
               <div class="doc-md-description">
                 <p>Optional Jacobian function for linearly implicit methods.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunPlan.nonlinear">nonlinear</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearMethodConfig(rhs_jacobian, solver=DenseNewtonSolver())
+
+  
+      dataclass
+   (op_engine.core_solver.NonlinearMethodConfig)" href="#op_engine.core_solver.NonlinearMethodConfig">NonlinearMethodConfig</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Configuration for fully nonlinear methods.</p>
               </div>
             </td>
           </tr>

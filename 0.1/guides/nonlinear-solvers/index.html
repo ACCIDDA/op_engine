@@ -575,10 +575,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sdirk2-contract-prototype" class="md-nav__link">
+  <a href="#configuring-sdirk2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        SDIRK2 contract prototype
+        Configuring SDIRK2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-diagnostics-and-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration diagnostics and replay
       
     </span>
   </a>
@@ -911,10 +922,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sdirk2-contract-prototype" class="md-nav__link">
+  <a href="#configuring-sdirk2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        SDIRK2 contract prototype
+        Configuring SDIRK2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-diagnostics-and-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration diagnostics and replay
       
     </span>
   </a>
@@ -939,13 +961,13 @@
 
 
 <h1 id="nonlinear-solver-contract">Nonlinear solver contract<a class="headerlink" href="#nonlinear-solver-contract" title="Permanent link">&para;</a></h1>
-<p><code>op_engine</code> does not yet expose SDIRK or fully implicit Runge--Kutta methods.
-Those methods require a genuine nonlinear solve for each implicit stage. The
-existing <code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code> methods take one Jacobian
+<p><code>op_engine</code> exposes the two-stage Alexander SDIRK2 method for systems that need
+a genuine nonlinear solve at each implicit stage. The existing
+<code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code> methods still take only one Jacobian
 linearization per attempted step; despite their historical method names, they
 are linearly implicit approximations rather than converged nonlinear methods.</p>
-<p>The public nonlinear contract establishes the boundary needed before a fully
-implicit method is added. <code>NonlinearProblem</code> supplies a residual plus an
+<p>The public nonlinear contract used by SDIRK2 keeps the method independent of a
+specific array package. <code>NonlinearProblem</code> supplies a residual plus an
 optional dense Jacobian and/or Jacobian-vector product. Each callback must
 preserve the iterate's array namespace and dtype. Residuals retain the iterate
 shape; dense Jacobians act on the flattened state and therefore have shape
@@ -970,9 +992,8 @@ result = DenseNewtonSolver().solve(
 root = require_converged(result).value
 </code></pre>
 <p>The solver receives the initial guess on every call. It has no hidden warm-start
-cache. A future implicit method is responsible for selecting a deterministic
-stage predictor; a rejected attempt must not silently mutate solver state used
-by its retry.</p>
+cache. SDIRK2 selects a deterministic lower-triangular stage predictor; a
+rejected attempt does not mutate solver state used by its retry.</p>
 <h2 id="portable-dense-default">Portable dense default<a class="headerlink" href="#portable-dense-default" title="Permanent link">&para;</a></h2>
 <p><code>DenseNewtonSolver</code> requires a floating-point initial guess and uses
 <a href="https://data-apis.org/array-api/2024.12/extensions/generated/array_api.linalg.solve.html"><code>xp.linalg.solve</code></a>
@@ -992,8 +1013,9 @@ represents a singular solve with non-finite arrays, the final diagnostic reports
 nonconvergence.</p>
 <p>The dense default is intentionally small. Sparse direct solvers, Krylov/JVP
 methods, line searches, trust regions, and PETSc- or package-specific state
-belong in optional implementations of the <code>NonlinearSolver</code> protocol. Their
-objects are not part of <code>CoreSolver</code> or <code>RunConfig</code>.</p>
+belong in optional implementations of the <code>NonlinearSolver</code> protocol. Core
+configuration depends only on that protocol; it has no SciPy-, JAX-, or
+PETSc-specific field or backend selector.</p>
 <h2 id="failure-and-adaptive-stepping">Failure and adaptive stepping<a class="headerlink" href="#failure-and-adaptive-stepping" title="Permanent link">&para;</a></h2>
 <p>Nonconvergence is data until an integration boundary applies policy:</p>
 <table>
@@ -1006,15 +1028,15 @@ objects are not part of <code>CoreSolver</code> or <code>RunConfig</code>.</p>
 <tbody>
 <tr>
 <td>Eager fixed step</td>
-<td><code>require_converged</code> raises <code>NonlinearConvergenceError</code> with the failed result attached.</td>
+<td><code>CoreSolver.run</code> raises <code>NonlinearConvergenceError</code> with the failed stage result attached and does not advance state.</td>
 </tr>
 <tr>
-<td>Future live adaptive step</td>
+<td>Live adaptive step</td>
 <td>Reject the attempted step, reduce <code>dt</code>, and charge the rejection against <code>AdaptiveConfig.max_reject</code>. Never advance state from a failed candidate.</td>
 </tr>
 <tr>
 <td>Compiled accepted-schedule replay</td>
-<td>Return stage diagnostics from compiled code and validate them afterward. A failed stage invalidates that replay; the recorded mesh cannot be changed inside the trace.</td>
+<td>Return array-valued diagnostics and validate them afterward. A failed stage invalidates that replay; the recorded mesh cannot be changed inside the trace.</td>
 </tr>
 <tr>
 <td>Callback or linear-algebra exception</td>
@@ -1040,21 +1062,69 @@ or a custom solve behind the same protocol. For example, JAX provides
 for roots whose gradients are defined by the implicit function theorem. That
 package-specific mechanism does not enter the core configuration or alter the
 portable default's semantics.</p>
-<h2 id="sdirk2-contract-prototype">SDIRK2 contract prototype<a class="headerlink" href="#sdirk2-contract-prototype" title="Permanent link">&para;</a></h2>
-<p>The private prototype uses the two-stage, second-order, L-stable SDIRK formula
+<h2 id="configuring-sdirk2">Configuring SDIRK2<a class="headerlink" href="#configuring-sdirk2" title="Permanent link">&para;</a></h2>
+<p>The public <code>sdirk2</code> method uses the two-stage, second-order, L-stable formula
 from <a href="https://epubs.siam.org/doi/10.1137/0714068">Alexander (1977)</a>, with
 <code>gamma = 1 - 1/sqrt(2)</code>, coefficient rows <code>(gamma)</code> and
 <code>(1 - gamma, gamma)</code>, and weights equal to the final row. It is stiffly
 accurate: a converged final stage is the accepted state.</p>
 <p>Every stage constructs a <code>NonlinearProblem</code>, starts from its explicit
 lower-triangular predictor, and returns its <code>NonlinearSolveDiagnostics</code> without
-a host decision. The step-doubling prototype evaluates one full step and two
+a host decision. Adaptive step doubling evaluates one full step and two
 half steps, scales their difference by <code>1 / (2**order - 1)</code>, and combines all
 six stage-convergence flags for an adaptive controller.</p>
-<p>The prototype is intentionally not a selectable <code>CoreSolver</code>/<code>RunConfig</code>
-method yet. Exposing it as a production method first requires a public place to
-return fixed-step and compiled-replay stage diagnostics; silently discarding
-those diagnostics would violate the failure contract above.</p>
+<p>Supply its full-system RHS Jacobian through a separate configuration. This
+Jacobian always has shape <code>(state.size, state.size)</code>, even when the state has
+several axes. It is not the operator-axis <code>RunConfig.jacobian</code> used by the
+linearly implicit methods.</p>
+<pre><code class="language-python">import numpy as np
+
+from op_engine import CoreSolver, ModelCore, NonlinearMethodConfig
+from op_engine.core_solver import AdaptiveConfig, RunConfig
+
+times = np.linspace(0.0, 1.0, 11)
+core = ModelCore(1, 1, times)
+core.set_initial_state(np.asarray([[1.0]]))
+
+
+def rhs(_time, state):
+    return -(state * state)
+
+
+def full_rhs_jacobian(_time, state):
+    return np.reshape(-2.0 * state, (1, 1))
+
+
+config = RunConfig(
+    method=&quot;sdirk2&quot;,
+    adaptive=True,
+    adaptive_cfg=AdaptiveConfig(rtol=1e-6, atol=1e-9),
+    nonlinear=NonlinearMethodConfig(rhs_jacobian=full_rhs_jacobian),
+)
+diagnostics = CoreSolver(core).run(rhs, config=config)
+assert diagnostics is not None
+diagnostics.require_converged()
+</code></pre>
+<p><code>NonlinearMethodConfig</code> defaults to the backend-neutral <code>DenseNewtonSolver</code> and
+also accepts another <code>NonlinearSolver</code> implementation. It never stores an
+array namespace or backend module.</p>
+<h2 id="integration-diagnostics-and-replay">Integration diagnostics and replay<a class="headerlink" href="#integration-diagnostics-and-replay" title="Permanent link">&para;</a></h2>
+<p><code>CoreSolver.run</code> and <code>replay_adaptive_schedule</code> return
+<code>NonlinearIntegrationDiagnostics</code> for SDIRK2. All fields are native arrays.
+<code>step_converged</code>, <code>step_accepted</code>, and <code>step_sizes</code> describe attempted steps;
+rejected adaptive attempts remain present. <code>stages_per_step</code> maps the flattened
+stage fields back to each attempt. The stage fields include convergence flags,
+iteration/evaluation counts, and initial, final, and update RMS norms.</p>
+<p>Live adaptive integration may therefore finish successfully even though a
+rejected attempt has <code>step_converged=False</code>; the aggregate <code>converged</code> flag
+requires every accepted step to converge. <code>last_nonlinear_diagnostics</code> retains
+the most recent record, including after a fixed failure or exhausted rejection
+budget.</p>
+<p>Compiled replay cannot change its frozen mesh. Return its diagnostics from the
+transformed function, then call <code>diagnostics.require_converged()</code> outside the
+trace. A <code>NonlinearIntegrationConvergenceError</code> means the replayed state and
+derivatives must be discarded. A valid replay remains differentiable through
+the fixed Newton iterations with JAX.</p>
 
 
 

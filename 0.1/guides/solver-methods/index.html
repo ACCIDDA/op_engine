@@ -1066,6 +1066,12 @@ numerical method.</p>
 <td>Jacobian callable</td>
 <td>L-stable linearly implicit integration</td>
 </tr>
+<tr>
+<td><code>sdirk2</code></td>
+<td style="text-align: right;">2</td>
+<td>Full RHS Jacobian and nonlinear solver</td>
+<td>L-stable fully nonlinear integration</td>
+</tr>
 </tbody>
 </table>
 <p><code>bdf2</code> currently requires a uniform output grid and <code>adaptive=False</code>. Its first
@@ -1252,9 +1258,9 @@ the module is imported.</p>
 <p>Dense Jacobians stay in the state's namespace. SciPy sparse operators are an
 optional NumPy acceleration path and are not a JAX differentiation path.</p>
 <p>The first three methods perform a single linearization; they do not iterate a
-nonlinear residual to convergence. See the <a href="../nonlinear-solvers/">nonlinear solver
-contract</a> for the boundary required by future SDIRK and
-fully implicit Runge--Kutta methods.</p>
+nonlinear residual to convergence. <code>sdirk2</code> instead solves each stage through
+the <a href="../nonlinear-solvers/">nonlinear solver contract</a>, with a distinct full
+flattened Jacobian and explicit convergence diagnostics.</p>
 <h2 id="adaptivity-and-array-api-backends">Adaptivity and Array-API backends<a class="headerlink" href="#adaptivity-and-array-api-backends" title="Permanent link">&para;</a></h2>
 <p><code>AdaptiveConfig</code> sets tolerances and attempt limits; <code>DtControllerConfig</code> sets
 step-size bounds and growth factors. Their static scalar values are validated
@@ -1277,13 +1283,16 @@ assert schedule is not None
 
 # Construct a fresh core and solver inside the function being transformed.
 solver = CoreSolver(differentiable_core)
-solver.replay_adaptive_schedule(rhs, schedule, config=config)
+diagnostics = solver.replay_adaptive_schedule(rhs, schedule, config=config)
 </code></pre>
 <p><code>jax.jit(jax.value_and_grad(...))</code> can trace the replay because its step count
 and step sizes are static, while array-valued model inputs remain dynamic. The
 gradient is conditional on that mesh: replay does not differentiate the
 accept/reject decisions. Refresh the schedule when parameters, tolerances, the
 method, or other model structure change materially.</p>
+<p>For SDIRK2, replay returns array-valued nonlinear diagnostics as part of the
+compiled result. Inspect <code>diagnostics.require_converged()</code> after execution and
+discard the replayed state and derivatives if any frozen-mesh stage failed.</p>
 <p>A live compiled controller or specialized adjoint implementation can still
 belong in an external provider and may return a trajectory through
 <code>ModelCore.apply_trajectory</code>. It should reuse the portable method semantics
