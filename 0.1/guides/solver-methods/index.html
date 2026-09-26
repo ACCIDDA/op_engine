@@ -14,7 +14,7 @@
         <link rel="prev" href="../getting-started/">
       
       
-        <link rel="next" href="../nonlinear-solvers/">
+        <link rel="next" href="../linear-multistep-methods/">
       
       
         
@@ -567,6 +567,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../linear-multistep-methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Multistep Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../nonlinear-solvers/" class="md-nav__link">
         
   
@@ -1044,6 +1072,9 @@ numerical method.</p>
 step uses linearly implicit Euler because no previous state exists yet. The
 other methods support the built-in adaptive controller, subject to the
 compiled-control-flow boundary described below.</p>
+<p>The <a href="../linear-multistep-methods/">linear-multistep design note</a> records the
+coefficient/history contract, restart rules, and the current no-go decision on
+exposing BDF3 before variable-step and rejection semantics exist.</p>
 <h2 id="stochastic-reaction-networks">Stochastic reaction networks<a class="headerlink" href="#stochastic-reaction-networks" title="Permanent link">&para;</a></h2>
 <p>Fixed-step explicit tau-leaping approximates the number of firings in each
 reaction channel over a time interval with an independent Poisson draw. Supply

@@ -8,26 +8,28 @@
       
       
       
-        <link rel="canonical" href="https://accidda.github.io/op_engine/0.1/">
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.1/guides/linear-multistep-methods/">
       
       
+        <link rel="prev" href="../solver-methods/">
       
-        <link rel="next" href="development/creating-a-release/">
+      
+        <link rel="next" href="../nonlinear-solvers/">
       
       
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>op_engine Documentation</title>
+        <title>Linear Multistep Methods - op_engine Documentation</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -46,9 +48,9 @@
       
     
     
-      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -66,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#welcome-to-op-engine" class="md-skip">
+        <a href="#linear-multistep-methods" class="md-skip">
           Skip to content
         </a>
       
@@ -81,12 +83,12 @@
             <div class="md-banner__inner md-grid md-typeset">
               
   You're not viewing the latest version.
-  <a href="../.">
+  <a href="../../..">
     <strong>Click here to go to latest.</strong>
   </a>
 
             </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
           </aside>
         
       </div>
@@ -98,7 +100,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+    <a href="../.." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -118,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Linear Multistep Methods
             
           </span>
         </div>
@@ -208,7 +210,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+    <a href="../.." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -235,19 +237,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -263,7 +256,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -322,7 +314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/creating-a-release/" class="md-nav__link">
+      <a href="../../development/creating-a-release/" class="md-nav__link">
         
   
   
@@ -354,18 +346,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
@@ -386,7 +380,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -404,7 +398,7 @@
   
   
     <li class="md-nav__item">
-      <a href="guides/getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -432,7 +426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="guides/solver-methods/" class="md-nav__link">
+      <a href="../solver-methods/" class="md-nav__link">
         
   
   
@@ -457,10 +451,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="guides/linear-multistep-methods/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Multistep Methods
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -476,6 +497,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#current-bdf-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current BDF family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#history-and-restart-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        History and restart contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bdf3-decision-no-go-for-a-public-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BDF3 decision: no-go for a public method
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -488,7 +562,7 @@
   
   
     <li class="md-nav__item">
-      <a href="guides/nonlinear-solvers/" class="md-nav__link">
+      <a href="../nonlinear-solvers/" class="md-nav__link">
         
   
   
@@ -516,7 +590,7 @@
   
   
     <li class="md-nav__item">
-      <a href="guides/biogeochemical-network/" class="md-nav__link">
+      <a href="../biogeochemical-network/" class="md-nav__link">
         
   
   
@@ -544,7 +618,7 @@
   
   
     <li class="md-nav__item">
-      <a href="guides/backends/" class="md-nav__link">
+      <a href="../backends/" class="md-nav__link">
         
   
   
@@ -626,7 +700,7 @@
   
   
     <li class="md-nav__item">
-      <a href="api-reference/core_solver/" class="md-nav__link">
+      <a href="../../api-reference/core_solver/" class="md-nav__link">
         
   
   
@@ -654,7 +728,7 @@
   
   
     <li class="md-nav__item">
-      <a href="api-reference/matrix_ops/" class="md-nav__link">
+      <a href="../../api-reference/matrix_ops/" class="md-nav__link">
         
   
   
@@ -682,7 +756,7 @@
   
   
     <li class="md-nav__item">
-      <a href="api-reference/model_core/" class="md-nav__link">
+      <a href="../../api-reference/model_core/" class="md-nav__link">
         
   
   
@@ -710,7 +784,7 @@
   
   
     <li class="md-nav__item">
-      <a href="api-reference/nonlinear_solver/" class="md-nav__link">
+      <a href="../../api-reference/nonlinear_solver/" class="md-nav__link">
         
   
   
@@ -738,7 +812,7 @@
   
   
     <li class="md-nav__item">
-      <a href="api-reference/stochastic_solver/" class="md-nav__link">
+      <a href="../../api-reference/stochastic_solver/" class="md-nav__link">
         
   
   
@@ -786,6 +860,47 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#current-bdf-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current BDF family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#history-and-restart-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        History and restart contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bdf3-decision-no-go-for-a-public-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BDF3 decision: no-go for a public method
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -801,17 +916,125 @@
 
 
 
-<h1 id="welcome-to-op-engine">Welcome to <code>OP Engine</code><a class="headerlink" href="#welcome-to-op-engine" title="Permanent link">&para;</a></h1>
-<p>The next generation vectorized compartmental model engine for <a href="https://github.com/ACCIDDA/flepimop2"><code>flepimop2</code></a>.</p>
-<p>Start with <a href="guides/getting-started/">Getting Started</a>, then use
-<a href="guides/solver-methods/">Choosing and configuring a solver</a> to select an
-explicit, IMEX, or linearly implicit method. The
-<a href="guides/biogeochemical-network/">biogeochemical network tutorial</a> shows
-stage-dependent operator splitting in a complete example.</p>
-<p><code>op_engine</code> numerical methods use the array namespace supplied by model state.
-The <a href="guides/backends/">backend guide</a> explains portability, JAX
-differentiability, sparse acceleration, and the external-provider boundary for
-specialized adaptive solvers.</p>
+<h1 id="linear-multistep-methods">Linear-multistep methods<a class="headerlink" href="#linear-multistep-methods" title="Permanent link">&para;</a></h1>
+<p><code>op_engine</code> represents constant-coefficient linear-multistep methods with the
+convention</p>
+<p>[
+  \sum_{j=0}^{k} \alpha_j y_{n+1-j}
+  = h \sum_{j=0}^{k} \beta_j f_{n+1-j}.
+]</p>
+<p>The representation stores the complete <code>alpha</code> and <code>beta</code> vectors, formal
+order, state-history requirement, startup sequence, and uniform-step
+restriction together. The executable kernel currently supports the backward
+differentiation family, where only <code>beta[0]</code> is nonzero. This boundary is
+intentional: an Adams-family method would also require derivative history and
+must not silently reuse a state-only history contract.</p>
+<h2 id="current-bdf-family">Current BDF family<a class="headerlink" href="#current-bdf-family" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Formula</th>
+<th><code>alpha</code></th>
+<th><code>beta</code></th>
+<th style="text-align: right;">Order</th>
+<th style="text-align: right;">Older state snapshots</th>
+<th>Startup</th>
+<th>Step restriction</th>
+<th>Public method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BDF1</td>
+<td><code>(1, -1)</code></td>
+<td><code>(1, 0)</code></td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td>None</td>
+<td>Variable step is valid</td>
+<td>Startup only</td>
+</tr>
+<tr>
+<td>BDF2</td>
+<td><code>(3/2, -2, 1/2)</code></td>
+<td><code>(1, 0, 0)</code></td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td>BDF1</td>
+<td>Uniform step</td>
+<td><code>bdf2</code></td>
+</tr>
+<tr>
+<td>BDF3</td>
+<td><code>(11/6, -3, 3/2, -1/3)</code></td>
+<td><code>(1, 0, 0, 0)</code></td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td>BDF1, then BDF2</td>
+<td>Uniform step</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>The public <code>bdf2</code> result is unchanged by this representation. Its first step
+uses the BDF1 coefficients. Every later step uses BDF2 and one stored older
+state. <code>CoreSolver</code> continues to reject adaptive BDF2 and nonuniform output
+spacing because a constant-coefficient formula is not a variable-step BDF
+implementation.</p>
+<p>As with the other methods historically called implicit in <code>CoreSolver</code>, the
+current BDF kernel takes one Jacobian and linearizes the residual at the
+current state. It is a linearly implicit BDF approximation, not a converged
+nonlinear BDF solve.</p>
+<h2 id="history-and-restart-contract">History and restart contract<a class="headerlink" href="#history-and-restart-contract" title="Permanent link">&para;</a></h2>
+<p>Multistep history is local to one <code>run()</code> call and stores native Array-API
+snapshots newest first. NumPy and JAX therefore use the same lifecycle:</p>
+<ul>
+<li>Push the pre-step state only after the proposed step is accepted.</li>
+<li>Never modify history for a rejected attempt.</li>
+<li>Clear history after a discontinuity, event reset, or external state
+  replacement, then repeat the declared startup sequence.</li>
+<li>A new <code>run()</code> always starts with empty history. Reusing a <code>CoreSolver</code> after
+  <code>ModelCore.set_initial_state()</code> cannot consume a state from the prior run.</li>
+</ul>
+<p>The current public BDF2 mode cannot reject a step because it is fixed-step.
+The accept-only rule is part of the reusable history boundary so a future
+adaptive implementation does not have to change its meaning.</p>
+<p>Coefficients contain no backend objects. State snapshots remain in the
+state's namespace, dense linear solves use that namespace's <code>linalg.solve</code>,
+and the optional SciPy sparse route remains NumPy-only. BDF2 is covered by
+NumPy/JAX recurrence parity and JAX <code>jit</code>/<code>grad</code> tests.</p>
+<h2 id="bdf3-decision-no-go-for-a-public-method">BDF3 decision: no-go for a public method<a class="headerlink" href="#bdf3-decision-no-go-for-a-public-method" title="Permanent link">&para;</a></h2>
+<p>BDF3 is retained as a validated private coefficient table for evaluation, but
+is not a <code>CoreSolver</code> method. The decision is <strong>no-go</strong> until the variable-step
+and lifecycle work below exists.</p>
+<p>The stability loss is material. The
+<a href="https://sundials.readthedocs.io/en/latest/cvodes/Mathematics_link.html#ivp-solution">SUNDIALS BDF notes</a>
+state that BDF orders one and two are A-stable, while orders three through five
+are not. A NASA stability study reports the familiar BDF3
+(A(86.03^\circ)) sector rather than the full left half-plane
+(<a href="https://ntrs.nasa.gov/api/citations/20100002944/downloads/20100002944.pdf">NASA/TM-2010-216189</a>).</p>
+<p>The repository test uses the weakly damped oscillatory mode
+(z=h\lambda=-0.001+i), obtainable from (\lambda=-1+1000i) and
+(h=0.001). A second mode at <code>-10000</code> makes the system stiff without changing
+this recurrence calculation. The largest BDF2 recurrence root is about
+<code>0.9328</code>; BDF3's is about <code>1.0429</code>. Thus BDF3 grows this mode while both the
+exact solution and BDF2 damp it. BDF2 is strongly dissipative here, so the
+benchmark is a stability discriminator rather than an accuracy endorsement.</p>
+<p>At a mature uniform step, BDF3 would still require one Jacobian evaluation and
+one linear solve, but it needs two older state snapshots instead of one and two
+startup steps instead of one. More importantly, promoting it now would provide
+no error estimator, no variable-step coefficient generation, and no defined
+history transition after rejection. Its nominal order is not enough to make
+that incomplete interface safe.</p>
+<p>Reconsider a public BDF3 (preferably a variable-order BDF family) only after:</p>
+<ol>
+<li>variable-step coefficients and step-ratio validation are implemented;</li>
+<li>a local-error estimator and adaptive accept/reject controller exist;</li>
+<li>rejected steps leave state and history unchanged under tests;</li>
+<li>events and external state modification have an explicit restart hook; and</li>
+<li>stiff dissipative and weakly damped oscillatory workload benchmarks show a
+   useful accuracy-per-solve region relative to BDF2, ROS2, and SDIRK2.</li>
+</ol>
 
 
 
@@ -861,10 +1084,10 @@ specialized adaptive solvers.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
