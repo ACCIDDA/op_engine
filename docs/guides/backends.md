@@ -1,6 +1,9 @@
 # Backend and solve-strategy boundaries
 
-`op_engine` selects the numerical namespace from the state array. Explicit,
+`op_engine` selects the numerical namespace from the state array with
+`array_api_compat.array_namespace()`. This supports arrays with the standard
+`__array_namespace__` protocol and native arrays such as `torch.Tensor`
+through compatibility namespaces. Explicit,
 dense linearly implicit, and IMEX methods use that namespace's Array-API
 operations, including `linalg.solve`. The numerical method does not change when
 the array namespace changes.
@@ -9,6 +12,10 @@ Namespace portability and automatic differentiation are related but distinct.
 The Array API does not define `grad`, `jit`, or traced control flow. A namespace
 such as JAX can nevertheless differentiate the ordinary `op_engine` methods
 because their fixed-step numerical operations remain in that namespace.
+The optional `torch` dependency group qualifies representative eager
+fixed-step kernels with PyTorch autograd. Compiler integration and complete
+method qualification remain provider/backend capabilities rather than
+consequences of namespace selection.
 
 ## Portable fixed-step methods
 

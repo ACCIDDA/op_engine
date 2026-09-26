@@ -21,22 +21,28 @@ CoreSolver(core).run(decay)
 solution = core.state_array
 ```
 
-## NumPy and JAX solves
+## Array-backend solves
 
-NumPy 2 and JAX arrays implement `__array_namespace__()`. Passing either one to
+`array-api-compat` discovers the numerical namespace from NumPy, JAX, CuPy,
+PyTorch, and other supported native arrays. Passing an array to
 `set_initial_state` selects the namespace for state storage, history, solver
-stages, and adaptive error control. No backend argument is needed. An RHS should
-derive operations from its state when it needs namespace functions:
+stages, and adaptive error control. No backend argument is needed. An RHS
+should derive operations from its state when it needs namespace functions:
 
 ```python
+from op_engine import array_namespace
+
+
 def portable_decay(_time, state):
-    xp = state.__array_namespace__()
+    xp = array_namespace(state)
     return xp.multiply(state, -0.25)
 ```
 
 Dense implicit and IMEX operators are converted into the state's namespace and
 solved with its Array-API `linalg.solve` implementation. This provides the
-portable correctness path for NumPy, JAX, and other conforming backends.
+portable correctness path for NumPy, JAX, PyTorch, and other supported
+backends. Array portability alone does not promise backend compilation,
+automatic differentiation, sparse support, or random-number semantics.
 
 Sparse acceleration is an optional second tier. SciPy sparse operators retain
 cached factorization for NumPy state. Installing `op-engine[cupy]` registers the

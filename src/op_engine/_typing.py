@@ -10,10 +10,11 @@ class Array(Protocol):
     """Minimal Array-API duck type used at public numerical boundaries.
 
     The contract intentionally matches :class:`op_system.Array` and
-    :class:`flepimop2.typing.Array`.  NumPy 2 arrays, JAX arrays, and other
-    Array-API implementations provide these members.  Numerical operations
-    are selected from the value's ``__array_namespace__`` at call time; no
-    backend module is stored in solver configuration.
+    :class:`flepimop2.typing.Array`. It describes arrays with the standard
+    ``__array_namespace__`` hook so those package boundaries remain statically
+    compatible. Runtime namespace discovery additionally accepts native arrays
+    such as ``torch.Tensor`` through compatibility namespaces. No backend
+    module is stored in solver configuration.
     """
 
     @property

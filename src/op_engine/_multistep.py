@@ -6,8 +6,9 @@ import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from numbers import Integral
-from typing import Any, Generic, TypeVar, cast
+from typing import Generic, TypeVar, cast
 
+from ._array import array_namespace as _namespace_of
 from ._typing import Array
 
 StateArray = TypeVar("StateArray", bound=Array)
@@ -15,19 +16,6 @@ WeightedSum = Callable[
     [StateArray, float, tuple[float, ...], Sequence[StateArray]], StateArray
 ]
 LinearSolve = Callable[[float, float, StateArray], StateArray]
-
-
-def _namespace_of(value: object) -> Any:  # noqa: ANN401
-    """Return the Array-API namespace advertised by ``value``.
-
-    Raises:
-        TypeError: If ``value`` is not an Array-API array.
-    """
-    namespace = getattr(value, "__array_namespace__", None)
-    if namespace is None:
-        msg = "Multistep history values must implement __array_namespace__()"
-        raise TypeError(msg)
-    return namespace()
 
 
 @dataclass(slots=True, frozen=True)

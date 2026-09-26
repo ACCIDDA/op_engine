@@ -17,14 +17,13 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias, cast
 
 import numpy as np
 
+from ._array import array_namespace as _namespace_of
+
 if TYPE_CHECKING:
     from ._typing import Array
     from .model_core import ModelCore
 
 
-_ARRAY_API_ERROR = (
-    "Stochastic solver arrays must implement __array_namespace__(); got {type_name}."
-)
 _INVALID_PROPENSITY = "Reaction propensities must be finite and non-negative"
 _INVALID_FIRINGS = "Poisson firing counts must be finite non-negative integers"
 _TAU_NEGATIVE_STATE = (
@@ -39,18 +38,6 @@ _SSA_NEGATIVE_STATE = (
 _MAX_EVENTS = "Exceeded max_events while advancing to an output time"
 _INVALID_SSA_WAIT = "SSA waiting_time must be a finite positive scalar"
 _INVALID_SSA_INDEX = "SSA flat_event_index must be a valid scalar integer"
-
-
-def _namespace_of(value: object) -> Any:  # noqa: ANN401
-    """Return the Array-API namespace advertised by ``value``.
-
-    Raises:
-        TypeError: If ``value`` does not advertise an array namespace.
-    """
-    namespace = getattr(value, "__array_namespace__", None)
-    if namespace is None:
-        raise TypeError(_ARRAY_API_ERROR.format(type_name=type(value).__name__))
-    return namespace()
 
 
 def _array_any(value: Array) -> bool:

@@ -6,8 +6,9 @@ import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from numbers import Integral
-from typing import Any, TypeAlias, cast
+from typing import TypeAlias, cast
 
+from ._array import array_namespace
 from ._typing import Array
 
 AdditiveRhs: TypeAlias = Callable[[float, Array], Array]
@@ -166,7 +167,7 @@ def evaluate_additive_runge_kutta(  # noqa: PLR0913
     """
     explicit_stages: list[Array] = []
     implicit_stages: list[Array] = []
-    xp = cast("Any", y.__array_namespace__())
+    xp = array_namespace(y)
 
     for stage_index, (explicit_row, implicit_row, stage_time) in enumerate(
         zip(tableau.a_explicit, tableau.a_implicit, tableau.c, strict=True)

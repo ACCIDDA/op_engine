@@ -374,8 +374,11 @@ well as the Rosenbrock method, take a Jacobian callable. The callable returns an
 operator acting along `operator_axis`:
 
 ```python
+from op_engine import array_namespace
+
+
 def jacobian(_time, state):
-    xp = state.__array_namespace__()
+    xp = array_namespace(state)
     return xp.multiply(xp.eye(state.shape[0], dtype=state.dtype), -0.5)
 
 

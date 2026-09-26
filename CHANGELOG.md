@@ -7,6 +7,10 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Numerical namespace discovery now uses `array-api-compat`, including native
+  PyTorch tensors that do not implement `__array_namespace__`. A public
+  `array_namespace` helper and optional Torch contract test preserve JAX
+  JIT/grad behavior while extending eager fixed-step autograd support (#144).
 - Explicit fixed-step runs can bound their internal integration step with
   `fixed_max_step` independently of requested output times, including compact
   differentiable JAX provider trajectories (#130).

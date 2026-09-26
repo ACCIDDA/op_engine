@@ -12,6 +12,7 @@ authors = [
 ]
 keywords = ["multiphysics", "ODE", "PDE", "IMEX", "operator-splitting", "solver"]
 dependencies = [
+    "array-api-compat>=1.12",
     "numpy>=2.0",
     "scipy>=1.11",
 ]
@@ -41,6 +42,9 @@ cupy = [
 ]
 jax = [
     "jax>=0.4.38",
+]
+torch = [
+    "torch>=2.6",
 ]
 
 [build-system]

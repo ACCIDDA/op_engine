@@ -75,9 +75,10 @@ solution = core.state_array  # shape (n_timesteps, state, subgroup)
 ### Array namespaces
 
 `ModelCore` infers its numerical namespace from the initial state through
-`initial_state.__array_namespace__()`. The state, stored history, solver stages,
+`array_api_compat.array_namespace()`. The state, stored history, solver stages,
 and dense solver operations stay in that namespace. There is no `xp=` or
-backend option. Fixed-step methods can be differentiated by JAX; the built-in
+backend option. This supports standard Array-API objects and native arrays such
+as `torch.Tensor`. Fixed-step methods can be differentiated by JAX; the built-in
 adaptive controller is eager Python control flow. See the
 [backend guide](docs/guides/backends.md) for the precise contract and the
 [solver guide](docs/guides/solver-methods.md) for method-specific examples.

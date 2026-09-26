@@ -12,28 +12,16 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Integral
-from typing import Any, Protocol, cast, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 import numpy as np
 
+from ._array import array_namespace as _namespace_of
 from ._typing import Array
 
 NonlinearResidual = Callable[[Array], Array]
 NonlinearJacobian = Callable[[Array], Array]
 JacobianVectorProduct = Callable[[Array, Array], Array]
-
-
-def _namespace_of(value: object) -> Any:  # noqa: ANN401
-    """Return the Array-API namespace advertised by ``value``.
-
-    Raises:
-        TypeError: If ``value`` is not an Array-API array.
-    """
-    namespace = getattr(value, "__array_namespace__", None)
-    if namespace is None:
-        msg = f"Nonlinear solves require Array-API arrays; got {type(value).__name__}."
-        raise TypeError(msg)
-    return namespace()
 
 
 @dataclass(slots=True, frozen=True)

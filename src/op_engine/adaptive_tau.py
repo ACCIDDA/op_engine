@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
+from ._array import array_namespace as _namespace_of
 from .stochastic_solver import (
     PoissonSampler,
     PropensityFunction,
     SSASampler,
     _array_any,
     _draw_ssa_event,
-    _namespace_of,
     _ReactionNetwork,
 )
 
