@@ -7,6 +7,10 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- A finite-element boundary design note and tested 1D P1 diffusion proof of
+  concept show how externally assembled mass/stiffness systems use the existing
+  stage-operator contract, without adding mesh or element abstractions to core
+  (#107).
 - Curvature-weighted 1D spatial-grid generators accept vectorized profile
   callables or sampled data, with optional curvature smoothing and a feasible
   minimum-spacing constraint. They return explicit NumPy geometry for use by
