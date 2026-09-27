@@ -912,6 +912,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/spatial_grid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Grid
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/stochastic_solver/" class="md-nav__link">
         
   
@@ -1456,6 +1484,23 @@ operator = build_diffusion_matrix(
 cell-volume weights. It is generally not symmetric in the unweighted Euclidean
 inner product. Periodic non-uniform grids need an explicit wrap spacing, which
 cannot be inferred from center coordinates alone, and are rejected.</p>
+<p>Use <code>generate_adaptive_grid</code> to create a curvature-weighted point grid from a
+vectorized profile callable:</p>
+<pre><code class="language-python">from op_engine import generate_adaptive_grid
+
+centers = generate_adaptive_grid(
+    lambda x: np.exp(-10.0 * x * x),
+    (-1.0, 1.0),
+    65,
+    smoothing_window=5,
+    minimum_spacing=1e-3,
+)
+</code></pre>
+<p>The generator returns exactly the requested number of NumPy coordinates,
+including both interval endpoints. It is eager preprocessing rather than part
+of the differentiable solve; the resulting static geometry can drive NumPy,
+JAX, Torch, or another supported Array-API backend. The sampled-data companion
+is <code>generate_adaptive_grid_from_data</code>.</p>
 <p>For <code>imex-trbdf2</code>, provide both stage schemes:</p>
 <pre><code class="language-python">implicit_euler = make_stage_operator_factory(diffusion, scheme=&quot;implicit-euler&quot;)
 config = RunConfig(
