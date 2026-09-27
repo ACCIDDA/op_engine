@@ -52,6 +52,7 @@ nav:
       - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Biogeochemical Network: guides/biogeochemical-network.md
+      - Trait-Structured Chemostat: guides/chemostat-pde.md
       - Backend Strategies: guides/backends.md
   - API Reference:
       - Adaptive Tau: api-reference/adaptive_tau.md

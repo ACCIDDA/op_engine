@@ -7,6 +7,10 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- A trait-structured chemostat PDE example combines a curvature-adapted
+  non-uniform finite-volume grid, no-flux implicit diffusion, nonlinear
+  resource coupling, structured trait moments, an RK45 reference, and a
+  documented three-panel diagnostic (#47).
 - The Flepimop provider compiles typed `jump_integral` descriptors into
   conservative Array-API operators for implicit/IMEX and structured explicit
   execution. It preserves dynamic rates and kernel matrices under JAX,
