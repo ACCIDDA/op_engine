@@ -167,11 +167,13 @@ config:
 PyTree execution is array-namespace polymorphic; block execution currently
 requires JAX because it relies on `vmap`. Both layouts use op_engine's own
 validated Euler, Heun, RK4, and Dormand--Prince coefficients—Diffrax is not an
-execution dependency. Until flepimop2 defines a structured engine-result
-contract, the provider flattens only the completed history at its public
-`(time, state...)` result boundary. Structured layouts intentionally reject
-adaptive, IMEX/implicit, hybrid, stochastic, and missing-metadata combinations
-instead of silently falling back to the flat path.
+execution dependency. Explicit adaptive JAX discovery first builds one
+conservative shared schedule from the full state; PyTree replay consumes that
+schedule directly, while block replay vmaps it across the selected axis. Until
+flepimop2 defines a structured engine-result contract, the provider flattens
+only the completed history at its public `(time, state...)` result boundary.
+Structured layouts intentionally reject IMEX/implicit, hybrid, stochastic, and
+missing-metadata combinations instead of silently falling back to the flat path.
 
 Run `uv run python benchmarks/structured_blocks.py` to compare compile time,
 median runtime, host allocation peaks, and device peak bytes (when reported by
@@ -191,7 +193,9 @@ Rosenbrock methods.
 ### Adaptive schedule replay
 
 Adaptive differentiation uses an explicit two-phase contract. First run the
-controller eagerly and retain its accepted mesh:
+controller and retain its accepted mesh. Explicit JAX inputs use a compiled,
+bounded device-resident acceptance loop; other namespaces retain the portable
+eager controller:
 
 ```python
 discovered = engine.run_adaptive(
@@ -215,13 +219,15 @@ trajectory = engine.run(
 )
 ```
 
-The replay uses the same portable core kernels but bypasses error estimation
-and accept/reject decisions, so it can be enclosed by `jax.jit` and
-`jax.grad`. With the default `adaptive_replay: auto`, fixed-mesh replay for an
-explicit method and JAX state is one compact `lax.scan`; other namespaces and
-methods retain the portable core replay. `adaptive_replay: unrolled` preserves
-the prior explicit JAX trace for comparison, while `adaptive_replay: compact`
-requires the supported JAX explicit path rather than silently falling back.
+The replay uses the same portable core kernels and keeps accept/reject decisions
+frozen, so it can be enclosed by `jax.jit` and `jax.grad`. Compact replay also
+recomputes each step's embedded or step-doubling error estimate to diagnose
+whether the frozen mesh remains accurate for the active parameter values. With
+the default `adaptive_replay: auto`, fixed-mesh replay for an explicit method
+and JAX state is one compact `lax.scan`; other namespaces and methods retain the
+portable core replay. `adaptive_replay: unrolled` preserves the prior explicit
+JAX trace for comparison, while `adaptive_replay: compact` requires the
+supported JAX explicit path rather than silently falling back.
 
 Long reverse-mode computations can rematerialize each explicit step instead of
 retaining its intermediates:
@@ -252,14 +258,26 @@ discover a fresh schedule after material parameter, tolerance, model, or
 output-grid changes. A run launched through `Simulator` exposes its discovered
 artifact as `engine.last_adaptive_schedule`.
 
+Compact `run_adaptive(..., schedule=schedule)` results include array-valued
+`replay_diagnostics`. By default, a replay is marked inaccurate when any scaled
+local-error norm exceeds `replay_error_factor: 1.25`. Call
+`result.require_accurate()` outside a JAX transform to raise
+`AdaptiveScheduleAccuracyError` and trigger fresh discovery. Block execution
+uses the maximum scaled cell error to discover its shared schedule and
+aggregates validation across every block. Ordinary `engine.run()` remains
+JIT/gradient-safe and returns only the trajectory; callers that need the
+freshness decision should use `run_adaptive()` at an outer orchestration
+boundary.
+
 In addition to `rtol`, `atol`, and controller bounds, provider configuration
 exposes `dt_init`, `max_reject`, and `max_steps`. These bound adaptive discovery
 work per output interval and are recorded in the replay artifact, so changing
 one requires a fresh schedule.
 
-`run_adaptive()` also returns any nonlinear replay diagnostics. Call
+`run_adaptive()` also returns nonlinear replay diagnostics. Call
 `result.require_converged()` after compiled execution before accepting a result
-whose method uses nonlinear stages.
+whose method uses nonlinear stages; this is separate from explicit-mesh
+`require_accurate()` validation.
 
 Run `uv run python benchmarks/adaptive_replay.py` to compare eager discovery,
 legacy unrolled replay, compact replay, and step-checkpointed replay as accepted

@@ -1310,6 +1310,115 @@ def test_flat_pytree_and_block_layouts_agree_and_block_is_differentiable() -> ( 
     assert str(jax.make_jaxpr(objective)(rates)).count("scan[") == 1
 
 
+def test_adaptive_block_layout_discovers_and_replays_one_shared_schedule() -> None:  # noqa: PLR0914
+    """Flat conservative discovery drives vmapped block replay and gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    axes = AxisCollection({
+        "age": Axis(
+            name="age",
+            kind="categorical",
+            size=2,
+            labels=("young", "old"),
+        ),
+        "loc": Axis(
+            name="loc",
+            kind="categorical",
+            size=3,
+            labels=("a", "b", "c"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {"name": "age", "coords": ["young", "old"]},
+                {"name": "loc", "coords": ["a", "b", "c"]},
+            ],
+            "state": ["X[age, loc]"],
+            "equations": {"X[age, loc]": "rate[loc] * X[age, loc]"},
+            "initial_state": {
+                "X[age, loc]": {"shaped": "x0", "axes": ["age", "loc"]},
+            },
+            "factorize_axes": ["loc"],
+        }
+    )
+    times = np.asarray([0.0, 0.25, 0.7, 1.0], dtype=np.float64)
+    state_shape = axes.resolve_shape(("age", "loc"))
+    rate_shape = axes.resolve_shape(("loc",))
+    rates = jnp.asarray([-0.1, -0.3, -0.8], dtype=jnp.float32)
+    initial = jnp.asarray([[1.0, 2.0, 3.0], [1.5, 2.5, 3.5]], dtype=jnp.float32)
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.DOPRI5,
+            adaptive=True,
+            rtol=1e-6,
+            atol=1e-8,
+            max_steps=128,
+            state_layout=StateLayout.BLOCK,
+            block_axis="loc",
+        ),
+    )
+
+    def params(rate_values: Array) -> dict[str, ParameterValue]:
+        return {
+            "x0": ParameterValue(initial, state_shape),
+            "rate": ParameterValue(rate_values, rate_shape),
+        }
+
+    discovered = engine.run_adaptive(
+        system,
+        times,
+        {},
+        params(rates),
+        model_state=system.model_state(axes),
+    )
+    replayed = engine.run_adaptive(
+        system,
+        times,
+        {},
+        params(rates),
+        model_state=system.model_state(axes),
+        schedule=discovered.schedule,
+    )
+
+    np.testing.assert_allclose(
+        replayed.trajectory,
+        discovered.trajectory,
+        rtol=2e-6,
+        atol=2e-7,
+    )
+    assert discovered.schedule.step_schedule.output_times == tuple(times)
+    assert all(discovered.schedule.step_schedule.step_sizes)
+    diagnostics = replayed.replay_diagnostics
+    assert diagnostics is not None
+    assert bool(diagnostics.accurate.item())
+    assert diagnostics.max_error_norm.item() <= diagnostics.error_factor.item()
+    assert diagnostics.inaccurate_steps.item() == 0
+    assert diagnostics.step_count.item() == 3 * sum(
+        map(len, discovered.schedule.step_schedule.step_sizes)
+    )
+    assert replayed.require_accurate() is replayed
+
+    def objective(rate_values: Array) -> Array:
+        result = engine.run(
+            system,
+            times,
+            {},
+            params(rate_values),
+            model_state=system.model_state(axes),
+            adaptive_schedule=discovered.schedule,
+        )
+        return result[-1, 1:].sum()
+
+    value, gradient = jax.jit(jax.value_and_grad(objective))(rates)
+    expected = initial * jnp.exp(rates)
+    assert value == pytest.approx(float(expected.sum()), rel=3e-5)
+    np.testing.assert_allclose(gradient, expected.sum(axis=0), rtol=4e-5, atol=2e-6)
+    assert str(jax.make_jaxpr(objective)(rates)).count("scan[") == 1
+
+
 def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> None:
     """Explicit RK stages include typed operator drift for every state layout."""
     jax = pytest.importorskip("jax")

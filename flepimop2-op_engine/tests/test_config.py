@@ -275,13 +275,14 @@ def test_engine_config_defaults_to_deterministic_execution() -> None:
     assert config.adaptive_replay is AdaptiveReplayMode.AUTO
     assert config.replay_checkpoint is ReplayCheckpoint.NONE
     assert config.fixed_checkpoint is ReplayCheckpoint.NONE
+    assert config.replay_error_factor == pytest.approx(1.25)
     assert config.checkpoint_chunk_size == 32
     assert config.stochastic_method is StochasticMethod.TAU_LEAPING
 
 
-def test_engine_config_accepts_structured_fixed_explicit_layouts() -> None:
+def test_engine_config_accepts_structured_explicit_layouts() -> None:
     """Structured layouts are explicit opt-ins on the supported method surface."""
-    pytree = OpEngineEngineConfig(state_layout=StateLayout.PYTREE)
+    pytree = OpEngineEngineConfig(state_layout=StateLayout.PYTREE, adaptive=True)
     block = OpEngineEngineConfig(
         state_layout=StateLayout.BLOCK,
         block_axis="loc",
@@ -295,7 +296,6 @@ def test_engine_config_accepts_structured_fixed_explicit_layouts() -> None:
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {"state_layout": StateLayout.PYTREE, "adaptive": True},
         {
             "state_layout": StateLayout.PYTREE,
             "method": SolverMethod.IMPLICIT_EULER,
@@ -366,6 +366,8 @@ def test_engine_config_accepts_fixed_dopri_checkpointing(
         },
         {"method": SolverMethod.DOPRI5, "checkpoint_chunk_size": 0},
         {"schedule_tag": "  "},
+        {"replay_error_factor": 0.99},
+        {"replay_error_factor": float("inf")},
     ],
 )
 def test_engine_config_rejects_invalid_replay_policies(

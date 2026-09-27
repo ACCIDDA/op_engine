@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Explicit adaptive JAX discovery now keeps attempted-step acceptance and
+  controller state in a bounded device loop, including conservative shared-mesh
+  discovery for block layouts. Compact frozen-mesh replay reports array-valued
+  local-error freshness diagnostics and can reject materially stale schedules
+  at an outer orchestration boundary without compromising JIT or gradients;
+  the solver matrix now benchmarks discovery in each row's actual backend
+  (#148).
 - Fixed flat-state JAX DOPRI5 now computes only its high-order solution, keeps
   FSAL reuse, and carries a requested-output buffer instead of materializing
   every hidden internal state. Optional `fixed_checkpoint: step` and `chunk`
