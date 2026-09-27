@@ -45,6 +45,7 @@ nav:
   - Home: index.md
   - Development:
       - Creating A Release: development/creating-a-release.md
+      - Finite-Element Assembly Boundary: development/fem-assembly-boundary.md
   - Guides:
       - Getting Started: guides/getting-started.md
       - Choosing a Solver: guides/solver-methods.md
