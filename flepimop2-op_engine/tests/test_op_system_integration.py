@@ -222,21 +222,34 @@ def test_pytree_layout_preserves_numpy_namespace() -> None:
             },
         }
     )
-    result = OpEngineFlepimop2Engine(
+    times = np.asarray([0.0, 0.5], dtype=np.float64)
+    params = {
+        "x0": ParameterValue(np.asarray([1.0, 2.0]), axes.resolve_shape(("loc",))),
+        "rate": _scalar(0.1),
+    }
+    engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
         config=OpEngineEngineConfig(state_layout=StateLayout.PYTREE),
-    ).run(
+    )
+    result = engine.run(
         system,
-        np.asarray([0.0, 0.5], dtype=np.float64),
+        times,
         {},
-        {
-            "x0": ParameterValue(np.asarray([1.0, 2.0]), axes.resolve_shape(("loc",))),
-            "rate": _scalar(0.1),
-        },
+        params,
         model_state=system.model_state(axes),
     )
+    prepared = engine.prepare(
+        system,
+        times,
+        {},
+        params,
+        model_state=system.model_state(axes),
+    )
+    prepared_result = prepared.run({}, params)
 
     assert result.__array_namespace__() is np
+    assert prepared_result.__array_namespace__() is np
+    np.testing.assert_allclose(prepared_result, result, rtol=0.0, atol=1e-14)
     np.testing.assert_allclose(
         result,
         np.asarray([[0.0, 1.0, 2.0], [0.5, 0.95125, 1.9025]]),
@@ -1565,14 +1578,30 @@ def test_adaptive_block_layout_discovers_and_replays_one_shared_schedule() -> No
     )
     assert replayed.require_accurate() is replayed
 
+    prepared = engine.prepare(
+        system,
+        times,
+        {},
+        params(rates),
+        model_state=system.model_state(axes),
+        adaptive_schedule=discovered.schedule,
+    )
+    prepared_replay = prepared.run({}, params(rates))
+    np.testing.assert_allclose(
+        prepared_replay,
+        replayed.trajectory,
+        rtol=2e-6,
+        atol=2e-7,
+    )
+    assert prepared.adaptive
+
     def objective(rate_values: Array) -> Array:
-        result = engine.run(
-            system,
-            times,
+        result = prepared(
             {},
-            params(rate_values),
-            model_state=system.model_state(axes),
-            adaptive_schedule=discovered.schedule,
+            {
+                "x0": initial,
+                "rate": rate_values,
+            },
         )
         return result[-1, 1:].sum()
 
@@ -1583,7 +1612,9 @@ def test_adaptive_block_layout_discovers_and_replays_one_shared_schedule() -> No
     assert str(jax.make_jaxpr(objective)(rates)).count("scan[") == 1
 
 
-def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> None:
+def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> (  # noqa: PLR0914
+    None
+):
     """Explicit RK stages include typed operator drift for every state layout."""
     jax = pytest.importorskip("jax")
     jnp = pytest.importorskip("jax.numpy")
@@ -1674,14 +1705,28 @@ def test_explicit_typed_operator_matches_across_layouts_and_differentiates() -> 
         )
 
     block_engine = engine(StateLayout.BLOCK)
+    prepared = block_engine.prepare(
+        system,
+        times,
+        {},
+        parameters(speed),
+        model_state=system.model_state(axes),
+    )
+    prepared_result = prepared.run({}, parameters(speed))
+    np.testing.assert_allclose(
+        prepared_result,
+        results[StateLayout.BLOCK],
+        rtol=2e-6,
+        atol=2e-7,
+    )
 
     def objective(operator_speed: Array) -> Array:
-        result = block_engine.run(
-            system,
-            times,
+        result = prepared(
             {},
-            parameters(operator_speed),
-            model_state=system.model_state(axes),
+            {
+                "x0": x0,
+                "speed": operator_speed,
+            },
         )
         return result[-1, 1]
 

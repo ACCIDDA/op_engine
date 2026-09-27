@@ -75,10 +75,12 @@ and warm execution, IR size, and analytic error.
 ```console
 uv run python benchmarks/prepared_execution.py \
   --horizon 30 --output-count 121 --fixed-max-step 0.25 \
-  --output prepared-execution.json
+  --layout block --batch-size 64 --output prepared-execution.json
 ```
 
-Dynamic alternate sample values are used for cache hits so the result also
+Select `flat`, `pytree`, or `block` to keep lifecycle measurements attached to
+the state layout being qualified. Dynamic alternate sample values are used for
+cache hits so the result also
 checks that contents are not structural cache keys.
 
 ## Focused diagnostics

@@ -330,7 +330,7 @@ class _PreparedValueContract:
     namespaces: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class PreparedExecution:
     """Reusable public-provider execution plan with dynamic array arguments.
 
@@ -505,6 +505,29 @@ def _prepared_value_contract(
     )
 
 
+def _effective_prepared_contract(
+    values: Mapping[str, object],
+    contract: _PreparedValueContract,
+) -> _PreparedValueContract:
+    """Return the contract visible inside an optional JAX transformation."""
+    if not any(_namespace_name(value) == "jax.numpy" for value in values.values()):
+        return contract
+
+    import jax  # noqa: PLC0415
+
+    if not any(isinstance(value, jax.core.Tracer) for value in values.values()):
+        return contract
+    return _PreparedValueContract(
+        names=contract.names,
+        shapes=contract.shapes,
+        dtypes=tuple(
+            str(jax.dtypes.canonicalize_dtype(np.dtype(dtype)))
+            for dtype in contract.dtypes
+        ),
+        namespaces=("jax.numpy",) * len(contract.namespaces),
+    )
+
+
 def _validate_prepared_values(
     values: Mapping[str, object],
     contract: _PreparedValueContract,
@@ -517,28 +540,29 @@ def _validate_prepared_values(
         ValueError: If names, shapes, dtypes, or namespaces changed.
     """
     actual = _prepared_value_contract(values)
-    if actual.names != contract.names:
+    effective = _effective_prepared_contract(values, contract)
+    if actual.names != effective.names:
         msg = (
             f"Prepared {label} names {actual.names!r} do not match "
-            f"the prepared contract {contract.names!r}."
+            f"the prepared contract {effective.names!r}."
         )
         raise ValueError(msg)
-    if actual.shapes != contract.shapes:
+    if actual.shapes != effective.shapes:
         msg = (
             f"Prepared {label} shapes {actual.shapes!r} do not match "
-            f"the prepared contract {contract.shapes!r}."
+            f"the prepared contract {effective.shapes!r}."
         )
         raise ValueError(msg)
-    if actual.dtypes != contract.dtypes:
+    if actual.dtypes != effective.dtypes:
         msg = (
             f"Prepared {label} dtypes {actual.dtypes!r} do not match "
-            f"the prepared contract {contract.dtypes!r}."
+            f"the prepared contract {effective.dtypes!r}."
         )
         raise ValueError(msg)
-    if actual.namespaces != contract.namespaces:
+    if actual.namespaces != effective.namespaces:
         msg = (
             f"Prepared {label} namespaces {actual.namespaces!r} do not match "
-            f"the prepared contract {contract.namespaces!r}."
+            f"the prepared contract {effective.namespaces!r}."
         )
         raise ValueError(msg)
 
@@ -1811,6 +1835,74 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
     return execute, len(step_sizes)
 
 
+def _prepare_structured_explicit_executor(  # noqa: PLR0917
+    system: SystemABC,
+    times: np.ndarray,
+    initial_state: Mapping[IdentifierString, ParameterValue],
+    params: Mapping[IdentifierString, ParameterValue],
+    model_state: ModelStateSpecification | None,
+    config: OpEngineEngineConfig,
+    schedule: AdaptiveSchedule | None,
+    *,
+    n_state: int,
+) -> tuple[
+    Callable[[Mapping[str, object], Mapping[str, object]], Array],
+    int,
+]:
+    """Build one stable structured callable around a precomputed step plan.
+
+    Returns:
+        Prepared array callable and its number of internal accepted steps.
+    """
+    if schedule is None:
+        _step_times, step_sizes, _output_indices = _fixed_step_plan(
+            times,
+            config.fixed_max_step,
+        )
+    else:
+        _step_times, step_sizes, _output_indices = _schedule_step_plan(
+            schedule.step_schedule
+        )
+    initial_shapes = {name: entry.shape for name, entry in initial_state.items()}
+    parameter_shapes = {name: entry.shape for name, entry in params.items()}
+
+    def execute(
+        raw_initial_state: Mapping[str, object],
+        raw_params: Mapping[str, object],
+    ) -> Array:
+        wrapped_initial = {
+            name: ParameterValue(cast("Array", raw_initial_state[name]), shape)
+            for name, shape in initial_shapes.items()
+        }
+        wrapped_params = {
+            name: ParameterValue(cast("Array", raw_params[name]), shape)
+            for name, shape in parameter_shapes.items()
+        }
+        y0 = _assemble_initial_state(
+            system,
+            wrapped_initial,
+            wrapped_params,
+            model_state,
+        )
+        if y0.shape != (n_state,):
+            msg = (
+                f"Prepared state packing returned shape {y0.shape}; "
+                f"expected {(n_state,)}."
+            )
+            raise ValueError(msg)
+        states, _replay_diagnostics = _run_structured_deterministic(
+            system,
+            times,
+            y0,
+            raw_params,
+            config=config,
+            adaptive_schedule=schedule,
+        )
+        return _format_result(times, states)
+
+    return execute, len(step_sizes)
+
+
 def _tree_weighted_sum(
     state: StateTree,
     dt: Scalar,
@@ -2963,7 +3055,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         *,
         adaptive_schedule: AdaptiveSchedule | None = None,
     ) -> PreparedExecution:
-        """Prepare and cache a stable flat explicit execution callable.
+        """Prepare and cache a stable explicit execution callable.
 
         Sample array contents establish only the static name, shape, dtype,
         and namespace contract. They are not captured by the execution plan or
@@ -2983,13 +3075,12 @@ class OpEngineFlepimop2Engine(EngineABC):
         if config.mode is not ExecutionMode.DETERMINISTIC:
             msg = "Prepared execution currently requires deterministic mode."
             raise TypeError(msg)
-        if config.state_layout is not StateLayout.FLAT:
-            msg = "Prepared execution currently requires state_layout='flat'."
-            raise TypeError(msg)
         if not config.method.is_explicit:
             msg = "Prepared execution currently requires an explicit method."
             raise TypeError(msg)
-        if typed_operator_descriptors(system.option("operators", None)):
+        if config.state_layout is StateLayout.FLAT and typed_operator_descriptors(
+            system.option("operators", None)
+        ):
             msg = (
                 "Prepared explicit execution does not yet support typed system "
                 "operators; use the ordinary provider path."
@@ -3034,7 +3125,12 @@ class OpEngineFlepimop2Engine(EngineABC):
         if cached is not None:
             return cached
 
-        executor, internal_step_count = _prepare_flat_explicit_executor(
+        prepare_executor = (
+            _prepare_flat_explicit_executor
+            if config.state_layout is StateLayout.FLAT
+            else _prepare_structured_explicit_executor
+        )
+        executor, internal_step_count = prepare_executor(
             system,
             times,
             initial_state,

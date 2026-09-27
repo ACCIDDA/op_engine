@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarks import solver_matrix
+from benchmarks import prepared_execution, solver_matrix
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -90,6 +90,41 @@ def test_numpy_smoke_writes_versioned_json(tmp_path: Path) -> None:
     assert result["compile_seconds"] is None
     assert result["execution_rhs_evaluations"] == 8
     assert result["max_abs_error"] < 1e-5
+
+
+@pytest.mark.parametrize("layout", ["flat", "pytree", "block"])
+def test_prepared_execution_layout_smoke(
+    layout: str,
+    tmp_path: Path,
+) -> None:
+    """Keep prepared lifecycle rows valid for every supported layout."""
+    output = tmp_path / f"prepared-{layout}.json"
+
+    prepared_execution.main([
+        "--horizon",
+        "0.5",
+        "--output-count",
+        "3",
+        "--fixed-max-step",
+        "0.25",
+        "--repeats",
+        "1",
+        "--layout",
+        layout,
+        "--batch-size",
+        "2",
+        "--output",
+        str(output),
+    ])
+
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert document["settings"]["layout"] == layout
+    assert document["settings"]["batch_size"] == 2
+    assert [row["execution_path"] for row in document["results"]] == [
+        "ordinary",
+        "prepared",
+    ]
+    assert all(row["final_state_abs_error"] < 1e-5 for row in document["results"])
 
 
 def test_invalid_ranges_fail_before_benchmarking() -> None:

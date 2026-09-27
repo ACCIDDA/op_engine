@@ -135,11 +135,15 @@ path.
 
 Prepared objects deliberately snapshot their numerical configuration and output
 grid. If mutable system internals change, call `engine.clear_prepared_cache()`
-and prepare again. The current prepared path supports deterministic flat-state
+and prepare again. The prepared path supports deterministic flat, PyTree, and block-state
 Euler, Heun, RK4, and Dormand--Prince fixed stepping or replay of an already
-discovered adaptive schedule. Structured layouts, stochastic/hybrid execution,
-implicit/IMEX methods, adaptive discovery, and typed explicit operators remain
-on the ordinary provider path rather than silently falling back.
+discovered adaptive schedule. Structured prepared plans retain typed explicit
+operators; the flat prepared path still rejects them because it has no
+structured operator template. Stochastic/hybrid execution, implicit/IMEX
+methods, and adaptive discovery remain on the ordinary provider path rather
+than silently falling back. A `PreparedExecution` can be passed directly to
+`jax.jit`; during tracing, its contract accounts for JAX canonicalizing dynamic
+NumPy inputs and disabled-x64 dtypes into the effective JAX namespace.
 
 ### Structured and block state execution
 
