@@ -1,6 +1,6 @@
 [project]
 name = "flepimop2-op_engine"
-version = "0.2.0"
+version = "0.3.0"
 readme = { file = "README.md", content-type = "text/markdown" }
 description = "flepimop2 engine provider package for op_engine"
 requires-python = ">=3.11,<3.15"
@@ -12,7 +12,7 @@ authors = [
 ]
 keywords = ["flepimop2", "op_engine", "engine", "provider"]
 dependencies = [
-  "op-engine==0.2.0",
+  "op-engine==0.3.0",
   "flepimop2>=0.3.0",
   "pydantic>=2.0,<3",
   "numpy>=2.0",
@@ -34,7 +34,7 @@ classifiers = [
 
 [project.optional-dependencies]
 op-system = [
-  "flepimop2-op-system>=0.4.0",
+  "flepimop2-op-system>=0.5.0",
 ]
 jax = [
   "jax>=0.4.32; python_version < '3.13'",
@@ -66,10 +66,10 @@ op-engine = { path = "..", editable = true }
 # Exercise the Array producer/consumer and callable seams stacked in flepimop2
 # PRs #344, #347, and #348 while those changes await review and merge.
 flepimop2 = { git = "https://github.com/ACCIDDA/flepimop2", rev = "4b75ac5130f5942360cd668250d80e5b33182576" }
-# Reproducible development pins for the op_system provider axis metadata and Array contract through #235.
+# Reproducible development pins for the op_system 0.5.0 provider and Array contract.
 # Published wheel metadata continues to use the registry requirements above.
-flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "7fd7b9ba1dc5e20513416c6757282e323d7ac490", subdirectory = "flepimop2-op_system" }
-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "7fd7b9ba1dc5e20513416c6757282e323d7ac490" }
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "c53fba0cfc6e8a5db4f5275c04eaa422122727fe", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "c53fba0cfc6e8a5db4f5275c04eaa422122727fe" }
 
 
 [tool.ruff.format]
@@ -99,8 +99,8 @@ convention = "google"
 
 [dependency-groups]
 dev = [
-  "flepimop2-op-system>=0.4.0",
-  "op-system>=0.4.0",
+  "flepimop2-op-system>=0.5.0",
+  "op-system>=0.5.0",
   "jax>=0.4.32; python_version < '3.13'",
   "jax>=0.4.36; python_version == '3.13'",
   "jax>=0.7.1; python_version >= '3.14'",

@@ -5,6 +5,8 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
 ### Added
 
 - A trait-structured chemostat PDE example combines a curvature-adapted
