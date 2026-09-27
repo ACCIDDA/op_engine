@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pytest
+from scipy.linalg import expm
 
 from op_engine.core_solver import (
     AdaptiveConfig,
@@ -434,6 +435,85 @@ def test_imex_methods_convergence_order_on_linear_split_against_numerical_refere
     else:
         assert p1 > 1.3
         assert p2 > 1.3
+
+
+def test_imex_heun_tr_is_second_order_for_nonlinear_split() -> None:
+    """The endpoint RHS sees a predictor containing both split partitions."""
+    operator_rate = -0.8
+    quadratic_rate = -0.4
+    operator = np.asarray([[operator_rate]], dtype=np.float64)
+    y0 = 0.7
+    t_end = 0.8
+
+    def explicit_rhs(_time: float, state: FloatArray) -> FloatArray:
+        return quadratic_rate * state * state
+
+    exponential = float(np.exp(operator_rate * t_end))
+    exact = (
+        operator_rate
+        * y0
+        * exponential
+        / (operator_rate + quadratic_rate * y0 * (1.0 - exponential))
+    )
+    errors: list[float] = []
+    for dt in (0.08, 0.04, 0.02):
+        factory = make_stage_operator_factory(
+            make_constant_base_builder(operator),
+            scheme="trapezoidal",
+        )
+        result = _run_scalar(
+            ScalarRunCase(
+                method="imex-heun-tr",
+                time_grid=_time_grid_uniform(t_end, dt),
+                y0=y0,
+                rhs=explicit_rhs,
+                operators=factory,
+            )
+        )
+        errors.append(abs(result - exact))
+
+    p1, p2 = _orders_from_errors(errors)
+    assert p1 > 1.8
+    assert p2 > 1.8
+
+
+def test_imex_heun_tr_is_second_order_for_noncommuting_linear_split() -> None:
+    """The additive corrector retains both AB and BA order-two terms."""
+    implicit_matrix = np.asarray([[-1.1, 0.7], [0.0, -0.4]])
+    explicit_matrix = np.asarray([[0.0, 0.0], [0.9, -0.2]])
+    initial = np.asarray([0.8, -0.3])
+    t_end = 0.8
+    exact = expm((implicit_matrix + explicit_matrix) * t_end) @ initial
+    factory = make_stage_operator_factory(
+        make_constant_base_builder(implicit_matrix),
+        scheme="trapezoidal",
+    )
+
+    def explicit_rhs(_time: float, state: FloatArray) -> FloatArray:
+        return explicit_matrix @ state
+
+    errors: list[float] = []
+    for dt in (0.08, 0.04, 0.02):
+        times = _time_grid_uniform(t_end, dt)
+        core = ModelCore(
+            2,
+            1,
+            times,
+            options=ModelCoreOptions(dtype=np.float64),
+        )
+        core.set_initial_state(initial[:, np.newaxis])
+        CoreSolver(core, operator_axis="state").run(
+            explicit_rhs,
+            config=SolverRunConfig(
+                method="imex-heun-tr",
+                operators=OperatorSpecs(default=factory),
+            ),
+        )
+        errors.append(float(np.linalg.norm(core.get_current_state()[:, 0] - exact)))
+
+    p1, p2 = _orders_from_errors(errors)
+    assert p1 > 1.8
+    assert p2 > 1.8
 
 
 # -----------------------------------------------------------------------------

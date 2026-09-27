@@ -28,6 +28,7 @@ from op_engine.core_solver import (
     CoreSolver,
     RunConfig,
 )
+from op_engine.matrix_ops import build_trapezoidal_operators
 from op_engine.model_core import ModelCore, ModelCoreOptions
 
 if TYPE_CHECKING:
@@ -325,6 +326,30 @@ def test_ros2_sparse_and_dense_jacobians_agree() -> None:
         CoreSolver(core).run(
             rhs,
             config=RunConfig(method="ros2", jacobian=jacobian),
+        )
+        return core.get_current_state()
+
+    np.testing.assert_allclose(run(sparse=True), run(sparse=False), rtol=1e-13)
+
+
+def test_imex_heun_tr_sparse_and_dense_operators_agree() -> None:
+    """Additive trapezoidal solves retain the cached SciPy sparse path."""
+    time_grid = np.asarray([0.0, 0.05, 0.1, 0.15])
+    implicit_matrix = np.asarray([[-4.0, 0.8], [0.4, -2.0]])
+    explicit_matrix = np.asarray([[-0.2, 0.0], [0.3, -0.1]])
+
+    def run(*, sparse: bool) -> FloatArray:
+        core = _make_core(n_states=2, n_subgroups=1, time_grid=time_grid)
+        core.set_initial_state(np.asarray([[0.8], [0.25]]))
+        base = csr_matrix(implicit_matrix) if sparse else implicit_matrix
+        operators = build_trapezoidal_operators(base, dt_scale=0.05)
+
+        def rhs(_time: float, state: FloatArray) -> FloatArray:
+            return explicit_matrix @ state - 0.05 * state * state
+
+        CoreSolver(core, operators=operators).run(
+            rhs,
+            config=RunConfig(method="imex-heun-tr"),
         )
         return core.get_current_state()
 

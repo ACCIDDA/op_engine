@@ -67,6 +67,9 @@ versioning while the project remains pre-1.0.
 
 ### Fixed
 
+- IMEX Heun--trapezoidal now assembles its endpoint predictor and corrector as
+  additive solves, so nonlinear and non-commuting explicit/implicit splits
+  retain second-order convergence across NumPy and Array-API execution (#162).
 - The public `Array` protocol now matches `array-api-compat` namespace
   discovery and accepts native tensors such as `torch.Tensor` without requiring
   a direct `__array_namespace__` method (#155).
