@@ -921,7 +921,7 @@ def test_prepared_execution_validates_dynamic_contract() -> None:
         )
 
 
-def test_prepared_jax_callable_is_jittable_and_differentiable() -> None:
+def test_prepared_jax_callable_is_jittable_and_differentiable() -> None:  # noqa: PLR0914
     """A prepared callable keeps dynamic values in one compact JAX scan."""
     jax = pytest.importorskip("jax")
     jnp = pytest.importorskip("jax.numpy")
@@ -939,7 +939,12 @@ def test_prepared_jax_callable_is_jittable_and_differentiable() -> None:
         system,
         times,
         {"x0": ParameterValue(jnp.asarray(1.0), ResolvedShape())},
-        {"rate": ParameterValue(jnp.asarray(0.2), ResolvedShape())},
+        {
+            "rate": ParameterValue(
+                np.asarray(0.2, dtype=np.float64),
+                ResolvedShape(),
+            )
+        },
         model_state=model_state,
     )
 
@@ -953,6 +958,8 @@ def test_prepared_jax_callable_is_jittable_and_differentiable() -> None:
     scan_equations = [
         equation for equation in jaxpr.jaxpr.eqns if equation.primitive.name == "scan"
     ]
+    compiled = jax.jit(prepared)
+    direct = compiled({"x0": initial}, {"rate": rate})
     value, gradients = jax.jit(jax.value_and_grad(final_state, argnums=(0, 1)))(
         rate,
         initial,
@@ -960,6 +967,7 @@ def test_prepared_jax_callable_is_jittable_and_differentiable() -> None:
     expected = 1.5 * math.exp(0.2)
 
     assert len(scan_equations) == 1
+    assert direct[-1, 1] == pytest.approx(expected, rel=1e-6)
     assert value == pytest.approx(expected, rel=1e-6)
     assert gradients[0] == pytest.approx(expected, rel=1e-6)
     assert gradients[1] == pytest.approx(math.exp(0.2), rel=1e-6)

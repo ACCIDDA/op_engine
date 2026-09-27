@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 import sys
 import time
@@ -34,19 +33,34 @@ from flepimop2.system.abc import SystemABC
 from flepimop2.typing import StateChangeEnum
 from op_engine import array_namespace
 from pydantic import PrivateAttr
-from solver_matrix import _environment  # noqa: PLC2701
 from typing_extensions import override
+
+try:
+    from .solver_matrix import _environment
+except ImportError:  # pragma: no cover - direct script execution
+    from solver_matrix import _environment  # noqa: PLC2701
 
 from flepimop2.engine.op_engine import (
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
     SolverMethod,
+    StateLayout,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from flepimop2.typing import Array, IdentifierString, SystemProtocol
+
+
+@dataclass(frozen=True, slots=True)
+class _BlockAxis:
+    """Synthetic factorization metadata consumed by the provider."""
+
+    name: str
+    size: int
+    state_axis_pos: dict[str, int]
+    param_axis_pos: dict[str, int | None]
 
 
 class _Compiled(Protocol):
@@ -88,6 +102,34 @@ class _RateSystem(SystemABC, module="prepared_execution_benchmark"):
             return cast("Array", xp.multiply(state, rate))
 
         return cast("SystemProtocol", step)
+
+
+def _configure_structured_options(system: _RateSystem, batch_size: int) -> None:
+    """Publish one analytic PyTree and block-PyTree execution contract."""
+
+    def step(
+        _time: object,
+        state: dict[str, Array],
+        **params: object,
+    ) -> dict[str, Array]:
+        value = state["x"]
+        xp = array_namespace(value)
+        return {"x": cast("Array", xp.multiply(value, params["rate"]))}
+
+    system.options = {
+        "template_shapes": {"x": (batch_size,)},
+        "pytree_stepper_fn": step,
+        "block_template_shapes": {"x": ()},
+        "block_pytree_stepper_fn": step,
+        "block_axes": (
+            _BlockAxis(
+                name="batch",
+                size=batch_size,
+                state_axis_pos={"x": 0},
+                param_axis_pos={"rate": 0},
+            ),
+        ),
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +175,7 @@ def _measure(
     cache_hit_seconds: float | None,
     system: _RateSystem,
     repeats: int,
-    exact: float,
+    exact: np.ndarray,
 ) -> Measurement:
     """Measure a stable callable from trace through warm execution.
 
@@ -174,7 +216,7 @@ def _measure(
         trace_equations=len(jaxpr.jaxpr.eqns),
         stablehlo_characters=stablehlo_characters,
         system_bind_calls=system.bind_calls,
-        final_state_abs_error=abs(float(np.asarray(first)) - exact),
+        final_state_abs_error=float(np.max(np.abs(np.asarray(first) - exact))),
     )
 
 
@@ -184,6 +226,12 @@ def _parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-count", type=int, default=121)
     parser.add_argument("--fixed-max-step", type=float, default=0.25)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument(
+        "--layout",
+        choices=tuple(layout.value for layout in StateLayout),
+        default=StateLayout.FLAT.value,
+    )
+    parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--output", type=Path)
     return parser.parse_args(args)
 
@@ -196,15 +244,20 @@ def main(args: Sequence[str] | None = None) -> None:
         or options.output_count < 2
         or options.fixed_max_step <= 0.0
         or options.repeats < 1
+        or options.batch_size < 1
     ):
         msg = (
-            "horizon, step, and repeats must be positive; output-count must exceed one"
+            "horizon, step, repeats, and batch-size must be positive; "
+            "output-count must exceed one"
         )
         raise ValueError(msg)
 
+    layout = StateLayout(options.layout)
     config = OpEngineEngineConfig(
         method=SolverMethod.DOPRI5,
         fixed_max_step=options.fixed_max_step,
+        state_layout=layout,
+        block_axis="batch" if layout is StateLayout.BLOCK else None,
     )
     engine_value, engine_seconds = _elapsed(
         lambda: OpEngineFlepimop2Engine(
@@ -214,41 +267,45 @@ def main(args: Sequence[str] | None = None) -> None:
     )
     engine = cast("OpEngineFlepimop2Engine", engine_value)
     system = _RateSystem()
+    _configure_structured_options(system, options.batch_size)
     times = np.linspace(0.0, options.horizon, options.output_count)
     model_state = ModelStateSpecification(parameter_names=("x",))
-    scalar_shape = ResolvedShape()
-    rate = jnp.asarray(-0.05)
-    initial = jnp.asarray(1.25)
+    batch_shape = ResolvedShape(
+        axis_names=("batch",),
+        sizes=(options.batch_size,),
+    )
+    rate = jnp.linspace(-0.08, -0.02, options.batch_size)
+    initial = jnp.linspace(1.0, 1.5, options.batch_size)
 
     def ordinary(active_rate: Array, active_initial: Array) -> Array:
         trajectory = engine.run(
             system,
             times,
-            {"x": ParameterValue(active_initial, scalar_shape)},
-            {"rate": ParameterValue(active_rate, scalar_shape)},
+            {"x": ParameterValue(active_initial, batch_shape)},
+            {"rate": ParameterValue(active_rate, batch_shape)},
             model_state=model_state,
         )
-        return cast("Array", trajectory[-1, 1])
+        return cast("Array", trajectory[-1, 1:])
 
     prepared_value, prepare_seconds = _elapsed(
         lambda: engine.prepare(
             system,
             times,
-            {"x": ParameterValue(initial, scalar_shape)},
-            {"rate": ParameterValue(rate, scalar_shape)},
+            {"x": ParameterValue(initial, batch_shape)},
+            {"rate": ParameterValue(rate, batch_shape)},
             model_state=model_state,
         )
     )
     prepared = prepared_value
-    alternate_initial = jnp.asarray(2.25)
-    alternate_rate = jnp.asarray(-0.06)
+    alternate_initial = initial + 1.0
+    alternate_rate = rate - 0.01
     cache_samples = [
         _elapsed(
             lambda: engine.prepare(
                 system,
                 times,
-                {"x": ParameterValue(alternate_initial, scalar_shape)},
-                {"rate": ParameterValue(alternate_rate, scalar_shape)},
+                {"x": ParameterValue(alternate_initial, batch_shape)},
+                {"rate": ParameterValue(alternate_rate, batch_shape)},
                 model_state=model_state,
             )
         )[1]
@@ -260,9 +317,9 @@ def main(args: Sequence[str] | None = None) -> None:
             {"x": active_initial},
             {"rate": active_rate},
         )
-        return cast("Array", trajectory[-1, 1])
+        return cast("Array", trajectory[-1, 1:])
 
-    exact = 1.25 * math.exp(-0.05 * options.horizon)
+    exact = np.asarray(initial) * np.exp(np.asarray(rate) * options.horizon)
     results = [
         _measure(
             path="ordinary",
@@ -296,6 +353,8 @@ def main(args: Sequence[str] | None = None) -> None:
             "output_count": options.output_count,
             "fixed_max_step": options.fixed_max_step,
             "repeats": options.repeats,
+            "layout": layout.value,
+            "batch_size": options.batch_size,
         },
         "environment": _environment(root),
         "results": [asdict(result) for result in results],

@@ -5,6 +5,18 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Prepared Flepimop2 execution plans now support explicit PyTree and JAX block
+  layouts for fixed steps and frozen adaptive replay, including structured typed
+  operators, while preserving dynamic-value cache contracts (#168).
+
+### Fixed
+
+- `PreparedExecution` can be passed directly to JAX transformations, including
+  mixed NumPy/JAX samples whose effective namespaces and dtypes are canonicalized
+  by JAX during tracing (#168).
+
 ## [0.3.0] - 2026-09-27
 
 ### Added
