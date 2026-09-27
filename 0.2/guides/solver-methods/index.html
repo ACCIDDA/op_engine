@@ -1559,10 +1559,11 @@ The implicit derivative is then recovered from the solved stage equation,
 which avoids a duplicate callback for <code>A @ y</code> and keeps the method portable
 across Array-API namespaces.</p>
 <p><code>imex-ars443</code> and <code>ars443</code> are aliases for <code>imex-ark3</code>.</p>
-<p>The flepimop2 provider can compile typed <code>op_system</code> <code>axis_kernel</code>, <code>advection</code>,
-and <code>diffusion</code> descriptors into these same factories. Descriptor parsing and
-axis-label resolution belong to the provider; the numerical builders and
-stepping methods remain in <code>op_engine</code>.</p>
+<p>The flepimop2 provider can compile typed <code>op_system</code> <code>axis_kernel</code>,
+<code>jump_integral</code>, <code>advection</code>, and <code>diffusion</code> descriptors into these same
+factories. Descriptor parsing, axis-type/coordinate resolution, and layout
+lifting belong to the provider; portable jump assembly follows op_system's
+public reference semantics, while stepping methods remain in <code>op_engine</code>.</p>
 <h2 id="linearly-implicit-methods">Linearly implicit methods<a class="headerlink" href="#linearly-implicit-methods" title="Permanent link">&para;</a></h2>
 <p>The methods historically named <code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code>, as
 well as the Rosenbrock method, take a Jacobian callable. The callable returns an
