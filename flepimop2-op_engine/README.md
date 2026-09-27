@@ -109,7 +109,9 @@ instead of silently falling back to the flat path.
 Run `uv run python benchmarks/structured_blocks.py` to compare compile time,
 median runtime, host allocation peaks, and device peak bytes (when reported by
 the JAX backend) as the number of independent blocks grows. The script emits
-CSV so scaling records can be retained alongside migration decisions.
+CSV so scaling records can be retained alongside migration decisions. The
+phase-separated fixed/adaptive, NumPy/JAX, gradient, SciPy, and optional
+Diffrax matrix is documented in [`benchmarks/README.md`](benchmarks/README.md).
 
 The provider advertises every canonical `CoreSolver` method. Fully nonlinear
 `sdirk2` reads its distinct full flattened Jacobian from
