@@ -7,6 +7,11 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- A machine-readable solver benchmark now separates provider construction,
+  adaptive discovery, JAX trace/lower/compile, first and warm execution, and
+  value-and-gradient phases while reporting analytic accuracy, work counts,
+  memory, revision, and environment metadata. SciPy and optional Diffrax
+  references use explicit solver, controller, and adjoint settings (#145).
 - Numerical namespace discovery now uses `array-api-compat`, including native
   PyTorch tensors that do not implement `__array_namespace__`. A public
   `array_namespace` helper and optional Torch contract test preserve JAX

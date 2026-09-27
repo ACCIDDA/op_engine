@@ -122,6 +122,7 @@ build-test-provider:
 	cp flepimop2-op_engine/README.md "${CLEANROOM}/README.md"
 	cp flepimop2-op_engine/LICENSE "${CLEANROOM}/LICENSE"
 	cp -R flepimop2-op_engine/src "${CLEANROOM}/src"
+	cp -R flepimop2-op_engine/benchmarks "${CLEANROOM}/benchmarks"
 	cp -R flepimop2-op_engine/tests "${CLEANROOM}/tests"
 	cd "${CLEANROOM}"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests/test_config.py tests/test_engine.py --quiet --exitfirst
