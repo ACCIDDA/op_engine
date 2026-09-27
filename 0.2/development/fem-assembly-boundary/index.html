@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://accidda.github.io/op_engine/0.2/development/creating-a-release/">
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.2/development/fem-assembly-boundary/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../creating-a-release/">
       
       
-        <link rel="next" href="../fem-assembly-boundary/">
+        <link rel="next" href="../../guides/getting-started/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Creating A Release - op_engine Documentation</title>
+        <title>Finite-Element Assembly Boundary - op_engine Documentation</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#creating-a-release" class="md-skip">
+        <a href="#finite-element-assembly-boundary" class="md-skip">
           Skip to content
         </a>
       
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Creating A Release
+              Finite-Element Assembly Boundary
             
           </span>
         </div>
@@ -313,6 +313,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../creating-a-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating A Release
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -332,7 +360,7 @@
   <span class="md-ellipsis">
     
   
-    Creating A Release
+    Finite-Element Assembly Boundary
   
 
     
@@ -350,7 +378,7 @@
   <span class="md-ellipsis">
     
   
-    Creating A Release
+    Finite-Element Assembly Boundary
   
 
     
@@ -376,10 +404,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#supported-semi-discrete-form" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        Supported semi-discrete form
       
     </span>
   </a>
@@ -387,10 +415,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-confirm-the-shared-version" class="md-nav__link">
+  <a href="#ownership" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Confirm The Shared Version
+        Ownership
       
     </span>
   </a>
@@ -398,10 +426,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-run-the-local-release-preflight" class="md-nav__link">
+  <a href="#sparse-operators-and-differentiation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Run The Local Release Preflight
+        Sparse operators and differentiation
       
     </span>
   </a>
@@ -409,60 +437,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-run-the-release-workflow" class="md-nav__link">
+  <a href="#proof-of-concept" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Run The Release Workflow
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. Run The Release Workflow">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dry-run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dry Run
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#testpypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TestPyPI
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PyPI
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-documentation-deployment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Documentation Deployment
+        Proof of concept
       
     </span>
   </a>
@@ -470,21 +448,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-trusted-publishing-setup" class="md-nav__link">
+  <a href="#when-to-reconsider-a-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Trusted Publishing Setup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-package-metadata" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Package Metadata
+        When to reconsider a provider
       
     </span>
   </a>
@@ -495,34 +462,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fem-assembly-boundary/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Finite-Element Assembly Boundary
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1034,10 +973,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#supported-semi-discrete-form" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        Supported semi-discrete form
       
     </span>
   </a>
@@ -1045,10 +984,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-confirm-the-shared-version" class="md-nav__link">
+  <a href="#ownership" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Confirm The Shared Version
+        Ownership
       
     </span>
   </a>
@@ -1056,10 +995,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-run-the-local-release-preflight" class="md-nav__link">
+  <a href="#sparse-operators-and-differentiation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Run The Local Release Preflight
+        Sparse operators and differentiation
       
     </span>
   </a>
@@ -1067,60 +1006,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-run-the-release-workflow" class="md-nav__link">
+  <a href="#proof-of-concept" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Run The Release Workflow
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. Run The Release Workflow">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dry-run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dry Run
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#testpypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TestPyPI
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PyPI
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-documentation-deployment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Documentation Deployment
+        Proof of concept
       
     </span>
   </a>
@@ -1128,21 +1017,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-trusted-publishing-setup" class="md-nav__link">
+  <a href="#when-to-reconsider-a-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Trusted Publishing Setup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-package-metadata" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Package Metadata
+        When to reconsider a provider
       
     </span>
   </a>
@@ -1166,100 +1044,88 @@
 
 
 
-<h1 id="creating-a-release">Creating A Release<a class="headerlink" href="#creating-a-release" title="Permanent link">&para;</a></h1>
-<p>This guide covers the <code>op_engine</code> release process for this repository's two Python distributions:</p>
+<h1 id="finite-element-assembly-boundary">Finite-element assembly boundary<a class="headerlink" href="#finite-element-assembly-boundary" title="Permanent link">&para;</a></h1>
+<p>Finite elements are a spatial discretization and assembly system, not a new
+<code>CoreSolver</code> time-method name. The current decision is <strong>not to add a mesh,
+element, or quadrature framework to <code>op_engine</code> core and not to create an
+<code>op_engine-fem</code> provider yet</strong>. Externally assembled linear finite-element
+systems can already use the stage-operator interface.</p>
+<h2 id="supported-semi-discrete-form">Supported semi-discrete form<a class="headerlink" href="#supported-semi-discrete-form" title="Permanent link">&para;</a></h2>
+<p>Consider the linear system</p>
+<p>[
+  M \dot y = K y + g(t, y).
+]</p>
+<p>An operator factory can map its implicit linear part into the existing solve</p>
+<p>[
+  L y_{n+1} = R x.
+]</p>
+<p>For example, the factory for a trapezoidal stage of size (h) returns</p>
+<p>[
+  L = M - \tfrac{h}{2}K,
+  \qquad
+  R = M + \tfrac{h}{2}K.
+]</p>
+<p>An implicit-Euler stage instead returns (L=M-hK) and (R=M). This supports
+fixed or variable stage sizes and permits the existing IMEX Euler,
+Heun--trapezoidal, and TR-BDF2 control flow to advance an externally assembled
+mass/stiffness pair.</p>
+<p>The explicit callable still has derivative units. A finite-element load vector
+<code>g</code> must therefore be supplied as <code>solve(M, g)</code>; the current API does not inject
+an unscaled weak-form load directly. Likewise, <code>imex-ark3</code> currently consumes
+only the left implicit solve at each additive stage, so a non-identity mass
+matrix must be resolved to an operator such as <code>solve(M, K)</code> before using that
+method. Changing either contract should be motivated and designed separately,
+not hidden in an FEM adapter.</p>
+<h2 id="ownership">Ownership<a class="headerlink" href="#ownership" title="Permanent link">&para;</a></h2>
+<p>The assembly package or application owns:</p>
 <ul>
-<li><code>op_engine</code></li>
-<li><code>flepimop2-op_engine</code></li>
+<li>mesh topology and geometry;</li>
+<li>basis functions, quadrature, and element integration;</li>
+<li>degree-of-freedom maps and constraint elimination;</li>
+<li>essential and natural boundary-condition assembly;</li>
+<li>mass, stiffness, load, and nonlinear residual assembly;</li>
+<li>any matrix reassembly or preconditioner lifecycle.</li>
 </ul>
-<p>The release workflow treats them as a single release unit. Both package versions must match, and the workflow publishes them sequentially under one GitHub release tag.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<ul>
-<li>You have write access to the <a href="https://github.com/ACCIDDA/op_engine"><code>ACCIDDA/op_engine</code></a> repository.</li>
-<li>The release version has already been updated everywhere it is declared:</li>
-<li><code>pyproject.toml</code></li>
-<li><code>flepimop2-op_engine/pyproject.toml</code></li>
-<li>Your local environment is synced with a supported Python version.</li>
-<li>You have <a href="https://cli.github.com/">GitHub's <code>gh</code> CLI</a> installed and authenticated if you plan to dispatch workflows from the command line.</li>
-</ul>
-<h2 id="1-confirm-the-shared-version">1. Confirm The Shared Version<a class="headerlink" href="#1-confirm-the-shared-version" title="Permanent link">&para;</a></h2>
-<p>The release workflow validates that all version declarations match before it builds or publishes anything.</p>
-<p>Today that means these two files must contain the same semantic version:</p>
-<ul>
-<li><code>pyproject.toml</code></li>
-<li><code>flepimop2-op_engine/pyproject.toml</code></li>
-</ul>
-<p>If any of them differ, the <code>validate</code> job fails immediately.</p>
-<p>The workflow also validates that <code>flepimop2-op_engine</code> depends on the exact matching <code>op-engine</code> release version. For example, release <code>0.2.0</code> must declare <code>op-engine==0.2.0</code>.</p>
-<h2 id="2-run-the-local-release-preflight">2. Run The Local Release Preflight<a class="headerlink" href="#2-run-the-local-release-preflight" title="Permanent link">&para;</a></h2>
-<p>Use the local pre-release target before dispatching the release workflow:</p>
-<pre><code class="language-shell">just release-validate
-</code></pre>
-<p>That command does two things:</p>
-<ul>
-<li>Validates that the release version matches in:</li>
-<li><code>pyproject.toml</code></li>
-<li><code>flepimop2-op_engine/pyproject.toml</code></li>
-<li>Runs <code>just build-all</code> to execute the clean-room build and install tests for both packages.</li>
-</ul>
-<p>The release workflow runs the same validation again on GitHub Actions before publishing.</p>
-<h2 id="3-run-the-release-workflow">3. Run The Release Workflow<a class="headerlink" href="#3-run-the-release-workflow" title="Permanent link">&para;</a></h2>
-<p>Releases are created through the manual GitHub Actions workflow in <code>.github/workflows/release.yaml</code>.</p>
-<p>If you are testing the workflow before merging, add <code>--ref &lt;branch-name&gt;</code> to the <code>gh workflow run</code> command. Without <code>--ref</code>, GitHub dispatches the workflow definition from the repository's default branch.</p>
-<h3 id="dry-run">Dry Run<a class="headerlink" href="#dry-run" title="Permanent link">&para;</a></h3>
-<p>Use this to validate shared versioning, build both packages, and upload release artifacts without publishing anything:</p>
-<pre><code class="language-shell">gh workflow run release.yaml \
-  --repo ACCIDDA/op_engine \
-  --ref &lt;branch-name&gt; \
-  --field publish-target=none \
-  --field create-github-release=false \
-  --field deploy-docs=false
-</code></pre>
-<p>This runs the <code>validate</code>, <code>publish-core</code>, and <code>publish-provider</code> jobs, but the publish jobs become no-ops when <code>publish-target=none</code>.</p>
-<h3 id="testpypi">TestPyPI<a class="headerlink" href="#testpypi" title="Permanent link">&para;</a></h3>
-<p>Use this to publish both packages to TestPyPI without creating the GitHub release or deploying docs:</p>
-<pre><code class="language-shell">gh workflow run release.yaml \
-  --repo ACCIDDA/op_engine \
-  --ref &lt;branch-name&gt; \
-  --field publish-target=testpypi \
-  --field create-github-release=false \
-  --field deploy-docs=false
-</code></pre>
-<p>The workflow always publishes in dependency order:</p>
+<p><code>op_engine</code> owns time integration, stage context, operator-axis application,
+accepted-step control, and the <code>L @ y_next = R @ x</code> solve boundary. This keeps
+optional SciPy, PETSc, FEniCSx, and JAX FEM ecosystems from becoming core
+dependencies.</p>
+<h2 id="sparse-operators-and-differentiation">Sparse operators and differentiation<a class="headerlink" href="#sparse-operators-and-differentiation" title="Permanent link">&para;</a></h2>
+<p>SciPy CSR pairs use the registered sparse adapter. A provider should reuse
+operator objects when their values do not change so the factorization cache is
+effective. Other array backends can supply dense native arrays and use the
+Array-API linear solve. A JAX-native dense assembly remains differentiable
+through matrix construction and solve; eager NumPy/SciPy assembly and
+factorization do not. An external PETSc or FEniCSx provider would own any
+custom differentiation rule for its solver.</p>
+<p>Nonlinear forms such as (M(y,t)\dot y=r(t,y)), differential-algebraic
+constraints, and external Krylov/preconditioner callbacks are outside the
+current stage-operator contract. They require a concrete use case before a new
+portable solver interface is added.</p>
+<h2 id="proof-of-concept">Proof of concept<a class="headerlink" href="#proof-of-concept" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/ACCIDDA/op_engine/blob/main/examples/fem_diffusion.py"><code>examples/fem_diffusion.py</code></a>
+assembles a consistent P1 mass matrix and diffusion stiffness matrix on a 1D
+mesh, eliminates homogeneous Dirichlet boundary degrees of freedom, and runs
+the result with fixed-step <code>imex-heun-tr</code>. Assembly uses SciPy only because the
+example is demonstrating the external sparse boundary; it is not a required
+FEM representation.</p>
+<p>The example intentionally uses fixed steps. For pure implicit diffusion,
+Heun--trapezoidal's embedded low/high pair differs only in its explicit term
+and therefore cannot estimate the implicit truncation error. Adaptive FEM runs
+should currently use a method with a suitable estimator, such as TR-BDF2 step
+doubling, or supply and validate a fixed/replayed mesh at a higher layer.</p>
+<h2 id="when-to-reconsider-a-provider">When to reconsider a provider<a class="headerlink" href="#when-to-reconsider-a-provider" title="Permanent link">&para;</a></h2>
+<p>Reconsider a separate provider, rather than extending core, when at least one
+real unstructured-domain model identifies all of the following:</p>
 <ol>
-<li><code>op_engine</code></li>
-<li><code>flepimop2-op_engine</code></li>
+<li>a specific external assembly and linear-solver ecosystem;</li>
+<li>required boundary-condition and constraint semantics;</li>
+<li>sparse/device and differentiation expectations;</li>
+<li>nonlinear and reassembly requirements;</li>
+<li>a benchmark showing that the existing <code>(L, R)</code> boundary is insufficient.</li>
 </ol>
-<p>When testing from a branch, keep <code>create-github-release=false</code> and <code>deploy-docs=false</code>. The reusable docs workflow checks out <code>main</code>, so it is not intended for pre-merge branch testing.</p>
-<h3 id="pypi">PyPI<a class="headerlink" href="#pypi" title="Permanent link">&para;</a></h3>
-<p>Use this to publish both packages, create a GitHub release, and deploy the versioned documentation:</p>
-<pre><code class="language-shell">gh workflow run release.yaml \
-  --repo ACCIDDA/op_engine \
-  --field publish-target=pypi \
-  --field create-github-release=true \
-  --field deploy-docs=true
-</code></pre>
-<p>When <code>create-github-release=true</code>, the workflow creates a single <code>vX.Y.Z</code> GitHub release for the shared package version and uses GitHub's generated release notes.</p>
-<h2 id="4-documentation-deployment">4. Documentation Deployment<a class="headerlink" href="#4-documentation-deployment" title="Permanent link">&para;</a></h2>
-<p>The release workflow calls <code>.github/workflows/gh-pages.yaml</code> as a reusable workflow when <code>deploy-docs=true</code>.</p>
-<p>That workflow supports two deployment modes:</p>
-<ul>
-<li><code>push</code>: for normal <code>main</code> branch documentation updates</li>
-<li><code>release</code>: for a tagged release, which updates the release alias in <code>mike</code></li>
-</ul>
-<p>If you want to deploy docs manually without running a release, you can dispatch <code>gh-pages.yaml</code> directly and choose the deploy mode in the GitHub Actions UI.</p>
-<h2 id="5-trusted-publishing-setup">5. Trusted Publishing Setup<a class="headerlink" href="#5-trusted-publishing-setup" title="Permanent link">&para;</a></h2>
-<p>The publish jobs use PyPI Trusted Publishing rather than a stored API token.</p>
-<p>For <code>publish-target=testpypi</code>, configure the TestPyPI trusted publisher entry for:</p>
-<ul>
-<li>Owner: <code>ACCIDDA</code></li>
-<li>Repository: <code>op_engine</code></li>
-<li>Workflow file: <code>release.yaml</code></li>
-</ul>
-<p>For <code>publish-target=pypi</code>, configure the PyPI trusted publisher entry for the same repository and workflow file.</p>
-<p>Because this repository publishes two distributions from one workflow, the same trusted publisher setup must be allowed to publish both package names on the selected index.</p>
-<h2 id="6-package-metadata">6. Package Metadata<a class="headerlink" href="#6-package-metadata" title="Permanent link">&para;</a></h2>
-<p>Published package metadata must use registry-compatible dependencies. The provider package must not declare direct URL dependencies, because PyPI rejects distributions that require them.</p>
+<p>Until then, the proof of concept is the supported design pattern and a general
+FEM abstraction would add dependencies and policy without a validated user.</p>
 
 
 
