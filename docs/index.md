@@ -7,6 +7,9 @@ Start with [Getting Started](guides/getting-started.md), then use
 explicit, IMEX, or linearly implicit method. The
 [biogeochemical network tutorial](guides/biogeochemical-network.md) shows
 stage-dependent operator splitting in a complete example.
+The [trait-structured chemostat tutorial](guides/chemostat-pde.md) combines a
+non-uniform finite-volume grid, implicit diffusion, nonlinear resource
+coupling, and structured trait observables.
 
 `op_engine` numerical methods use the array namespace supplied by model state.
 The [backend guide](guides/backends.md) explains portability, JAX
