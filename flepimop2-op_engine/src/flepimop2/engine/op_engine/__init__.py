@@ -78,6 +78,7 @@ from .reactions import CompiledReactionNetwork, compile_reaction_network
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from typing import TypeVar
 
     from flepimop2.parameter.abc import ModelStateSpecification
     from flepimop2.system.abc import SystemABC, SystemProtocol
@@ -90,6 +91,7 @@ if TYPE_CHECKING:
     from op_engine.stochastic_solver import PoissonSampler, SSASampler
 
     StateTree = dict[str, Array]
+    CarryT = TypeVar("CarryT")
 
 
 class _IndexableArray(Protocol):
@@ -739,6 +741,110 @@ def _run_eager_explicit_plan_trajectory(
     solver.core.apply_trajectory(cast("Array", xp.stack(tuple(history), axis=0)))
 
 
+def _run_jax_carry_scan(
+    step: Callable[[CarryT, tuple[Array, Array, Array]], CarryT],
+    carry: CarryT,
+    step_times: Array,
+    step_sizes: Array,
+    output_slots: Array,
+    *,
+    checkpoint: ReplayCheckpoint,
+    checkpoint_chunk_size: int,
+) -> CarryT:
+    """Run a JAX scan without materializing a per-step output sequence.
+
+    Step checkpointing rematerializes each numerical step. Chunk checkpointing
+    instead rematerializes fixed groups of steps, balancing residual storage
+    against backward-pass recomputation.
+
+    Returns:
+        Final scan carry.
+    """
+    import jax  # noqa: PLC0415
+
+    scan_inputs = (step_times, step_sizes, output_slots)
+    if checkpoint is not ReplayCheckpoint.CHUNK:
+        active_step = (
+            jax.checkpoint(step) if checkpoint is ReplayCheckpoint.STEP else step
+        )
+
+        def scan_step(
+            active_carry: CarryT,
+            inputs: tuple[Array, Array, Array],
+        ) -> tuple[CarryT, None]:
+            return active_step(active_carry, inputs), None
+
+        final_carry, _outputs = jax.lax.scan(scan_step, carry, scan_inputs)
+        return final_carry
+
+    xp = _namespace_of(step_times)
+    step_count = int(step_times.shape[0])
+    padding = (-step_count) % checkpoint_chunk_size
+    active = cast(
+        "Array",
+        xp.concat(
+            (
+                xp.ones((step_count,), dtype=bool),
+                xp.zeros((padding,), dtype=bool),
+            ),
+            axis=0,
+        ),
+    )
+
+    def pad(value: Array, fill: float) -> Array:
+        return cast(
+            "Array",
+            xp.concat(
+                (value, xp.full((padding,), fill, dtype=value.dtype)),
+                axis=0,
+            ),
+        )
+
+    chunk_count = (step_count + padding) // checkpoint_chunk_size
+    chunk_shape = (chunk_count, checkpoint_chunk_size)
+    chunk_inputs = (
+        cast("Array", xp.reshape(pad(step_times, 0.0), chunk_shape)),
+        cast("Array", xp.reshape(pad(step_sizes, 0.0), chunk_shape)),
+        cast("Array", xp.reshape(pad(output_slots, -1.0), chunk_shape)),
+        cast("Array", xp.reshape(active, chunk_shape)),
+    )
+
+    def run_chunk(
+        chunk_carry: CarryT,
+        inputs: tuple[Array, Array, Array, Array],
+    ) -> CarryT:
+        def run_active_step(
+            active_carry: CarryT,
+            active_inputs: tuple[Array, Array, Array, Array],
+        ) -> tuple[CarryT, None]:
+            time, dt, output_slot, is_active = active_inputs
+            next_carry = jax.lax.cond(
+                is_active,
+                lambda value: step(value, (time, dt, output_slot)),
+                lambda value: value,
+                active_carry,
+            )
+            return next_carry, None
+
+        final_chunk_carry, _outputs = jax.lax.scan(
+            run_active_step,
+            chunk_carry,
+            inputs,
+        )
+        return final_chunk_carry
+
+    checkpointed_chunk = jax.checkpoint(run_chunk)
+
+    def scan_chunk(
+        active_carry: CarryT,
+        inputs: tuple[Array, Array, Array, Array],
+    ) -> tuple[CarryT, None]:
+        return checkpointed_chunk(active_carry, inputs), None
+
+    final_carry, _outputs = jax.lax.scan(scan_chunk, carry, chunk_inputs)
+    return final_carry
+
+
 def _run_jax_explicit_plan_trajectory(
     solver: CoreSolver,
     rhs: Callable[[Scalar, Array], Array],
@@ -748,8 +854,9 @@ def _run_jax_explicit_plan_trajectory(
     step_sizes_values: tuple[float, ...],
     output_indices: np.ndarray,
     checkpoint: ReplayCheckpoint,
+    checkpoint_chunk_size: int,
 ) -> None:
-    """Run one explicit step plan as a compact, optionally rematerialized scan."""
+    """Run a plan while retaining only requested outputs in the primal carry."""
     import jax  # noqa: PLC0415
 
     initial_state = solver.core.get_current_state()
@@ -768,84 +875,85 @@ def _run_jax_explicit_plan_trajectory(
         "Array",
         xp.asarray(step_sizes_values, dtype=initial_state.dtype),
     )
+    output_slot_values = np.full(len(step_sizes_values), -1, dtype=np.int32)
+    output_slot_values[output_indices] = np.arange(
+        len(output_indices),
+        dtype=np.int32,
+    )
+    output_slots = cast("Array", xp.asarray(output_slot_values))
+    requested = cast(
+        "Array",
+        xp.zeros(
+            (len(output_indices), *initial_state.shape),
+            dtype=initial_state.dtype,
+        ),
+    )
+
+    def save_requested(
+        outputs: Array,
+        output_slot: Array,
+        state: Array,
+    ) -> Array:
+        update = cast("Array", xp.expand_dims(state, axis=0))
+        return cast(
+            "Array",
+            jax.lax.cond(
+                cast("Any", output_slot) >= 0,
+                lambda values: jax.lax.dynamic_update_index_in_dim(
+                    values,
+                    update,
+                    output_slot,
+                    axis=0,
+                ),
+                lambda values: values,
+                outputs,
+            ),
+        )
 
     if method is SolverMethod.DOPRI5:
+        initial_stage = rhs(_array_item(step_times, 0), initial_state)
 
-        def initialize_dopri5(
-            state: Array,
-            time: Array,
-            dt: Array,
-        ) -> tuple[Array, Array]:
+        def advance_dopri5(
+            carry: tuple[Array, Array, Array],
+            step: tuple[Array, Array, Array],
+        ) -> tuple[Array, Array, Array]:
+            state, first_stage, outputs = carry
+            time, dt, output_slot = step
             next_state, next_stage = solver.fixed_explicit_step(
                 rhs,
                 method=method.value,
                 t=time,
                 dt=dt,
                 y=state,
+                first_stage=first_stage,
             )
             if next_stage is None:
                 msg = "Dormand--Prince fixed steps must return an FSAL stage."
                 raise RuntimeError(msg)
-            return next_state, next_stage
+            return (
+                next_state,
+                next_stage,
+                save_requested(outputs, output_slot, next_state),
+            )
 
-        initialize = (
-            jax.checkpoint(initialize_dopri5)
-            if checkpoint is ReplayCheckpoint.STEP
-            else initialize_dopri5
+        dopri_carry = _run_jax_carry_scan(
+            advance_dopri5,
+            (initial_state, initial_stage, requested),
+            step_times,
+            step_sizes,
+            output_slots,
+            checkpoint=checkpoint,
+            checkpoint_chunk_size=checkpoint_chunk_size,
         )
-        first_state, first_stage = initialize(
-            initial_state,
-            _array_item(step_times, 0),
-            _array_item(step_sizes, 0),
-        )
-
-        if len(step_sizes_values) == 1:
-            internal_tail = cast("Array", xp.expand_dims(first_state, axis=0))
-        else:
-
-            def advance_dopri5(
-                carry: tuple[Array, Array],
-                step: tuple[Array, Array],
-            ) -> tuple[tuple[Array, Array], Array]:
-                state, stage = carry
-                time, dt = step
-                next_state, next_stage = solver.fixed_explicit_step(
-                    rhs,
-                    method=method.value,
-                    t=time,
-                    dt=dt,
-                    y=state,
-                    first_stage=stage,
-                )
-                if next_stage is None:
-                    msg = "Dormand--Prince fixed steps must return an FSAL stage."
-                    raise RuntimeError(msg)
-                return (next_state, next_stage), next_state
-
-            advance = (
-                jax.checkpoint(advance_dopri5)
-                if checkpoint is ReplayCheckpoint.STEP
-                else advance_dopri5
-            )
-            (_final_state, _final_stage), remaining_tail = jax.lax.scan(
-                advance,
-                (first_state, first_stage),
-                (
-                    _array_item(step_times, slice(1, None)),
-                    _array_item(step_sizes, slice(1, None)),
-                ),
-            )
-            internal_tail = cast(
-                "Array",
-                xp.concat(
-                    (xp.expand_dims(first_state, axis=0), remaining_tail),
-                    axis=0,
-                ),
-            )
+        requested_tail = dopri_carry[2]
     else:
 
-        def advance(state: Array, step: tuple[Array, Array]) -> tuple[Array, Array]:
-            time, dt = step
+        def advance(
+            carry: tuple[Array, Array],
+            step: tuple[Array, Array, Array],
+        ) -> tuple[Array, Array]:
+            state, outputs = carry
+            time, dt, output_slot = step
             next_state, _next_stage = solver.fixed_explicit_step(
                 rhs,
                 method=method.value,
@@ -853,21 +961,25 @@ def _run_jax_explicit_plan_trajectory(
                 dt=dt,
                 y=state,
             )
-            return next_state, next_state
+            return next_state, save_requested(outputs, output_slot, next_state)
 
-        scan_advance = (
-            jax.checkpoint(advance) if checkpoint is ReplayCheckpoint.STEP else advance
+        ordinary_carry = _run_jax_carry_scan(
+            advance,
+            (initial_state, requested),
+            step_times,
+            step_sizes,
+            output_slots,
+            checkpoint=checkpoint,
+            checkpoint_chunk_size=checkpoint_chunk_size,
         )
-        _final_state, internal_tail = jax.lax.scan(
-            scan_advance,
-            initial_state,
-            (step_times, step_sizes),
-        )
+        requested_tail = ordinary_carry[1]
 
-    saved_tail = _array_item(internal_tail, output_indices)
     trajectory = cast(
         "Array",
-        xp.concat((xp.expand_dims(initial_state, axis=0), saved_tail), axis=0),
+        xp.concat(
+            (xp.expand_dims(initial_state, axis=0), requested_tail),
+            axis=0,
+        ),
     )
     solver.core.apply_trajectory(trajectory)
 
@@ -879,18 +991,70 @@ def _run_jax_fixed_explicit_trajectory(
     method: SolverMethod,
     times: np.ndarray,
     fixed_max_step: float | None,
+    checkpoint: ReplayCheckpoint,
+    checkpoint_chunk_size: int,
 ) -> None:
-    """Run a fixed explicit solve as one compact JAX scan."""
-    step_times, step_sizes, output_indices = _fixed_step_plan(times, fixed_max_step)
-    _run_jax_explicit_plan_trajectory(
-        solver,
-        rhs,
-        method=method,
-        step_times_values=step_times,
-        step_sizes_values=step_sizes,
-        output_indices=output_indices,
-        checkpoint=ReplayCheckpoint.NONE,
+    """Run fixed DOPRI5 with requested-only storage and preserve lean RK4."""
+    import jax  # noqa: PLC0415
+
+    step_times_values, step_sizes_values, output_indices = _fixed_step_plan(
+        times,
+        fixed_max_step,
     )
+    if method is SolverMethod.DOPRI5:
+        _run_jax_explicit_plan_trajectory(
+            solver,
+            rhs,
+            method=method,
+            step_times_values=step_times_values,
+            step_sizes_values=step_sizes_values,
+            output_indices=output_indices,
+            checkpoint=checkpoint,
+            checkpoint_chunk_size=checkpoint_chunk_size,
+        )
+        return
+
+    initial_state = solver.core.get_current_state()
+    xp = _namespace_of(initial_state)
+    if not step_sizes_values:
+        solver.core.apply_trajectory(
+            cast("Array", xp.expand_dims(initial_state, axis=0))
+        )
+        return
+    step_times = cast(
+        "Array",
+        xp.asarray(step_times_values, dtype=initial_state.dtype),
+    )
+    step_sizes = cast(
+        "Array",
+        xp.asarray(step_sizes_values, dtype=initial_state.dtype),
+    )
+
+    def advance(state: Array, step: tuple[Array, Array]) -> tuple[Array, Array]:
+        time, dt = step
+        next_state, _next_stage = solver.fixed_explicit_step(
+            rhs,
+            method=method.value,
+            t=time,
+            dt=dt,
+            y=state,
+        )
+        return next_state, next_state
+
+    _final_state, internal_tail = jax.lax.scan(
+        advance,
+        initial_state,
+        (step_times, step_sizes),
+    )
+    requested_tail = _array_item(internal_tail, output_indices)
+    trajectory = cast(
+        "Array",
+        xp.concat(
+            (xp.expand_dims(initial_state, axis=0), requested_tail),
+            axis=0,
+        ),
+    )
+    solver.core.apply_trajectory(trajectory)
 
 
 def _run_jax_adaptive_explicit_trajectory(
@@ -900,6 +1064,7 @@ def _run_jax_adaptive_explicit_trajectory(
     method: SolverMethod,
     schedule: AdaptiveStepSchedule,
     checkpoint: ReplayCheckpoint,
+    checkpoint_chunk_size: int,
 ) -> None:
     """Replay an accepted explicit mesh as one compact JAX scan."""
     step_times, step_sizes, output_indices = _schedule_step_plan(schedule)
@@ -911,6 +1076,7 @@ def _run_jax_adaptive_explicit_trajectory(
         step_sizes_values=step_sizes,
         output_indices=output_indices,
         checkpoint=checkpoint,
+        checkpoint_chunk_size=checkpoint_chunk_size,
     )
 
 
@@ -1042,19 +1208,31 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
             schedule is None or _uses_compact_adaptive_replay(config, namespace)
         )
         if use_compact:
-            _run_jax_explicit_plan_trajectory(
-                solver,
-                rhs,
-                method=config.method,
-                step_times_values=step_times,
-                step_sizes_values=step_sizes,
-                output_indices=output_indices,
-                checkpoint=(
-                    config.replay_checkpoint
-                    if schedule is not None
-                    else ReplayCheckpoint.NONE
-                ),
-            )
+            if schedule is None and config.method is not SolverMethod.DOPRI5:
+                _run_jax_fixed_explicit_trajectory(
+                    solver,
+                    rhs,
+                    method=config.method,
+                    times=times,
+                    fixed_max_step=config.fixed_max_step,
+                    checkpoint=config.fixed_checkpoint,
+                    checkpoint_chunk_size=config.checkpoint_chunk_size,
+                )
+            else:
+                _run_jax_explicit_plan_trajectory(
+                    solver,
+                    rhs,
+                    method=config.method,
+                    step_times_values=step_times,
+                    step_sizes_values=step_sizes,
+                    output_indices=output_indices,
+                    checkpoint=(
+                        config.replay_checkpoint
+                        if schedule is not None
+                        else config.fixed_checkpoint
+                    ),
+                    checkpoint_chunk_size=config.checkpoint_chunk_size,
+                )
         else:
             if schedule is not None:
                 _uses_compact_adaptive_replay(config, namespace)
@@ -1082,12 +1260,17 @@ def _tree_weighted_sum(
     result: StateTree = {}
     for name, value in state.items():
         xp = _namespace_of(value)
-        increment = cast("Array", xp.zeros_like(value))
+        next_value = value
         for weight, stage in zip(weights, stages, strict=True):
-            increment = cast(
-                "Array", xp.add(increment, xp.multiply(weight, stage[name]))
-            )
-        result[name] = cast("Array", xp.add(value, xp.multiply(dt, increment)))
+            if weight != 0.0:
+                next_value = cast(
+                    "Array",
+                    xp.add(
+                        next_value,
+                        xp.multiply(stage[name], cast("Any", dt) * weight),
+                    ),
+                )
+        result[name] = next_value
     return result
 
 
@@ -1114,6 +1297,7 @@ def _structured_explicit_step(
         rhs=rhs,
         weighted_sum=_tree_weighted_sum,
         first_stage=first_stage,
+        compute_embedded=False,
     )
     return next_state, last_stage
 
@@ -2623,6 +2807,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 method=method,
                 schedule=adaptive_schedule.step_schedule,
                 checkpoint=self.config.replay_checkpoint,
+                checkpoint_chunk_size=self.config.checkpoint_chunk_size,
             )
         elif adaptive_schedule is not None:
             diagnostics = solver.replay_adaptive_schedule(
@@ -2637,6 +2822,8 @@ class OpEngineFlepimop2Engine(EngineABC):
                 method=method,
                 times=times,
                 fixed_max_step=run_cfg.fixed_max_step,
+                checkpoint=self.config.fixed_checkpoint,
+                checkpoint_chunk_size=self.config.checkpoint_chunk_size,
             )
         else:
             diagnostics = solver.run(rhs, config=run_cfg)

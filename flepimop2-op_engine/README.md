@@ -33,13 +33,16 @@ pip install "flepimop2-op_engine[jax]"
 
 Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, RK4,
 Dormand--Prince 5(4), or dense IMEX/implicit methods. Fixed-step explicit JAX
-trajectories use one `jax.lax.scan` and one complete-history assignment, so the
-traced program does not grow with the number of output times. Dormand--Prince
-reuses its FSAL stage between scan iterations. This compact trace is not a
-promise of constant-memory reverse-mode differentiation; JAX's transformation
-and checkpointing choices still govern gradient storage. Typed dense operator
-descriptors are compiled in the evolving state's namespace, so descriptor
-parameters remain traceable too. Explicit methods apply those descriptors as
+trajectories use one `jax.lax.scan`, so the traced program does not grow with
+the number of output times. Fixed flat-state Dormand--Prince computes only the
+high-order solution, reuses its FSAL stage, and carries storage for requested
+outputs rather than returning every hidden step from the scan. RK4 retains its
+smaller, compile-sensitive complete-tail scan; method choice therefore remains
+an explicit accuracy/compile tradeoff. Neither policy promises constant-memory
+reverse-mode differentiation; JAX's transformations and the checkpoint policy
+govern gradient residual storage. Typed dense operator descriptors are compiled
+in the evolving state's namespace, so descriptor parameters remain traceable
+too. Explicit methods apply those descriptors as
 additive drift at every Runge--Kutta stage for flat, PyTree, and block state
 layouts; the structured paths use small axis-local matrices rather than a
 dense full-state operator.
@@ -67,6 +70,25 @@ Each output interval is partitioned into bounded internal steps, including a
 final remainder, but the returned trajectory contains only requested output
 times. The setting is mutually exclusive with `adaptive: true` and does not
 apply to stochastic mode (`tau_max_step` controls fixed tau-leaping).
+
+Long reverse-mode DOPRI5 solves can opt into step or chunk rematerialization:
+
+```yaml
+engine:
+  module: flepimop2.engine.op_engine
+  state_change: flow
+  config:
+    method: dopri5
+    fixed_max_step: 0.05
+    fixed_checkpoint: chunk
+    checkpoint_chunk_size: 32
+```
+
+`step` stores the least step-local residual state and recomputes each numerical
+step during the backward pass. `chunk` rematerializes bounded groups of internal
+steps and can trade more residual storage for less recomputation. These policies
+currently target deterministic, flat-state, fixed DOPRI5 JAX execution; eager
+NumPy execution is unchanged.
 
 ### Prepared execution
 
@@ -212,8 +234,10 @@ config:
   replay_checkpoint: step
 ```
 
-This checkpoint policy recomputes step operations during the backward pass and
-does not change the accepted mesh or numerical method. Fully nonlinear SDIRK2
+This checkpoint policy recomputes step operations during the backward pass;
+`replay_checkpoint: chunk` plus `checkpoint_chunk_size` rematerializes bounded
+accepted-step groups instead. Neither policy changes the accepted mesh or
+numerical method. Fully nonlinear SDIRK2
 replay intentionally remains on the existing path so its compiled-safe stage
 diagnostics and post-execution `require_converged()` validation are preserved.
 

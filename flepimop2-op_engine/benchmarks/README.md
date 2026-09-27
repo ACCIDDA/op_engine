@@ -31,6 +31,19 @@ uv run python benchmarks/solver_matrix.py \
   --references scipy --output solver-matrix.json
 ```
 
+For the fixed-step compile/storage comparison in #147, keep the numerical work
+and requested grid matched between RK4 and DOPRI5:
+
+```console
+uv run python benchmarks/solver_matrix.py \
+  --backends jax --policies fixed --methods rk4 dopri5 \
+  --horizons 30 --batch-sizes 64 --output-count 121 \
+  --fixed-max-step 0.05 --references --output fixed-rk.json
+```
+
+Compare both forward and gradient StableHLO size, compile time, temporary bytes,
+warm execution, and analytic error; no single timing is used as a test threshold.
+
 Diffrax is optional and is not a provider dependency. Install it in the benchmark
 environment and request it explicitly:
 

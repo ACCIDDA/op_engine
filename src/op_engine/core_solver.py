@@ -2621,6 +2621,7 @@ class CoreSolver:
         dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
+        compute_embedded: bool = True,
     ) -> tuple[Array, Array | None, Array, Array | None]:
         """Evaluate one explicit tableau with optional first-stage reuse.
 
@@ -2640,6 +2641,7 @@ class CoreSolver:
             ),
             weighted_sum=self._weighted_rk_state,
             first_stage=first_stage,
+            compute_embedded=compute_embedded,
         )
 
     def _attempt_explicit_step(  # noqa: PLR0913
@@ -2757,6 +2759,7 @@ class CoreSolver:
             dt=dt,
             y=y,
             first_stage=first_stage,
+            compute_embedded=False,
         )
         return high, last_stage
 

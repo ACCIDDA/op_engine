@@ -274,6 +274,8 @@ def test_engine_config_defaults_to_deterministic_execution() -> None:
     assert config.state_layout is StateLayout.FLAT
     assert config.adaptive_replay is AdaptiveReplayMode.AUTO
     assert config.replay_checkpoint is ReplayCheckpoint.NONE
+    assert config.fixed_checkpoint is ReplayCheckpoint.NONE
+    assert config.checkpoint_chunk_size == 32
     assert config.stochastic_method is StochasticMethod.TAU_LEAPING
 
 
@@ -329,6 +331,24 @@ def test_engine_config_accepts_compact_checkpointed_replay() -> None:
 
 
 @pytest.mark.parametrize(
+    "policy",
+    [ReplayCheckpoint.STEP, ReplayCheckpoint.CHUNK],
+)
+def test_engine_config_accepts_fixed_dopri_checkpointing(
+    policy: ReplayCheckpoint,
+) -> None:
+    """Flat fixed DOPRI5 exposes step and chunk rematerialization."""
+    config = OpEngineEngineConfig(
+        method=SolverMethod.DOPRI5,
+        fixed_checkpoint=policy,
+        checkpoint_chunk_size=7,
+    )
+
+    assert config.fixed_checkpoint is policy
+    assert config.checkpoint_chunk_size == 7
+
+
+@pytest.mark.parametrize(
     "kwargs",
     [
         {"adaptive_replay": AdaptiveReplayMode.COMPACT},
@@ -338,6 +358,13 @@ def test_engine_config_accepts_compact_checkpointed_replay() -> None:
             "adaptive_replay": AdaptiveReplayMode.COMPACT,
         },
         {"adaptive": True, "replay_checkpoint": ReplayCheckpoint.STEP},
+        {"method": SolverMethod.RK4, "fixed_checkpoint": ReplayCheckpoint.STEP},
+        {
+            "method": SolverMethod.DOPRI5,
+            "adaptive": True,
+            "fixed_checkpoint": ReplayCheckpoint.CHUNK,
+        },
+        {"method": SolverMethod.DOPRI5, "checkpoint_chunk_size": 0},
         {"schedule_tag": "  "},
     ],
 )

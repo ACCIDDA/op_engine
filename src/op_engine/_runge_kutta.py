@@ -148,6 +148,7 @@ def evaluate_explicit_runge_kutta(  # noqa: PLR0913
         StateT,
     ],
     first_stage: StateT | None = None,
+    compute_embedded: bool = True,
 ) -> tuple[StateT, StateT | None, StateT, StateT | None]:
     """Evaluate one explicit tableau over an arbitrary state algebra.
 
@@ -155,11 +156,16 @@ def evaluate_explicit_runge_kutta(  # noqa: PLR0913
     ``y + dt * sum(weights[i] * stages[i])``. This keeps the validated method
     coefficients shared by dense arrays and structured provider states.
 
+    A fixed caller may disable the embedded solution. For an FSAL tableau, the
+    final stage state is already the accepted high-order state and is reused
+    instead of evaluating the same weighted sum twice.
+
     Returns:
         High-order state, optional embedded state, first stage, and optional
         FSAL stage for the next accepted step.
     """
     stages: list[StateT] = []
+    fsal_state: StateT | None = None
     for stage_index, (row, stage_time) in enumerate(
         zip(tableau.a, tableau.c, strict=True)
     ):
@@ -171,13 +177,17 @@ def evaluate_explicit_runge_kutta(  # noqa: PLR0913
                 cast("Scalar", cast("Any", t) + stage_time * cast("Any", dt)),
                 stage_state,
             )
+            if tableau.fsal and stage_index == tableau.n_stages - 1:
+                fsal_state = stage_state
         stages.append(derivative)
 
-    high = weighted_sum(y, dt, tableau.b, stages)
+    high = (
+        fsal_state if fsal_state is not None else weighted_sum(y, dt, tableau.b, stages)
+    )
     embedded = (
-        None
-        if tableau.b_embedded is None
-        else weighted_sum(y, dt, tableau.b_embedded, stages)
+        weighted_sum(y, dt, tableau.b_embedded, stages)
+        if compute_embedded and tableau.b_embedded is not None
+        else None
     )
     last_stage = stages[-1] if tableau.fsal else None
     return high, embedded, stages[0], last_stage
