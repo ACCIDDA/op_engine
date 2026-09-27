@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 import numpy as np
 from flepimop2.engine.abc import EngineABC
 from flepimop2.exceptions import ValidationIssue
+from flepimop2.parameter.abc import ParameterValue
 from flepimop2.typing import IdentifierString, StateChangeEnum  # noqa: TC002
 from pydantic import Field, PrivateAttr
 
@@ -78,7 +79,7 @@ from .reactions import CompiledReactionNetwork, compile_reaction_network
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from flepimop2.parameter.abc import ModelStateSpecification, ParameterValue
+    from flepimop2.parameter.abc import ModelStateSpecification
     from flepimop2.system.abc import SystemABC, SystemProtocol
     from flepimop2.typing import Array, Float64NDArray
     from numpy.typing import DTypeLike
@@ -260,6 +261,70 @@ class AdaptiveRunResult:
 
 
 @dataclass(frozen=True, slots=True)
+class _PreparedValueContract:
+    """Static names, shapes, dtypes, and namespaces for dynamic values."""
+
+    names: tuple[str, ...]
+    shapes: tuple[tuple[int, ...], ...]
+    dtypes: tuple[str, ...]
+    namespaces: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class PreparedExecution:
+    """Reusable public-provider execution plan with dynamic array arguments.
+
+    Call the object with mappings of raw initial-state and parameter arrays.
+    The mapping structure, shapes, dtypes, and namespaces must match the sample
+    values passed to :meth:`OpEngineFlepimop2Engine.prepare`; array contents
+    remain dynamic and are never part of the cache key. The callable is stable
+    and may be passed directly to caller-owned JAX transformations.
+    """
+
+    signature: str
+    method: SolverMethod
+    output_times: tuple[float, ...]
+    internal_step_count: int
+    adaptive: bool
+    _initial_contract: _PreparedValueContract
+    _parameter_contract: _PreparedValueContract
+    _executor: Callable[[Mapping[str, object], Mapping[str, object]], Array]
+
+    def __call__(
+        self,
+        initial_state: Mapping[str, object],
+        params: Mapping[str, object],
+    ) -> Array:
+        """Execute with raw dynamic arrays after validating static structure.
+
+        Returns:
+            The ordinary provider trajectory with time in its first column.
+        """
+        _validate_prepared_values(
+            initial_state,
+            self._initial_contract,
+            label="initial_state",
+        )
+        _validate_prepared_values(params, self._parameter_contract, label="params")
+        return self._executor(initial_state, params)
+
+    def run(
+        self,
+        initial_state: Mapping[IdentifierString, ParameterValue],
+        params: Mapping[IdentifierString, ParameterValue],
+    ) -> Array:
+        """Execute with the ordinary provider ParameterValue mappings.
+
+        Returns:
+            The ordinary provider trajectory with time in its first column.
+        """
+        return self(
+            _unwrap_parameter_values(initial_state),
+            _unwrap_parameter_values(params),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class _ExecutionResult:
     """Internal result shared by ordinary and schedule-aware entry points."""
 
@@ -340,6 +405,70 @@ def _shape_signature(value: object) -> tuple[int, ...] | None:
     return tuple(int(size) for size in shape)
 
 
+def _namespace_name(value: object) -> str:
+    """Return a stable name for one dynamic array namespace."""
+    namespace = _namespace_of(value)
+    return str(getattr(namespace, "__name__", type(namespace).__qualname__))
+
+
+def _prepared_value_contract(
+    values: Mapping[str, object],
+) -> _PreparedValueContract:
+    """Build the static contract for dynamic prepared-call values.
+
+    Returns:
+        Names, shapes, dtypes, and namespaces in stable name order.
+    """
+    names = tuple(sorted(str(name) for name in values))
+    arrays = tuple(values[name] for name in names)
+    return _PreparedValueContract(
+        names=names,
+        shapes=tuple(
+            tuple(int(size) for size in cast("Array", value).shape) for value in arrays
+        ),
+        dtypes=tuple(str(cast("Array", value).dtype) for value in arrays),
+        namespaces=tuple(_namespace_name(value) for value in arrays),
+    )
+
+
+def _validate_prepared_values(
+    values: Mapping[str, object],
+    contract: _PreparedValueContract,
+    *,
+    label: str,
+) -> None:
+    """Validate dynamic values without reading or hashing their contents.
+
+    Raises:
+        ValueError: If names, shapes, dtypes, or namespaces changed.
+    """
+    actual = _prepared_value_contract(values)
+    if actual.names != contract.names:
+        msg = (
+            f"Prepared {label} names {actual.names!r} do not match "
+            f"the prepared contract {contract.names!r}."
+        )
+        raise ValueError(msg)
+    if actual.shapes != contract.shapes:
+        msg = (
+            f"Prepared {label} shapes {actual.shapes!r} do not match "
+            f"the prepared contract {contract.shapes!r}."
+        )
+        raise ValueError(msg)
+    if actual.dtypes != contract.dtypes:
+        msg = (
+            f"Prepared {label} dtypes {actual.dtypes!r} do not match "
+            f"the prepared contract {contract.dtypes!r}."
+        )
+        raise ValueError(msg)
+    if actual.namespaces != contract.namespaces:
+        msg = (
+            f"Prepared {label} namespaces {actual.namespaces!r} do not match "
+            f"the prepared contract {contract.namespaces!r}."
+        )
+        raise ValueError(msg)
+
+
 def _schedule_context_signature(
     system: SystemABC,
     state: Array,
@@ -387,6 +516,44 @@ def _schedule_context_signature(
             for name, value in sorted(raw_params.items())
         },
         "schedule_tag": schedule_tag,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _prepared_execution_signature(  # noqa: PLR0917
+    system: SystemABC,
+    times: np.ndarray,
+    state: Array,
+    raw_initial_state: Mapping[str, object],
+    raw_params: Mapping[str, object],
+    model_state: ModelStateSpecification | None,
+    config: OpEngineEngineConfig,
+    schedule: AdaptiveSchedule | None,
+) -> str:
+    """Hash static execution structure while excluding dynamic contents.
+
+    Returns:
+        Stable signature for a prepared object in one engine cache.
+    """
+    payload = {
+        "system_identity": id(system),
+        "system_context": _schedule_context_signature(
+            system,
+            state,
+            raw_params,
+            model_state,
+            config.schedule_tag,
+        ),
+        "times": _signature_value(times),
+        "config": _signature_value(config.model_dump(mode="python")),
+        "initial_contract": _signature_value(
+            _prepared_value_contract(raw_initial_state)
+        ),
+        "parameter_contract": _signature_value(_prepared_value_contract(raw_params)),
+        "adaptive_schedule": (
+            _signature_value(schedule.step_schedule) if schedule is not None else None
+        ),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
@@ -467,7 +634,10 @@ def _rhs_from_stepper(
     stepper: SystemProtocol,
     *,
     n_state: int,
+    params: Mapping[str, object] | None = None,
 ) -> Callable[[Scalar, Array], Array]:
+    dynamic_params = params if params is not None else {}
+
     def rhs(time: Scalar, state: Array) -> Array:
         xp = _namespace_of(state)
         state_arr = state
@@ -482,7 +652,11 @@ def _rhs_from_stepper(
             raise ValueError(msg)
 
         flat_state = _array_item(state_arr, (slice(None), 0))
-        out = stepper(cast("Any", time), cast("Any", flat_state))
+        out = stepper(
+            cast("Any", time),
+            cast("Any", flat_state),
+            **dynamic_params,
+        )
         out_xp = _namespace_of(out)
         if out_xp is not xp:
             msg = "System stepper must preserve the state array namespace."
@@ -531,6 +705,38 @@ def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
     xp = _namespace_of(y0)
     core.set_initial_state(cast("Array", xp.reshape(y0, (n_states, 1))))
     return core
+
+
+def _run_eager_explicit_plan_trajectory(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    step_times: tuple[float, ...],
+    step_sizes: tuple[float, ...],
+    output_indices: np.ndarray,
+) -> None:
+    """Execute a prepared explicit plan without rebuilding its step grid."""
+    state = solver.core.get_current_state()
+    xp = _namespace_of(state)
+    history = [state]
+    output_index_set = {int(index) for index in output_indices}
+    first_stage: Array | None = None
+    for step_index, (step_time, step_size) in enumerate(
+        zip(step_times, step_sizes, strict=True)
+    ):
+        state, first_stage = solver.fixed_explicit_step(
+            rhs,
+            method=method.value,
+            t=cast("Scalar", step_time),
+            dt=cast("Scalar", step_size),
+            y=state,
+            first_stage=first_stage,
+        )
+        if step_index in output_index_set:
+            history.append(state)
+
+    solver.core.apply_trajectory(cast("Array", xp.stack(tuple(history), axis=0)))
 
 
 def _run_jax_explicit_plan_trajectory(
@@ -766,6 +972,104 @@ def _schedule_step_plan(
         - 1
     )
     return tuple(flat_step_times), tuple(flat_step_sizes), output_indices
+
+
+def _prepare_flat_explicit_executor(  # noqa: PLR0917
+    system: SystemABC,
+    times: np.ndarray,
+    initial_state: Mapping[IdentifierString, ParameterValue],
+    params: Mapping[IdentifierString, ParameterValue],
+    model_state: ModelStateSpecification | None,
+    config: OpEngineEngineConfig,
+    schedule: AdaptiveSchedule | None,
+    *,
+    n_state: int,
+) -> tuple[
+    Callable[[Mapping[str, object], Mapping[str, object]], Array],
+    int,
+]:
+    """Build one stable dynamic-value callable around a precomputed plan.
+
+    Returns:
+        Prepared array callable and its number of internal accepted steps.
+    """
+    if schedule is None:
+        step_times, step_sizes, output_indices = _fixed_step_plan(
+            times,
+            config.fixed_max_step,
+        )
+    else:
+        step_times, step_sizes, output_indices = _schedule_step_plan(
+            schedule.step_schedule
+        )
+    initial_shapes = {name: entry.shape for name, entry in initial_state.items()}
+    parameter_shapes = {name: entry.shape for name, entry in params.items()}
+    stepper = system.bind()
+
+    def execute(
+        raw_initial_state: Mapping[str, object],
+        raw_params: Mapping[str, object],
+    ) -> Array:
+        wrapped_initial = {
+            name: ParameterValue(cast("Array", raw_initial_state[name]), shape)
+            for name, shape in initial_shapes.items()
+        }
+        wrapped_params = {
+            name: ParameterValue(cast("Array", raw_params[name]), shape)
+            for name, shape in parameter_shapes.items()
+        }
+        y0 = _assemble_initial_state(
+            system,
+            wrapped_initial,
+            wrapped_params,
+            model_state,
+        )
+        if y0.shape != (n_state,):
+            msg = (
+                f"Prepared state packing returned shape {y0.shape}; "
+                f"expected {(n_state,)}."
+            )
+            raise ValueError(msg)
+        rhs = _rhs_from_stepper(
+            stepper,
+            n_state=n_state,
+            params=raw_params,
+        )
+        core = _make_core(times, y0)
+        solver = CoreSolver(core)
+        namespace = _namespace_of(y0)
+        use_compact = _is_jax_namespace(namespace) and (
+            schedule is None or _uses_compact_adaptive_replay(config, namespace)
+        )
+        if use_compact:
+            _run_jax_explicit_plan_trajectory(
+                solver,
+                rhs,
+                method=config.method,
+                step_times_values=step_times,
+                step_sizes_values=step_sizes,
+                output_indices=output_indices,
+                checkpoint=(
+                    config.replay_checkpoint
+                    if schedule is not None
+                    else ReplayCheckpoint.NONE
+                ),
+            )
+        else:
+            if schedule is not None:
+                _uses_compact_adaptive_replay(config, namespace)
+            _run_eager_explicit_plan_trajectory(
+                solver,
+                rhs,
+                method=config.method,
+                step_times=step_times,
+                step_sizes=step_sizes,
+                output_indices=output_indices,
+            )
+        states = _extract_states_2d(core, n_state=n_state)
+        return _format_result(times, states)
+
+    return execute, len(step_sizes)
 
 
 def _tree_weighted_sum(
@@ -1737,11 +2041,131 @@ class OpEngineFlepimop2Engine(EngineABC):
     state_change: StateChangeEnum
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
     _last_adaptive_schedule: AdaptiveSchedule | None = PrivateAttr(default=None)
+    _prepared_cache: dict[str, PreparedExecution] = PrivateAttr(default_factory=dict)
 
     @property
     def last_adaptive_schedule(self) -> AdaptiveSchedule | None:
         """Return the schedule discovered or replayed by the latest run."""
         return self._last_adaptive_schedule
+
+    @property
+    def prepared_cache_size(self) -> int:
+        """Return the number of prepared structural signatures currently cached."""
+        return len(self._prepared_cache)
+
+    def clear_prepared_cache(self) -> int:
+        """Explicitly invalidate every prepared execution owned by this engine.
+
+        Returns:
+            Number of prepared objects removed from the cache.
+        """
+        removed = len(self._prepared_cache)
+        self._prepared_cache.clear()
+        return removed
+
+    def prepare(
+        self,
+        system: SystemABC,
+        eval_times: Float64NDArray,
+        initial_state: Mapping[IdentifierString, ParameterValue],
+        params: Mapping[IdentifierString, ParameterValue],
+        model_state: ModelStateSpecification | None = None,
+        *,
+        adaptive_schedule: AdaptiveSchedule | None = None,
+    ) -> PreparedExecution:
+        """Prepare and cache a stable flat explicit execution callable.
+
+        Sample array contents establish only the static name, shape, dtype,
+        and namespace contract. They are not captured by the execution plan or
+        included in its cache key. Fixed-step explicit runs and explicit
+        frozen adaptive replay are supported in this initial prepared boundary;
+        adaptive controller discovery and typed explicit operators remain on
+        the ordinary provider path.
+
+        Returns:
+            Cached or newly prepared dynamic-value execution object.
+
+        Raises:
+            TypeError: If the requested provider mode is not supported.
+            ValueError: If an adaptive schedule is missing or incompatible.
+        """
+        config = self.config.model_copy(deep=True)
+        if config.mode is not ExecutionMode.DETERMINISTIC:
+            msg = "Prepared execution currently requires deterministic mode."
+            raise TypeError(msg)
+        if config.state_layout is not StateLayout.FLAT:
+            msg = "Prepared execution currently requires state_layout='flat'."
+            raise TypeError(msg)
+        if not config.method.is_explicit:
+            msg = "Prepared execution currently requires an explicit method."
+            raise TypeError(msg)
+        if typed_operator_descriptors(system.option("operators", None)):
+            msg = (
+                "Prepared explicit execution does not yet support typed system "
+                "operators; use the ordinary provider path."
+            )
+            raise TypeError(msg)
+        if config.adaptive and adaptive_schedule is None:
+            msg = "Prepared adaptive execution requires a discovered adaptive_schedule."
+            raise ValueError(msg)
+        if not config.adaptive and adaptive_schedule is not None:
+            msg = "A prepared fixed-step execution cannot accept adaptive_schedule."
+            raise ValueError(msg)
+
+        times = _as_float64_1d(eval_times, name="eval_times").copy()
+        _ensure_strictly_increasing(times, name="eval_times")
+        times.setflags(write=False)
+        raw_initial_state = _unwrap_parameter_values(initial_state)
+        raw_params = _unwrap_parameter_values(params)
+        y0 = _assemble_initial_state(system, initial_state, params, model_state)
+        n_state = int(y0.shape[0])
+        context_signature = _schedule_context_signature(
+            system,
+            y0,
+            raw_params,
+            model_state,
+            config.schedule_tag,
+        )
+        if adaptive_schedule is not None:
+            adaptive_schedule.validate_config(config)
+            adaptive_schedule.validate_context(context_signature)
+
+        signature = _prepared_execution_signature(
+            system,
+            times,
+            y0,
+            raw_initial_state,
+            raw_params,
+            model_state,
+            config,
+            adaptive_schedule,
+        )
+        cached = self._prepared_cache.get(signature)
+        if cached is not None:
+            return cached
+
+        executor, internal_step_count = _prepare_flat_explicit_executor(
+            system,
+            times,
+            initial_state,
+            params,
+            model_state,
+            config,
+            adaptive_schedule,
+            n_state=n_state,
+        )
+        prepared = PreparedExecution(
+            signature=signature,
+            method=config.method,
+            output_times=tuple(float(value) for value in times),
+            internal_step_count=internal_step_count,
+            adaptive=adaptive_schedule is not None,
+            _initial_contract=_prepared_value_contract(raw_initial_state),
+            _parameter_contract=_prepared_value_contract(raw_params),
+            _executor=executor,
+        )
+        self._prepared_cache[signature] = prepared
+        return prepared
 
     def validate_system(self, system: SystemABC) -> list[ValidationIssue] | None:
         """Validate system compatibility with engine config."""
@@ -2240,6 +2664,7 @@ __all__ = [
     "ExecutionMode",
     "OpEngineEngineConfig",
     "OpEngineFlepimop2Engine",
+    "PreparedExecution",
     "ReplayCheckpoint",
     "SolverMethod",
     "StateLayout",

@@ -28,12 +28,14 @@ from flepimop2.axis import ResolvedShape
 from flepimop2.parameter.abc import ModelStateSpecification, ParameterValue
 from flepimop2.system.abc import SystemABC
 from flepimop2.typing import StateChangeEnum
+from typing_extensions import override
 
 from flepimop2.engine.op_engine import (
     AdaptiveReplayMode,
     AdaptiveSchedule,
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
+    PreparedExecution,
     ReplayCheckpoint,
     SolverMethod,
     _validate_state_tree,  # noqa: PLC2701 - focused internal regression
@@ -86,6 +88,33 @@ class _DeltaSystem(_GoodSystem, module="test_delta"):
     """SystemABC implementation with incompatible state_change."""
 
     state_change: StateChangeEnum = StateChangeEnum.DELTA
+
+
+class _RateSystem(SystemABC, module="test_rate"):
+    """Elementwise exponential system accepting a dynamic rate parameter."""
+
+    state_change: StateChangeEnum = StateChangeEnum.FLOW
+
+    @override
+    def _bind_impl(
+        self,
+        params: dict[IdentifierString, Any] | None = None,
+    ) -> SystemProtocol:
+        bound = params or {}
+
+        def step(
+            _time: object,
+            state: Array,
+            **dynamic: object,
+        ) -> Array:
+            rate = dynamic.get("rate", bound.get("rate"))
+            if rate is None:
+                msg = "rate is required"
+                raise ValueError(msg)
+            xp = cast("Any", state.__array_namespace__())
+            return cast("Array", xp.multiply(state, rate))
+
+        return cast("SystemProtocol", step)
 
 
 def _initial_state(
@@ -524,6 +553,206 @@ def test_adaptive_entry_point_requires_adaptive_configuration() -> None:
             {},
             model_state=model_state,
         )
+
+
+# -----------------------------------------------------------------------------
+# Prepared execution
+# -----------------------------------------------------------------------------
+
+
+def test_prepare_caches_structure_not_dynamic_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Equivalent value contracts reuse one binding and prepared object."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.RK4,
+            fixed_max_step=0.05,
+        ),
+    )
+    system = _RateSystem()
+    times = np.asarray([0.0, 0.5, 1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+    params = {"rate": ParameterValue(np.asarray(0.2), ResolvedShape())}
+    bind_calls = 0
+    original_bind = system.bind
+
+    def tracking_bind(
+        params: dict[IdentifierString, Any] | None = None,
+        **kwargs: object,
+    ) -> SystemProtocol:
+        nonlocal bind_calls
+        bind_calls += 1
+        return original_bind(params=params, **kwargs)
+
+    monkeypatch.setattr(system, "bind", tracking_bind)
+    prepared = engine.prepare(
+        system,
+        times,
+        initial_state,
+        params,
+        model_state=model_state,
+    )
+    cached = engine.prepare(
+        system,
+        times,
+        {"x0": ParameterValue(np.asarray(4.0), ResolvedShape())},
+        {"rate": ParameterValue(np.asarray(-0.3), ResolvedShape())},
+        model_state=model_state,
+    )
+
+    assert isinstance(prepared, PreparedExecution)
+    assert cached is prepared
+    assert bind_calls == 1
+    assert engine.prepared_cache_size == 1
+    assert prepared.internal_step_count == 20
+
+    first = prepared.run(initial_state, params)
+    second = prepared(
+        {"x0": np.asarray(2.0)},
+        {"rate": np.asarray(-0.1)},
+    )
+    assert first[-1, 1] == pytest.approx(math.exp(0.2), rel=1e-6)
+    assert second[-1, 1] == pytest.approx(2.0 * math.exp(-0.1), rel=1e-6)
+    assert bind_calls == 1
+
+    changed_grid = engine.prepare(
+        system,
+        np.asarray([0.0, 1.0], dtype=np.float64),
+        initial_state,
+        params,
+        model_state=model_state,
+    )
+    assert changed_grid is not prepared
+    assert engine.prepared_cache_size == 2
+    assert bind_calls == 2
+
+    assert engine.clear_prepared_cache() == 2
+    assert engine.prepared_cache_size == 0
+    rebuilt = engine.prepare(
+        system,
+        times,
+        initial_state,
+        params,
+        model_state=model_state,
+    )
+    assert rebuilt is not prepared
+    assert bind_calls == 3
+
+
+def test_prepared_execution_validates_dynamic_contract() -> None:
+    """Prepared calls reject structural changes before numerical execution."""
+    engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW)
+    initial_state, model_state = _initial_state(1.0)
+    params = {"rate": ParameterValue(np.asarray(0.2), ResolvedShape())}
+    prepared = engine.prepare(
+        _RateSystem(),
+        np.asarray([0.0, 1.0], dtype=np.float64),
+        initial_state,
+        params,
+        model_state=model_state,
+    )
+
+    with pytest.raises(ValueError, match="names"):
+        prepared({"wrong": np.asarray(1.0)}, {"rate": np.asarray(0.2)})
+    with pytest.raises(ValueError, match="shapes"):
+        prepared({"x0": np.asarray([1.0])}, {"rate": np.asarray(0.2)})
+    with pytest.raises(ValueError, match="dtypes"):
+        prepared(
+            {"x0": np.asarray(1.0, dtype=np.float32)},
+            {"rate": np.asarray(0.2)},
+        )
+
+
+def test_prepared_jax_callable_is_jittable_and_differentiable() -> None:
+    """A prepared callable keeps dynamic values in one compact JAX scan."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.DOPRI5,
+            fixed_max_step=0.1,
+        ),
+    )
+    system = _RateSystem()
+    times = np.asarray([0.0, 0.5, 1.0], dtype=np.float64)
+    model_state = ModelStateSpecification(parameter_names=("x0",))
+    prepared = engine.prepare(
+        system,
+        times,
+        {"x0": ParameterValue(jnp.asarray(1.0), ResolvedShape())},
+        {"rate": ParameterValue(jnp.asarray(0.2), ResolvedShape())},
+        model_state=model_state,
+    )
+
+    def final_state(rate: Array, initial: Array) -> Array:
+        trajectory = prepared({"x0": initial}, {"rate": rate})
+        return cast("Array", trajectory[-1, 1])
+
+    rate = jnp.asarray(0.2)
+    initial = jnp.asarray(1.5)
+    jaxpr = jax.make_jaxpr(final_state)(rate, initial)
+    scan_equations = [
+        equation for equation in jaxpr.jaxpr.eqns if equation.primitive.name == "scan"
+    ]
+    value, gradients = jax.jit(jax.value_and_grad(final_state, argnums=(0, 1)))(
+        rate,
+        initial,
+    )
+    expected = 1.5 * math.exp(0.2)
+
+    assert len(scan_equations) == 1
+    assert value == pytest.approx(expected, rel=1e-6)
+    assert gradients[0] == pytest.approx(expected, rel=1e-6)
+    assert gradients[1] == pytest.approx(math.exp(0.2), rel=1e-6)
+
+
+def test_prepare_replays_a_discovered_adaptive_schedule() -> None:
+    """Prepared adaptive execution reuses the accepted mesh exactly."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.HEUN,
+            adaptive=True,
+            rtol=1e-5,
+            atol=1e-8,
+        ),
+    )
+    system = _RateSystem()
+    times = np.asarray([0.0, 0.4, 1.0], dtype=np.float64)
+    initial_state, model_state = _initial_state(1.0)
+    params = {"rate": ParameterValue(np.asarray(0.2), ResolvedShape())}
+    schedule = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        params,
+        model_state=model_state,
+    ).schedule
+    prepared = engine.prepare(
+        system,
+        times,
+        initial_state,
+        params,
+        model_state=model_state,
+        adaptive_schedule=schedule,
+    )
+    ordinary = engine.run(
+        system,
+        times,
+        initial_state,
+        params,
+        model_state=model_state,
+        adaptive_schedule=schedule,
+    )
+
+    assert prepared.adaptive
+    assert prepared.internal_step_count == sum(
+        map(len, schedule.step_schedule.step_sizes)
+    )
+    np.testing.assert_allclose(prepared.run(initial_state, params), ordinary)
 
 
 # -----------------------------------------------------------------------------

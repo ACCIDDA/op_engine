@@ -7,6 +7,11 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- The flepimop2 provider can prepare and cache stable flat explicit execution
+  plans for fixed stepping and frozen adaptive replay. Prepared callables keep
+  array values dynamic for NumPy or caller-owned JAX transforms while reusing
+  system binding, packing contracts, step grids, and execution structure;
+  explicit cache invalidation and matched staging benchmarks are included (#146).
 - A machine-readable solver benchmark now separates provider construction,
   adaptive discovery, JAX trace/lower/compile, first and warm execution, and
   value-and-gradient phases while reporting analytic accuracy, work counts,
