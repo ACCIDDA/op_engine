@@ -160,6 +160,44 @@ def test_simulator_preserves_parameter_namespace_for_any_backend(
     )
 
 
+def test_prepared_execution_keeps_op_system_parameters_dynamic() -> None:
+    """The prepared provider binds op_system once without freezing values."""
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "state": ["X"],
+            "equations": {"X": "rate * X"},
+            "initial_state": {"X": "seed"},
+        }
+    )
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.RK4,
+            fixed_max_step=0.1,
+        ),
+    )
+    times = np.asarray([0.0, 0.5, 1.0], dtype=np.float64)
+    sample_params = {"seed": _scalar(1.0), "rate": _scalar(0.2)}
+    prepared = engine.prepare(system, times, {}, sample_params)
+    dynamic = prepared(
+        {},
+        {
+            "seed": np.asarray(2.0),
+            "rate": np.asarray(-0.1),
+        },
+    )
+    ordinary = engine.run(
+        system,
+        times,
+        {},
+        {"seed": _scalar(2.0), "rate": _scalar(-0.1)},
+    )
+
+    np.testing.assert_allclose(dynamic, ordinary, rtol=0.0, atol=1e-14)
+    assert dynamic[-1, 1] == pytest.approx(2.0 * np.exp(-0.1), rel=1e-6)
+
+
 def test_pytree_layout_preserves_numpy_namespace() -> None:
     """Structured execution remains Array-API based outside the JAX block path."""
     axes = AxisCollection({

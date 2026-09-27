@@ -47,8 +47,25 @@ from silently using unmatched differentiation or controller semantics.
 Set `JAX_PLATFORM_NAME` and the normal JAX device configuration to select CPU or
 GPU. The output metadata records the devices that actually ran.
 
+## Prepared execution
+
+`prepared_execution.py` compares ordinary public-provider staging with the
+stable callable returned by `engine.prepare`. It reports preparation and cache
+hit time, system binding counts, trace/lower/compile phases, synchronized first
+and warm execution, IR size, and analytic error.
+
+```console
+uv run python benchmarks/prepared_execution.py \
+  --horizon 30 --output-count 121 --fixed-max-step 0.25 \
+  --output prepared-execution.json
+```
+
+Dynamic alternate sample values are used for cache hits so the result also
+checks that contents are not structural cache keys.
+
 ## Focused diagnostics
 
+- `prepared_execution.py` compares ordinary and cached provider staging.
 - `structured_blocks.py` compares flat, PyTree, and block-PyTree scaling.
 - `adaptive_replay.py` compares unrolled, compact, and checkpointed frozen-mesh
   differentiation.

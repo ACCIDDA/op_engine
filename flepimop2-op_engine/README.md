@@ -68,6 +68,51 @@ final remainder, but the returned trajectory contains only requested output
 times. The setting is mutually exclusive with `adaptive: true` and does not
 apply to stochastic mode (`tau_max_step` controls fixed tau-leaping).
 
+### Prepared execution
+
+Repeated inference calls with the same model structure can prepare the provider
+once while keeping initial-state and parameter arrays dynamic:
+
+```python
+prepared = engine.prepare(
+    system,
+    times,
+    sample_initial_state,
+    sample_params,
+    model_state=model_state,
+)
+
+def final_state(rate, initial):
+    trajectory = prepared(
+        {"x0": initial},
+        {"rate": rate},
+    )
+    return trajectory[-1, 1]
+
+compiled = jax.jit(jax.value_and_grad(final_state, argnums=(0, 1)))
+```
+
+Sample contents do not enter the cache key. They establish the mapping names,
+shapes, dtypes, and array namespaces that later calls must preserve. The key
+also includes system identity and structural metadata, method and configuration,
+the output and internal-step grid, state ordering, and any frozen adaptive
+schedule. Calling `prepare` again with the same structure returns the same
+`PreparedExecution`; changed values alone do not cause a miss.
+
+`prepared.run(initial_state, params)` accepts ordinary `ParameterValue`
+mappings. Calling `prepared(raw_initial_state, raw_params)` accepts raw array
+mappings and is the boundary intended for caller-owned JAX JIT, AOT, and
+automatic differentiation. The provider does not hide compilation in either
+path.
+
+Prepared objects deliberately snapshot their numerical configuration and output
+grid. If mutable system internals change, call `engine.clear_prepared_cache()`
+and prepare again. The current prepared path supports deterministic flat-state
+Euler, Heun, RK4, and Dormand--Prince fixed stepping or replay of an already
+discovered adaptive schedule. Structured layouts, stochastic/hybrid execution,
+implicit/IMEX methods, adaptive discovery, and typed explicit operators remain
+on the ordinary provider path rather than silently falling back.
+
 ### Structured and block state execution
 
 The default `state_layout: flat` remains the compatibility path. An op_system
