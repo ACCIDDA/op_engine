@@ -2178,7 +2178,9 @@ optionally with a preprocessing predictor:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">341</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
 <span class="normal">342</span>
 <span class="normal">343</span>
 <span class="normal">344</span>
@@ -2214,9 +2216,7 @@ optionally with a preprocessing predictor:
 <span class="normal">374</span>
 <span class="normal">375</span>
 <span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">377</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static adaptive-step parameters without coercing arrays.</span>
 
 <span class="sd">    Raises:</span>
@@ -2388,7 +2388,9 @@ a live solve while keeping loop lengths and step sizes static.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">398</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
 <span class="normal">399</span>
 <span class="normal">400</span>
 <span class="normal">401</span>
@@ -2432,9 +2434,7 @@ a live solve while keeping loop lengths and step sizes static.</p>
 <span class="normal">439</span>
 <span class="normal">440</span>
 <span class="normal">441</span>
-<span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">442</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize and validate the recorded mesh.</span>
 
 <span class="sd">    Raises:</span>
@@ -2585,7 +2585,9 @@ a live solve while keeping loop lengths and step sizes static.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1039</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1037</span>
+<span class="normal">1038</span>
+<span class="normal">1039</span>
 <span class="normal">1040</span>
 <span class="normal">1041</span>
 <span class="normal">1042</span>
@@ -2648,9 +2650,7 @@ a live solve while keeping loop lengths and step sizes static.</p>
 <span class="normal">1099</span>
 <span class="normal">1100</span>
 <span class="normal">1101</span>
-<span class="normal">1102</span>
-<span class="normal">1103</span>
-<span class="normal">1104</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">1102</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">operators</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2970,7 +2970,9 @@ it with backend-native adaptive controller loops.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2825</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2823</span>
+<span class="normal">2824</span>
+<span class="normal">2825</span>
 <span class="normal">2826</span>
 <span class="normal">2827</span>
 <span class="normal">2828</span>
@@ -3010,9 +3012,7 @@ it with backend-native adaptive controller loops.</p>
 <span class="normal">2862</span>
 <span class="normal">2863</span>
 <span class="normal">2864</span>
-<span class="normal">2865</span>
-<span class="normal">2866</span>
-<span class="normal">2867</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">adaptive_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">2865</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">adaptive_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -3237,7 +3237,9 @@ completed trajectory once.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2869</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2867</span>
+<span class="normal">2868</span>
+<span class="normal">2869</span>
 <span class="normal">2870</span>
 <span class="normal">2871</span>
 <span class="normal">2872</span>
@@ -3276,9 +3278,7 @@ completed trajectory once.</p>
 <span class="normal">2905</span>
 <span class="normal">2906</span>
 <span class="normal">2907</span>
-<span class="normal">2908</span>
-<span class="normal">2909</span>
-<span class="normal">2910</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">2908</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -3474,7 +3474,9 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4365</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4363</span>
+<span class="normal">4364</span>
+<span class="normal">4365</span>
 <span class="normal">4366</span>
 <span class="normal">4367</span>
 <span class="normal">4368</span>
@@ -3537,9 +3539,7 @@ ecosystems during replay.</p>
 <span class="normal">4425</span>
 <span class="normal">4426</span>
 <span class="normal">4427</span>
-<span class="normal">4428</span>
-<span class="normal">4429</span>
-<span class="normal">4430</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
+<span class="normal">4428</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="n">schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span><span class="p">,</span>
@@ -3734,7 +3734,9 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4432</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4430</span>
+<span class="normal">4431</span>
+<span class="normal">4432</span>
 <span class="normal">4433</span>
 <span class="normal">4434</span>
 <span class="normal">4435</span>
@@ -3824,9 +3826,7 @@ ecosystems during replay.</p>
 <span class="normal">4519</span>
 <span class="normal">4520</span>
 <span class="normal">4521</span>
-<span class="normal">4522</span>
-<span class="normal">4523</span>
-<span class="normal">4524</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">4522</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -3879,7 +3879,7 @@ ecosystems during replay.</p>
         <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                <span class="n">_ARRAY_API_ERROR_MSG</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">type_name</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                <span class="n">_NUMPY_ARRAY_ERROR_MSG</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">type_name</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
 
@@ -4082,7 +4082,9 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">294</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
 <span class="normal">295</span>
 <span class="normal">296</span>
 <span class="normal">297</span>
@@ -4106,9 +4108,7 @@ ecosystems during replay.</p>
 <span class="normal">315</span>
 <span class="normal">316</span>
 <span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">318</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static timestep-controller parameters.</span>
 
 <span class="sd">    Raises:</span>
@@ -4565,7 +4565,9 @@ ecosystems during replay.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">546</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
 <span class="normal">547</span>
 <span class="normal">548</span>
 <span class="normal">549</span>
@@ -4573,9 +4575,7 @@ ecosystems during replay.</p>
 <span class="normal">551</span>
 <span class="normal">552</span>
 <span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">554</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Store diagnostics for the invalid integration or frozen mesh."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">diagnostics</span> <span class="o">=</span> <span class="n">diagnostics</span>
     <span class="n">failed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
@@ -4717,7 +4717,9 @@ step contains a failed nonlinear stage.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">528</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
 <span class="normal">529</span>
 <span class="normal">530</span>
 <span class="normal">531</span>
@@ -4727,9 +4729,7 @@ step contains a failed nonlinear stage.</p>
 <span class="normal">535</span>
 <span class="normal">536</span>
 <span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">:</span>
+<span class="normal">538</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return valid diagnostics or invalidate a failed compiled replay.</span>
 
 <span class="sd">    Returns:</span>
@@ -4876,7 +4876,9 @@ separate from :attr:<code>RunConfig.jacobian</code>, whose operators act only al
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">708</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
 <span class="normal">709</span>
 <span class="normal">710</span>
 <span class="normal">711</span>
@@ -4885,9 +4887,7 @@ separate from :attr:<code>RunConfig.jacobian</code>, whose operators act only al
 <span class="normal">714</span>
 <span class="normal">715</span>
 <span class="normal">716</span>
-<span class="normal">717</span>
-<span class="normal">718</span>
-<span class="normal">719</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">717</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate the method boundary without selecting an array backend.</span>
 
 <span class="sd">    Raises:</span>
@@ -5143,9 +5143,9 @@ and as a fallback for TR/BDF2 stages.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">257</span>
-<span class="normal">258</span>
-<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Apply the predictor to a 2D array."""</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
@@ -5394,7 +5394,9 @@ method downshifts may occur.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">752</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
 <span class="normal">753</span>
 <span class="normal">754</span>
 <span class="normal">755</span>
@@ -5428,9 +5430,7 @@ method downshifts may occur.</p>
 <span class="normal">783</span>
 <span class="normal">784</span>
 <span class="normal">785</span>
-<span class="normal">786</span>
-<span class="normal">787</span>
-<span class="normal">788</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">786</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize the method and validate context-free configuration.</span>
 
 <span class="sd">    Raises:</span>
@@ -6024,7 +6024,9 @@ partition would be unreasonably large.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">447</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
 <span class="normal">448</span>
 <span class="normal">449</span>
 <span class="normal">450</span>
@@ -6078,9 +6080,7 @@ partition would be unreasonably large.</p>
 <span class="normal">498</span>
 <span class="normal">499</span>
 <span class="normal">500</span>
-<span class="normal">501</span>
-<span class="normal">502</span>
-<span class="normal">503</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_step_sizes</span><span class="p">(</span>
+<span class="normal">501</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_step_sizes</span><span class="p">(</span>
     <span class="n">t0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">t1</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">max_step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
@@ -6192,7 +6192,9 @@ partition would be unreasonably large.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">901</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">899</span>
+<span class="normal">900</span>
+<span class="normal">901</span>
 <span class="normal">902</span>
 <span class="normal">903</span>
 <span class="normal">904</span>
@@ -6214,9 +6216,7 @@ partition would be unreasonably large.</p>
 <span class="normal">920</span>
 <span class="normal">921</span>
 <span class="normal">922</span>
-<span class="normal">923</span>
-<span class="normal">924</span>
-<span class="normal">925</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propose_step_size</span><span class="p">(</span>
+<span class="normal">923</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propose_step_size</span><span class="p">(</span>
     <span class="n">step_size</span><span class="p">:</span> <span class="n">Scalar</span><span class="p">,</span>
     <span class="n">error_norm</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -6323,7 +6323,9 @@ therefore compose it with backend loop primitives such as
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">856</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">854</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
 <span class="normal">857</span>
 <span class="normal">858</span>
 <span class="normal">859</span>
@@ -6363,9 +6365,7 @@ therefore compose it with backend loop primitives such as
 <span class="normal">893</span>
 <span class="normal">894</span>
 <span class="normal">895</span>
-<span class="normal">896</span>
-<span class="normal">897</span>
-<span class="normal">898</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scaled_error_norm</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">896</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scaled_error_norm</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="n">error</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">reference</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">previous</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
