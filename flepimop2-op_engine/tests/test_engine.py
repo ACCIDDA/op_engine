@@ -33,6 +33,7 @@ from typing_extensions import override
 from flepimop2.engine.op_engine import (
     AdaptiveReplayMode,
     AdaptiveSchedule,
+    AdaptiveScheduleAccuracyError,
     OpEngineEngineConfig,
     OpEngineFlepimop2Engine,
     PreparedExecution,
@@ -380,6 +381,149 @@ def test_adaptive_schedule_discovery_and_replay_are_explicit() -> None:
     np.testing.assert_allclose(ordinary_replay, discovered.trajectory)
 
 
+@pytest.mark.parametrize(
+    "method",
+    [
+        SolverMethod.EULER,
+        SolverMethod.HEUN,
+        SolverMethod.RK4,
+        SolverMethod.DOPRI5,
+    ],
+)
+def test_compiled_jax_discovery_replays_each_explicit_method(
+    method: SolverMethod,
+) -> None:
+    """Every explicit controller branch discovers and validates one JAX mesh."""
+    jnp = pytest.importorskip("jax.numpy")
+    system = _GoodSystem()
+    times = np.asarray([0.0, 0.4, 1.0], dtype=np.float64)
+    initial_state = {
+        "x0": ParameterValue(jnp.asarray(1.0, dtype=jnp.float32), ResolvedShape())
+    }
+    model_state = ModelStateSpecification(parameter_names=("x0",))
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=method,
+            adaptive=True,
+            rtol=1e-3,
+            atol=1e-6,
+            max_steps=256,
+        ),
+    )
+
+    discovered = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+    )
+    replayed = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        {},
+        model_state=model_state,
+        schedule=discovered.schedule,
+    )
+
+    assert discovered.schedule.state_layout.value == "flat"
+    assert all(discovered.schedule.step_schedule.step_sizes)
+    assert replayed.replay_diagnostics is not None
+    assert bool(replayed.replay_diagnostics.accurate.item())
+    np.testing.assert_allclose(
+        replayed.trajectory,
+        discovered.trajectory,
+        rtol=5e-7,
+        atol=5e-7,
+    )
+
+
+def test_compact_replay_reports_frozen_mesh_accuracy() -> None:
+    """Replay detects a materially stale mesh without breaking JAX gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    system = _RateSystem()
+    times = np.asarray([0.0, 1.0], dtype=np.float64)
+    initial_state = {
+        "x0": ParameterValue(jnp.asarray(1.0, dtype=jnp.float32), ResolvedShape())
+    }
+    model_state = ModelStateSpecification(parameter_names=("x0",))
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.DOPRI5,
+            adaptive=True,
+            rtol=1e-5,
+            atol=1e-8,
+            max_steps=128,
+        ),
+    )
+
+    def parameters(rate: Array) -> dict[str, ParameterValue]:
+        return {"rate": ParameterValue(rate, ResolvedShape())}
+
+    discovery_rate = jnp.asarray(0.1, dtype=jnp.float32)
+    discovered = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        parameters(discovery_rate),
+        model_state=model_state,
+    )
+    replayed = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        parameters(discovery_rate),
+        model_state=model_state,
+        schedule=discovered.schedule,
+    )
+
+    diagnostics = replayed.replay_diagnostics
+    assert diagnostics is not None
+    assert bool(diagnostics.accurate.item())
+    assert diagnostics.max_error_norm.item() <= diagnostics.error_factor.item()
+    assert diagnostics.step_count.item() == sum(
+        map(len, discovered.schedule.step_schedule.step_sizes)
+    )
+    assert replayed.require_accurate() is replayed
+
+    stale = engine.run_adaptive(
+        system,
+        times,
+        initial_state,
+        parameters(jnp.asarray(5.0, dtype=jnp.float32)),
+        model_state=model_state,
+        schedule=discovered.schedule,
+    )
+    stale_diagnostics = stale.replay_diagnostics
+    assert stale_diagnostics is not None
+    assert not bool(stale_diagnostics.accurate.item())
+    assert stale_diagnostics.inaccurate_steps.item() > 0
+    with pytest.raises(
+        AdaptiveScheduleAccuracyError,
+        match="discover a fresh schedule",
+    ):
+        stale.require_accurate()
+
+    def objective(rate: Array) -> Array:
+        trajectory = engine.run(
+            system,
+            times,
+            initial_state,
+            parameters(rate),
+            model_state=model_state,
+            adaptive_schedule=discovered.schedule,
+        )
+        return cast("Array", trajectory[-1, 1])
+
+    value, gradient = jax.jit(jax.value_and_grad(objective))(discovery_rate)
+    assert value == pytest.approx(math.exp(0.1), rel=2e-5)
+    assert gradient == pytest.approx(value, rel=2e-5)
+
+
 def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
     """A frozen mesh cannot silently cross incompatible provider settings."""
     system = _GoodSystem()
@@ -451,6 +595,24 @@ def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
                 model_state=model_state,
                 adaptive_schedule=schedule,
             )
+
+    wrong_layout = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.HEUN,
+            adaptive=True,
+            state_layout="pytree",
+        ),
+    )
+    with pytest.raises(ValueError, match="state layout or block axis"):
+        wrong_layout.run(
+            system,
+            times,
+            initial_state,
+            {},
+            model_state=model_state,
+            adaptive_schedule=schedule,
+        )
 
     with pytest.raises(ValueError, match="output_times"):
         engine.run(

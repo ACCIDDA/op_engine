@@ -24,7 +24,7 @@ import json
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass, replace
-from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, cast
 
 import numpy as np
 from flepimop2.engine.abc import EngineABC
@@ -47,6 +47,8 @@ from op_engine.core_solver import (
     NonlinearIntegrationDiagnostics,
     NonlinearMethodConfig,
     fixed_step_sizes,
+    propose_step_size,
+    scaled_error_norm,
 )
 from op_engine.model_core import ModelCore, ModelCoreOptions
 from op_engine.stochastic_solver import (
@@ -140,6 +142,8 @@ class AdaptiveSchedule:
     fac_max: float
     gamma: float | None
     strict: bool
+    state_layout: StateLayout = StateLayout.FLAT
+    block_axis: str | None = None
     context_signature: str | None = None
 
     @classmethod
@@ -170,6 +174,8 @@ class AdaptiveSchedule:
             fac_max=config.fac_max,
             gamma=config.gamma,
             strict=config.strict,
+            state_layout=config.state_layout,
+            block_axis=config.block_axis,
             context_signature=context_signature,
         )
 
@@ -179,6 +185,15 @@ class AdaptiveSchedule:
         Raises:
             ValueError: If the solver method or adaptive controls changed.
         """
+        if (
+            config.state_layout is not self.state_layout
+            or config.block_axis != self.block_axis
+        ):
+            msg = (
+                "Adaptive schedule state layout or block axis does not match "
+                "the active engine configuration; discover a fresh schedule."
+            )
+            raise ValueError(msg)
         if config.method is not self.method:
             msg = (
                 f"Adaptive schedule method '{self.method.value}' does not match "
@@ -243,6 +258,38 @@ class AdaptiveSchedule:
             raise ValueError(msg)
 
 
+class AdaptiveReplayDiagnostics(NamedTuple):
+    """Array-valued local-error diagnostics from frozen-mesh replay."""
+
+    accurate: Array
+    max_error_norm: Array
+    inaccurate_steps: Array
+    step_count: Array
+    error_factor: Array
+
+    def require_accurate(self) -> AdaptiveReplayDiagnostics:
+        """Return these diagnostics or raise when the mesh must be refreshed.
+
+        Returns:
+            This unchanged record after successful host-side validation.
+        """
+        if not bool(self.accurate.item()):
+            raise AdaptiveScheduleAccuracyError(self)
+        return self
+
+
+class AdaptiveScheduleAccuracyError(RuntimeError):
+    """Raised when a frozen mesh no longer satisfies its error policy."""
+
+    def __init__(self, diagnostics: AdaptiveReplayDiagnostics) -> None:
+        """Store diagnostics and direct the caller to refresh discovery."""
+        self.diagnostics = diagnostics
+        super().__init__(
+            "Adaptive schedule replay exceeded its scaled local-error "
+            "threshold; discover a fresh schedule."
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class AdaptiveRunResult:
     """Trajectory, frozen schedule, and optional nonlinear diagnostics."""
@@ -250,6 +297,7 @@ class AdaptiveRunResult:
     trajectory: Array
     schedule: AdaptiveSchedule
     diagnostics: NonlinearIntegrationDiagnostics | None = None
+    replay_diagnostics: AdaptiveReplayDiagnostics | None = None
 
     def require_converged(self) -> AdaptiveRunResult:
         """Validate any nonlinear diagnostics attached to this result.
@@ -259,6 +307,16 @@ class AdaptiveRunResult:
         """
         if self.diagnostics is not None:
             self.diagnostics.require_converged()
+        return self
+
+    def require_accurate(self) -> AdaptiveRunResult:
+        """Validate local error estimates from compact schedule replay.
+
+        Returns:
+            This unchanged result after successful validation.
+        """
+        if self.replay_diagnostics is not None:
+            self.replay_diagnostics.require_accurate()
         return self
 
 
@@ -333,6 +391,20 @@ class _ExecutionResult:
     trajectory: Array
     schedule: AdaptiveSchedule | None = None
     diagnostics: NonlinearIntegrationDiagnostics | None = None
+    replay_diagnostics: AdaptiveReplayDiagnostics | None = None
+
+
+class _JaxDiscoveryInterval(NamedTuple):
+    """Device-resident result for one requested output interval."""
+
+    state: Array
+    first_stage: Array
+    has_first_stage: Array
+    step_sizes: Array
+    accepted_steps: Array
+    rejected_steps: Array
+    max_error_norm: Array
+    status: Array
 
 
 def _namespace_of(value: object) -> Any:  # noqa: ANN401
@@ -984,6 +1056,220 @@ def _run_jax_explicit_plan_trajectory(
     solver.core.apply_trajectory(trajectory)
 
 
+def _run_jax_validated_adaptive_trajectory(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    schedule: AdaptiveStepSchedule,
+    config: RunConfig,
+    error_factor: float,
+    error_reduction: Literal["rms", "max"],
+    checkpoint: ReplayCheckpoint,
+    checkpoint_chunk_size: int,
+) -> AdaptiveReplayDiagnostics:
+    """Replay a frozen mesh and retain requested states plus error diagnostics.
+
+    Returns:
+        Array-valued diagnostics that remain safe to return across JAX tracing.
+    """
+    import jax  # noqa: PLC0415
+
+    step_times_values, step_sizes_values, output_indices = _schedule_step_plan(schedule)
+    initial_state = solver.core.get_current_state()
+    xp = _namespace_of(initial_state)
+    zero_float = xp.asarray(0.0, dtype=initial_state.dtype)
+    zero_int = xp.asarray(0, dtype=xp.int32)
+    threshold = xp.asarray(error_factor, dtype=initial_state.dtype)
+    if not step_sizes_values:
+        solver.core.apply_trajectory(
+            cast("Array", xp.expand_dims(initial_state, axis=0))
+        )
+        return AdaptiveReplayDiagnostics(
+            accurate=xp.ones((), dtype=xp.bool),
+            max_error_norm=zero_float,
+            inaccurate_steps=zero_int,
+            step_count=zero_int,
+            error_factor=threshold,
+        )
+
+    step_times = cast(
+        "Array",
+        xp.asarray(step_times_values, dtype=initial_state.dtype),
+    )
+    step_sizes = cast(
+        "Array",
+        xp.asarray(step_sizes_values, dtype=initial_state.dtype),
+    )
+    output_slot_values = np.full(len(step_sizes_values), -1, dtype=np.int32)
+    output_slot_values[output_indices] = np.arange(
+        len(output_indices),
+        dtype=np.int32,
+    )
+    output_slots = cast("Array", xp.asarray(output_slot_values))
+    requested = cast(
+        "Array",
+        xp.zeros(
+            (len(output_indices), *initial_state.shape),
+            dtype=initial_state.dtype,
+        ),
+    )
+
+    def save_requested(outputs: Array, output_slot: Array, state: Array) -> Array:
+        update = cast("Array", xp.expand_dims(state, axis=0))
+        return cast(
+            "Array",
+            jax.lax.cond(
+                cast("Any", output_slot) >= 0,
+                lambda values: jax.lax.dynamic_update_index_in_dim(
+                    values,
+                    update,
+                    output_slot,
+                    axis=0,
+                ),
+                lambda values: values,
+                outputs,
+            ),
+        )
+
+    def update_errors(
+        max_error: Array,
+        inaccurate: Array,
+        error_norm: Array,
+    ) -> tuple[Array, Array]:
+        return (
+            cast("Array", xp.maximum(max_error, error_norm)),
+            cast(
+                "Array",
+                xp.add(
+                    inaccurate,
+                    xp.asarray(xp.greater(error_norm, threshold), dtype=xp.int32),
+                ),
+            ),
+        )
+
+    if method is SolverMethod.DOPRI5:
+        initial_stage = rhs(_array_item(step_times, 0), initial_state)
+
+        def advance_dopri5(
+            carry: tuple[Array, Array, Array, Array, Array],
+            step: tuple[Array, Array, Array],
+        ) -> tuple[Array, Array, Array, Array, Array]:
+            state, first_stage, outputs, max_error, inaccurate = carry
+            time, dt, output_slot = step
+            attempt = solver.adaptive_explicit_step(
+                rhs,
+                method=method.value,
+                t=time,
+                dt=dt,
+                y=state,
+                first_stage=first_stage,
+            )
+            if attempt.last_stage is None:  # pragma: no cover - tableau invariant
+                msg = "Dormand--Prince replay requires an FSAL stage."
+                raise RuntimeError(msg)
+            error_norm = scaled_error_norm(
+                attempt.error,
+                attempt.state,
+                state,
+                rtol=config.adaptive_cfg.rtol,
+                atol=config.adaptive_cfg.atol,
+                reduction=error_reduction,
+            )
+            next_max, next_inaccurate = update_errors(
+                max_error,
+                inaccurate,
+                error_norm,
+            )
+            return (
+                attempt.state,
+                attempt.last_stage,
+                save_requested(outputs, output_slot, attempt.state),
+                next_max,
+                next_inaccurate,
+            )
+
+        dopri_carry = _run_jax_carry_scan(
+            advance_dopri5,
+            (initial_state, initial_stage, requested, zero_float, zero_int),
+            step_times,
+            step_sizes,
+            output_slots,
+            checkpoint=checkpoint,
+            checkpoint_chunk_size=checkpoint_chunk_size,
+        )
+        requested_tail, max_error, inaccurate = (
+            dopri_carry[2],
+            dopri_carry[3],
+            dopri_carry[4],
+        )
+    else:
+
+        def advance(
+            carry: tuple[Array, Array, Array, Array],
+            step: tuple[Array, Array, Array],
+        ) -> tuple[Array, Array, Array, Array]:
+            state, outputs, max_error, inaccurate = carry
+            time, dt, output_slot = step
+            attempt = solver.adaptive_explicit_step(
+                rhs,
+                method=method.value,
+                t=time,
+                dt=dt,
+                y=state,
+            )
+            error_norm = scaled_error_norm(
+                attempt.error,
+                attempt.state,
+                state,
+                rtol=config.adaptive_cfg.rtol,
+                atol=config.adaptive_cfg.atol,
+                reduction=error_reduction,
+            )
+            next_max, next_inaccurate = update_errors(
+                max_error,
+                inaccurate,
+                error_norm,
+            )
+            return (
+                attempt.state,
+                save_requested(outputs, output_slot, attempt.state),
+                next_max,
+                next_inaccurate,
+            )
+
+        ordinary_carry = _run_jax_carry_scan(
+            advance,
+            (initial_state, requested, zero_float, zero_int),
+            step_times,
+            step_sizes,
+            output_slots,
+            checkpoint=checkpoint,
+            checkpoint_chunk_size=checkpoint_chunk_size,
+        )
+        requested_tail, max_error, inaccurate = (
+            ordinary_carry[1],
+            ordinary_carry[2],
+            ordinary_carry[3],
+        )
+
+    trajectory = cast(
+        "Array",
+        xp.concat(
+            (xp.expand_dims(initial_state, axis=0), requested_tail),
+            axis=0,
+        ),
+    )
+    solver.core.apply_trajectory(trajectory)
+    return AdaptiveReplayDiagnostics(
+        accurate=cast("Array", xp.equal(inaccurate, 0)),
+        max_error_norm=max_error,
+        inaccurate_steps=inaccurate,
+        step_count=xp.asarray(len(step_sizes_values), dtype=xp.int32),
+        error_factor=threshold,
+    )
+
+
 def _run_jax_fixed_explicit_trajectory(
     solver: CoreSolver,
     rhs: Callable[[Scalar, Array], Array],
@@ -1063,20 +1349,293 @@ def _run_jax_adaptive_explicit_trajectory(
     *,
     method: SolverMethod,
     schedule: AdaptiveStepSchedule,
+    config: RunConfig,
+    error_factor: float,
+    error_reduction: Literal["rms", "max"],
     checkpoint: ReplayCheckpoint,
     checkpoint_chunk_size: int,
-) -> None:
-    """Replay an accepted explicit mesh as one compact JAX scan."""
-    step_times, step_sizes, output_indices = _schedule_step_plan(schedule)
-    _run_jax_explicit_plan_trajectory(
+) -> AdaptiveReplayDiagnostics:
+    """Replay an accepted mesh and return compiled-safe error diagnostics."""
+    return _run_jax_validated_adaptive_trajectory(
         solver,
         rhs,
         method=method,
-        step_times_values=step_times,
-        step_sizes_values=step_sizes,
-        output_indices=output_indices,
+        schedule=schedule,
+        config=config,
+        error_factor=error_factor,
+        error_reduction=error_reduction,
         checkpoint=checkpoint,
         checkpoint_chunk_size=checkpoint_chunk_size,
+    )
+
+
+def _jax_discovery_interval(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    start: Array,
+    target: Array,
+    initial_state: Array,
+    first_stage: Array,
+    has_first_stage: Array,
+    config: RunConfig,
+    error_reduction: Literal["rms", "max"],
+) -> _JaxDiscoveryInterval:
+    """Discover one accepted mesh entirely in a JAX while loop.
+
+    The bounded step buffer is returned to the host only after the interval
+    completes. Accept/reject decisions and all attempted numerical updates
+    therefore remain device resident.
+
+    Returns:
+        Final state, reusable stage, padded accepted steps, counts, and status.
+    """
+    import jax  # noqa: PLC0415
+
+    xp = _namespace_of(initial_state)
+    adaptive = config.adaptive_cfg
+    controller = config.dt_controller
+    interval = xp.subtract(target, start)
+    initial_dt = interval if adaptive.dt_init is None else adaptive.dt_init
+    dt = xp.minimum(
+        xp.asarray(initial_dt, dtype=initial_state.dtype),
+        xp.asarray(controller.dt_max, dtype=initial_state.dtype),
+    )
+    step_sizes = xp.zeros((adaptive.max_steps,), dtype=initial_state.dtype)
+    zero_int = xp.asarray(0, dtype=xp.int32)
+    zero_float = xp.asarray(0.0, dtype=initial_state.dtype)
+
+    initial_carry = (
+        start,
+        dt,
+        initial_state,
+        first_stage,
+        has_first_stage,
+        step_sizes,
+        zero_int,
+        zero_int,
+        zero_int,
+        zero_float,
+        zero_int,
+    )
+
+    def condition(carry: Any) -> Array:  # noqa: ANN401
+        time, _dt, _state, _stage, _has_stage, _steps, accepted, *_tail = carry
+        running = xp.logical_and(xp.less(time, target), xp.equal(carry[-1], 0))
+        return cast(
+            "Array",
+            xp.logical_and(running, xp.less(accepted, adaptive.max_steps)),
+        )
+
+    def attempt_step(carry: Any) -> Any:  # noqa: ANN401
+        (
+            time,
+            current_dt,
+            state,
+            cached_stage,
+            has_stage,
+            steps,
+            accepted_count,
+            rejected_count,
+            consecutive_rejects,
+            max_error,
+            status,
+        ) = carry
+        remaining = xp.subtract(target, time)
+        attempted_dt = xp.minimum(current_dt, remaining)
+        stage = jax.lax.cond(
+            has_stage,
+            lambda _operand: cached_stage,
+            lambda _operand: rhs(time, state),
+            operand=None,
+        )
+        attempt = solver.adaptive_explicit_step(
+            rhs,
+            method=method.value,
+            t=time,
+            dt=attempted_dt,
+            y=state,
+            first_stage=stage,
+        )
+        error_norm = scaled_error_norm(
+            attempt.error,
+            attempt.state,
+            state,
+            rtol=adaptive.rtol,
+            atol=adaptive.atol,
+            reduction=error_reduction,
+        )
+        accepted = xp.less_equal(error_norm, 1.0)
+        proposed_dt = propose_step_size(
+            attempted_dt,
+            error_norm,
+            attempt.controller_order,
+            config=controller,
+        )
+        updated_steps = jax.lax.dynamic_update_index_in_dim(
+            steps,
+            xp.expand_dims(attempted_dt, axis=0),
+            accepted_count,
+            axis=0,
+        )
+        next_steps = jax.lax.cond(
+            accepted,
+            lambda _operand: updated_steps,
+            lambda _operand: steps,
+            operand=None,
+        )
+        landed = xp.where(
+            xp.greater_equal(attempted_dt, remaining),
+            target,
+            xp.add(time, attempted_dt),
+        )
+        next_time = xp.where(accepted, landed, time)
+        next_state = xp.where(accepted, attempt.state, state)
+
+        if method is SolverMethod.DOPRI5:
+            if attempt.last_stage is None:  # pragma: no cover - tableau invariant
+                msg = "Dormand--Prince discovery requires an FSAL stage."
+                raise RuntimeError(msg)
+            accepted_stage = attempt.last_stage
+            next_stage = xp.where(accepted, accepted_stage, attempt.first_stage)
+            next_has_stage = xp.ones((), dtype=xp.bool)
+        else:
+            next_stage = attempt.first_stage
+            next_has_stage = xp.logical_not(accepted)
+
+        next_accepted = xp.add(accepted_count, xp.asarray(accepted, dtype=xp.int32))
+        rejected = xp.logical_not(accepted)
+        next_rejected = xp.add(rejected_count, xp.asarray(rejected, dtype=xp.int32))
+        next_consecutive = xp.where(
+            accepted,
+            zero_int,
+            xp.add(consecutive_rejects, 1),
+        )
+        underflow = xp.logical_and(
+            rejected,
+            xp.logical_and(
+                controller.dt_min > 0.0,
+                xp.less_equal(proposed_dt, controller.dt_min),
+            ),
+        )
+        reject_limit = xp.logical_and(
+            rejected,
+            xp.greater_equal(next_consecutive, adaptive.max_reject),
+        )
+        next_status = xp.where(
+            underflow,
+            3,
+            xp.where(reject_limit, 2, status),
+        )
+        return (
+            next_time,
+            proposed_dt,
+            next_state,
+            next_stage,
+            next_has_stage,
+            next_steps,
+            next_accepted,
+            next_rejected,
+            next_consecutive,
+            xp.maximum(max_error, error_norm),
+            next_status,
+        )
+
+    completed = jax.lax.while_loop(condition, attempt_step, initial_carry)
+    exhausted = xp.logical_and(
+        xp.less(completed[0], target),
+        xp.greater_equal(completed[6], adaptive.max_steps),
+    )
+    status = xp.where(
+        xp.logical_and(exhausted, xp.equal(completed[10], 0)),
+        1,
+        completed[10],
+    )
+    return _JaxDiscoveryInterval(
+        state=completed[2],
+        first_stage=completed[3],
+        has_first_stage=completed[4],
+        step_sizes=completed[5],
+        accepted_steps=completed[6],
+        rejected_steps=completed[7],
+        max_error_norm=completed[9],
+        status=status,
+    )
+
+
+def _run_jax_adaptive_explicit_discovery(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    times: np.ndarray,
+    config: RunConfig,
+    error_reduction: Literal["rms", "max"] = "rms",
+) -> AdaptiveStepSchedule:
+    """Discover a JAX explicit mesh without per-attempt host synchronization.
+
+    Returns:
+        Validated accepted-step schedule applied to the solver trajectory.
+    """
+    import jax  # noqa: PLC0415
+
+    state = solver.core.get_current_state()
+    xp = _namespace_of(state)
+    first_stage = xp.zeros_like(state)
+    has_first_stage = xp.zeros((), dtype=xp.bool)
+    trajectory = [state]
+    interval_steps: list[tuple[float, ...]] = []
+    discover_interval = jax.jit(
+        lambda start, target, value, stage, has_stage: _jax_discovery_interval(
+            solver,
+            rhs,
+            method=method,
+            start=start,
+            target=target,
+            initial_state=value,
+            first_stage=stage,
+            has_first_stage=has_stage,
+            config=config,
+            error_reduction=error_reduction,
+        )
+    )
+
+    errors = {
+        1: "Adaptive JAX discovery exceeded max_steps within an output interval.",
+        2: "Adaptive JAX discovery exceeded max_reject for one accepted step.",
+        3: "Adaptive JAX discovery reached dt_min after a rejected step.",
+    }
+    for start_value, target_value in itertools.pairwise(times):
+        result = discover_interval(
+            xp.asarray(start_value, dtype=state.dtype),
+            xp.asarray(target_value, dtype=state.dtype),
+            state,
+            first_stage,
+            has_first_stage,
+        )
+        status = int(np.asarray(result.status))
+        if status:
+            raise RuntimeError(errors.get(status, "Adaptive JAX discovery failed."))
+        accepted_steps = int(np.asarray(result.accepted_steps))
+        steps = np.asarray(
+            _array_item(result.step_sizes, slice(0, accepted_steps)),
+            dtype=np.float64,
+        )
+        host_steps = [float(value) for value in steps]
+        if host_steps:
+            interval = float(target_value) - float(start_value)
+            host_steps[-1] += interval - math.fsum(host_steps)
+        interval_steps.append(tuple(host_steps))
+        state = result.state
+        first_stage = result.first_stage
+        has_first_stage = result.has_first_stage
+        trajectory.append(state)
+
+    solver.core.apply_trajectory(cast("Array", xp.stack(tuple(trajectory), axis=0)))
+    return AdaptiveStepSchedule(
+        output_times=tuple(float(value) for value in times),
+        step_sizes=tuple(interval_steps),
     )
 
 
@@ -1658,6 +2217,78 @@ def _flatten_pytree_trajectory(
     return cast("Array", xp.concat(leaves, axis=1))
 
 
+def _flat_trajectory_to_pytree(
+    trajectory: Array,
+    template_shapes: Mapping[str, object],
+) -> StateTree:
+    """View one flat state trajectory as template-keyed JAX leaves."""
+    n_times = int(trajectory.shape[0])
+    result: StateTree = {}
+    offset = 0
+    for name, shape_obj in template_shapes.items():
+        if not isinstance(name, str) or not isinstance(shape_obj, tuple):
+            msg = "template_shapes must map strings to shape tuples."
+            raise TypeError(msg)
+        shape = tuple(int(size) for size in shape_obj)
+        size = math.prod(shape)
+        values = _array_item(
+            trajectory,
+            (slice(None), slice(offset, offset + size)),
+        )
+        xp = _namespace_of(values)
+        result[name] = cast("Array", xp.reshape(values, (n_times, *shape)))
+        offset += size
+    if offset != trajectory.shape[1]:
+        msg = (
+            f"template_shapes cover {offset} state cells, but the trajectory "
+            f"contains {trajectory.shape[1]}."
+        )
+        raise ValueError(msg)
+    return result
+
+
+def _run_jax_adaptive_explicit_pytree(
+    rhs: Callable[[Scalar, StateTree], StateTree],
+    initial_state: StateTree,
+    *,
+    template_shapes: Mapping[str, object],
+    method: SolverMethod,
+    schedule: AdaptiveStepSchedule,
+    config: RunConfig,
+    error_factor: float,
+    error_reduction: Literal["rms", "max"],
+    checkpoint: ReplayCheckpoint,
+    checkpoint_chunk_size: int,
+) -> tuple[StateTree, AdaptiveReplayDiagnostics]:
+    """Replay one shared adaptive schedule through a JAX state PyTree."""
+    flat_initial = _flatten_state_tree(initial_state, template_shapes)
+    core = _make_core(np.asarray(schedule.output_times), flat_initial)
+    solver = CoreSolver(core)
+
+    def flat_rhs(time: Scalar, state: Array) -> Array:
+        tree = _flat_state_to_pytree(state, template_shapes)
+        flat = _flatten_state_tree(rhs(time, tree), template_shapes)
+        xp = _namespace_of(flat)
+        return cast("Array", xp.reshape(flat, state.shape))
+
+    replay_diagnostics = _run_jax_adaptive_explicit_trajectory(
+        solver,
+        flat_rhs,
+        method=method,
+        schedule=schedule,
+        config=config,
+        error_factor=error_factor,
+        error_reduction=error_reduction,
+        checkpoint=checkpoint,
+        checkpoint_chunk_size=checkpoint_chunk_size,
+    )
+    flat_trajectory = _extract_states_2d(core, n_state=int(flat_initial.shape[0]))
+    return (
+        _flat_trajectory_to_pytree(flat_trajectory, template_shapes),
+        replay_diagnostics,
+    )
+
+
 def _select_block_axis(
     block_axes: object,
     requested_name: str | None,
@@ -1681,9 +2312,11 @@ def _run_structured_deterministic(
     times: np.ndarray,
     y0: Array,
     raw_params: Mapping[str, object],
+    *,
     config: OpEngineEngineConfig,
-) -> Array:
-    """Run an explicit fixed solve with a PyTree or block-PyTree state."""
+    adaptive_schedule: AdaptiveSchedule | None = None,
+) -> tuple[Array, AdaptiveReplayDiagnostics | None]:
+    """Run an explicit solve with a PyTree or block-PyTree state and diagnostics."""
     template_shapes = system.option("template_shapes", None)
     pytree_stepper = system.option("pytree_stepper_fn", None)
     if not isinstance(template_shapes, Mapping) or not callable(pytree_stepper):
@@ -1693,6 +2326,7 @@ def _run_structured_deterministic(
         )
         raise TypeError(msg)
     initial_tree = _flat_state_to_pytree(y0, template_shapes)
+    run_config = config.to_run_config()
 
     if config.state_layout is StateLayout.PYTREE:
         operator_drift = _system_explicit_operator_drift(
@@ -1706,14 +2340,32 @@ def _run_structured_deterministic(
             source="system option 'pytree_stepper_fn'",
             operator_drift=operator_drift,
         )
-        trajectory = _run_fixed_explicit_pytree(
-            rhs,
-            initial_tree,
-            method=config.method,
-            times=times,
-            fixed_max_step=config.fixed_max_step,
+        if adaptive_schedule is not None:
+            trajectory, replay_diagnostics = _run_jax_adaptive_explicit_pytree(
+                rhs,
+                initial_tree,
+                template_shapes=template_shapes,
+                method=config.method,
+                schedule=adaptive_schedule.step_schedule,
+                config=run_config,
+                error_factor=config.replay_error_factor,
+                error_reduction="rms",
+                checkpoint=config.replay_checkpoint,
+                checkpoint_chunk_size=config.checkpoint_chunk_size,
+            )
+        else:
+            trajectory = _run_fixed_explicit_pytree(
+                rhs,
+                initial_tree,
+                method=config.method,
+                times=times,
+                fixed_max_step=config.fixed_max_step,
+            )
+            replay_diagnostics = None
+        return (
+            _flatten_pytree_trajectory(trajectory, template_shapes),
+            replay_diagnostics,
         )
-        return _flatten_pytree_trajectory(trajectory, template_shapes)
 
     import jax  # noqa: PLC0415
 
@@ -1741,22 +2393,70 @@ def _run_structured_deterministic(
     param_in_axes = {name: block_info.param_axis_pos.get(name) for name in raw_params}
     out_axes = {name: block_info.state_axis_pos[name] + 1 for name in initial_tree}
 
-    def solve_block(
+    def block_rhs(
         block_state: StateTree,
         block_params: Mapping[str, object],
-    ) -> StateTree:
+    ) -> Callable[[Scalar, StateTree], StateTree]:
         operator_drift = _system_explicit_operator_drift(
             system,
             block_params,
             block_state,
             excluded_axes=(block_info.name,),
         )
-        rhs = _structured_rhs(
+        return _structured_rhs(
             block_stepper,
             block_params,
             source="system option 'block_pytree_stepper_fn'",
             operator_drift=operator_drift,
         )
+
+    if adaptive_schedule is not None:
+
+        def solve_adaptive_block(
+            block_state: StateTree,
+            block_params: Mapping[str, object],
+        ) -> tuple[StateTree, AdaptiveReplayDiagnostics]:
+            rhs = block_rhs(block_state, block_params)
+            return _run_jax_adaptive_explicit_pytree(
+                rhs,
+                block_state,
+                template_shapes=block_shapes,
+                method=config.method,
+                schedule=adaptive_schedule.step_schedule,
+                config=run_config,
+                error_factor=config.replay_error_factor,
+                error_reduction="max",
+                checkpoint=config.replay_checkpoint,
+                checkpoint_chunk_size=config.checkpoint_chunk_size,
+            )
+
+        trajectory, block_diagnostics = jax.vmap(
+            solve_adaptive_block,
+            in_axes=(state_in_axes, param_in_axes),
+            out_axes=(out_axes, 0),
+            axis_size=block_info.size,
+        )(initial_tree, raw_params)
+        xp = _namespace_of(y0)
+        replay_diagnostics = AdaptiveReplayDiagnostics(
+            accurate=cast("Array", xp.all(block_diagnostics.accurate)),
+            max_error_norm=cast("Array", xp.max(block_diagnostics.max_error_norm)),
+            inaccurate_steps=cast("Array", xp.sum(block_diagnostics.inaccurate_steps)),
+            step_count=cast("Array", xp.sum(block_diagnostics.step_count)),
+            error_factor=xp.asarray(
+                config.replay_error_factor,
+                dtype=y0.dtype,
+            ),
+        )
+        return (
+            _flatten_pytree_trajectory(trajectory, template_shapes),
+            replay_diagnostics,
+        )
+
+    def solve_fixed_block(
+        block_state: StateTree,
+        block_params: Mapping[str, object],
+    ) -> StateTree:
+        rhs = block_rhs(block_state, block_params)
         return _run_jax_fixed_explicit_pytree(
             rhs,
             block_state,
@@ -1766,12 +2466,15 @@ def _run_structured_deterministic(
         )
 
     trajectory = jax.vmap(
-        solve_block,
+        solve_fixed_block,
         in_axes=(state_in_axes, param_in_axes),
         out_axes=out_axes,
         axis_size=block_info.size,
     )(initial_tree, raw_params)
-    return _flatten_pytree_trajectory(trajectory, template_shapes)
+    return (
+        _flatten_pytree_trajectory(trajectory, template_shapes),
+        None,
+    )
 
 
 def _last_state(core: ModelCore, *, n_state: int) -> Array:
@@ -2584,6 +3287,7 @@ class OpEngineFlepimop2Engine(EngineABC):
             trajectory=result.trajectory,
             schedule=result.schedule,
             diagnostics=result.diagnostics,
+            replay_diagnostics=result.replay_diagnostics,
         )
 
     def _execute(
@@ -2627,16 +3331,23 @@ class OpEngineFlepimop2Engine(EngineABC):
         if adaptive_schedule is not None:
             adaptive_schedule.validate_context(context_signature)
 
-        if self.config.state_layout is not StateLayout.FLAT:
-            structured_states = _run_structured_deterministic(
-                system,
-                times,
-                y0,
-                raw_params,
-                self.config,
+        if self.config.state_layout is not StateLayout.FLAT and (
+            not self.config.adaptive or adaptive_schedule is not None
+        ):
+            structured_states, structured_replay_diagnostics = (
+                _run_structured_deterministic(
+                    system,
+                    times,
+                    y0,
+                    raw_params,
+                    config=self.config,
+                    adaptive_schedule=adaptive_schedule,
+                )
             )
             return _ExecutionResult(
                 trajectory=_format_result(times, structured_states),
+                schedule=adaptive_schedule,
+                replay_diagnostics=structured_replay_diagnostics,
             )
 
         if mode is ExecutionMode.STOCHASTIC:
@@ -2798,14 +3509,21 @@ class OpEngineFlepimop2Engine(EngineABC):
             }
         )
         diagnostics: NonlinearIntegrationDiagnostics | None = None
+        replay_diagnostics: AdaptiveReplayDiagnostics | None = None
+        discovered_step_schedule: AdaptiveStepSchedule | None = None
         if adaptive_schedule is not None and _uses_compact_adaptive_replay(
             self.config, state_namespace
         ):
-            _run_jax_adaptive_explicit_trajectory(
+            replay_diagnostics = _run_jax_adaptive_explicit_trajectory(
                 solver,
                 rhs,
                 method=method,
                 schedule=adaptive_schedule.step_schedule,
+                config=run_cfg,
+                error_factor=self.config.replay_error_factor,
+                error_reduction=(
+                    "max" if self.config.state_layout is StateLayout.BLOCK else "rms"
+                ),
                 checkpoint=self.config.replay_checkpoint,
                 checkpoint_chunk_size=self.config.checkpoint_chunk_size,
             )
@@ -2825,12 +3543,33 @@ class OpEngineFlepimop2Engine(EngineABC):
                 checkpoint=self.config.fixed_checkpoint,
                 checkpoint_chunk_size=self.config.checkpoint_chunk_size,
             )
+        elif (
+            run_cfg.adaptive
+            and method.is_explicit
+            and _is_jax_namespace(state_namespace)
+        ):
+            discovered_step_schedule = _run_jax_adaptive_explicit_discovery(
+                solver,
+                rhs,
+                method=method,
+                times=times,
+                config=run_cfg,
+                error_reduction=(
+                    "max" if self.config.state_layout is StateLayout.BLOCK else "rms"
+                ),
+            )
         else:
             diagnostics = solver.run(rhs, config=run_cfg)
 
         states = _extract_states_2d(core, n_state=n_state)
         step_schedule = solver.last_adaptive_schedule
         schedule = adaptive_schedule
+        if schedule is None and discovered_step_schedule is not None:
+            schedule = AdaptiveSchedule.from_core(
+                discovered_step_schedule,
+                self.config,
+                context_signature=context_signature,
+            )
         if schedule is None and step_schedule is not None:
             schedule = AdaptiveSchedule.from_core(
                 step_schedule,
@@ -2841,13 +3580,16 @@ class OpEngineFlepimop2Engine(EngineABC):
             trajectory=_format_result(times, states),
             schedule=schedule,
             diagnostics=diagnostics,
+            replay_diagnostics=replay_diagnostics,
         )
 
 
 __all__ = [
+    "AdaptiveReplayDiagnostics",
     "AdaptiveReplayMode",
     "AdaptiveRunResult",
     "AdaptiveSchedule",
+    "AdaptiveScheduleAccuracyError",
     "ExecutionMode",
     "OpEngineEngineConfig",
     "OpEngineFlepimop2Engine",

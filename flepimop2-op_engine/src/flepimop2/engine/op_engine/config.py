@@ -177,6 +177,11 @@ class OpEngineEngineConfig(BaseModel):
     fixed_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
     checkpoint_chunk_size: int = Field(default=32, ge=1)
     schedule_tag: str | None = None
+    replay_error_factor: float = Field(
+        default=1.25,
+        ge=1.0,
+        allow_inf_nan=False,
+    )
     fixed_max_step: float | None = Field(
         default=None,
         gt=0.0,
@@ -265,11 +270,8 @@ class OpEngineEngineConfig(BaseModel):
             if self.mode is not ExecutionMode.DETERMINISTIC:
                 msg = "Structured state layouts require deterministic mode."
                 raise ValueError(msg)
-            if self.adaptive or not self.method.is_explicit:
-                msg = (
-                    "Structured state layouts currently support fixed-step "
-                    "explicit methods only."
-                )
+            if not self.method.is_explicit:
+                msg = "Structured state layouts support explicit methods only."
                 raise ValueError(msg)
         if self.block_axis is not None and self.state_layout is not StateLayout.BLOCK:
             msg = "block_axis may be set only when state_layout='block'."

@@ -284,11 +284,12 @@ def _run_provider(  # noqa: PLR0913, PLR0917
 
 def _discover_schedule(
     case: BenchmarkCase,
-) -> tuple[AdaptiveSchedule, float, int, int, int]:
-    """Discover an adaptive mesh and return schedule plus work diagnostics."""
+    xp: object,
+) -> tuple[AdaptiveSchedule, float, int, int | None, int | None]:
+    """Discover an adaptive mesh in ``xp`` and return available diagnostics."""
     system = _CountingRateSystem()
     engine = _engine(case)
-    rate, initial, times = _inputs(case, np)
+    rate, initial, times = _inputs(case, xp)
     system.reset_rhs_calls()
     result, elapsed = _elapsed(
         lambda: engine.run_adaptive(
@@ -301,8 +302,12 @@ def _discover_schedule(
     )
     schedule = result.schedule
     accepted = sum(map(len, schedule.step_schedule.step_sizes))
-    calls = system.rhs_calls
-    rejected = _adaptive_rejections(case.method, accepted, calls)
+    if xp is np:
+        calls: int | None = system.rhs_calls
+        rejected: int | None = _adaptive_rejections(case.method, accepted, calls)
+    else:
+        calls = None
+        rejected = None
     return schedule, elapsed, accepted, rejected, calls
 
 
@@ -361,7 +366,7 @@ def _measure_numpy(case: BenchmarkCase, *, repeats: int) -> Measurement:
     discovery_calls: int | None
     if case.policy == "adaptive":
         schedule, discovery_seconds, accepted, rejected, discovery_calls = (
-            _discover_schedule(case)
+            _discover_schedule(case, np)
         )
     else:
         accepted = _fixed_step_count(case)
@@ -439,7 +444,7 @@ def _measure_jax(case: BenchmarkCase, *, repeats: int) -> Measurement:
     discovery_calls: int | None
     if case.policy == "adaptive":
         schedule, discovery_seconds, accepted, rejected, discovery_calls = (
-            _discover_schedule(case)
+            _discover_schedule(case, jnp)
         )
     else:
         accepted = _fixed_step_count(case)

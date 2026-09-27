@@ -853,6 +853,78 @@ class ExplicitStepResult:
     last_stage: Array | None
 
 
+def scaled_error_norm(  # noqa: PLR0913
+    error: Array,
+    reference: Array,
+    previous: Array,
+    *,
+    rtol: float,
+    atol: float | Array,
+    reduction: Literal["rms", "max"] = "rms",
+) -> Array:
+    """Return a backend-native scaled local-error norm.
+
+    Unlike the host controller wrapper used by :class:`CoreSolver`, this
+    function never extracts a Python scalar. Provider integrations can
+    therefore compose it with backend loop primitives such as
+    ``jax.lax.while_loop`` while retaining the core solver's error semantics.
+
+    Returns:
+        Scalar array in ``error``'s namespace. Non-finite norms are mapped to
+        positive infinity so compiled controllers reject the attempted step.
+
+    Raises:
+        ValueError: If ``reduction`` is not ``"rms"`` or ``"max"``.
+    """
+    xp = _namespace_of(error)
+    scale = xp.maximum(xp.abs(reference), xp.abs(previous))
+    scale = xp.multiply(scale, rtol)
+    if isinstance(atol, (float, int, np.floating)):
+        scale = xp.add(scale, float(atol))
+    else:
+        atol_array = xp.asarray(atol, dtype=error.dtype)
+        scale = xp.add(scale, atol_array)
+
+    ratio = xp.divide(error, scale)
+    if reduction == "rms":
+        squared = xp.multiply(ratio, ratio)
+        norm = cast("Array", xp.sqrt(xp.mean(squared)))
+    elif reduction == "max":
+        norm = cast("Array", xp.max(xp.abs(ratio)))
+    else:
+        msg = f"Unknown scaled-error reduction: {reduction!r}"
+        raise ValueError(msg)
+    infinity = xp.asarray(float("inf"), dtype=norm.dtype)
+    return cast("Array", xp.where(xp.isfinite(norm), norm, infinity))
+
+
+def propose_step_size(
+    step_size: Scalar,
+    error_norm: Array,
+    order: int,
+    *,
+    config: DtControllerConfig,
+) -> Array:
+    """Return the next adaptive step size without host scalar extraction.
+
+    Returns:
+        Scalar array in ``error_norm``'s namespace, clamped to the configured
+        controller bounds.
+    """
+    xp = _namespace_of(error_norm)
+    error_value = xp.asarray(error_norm)
+    positive = xp.greater(error_value, 0.0)
+    safe_error = xp.where(positive, error_value, xp.ones_like(error_value))
+    exponent = -1.0 / float(order + 1)
+    scaled = xp.multiply(config.safety, xp.pow(safe_error, exponent))
+    factor = xp.where(positive, scaled, config.fac_max)
+    factor = xp.maximum(factor, config.fac_min)
+    factor = xp.minimum(factor, config.fac_max)
+    proposed = xp.multiply(xp.asarray(step_size, dtype=error_value.dtype), factor)
+    proposed = xp.maximum(proposed, config.dt_min)
+    return cast("Array", xp.minimum(proposed, config.dt_max))
+
+
 class _LinearizedStepFunction(Protocol):
     """Shared signature for NumPy/SciPy linearized step implementations."""
 
@@ -2499,22 +2571,15 @@ class CoreSolver:
         Returns:
             RMS scaled error norm.
         """
-        xp = _namespace_of(err)
-        scale = xp.maximum(xp.abs(y_ref), xp.abs(y_prev))
-        scale = xp.multiply(scale, rtol)
-        if isinstance(atol, (float, int, np.floating)):
-            scale = xp.add(scale, float(atol))
-        else:
-            atol_arr = xp.asarray(atol, dtype=err.dtype)
-            scale = xp.add(scale, atol_arr)
-
-        ratio = xp.divide(err, scale)
-        squared = xp.multiply(ratio, ratio)
-        norm = cast("Array", xp.sqrt(xp.mean(squared)))
-        value = float(norm.item())
-        if not np.isfinite(value):
-            return float("inf")
-        return value
+        return float(
+            scaled_error_norm(
+                err,
+                y_ref,
+                y_prev,
+                rtol=rtol,
+                atol=atol,
+            ).item()
+        )
 
     @staticmethod
     def _propose_dt(
@@ -2536,19 +2601,13 @@ class CoreSolver:
         Returns:
             Proposed new dt.
         """
-        if err_norm <= 0.0:
-            fac = cfg.fac_max
-        else:
-            exp = 1.0 / float(order + 1)
-            fac = cfg.safety * (err_norm ** (-exp))
-            fac = min(cfg.fac_max, max(cfg.fac_min, fac))
-
-        dt_new = dt * fac
-        if dt_new < cfg.dt_min:
-            return cfg.dt_min
-        if dt_new > cfg.dt_max:
-            return cfg.dt_max
-        return dt_new
+        proposed = propose_step_size(
+            np.asarray(dt),
+            np.asarray(err_norm),
+            order,
+            config=cfg,
+        )
+        return float(proposed.item())
 
     # ------------------------------------------------------------------
     # One-step kernels (write into provided out arrays)
@@ -2762,6 +2821,50 @@ class CoreSolver:
             compute_embedded=False,
         )
         return high, last_stage
+
+    def adaptive_explicit_step(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        method: str,
+        t: Scalar,
+        dt: Scalar,
+        y: Array,
+        first_stage: Array | None = None,
+    ) -> ExplicitStepResult:
+        """Attempt one explicit step and return its local-error estimate.
+
+        This functional boundary does not mutate :class:`ModelCore` history
+        and does not extract host scalars. Provider integrations can compose
+        it with backend-native adaptive controller loops.
+
+        Args:
+            rhs_func: Function computing the explicit RHS F(t, y).
+            method: Explicit solver method name.
+            t: Step start time as a Python float or backend-native scalar.
+            dt: Step size as a Python float or backend-native scalar.
+            y: State at the step start.
+            first_stage: Optional cached derivative at ``(t, y)``.
+
+        Returns:
+            Candidate state, local error estimate, controller order, and
+            reusable derivative stages.
+
+        Raises:
+            ValueError: If ``method`` is not an explicit method.
+        """
+        normalized_method = _normalize_method(method)
+        if normalized_method not in _EXPLICIT_METHODS:
+            msg = f"Method '{method}' is not an explicit solver method"
+            raise ValueError(msg)
+        return self._attempt_explicit_step(
+            rhs_func,
+            method=normalized_method,
+            t=cast("float", t),
+            dt=cast("float", dt),
+            y=y,
+            first_stage=first_stage,
+        )
 
     def fixed_explicit_step(  # noqa: PLR0913
         self,

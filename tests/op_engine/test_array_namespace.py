@@ -16,7 +16,14 @@ from op_engine import (
     array_namespace,
     implicit_solve,
 )
-from op_engine.core_solver import AdaptiveConfig, AdaptiveStepSchedule, RunConfig
+from op_engine.core_solver import (
+    AdaptiveConfig,
+    AdaptiveStepSchedule,
+    DtControllerConfig,
+    RunConfig,
+    propose_step_size,
+    scaled_error_norm,
+)
 from op_engine.model_core import ModelCoreOptions
 
 if TYPE_CHECKING:
@@ -247,6 +254,58 @@ def test_fixed_explicit_step_accepts_traced_time_and_preserves_namespace() -> No
 
     assert result.__array_namespace__() is jnp
     assert result[0, 0] == pytest.approx(0.929, rel=2e-6)
+
+
+def test_adaptive_explicit_primitives_are_jittable_without_host_extraction() -> None:
+    """One adaptive attempt and its controller stay inside the JAX graph."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    core = ModelCore(1, 1, np.asarray([0.0, 0.1]))
+    solver = CoreSolver(core)
+    controller = DtControllerConfig(
+        dt_min=1e-5,
+        dt_max=0.2,
+        safety=0.9,
+        fac_min=0.2,
+        fac_max=5.0,
+    )
+
+    def attempt(time: Scalar, dt: Scalar, state: Array) -> tuple[Array, Array, Array]:
+        result = solver.adaptive_explicit_step(
+            lambda _time, value: -0.5 * value,
+            method="dopri5",
+            t=time,
+            dt=dt,
+            y=state,
+        )
+        error_norm = scaled_error_norm(
+            result.error,
+            result.state,
+            state,
+            rtol=1e-5,
+            atol=1e-7,
+        )
+        next_dt = propose_step_size(
+            dt,
+            error_norm,
+            result.controller_order,
+            config=controller,
+        )
+        return result.state, error_norm, next_dt
+
+    state, error_norm, next_dt = jax.jit(attempt)(
+        jnp.asarray(0.0, dtype=jnp.float32),
+        jnp.asarray(0.1, dtype=jnp.float32),
+        jnp.asarray([[1.0]], dtype=jnp.float32),
+    )
+
+    assert state.__array_namespace__() is jnp
+    assert error_norm.__array_namespace__() is jnp
+    assert next_dt.__array_namespace__() is jnp
+    assert np.all(np.isfinite(np.asarray(state)))
+    assert np.isfinite(float(error_norm))
+    assert np.isfinite(float(next_dt))
+    assert 0.0 < float(next_dt) <= controller.dt_max * (1.0 + 1e-6)
 
 
 def test_fixed_explicit_step_rejects_implicit_method() -> None:

@@ -16,6 +16,11 @@ cost and keeps these phases separate:
 - value-and-gradient tracing, lowering, compilation, first execution, and warm
   execution.
 
+Adaptive discovery uses the backend named by each row. JAX rows therefore time
+the compiled device-resident acceptance loop, while NumPy rows retain the
+portable eager controller. Attempt and RHS-call counts are reported only when
+the backend exposes them without instrumenting or synchronizing each JAX step.
+
 It also records accepted and rejected adaptive attempts, RHS evaluations when the
 solver exposes or permits them to be recovered, JAX trace and StableHLO sizes,
 temporary-memory estimates, package versions, devices, and the Git revision.
