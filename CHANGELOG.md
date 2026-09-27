@@ -67,6 +67,9 @@ versioning while the project remains pre-1.0.
 
 ### Fixed
 
+- Sparse implicit-solver cache entries retain and verify their exact operator
+  objects, preventing stale factorizations when Python recycles an object ID
+  for a different same-shape matrix (#164).
 - IMEX Heun--trapezoidal now assembles its endpoint predictor and corrector as
   additive solves, so nonlinear and non-commuting explicit/implicit splits
   retain second-order convergence across NumPy and Array-API execution (#162).

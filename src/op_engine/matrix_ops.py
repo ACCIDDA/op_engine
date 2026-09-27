@@ -14,8 +14,9 @@ Design notes:
     * Sparse acceleration is selected structurally from a registry containing
       SciPy and, when installed, CuPy adapters.
     * Cache semantics: sparse factorizations are keyed by (id(left_op),
-      id(right_op)) within each ecosystem. For caching to be effective,
-      operator objects must be constructed once and reused.
+      id(right_op)) within each ecosystem and retain those exact operator
+      objects to prevent stale hits after Python ID recycling. For caching to
+      be effective, operator objects must be constructed once and reused.
 
 Stage operator factories (IMEX/TR-BDF2 support):
     TR-BDF2 and similar IMEX methods can require *stage-specific* implicit
@@ -169,8 +170,10 @@ _DISPATCH_THRESHOLD = 350
 
 # Cache for sparse implicit factorizations. The public key semantics remain
 # ``(id(L), id(R))`` within each registered sparse ecosystem; metadata guards
-# against unsafe id reuse in long-lived processes.
+# against incompatible shapes or dtypes. Cache entries retain the operators
+# themselves so their IDs cannot be recycled while the entry remains live.
 _SolverMeta = tuple[tuple[int, int], tuple[int, int], str, str, bool]
+_SolverCacheEntry: TypeAlias = tuple[_SolverMeta, object, object, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,7 +195,7 @@ class SparseAdapter:
 _SPARSE_ADAPTERS: dict[str, SparseAdapter] = {}
 _IMPLICIT_SOLVER_CACHE: dict[
     tuple[str, int, int],
-    tuple[_SolverMeta, Any],
+    _SolverCacheEntry,
 ] = {}
 
 
@@ -1214,11 +1217,21 @@ def _sparse_implicit_solve(
     key = (adapter.ecosystem_id, left_id, right_id)
     meta = _operator_meta(left_op, right_op, sparse=True)
     cached = _IMPLICIT_SOLVER_CACHE.get(key)
-    if cached is None or cached[0] != meta:
+    if (
+        cached is None
+        or cached[0] != meta
+        or cached[1] is not left_op
+        or cached[2] is not right_op
+    ):
         factorization = adapter.factorize(left_op)
-        _IMPLICIT_SOLVER_CACHE[key] = (meta, factorization)
+        _IMPLICIT_SOLVER_CACHE[key] = (
+            meta,
+            left_op,
+            right_op,
+            factorization,
+        )
     else:
-        factorization = cached[1]
+        factorization = cached[3]
     return adapter.solve(factorization, right_op, x)
 
 
