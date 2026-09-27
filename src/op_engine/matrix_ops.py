@@ -43,7 +43,7 @@ from numbers import Integral
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
-from numpy.typing import DTypeLike, NDArray
+from numpy.typing import ArrayLike, DTypeLike, NDArray
 from scipy.sparse import coo_matrix, csr_matrix, diags, identity, issparse, kron
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import factorized as sparse_factorized
@@ -322,51 +322,29 @@ def build_advection_matrix(
     return cast("Array", xp.multiply(stencil, speed))
 
 
-def build_diffusion_matrix(  # noqa: C901
+def _diffusion_diagonals(  # noqa: C901, PLR0915
     n: int,
-    dx: float,
-    coefficient: float | Array,
+    dx: float | None,
     *,
-    bc: str = "neumann",
-    reference: Array | None = None,
-) -> Array:
-    """Build a dense second-order centered diffusion operator.
-
-    The returned matrix A acts on a column state as dy = A @ y and
-    represents coefficient * d2y/dx2 on a uniform one-dimensional grid.
-    The coefficient may be an Array-API scalar, so it stays dynamic under
-    transformations such as JAX jit and grad.
-
-    Boundary modes are:
-
-    - neumann or reflecting: zero flux at both boundaries;
-    - absorbing: zero-valued cells outside both boundaries;
-    - periodic: the two grid ends are adjacent.
-
-    The namespace comes from reference when provided, then from coefficient;
-    plain numeric coefficients use NumPy. Grid geometry and the boundary mode
-    are static structural inputs.
-
-    Args:
-        n: Number of uniformly spaced grid cells.
-        dx: Positive cell width.
-        coefficient: Non-negative scalar diffusion coefficient.
-        bc: Boundary mode: neumann, reflecting, absorbing, or periodic.
-        reference: Optional array whose namespace and floating dtype control the
-            result.
+    grid: ArrayLike | None,
+    bc: str,
+    dtype: DTypeLike = np.float64,
+) -> tuple[
+    NDArray[np.floating],
+    NDArray[np.floating],
+    NDArray[np.floating],
+    float,
+]:
+    """Build finite-volume diffusion diagonals for static 1D geometry.
 
     Returns:
-        Dense (n, n) operator in the selected Array-API namespace.
+        Lower, main, and upper diagonals followed by a periodic corner value.
 
     Raises:
-        ValueError: If the grid, coefficient shape/value, or boundary mode is
-            invalid.
+        ValueError: If the geometry or boundary mode is invalid.
     """
     if n < 2:
         msg = f"diffusion grid size must be at least 2; got {n}."
-        raise ValueError(msg)
-    if not np.isfinite(dx) or dx <= 0.0:
-        msg = f"diffusion dx must be finite and positive; got {dx}."
         raise ValueError(msg)
 
     bc_normalized = str(bc).strip().lower()
@@ -376,6 +354,115 @@ def build_diffusion_matrix(  # noqa: C901
             "periodic, or reflecting."
         )
         raise ValueError(msg)
+
+    if grid is None:
+        if dx is None or not np.isfinite(dx) or dx <= 0.0:
+            msg = f"diffusion dx must be finite and positive; got {dx}."
+            raise ValueError(msg)
+        spacings = np.full(n - 1, dx, dtype=np.float64)
+    else:
+        if dx is not None:
+            msg = "diffusion accepts either dx or grid, not both."
+            raise ValueError(msg)
+        coordinates = np.asarray(grid, dtype=np.float64)
+        if coordinates.shape != (n,):
+            msg = f"diffusion grid must have shape {(n,)}; got {coordinates.shape}."
+            raise ValueError(msg)
+        if not np.isfinite(coordinates).all():
+            msg = "diffusion grid coordinates must be finite."
+            raise ValueError(msg)
+        spacings = np.diff(coordinates)
+        if not np.all(spacings > 0.0):
+            msg = "diffusion grid coordinates must be strictly increasing."
+            raise ValueError(msg)
+
+    dtype_obj = np.dtype(dtype)
+    lower = np.zeros(n - 1, dtype=dtype_obj)
+    main = np.zeros(n, dtype=dtype_obj)
+    upper = np.zeros(n - 1, dtype=dtype_obj)
+
+    if bc_normalized == "periodic":
+        if not np.allclose(spacings, spacings[0], rtol=1e-10, atol=1e-12):
+            msg = (
+                "periodic diffusion on a non-uniform grid requires an explicit "
+                "wrap spacing, which grid coordinates do not define."
+            )
+            raise ValueError(msg)
+        inverse_square = 1.0 / float(spacings[0] ** 2)
+        lower.fill(inverse_square)
+        main.fill(-2.0 * inverse_square)
+        upper.fill(inverse_square)
+        return lower, main, upper, inverse_square
+
+    if n > 2:
+        left = spacings[:-1]
+        right = spacings[1:]
+        widths = 0.5 * (left + right)
+        lower[:-1] = 1.0 / (widths * left)
+        main[1:-1] = -(1.0 / left + 1.0 / right) / widths
+        upper[1:] = 1.0 / (widths * right)
+
+    left_boundary = 1.0 / float(spacings[0] ** 2)
+    right_boundary = 1.0 / float(spacings[-1] ** 2)
+    upper[0] = left_boundary
+    lower[-1] = right_boundary
+    boundary_scale = 1.0 if bc_normalized in {"neumann", "reflecting"} else 2.0
+    main[0] = -boundary_scale * left_boundary
+    main[-1] = -boundary_scale * right_boundary
+    return lower, main, upper, 0.0
+
+
+def build_diffusion_matrix(  # noqa: PLR0913
+    n: int,
+    dx: float | None,
+    coefficient: float | Array,
+    *,
+    grid: ArrayLike | None = None,
+    bc: str = "neumann",
+    reference: Array | None = None,
+) -> Array:
+    """Build a dense second-order 1D finite-volume diffusion operator.
+
+    The returned matrix ``A`` acts on a column state as ``dy = A @ y``.
+    Supply either a uniform cell width with ``dx`` or strictly increasing
+    cell-center coordinates with ``grid``. On a non-uniform grid, interior
+    flux differences are divided by the local Voronoi-cell width. Boundary
+    faces are inferred one half-spacing beyond the first and last centers.
+
+    The coefficient may be an Array-API scalar, so it stays dynamic under
+    transformations such as JAX ``jit`` and ``grad``. Static geometry is
+    assembled with NumPy and transferred once to the namespace selected by
+    ``reference`` or ``coefficient``.
+
+    Boundary modes are:
+
+    - ``neumann`` or ``reflecting``: zero flux at both boundaries;
+    - ``absorbing``: zero-valued exterior ghost cells;
+    - ``periodic``: the two grid ends are adjacent. A grid passed explicitly
+      must be uniform because its coordinates do not determine wrap spacing.
+
+    Args:
+        n: Number of finite-volume cells.
+        dx: Positive uniform cell width, or ``None`` when ``grid`` is supplied.
+        coefficient: Non-negative scalar diffusion coefficient.
+        grid: Optional strictly increasing cell-center coordinates of shape
+            ``(n,)``. Exactly one of ``dx`` and ``grid`` must be supplied.
+        bc: Boundary mode: neumann, reflecting, absorbing, or periodic.
+        reference: Optional array whose namespace and floating dtype control the
+            result.
+
+    Returns:
+        Dense ``(n, n)`` operator in the selected Array-API namespace.
+
+    Raises:
+        ValueError: If the geometry, coefficient, or boundary mode is invalid.
+    """
+    lower, main, upper, periodic_corner = _diffusion_diagonals(
+        n,
+        dx,
+        grid=grid,
+        bc=bc,
+    )
 
     namespace_source: object = reference if reference is not None else coefficient
     try:
@@ -400,74 +487,65 @@ def build_diffusion_matrix(  # noqa: C901
             msg = "diffusion coefficient must be non-negative."
             raise ValueError(msg)
 
-    stencil = -2.0 * np.eye(n, dtype=np.float64)
-    indices = np.arange(n - 1)
-    stencil[indices + 1, indices] = 1.0
-    stencil[indices, indices + 1] = 1.0
-    if bc_normalized in {"neumann", "reflecting"}:
-        stencil[0, 0] = -1.0
-        stencil[-1, -1] = -1.0
-    elif bc_normalized == "periodic":
-        stencil[0, -1] += 1.0
-        stencil[-1, 0] += 1.0
+    stencil = np.diag(main) + np.diag(lower, k=-1) + np.diag(upper, k=1)
+    if periodic_corner:
+        stencil[0, -1] += periodic_corner
+        stencil[-1, 0] += periodic_corner
 
     stencil_array = xp.asarray(stencil, dtype=dtype)
-    scale = xp.divide(coefficient_array, dx * dx)
-    return cast("Array", xp.multiply(stencil_array, scale))
+    return cast("Array", xp.multiply(stencil_array, coefficient_array))
 
 
-def build_laplacian_tridiag(
+def build_laplacian_tridiag(  # noqa: PLR0913
     n: int,
-    dx: float,
+    dx: float | None,
     coeff: float,
     dtype: DTypeLike = np.float64,
     bc: str = "neumann",
+    *,
+    grid: ArrayLike | None = None,
 ) -> csr_matrix:
-    """Build a Laplacian tridiagonal matrix for a given boundary condition.
+    """Build a sparse 1D finite-volume Laplacian.
 
-    The resulting operator corresponds to `coeff * Δ_h`, where `Δ_h` is the
-    standard second-order central-difference Laplacian in 1D. No time-step
-    scaling is applied here; `coeff` is interpreted as the physical diffusion
-    coefficient `D` or a generic spatial scaling.
+    The resulting operator corresponds to ``coeff * Δ_h``. Supply either a
+    uniform cell width with ``dx`` or strictly increasing cell-center
+    coordinates with ``grid``. No time-step scaling is applied here.
 
     Args:
-        n: Number of grid points.
-        dx: Grid spacing.
+        n: Number of finite-volume cells.
+        dx: Positive uniform cell width, or ``None`` when ``grid`` is supplied.
         coeff: Physical diffusion coefficient D (units length^2 / time).
         dtype: Floating dtype (e.g. np.float64).
-        bc: Boundary condition; either "neumann" or "absorbing".
+        bc: Boundary condition; either ``"neumann"`` or ``"absorbing"``.
+        grid: Optional strictly increasing cell-center coordinates of shape
+            ``(n,)``. Exactly one of ``dx`` and ``grid`` must be supplied.
 
     Returns:
         Sparse CSR matrix representing the Laplacian operator.
 
     Raises:
-        ValueError: If an unknown boundary condition is provided.
+        ValueError: If the geometry or boundary condition is invalid.
     """
-    dtype_obj = np.dtype(dtype)
-    factor = coeff / dx**2
-
-    main_diag = -2.0 * np.ones(n, dtype=dtype_obj)
-    off_diag = np.ones(n - 1, dtype=dtype_obj)
-
-    if bc == "neumann":
-        main_diag[0] = -1.0
-        main_diag[-1] = -1.0
-    elif bc == "absorbing":
-        main_diag[0] = -2.0
-        main_diag[-1] = -2.0
-    else:
+    bc_normalized = str(bc).strip().lower()
+    if bc_normalized not in {"neumann", "absorbing"}:
         msg = _UNKNOWN_BC_ERROR.format(bc=bc)
         raise ValueError(msg)
 
+    dtype_obj = np.dtype(dtype)
+    lower, main, upper, _periodic_corner = _diffusion_diagonals(
+        n,
+        dx,
+        grid=grid,
+        bc=bc_normalized,
+        dtype=dtype_obj,
+    )
     laplacian = diags(
-        [off_diag.tolist(), main_diag.tolist(), off_diag.tolist()],
+        [lower.tolist(), main.tolist(), upper.tolist()],
         [-1, 0, 1],
         shape=(n, n),
         dtype=dtype_obj,
     )
-
-    scaled = laplacian * factor
-    return scaled.tocsr()
+    return (laplacian * coeff).tocsr()
 
 
 def _build_crank_nicolson_sparse(

@@ -324,6 +324,25 @@ config = RunConfig(
 CoreSolver(core, operator_axis="state").run(reaction, config=config)
 ```
 
+For a non-uniform axis, pass strictly increasing cell-center coordinates and
+set `dx=None`:
+
+```python
+centers = np.asarray([0.0, 0.08, 0.21, 0.5, 1.0])
+operator = build_diffusion_matrix(
+    centers.size,
+    None,
+    diffusivity,
+    grid=centers,
+    bc="neumann",
+)
+```
+
+The no-flux operator is conservative and self-adjoint under the inferred
+cell-volume weights. It is generally not symmetric in the unweighted Euclidean
+inner product. Periodic non-uniform grids need an explicit wrap spacing, which
+cannot be inferred from center coordinates alone, and are rejected.
+
 For `imex-trbdf2`, provide both stage schemes:
 
 ```python

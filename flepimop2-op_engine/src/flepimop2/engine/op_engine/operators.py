@@ -179,13 +179,13 @@ def _advection_direction_sign(descriptor: OperatorDescriptor) -> float:
     raise ValueError(msg)
 
 
-def _uniform_axis_spacing(
+def _axis_coordinates(
     axis: str,
     *,
     axis_coords: Mapping[str, object],
     size: int,
-) -> float:
-    """Return the positive spacing of one static uniform coordinate axis."""
+) -> NDArray[np.float64]:
+    """Return validated, strictly increasing coordinates for one axis."""
     if axis not in axis_coords:
         msg = f"Operator axis {axis!r} has no axis_coords metadata."
         raise KeyError(msg)
@@ -202,17 +202,42 @@ def _uniform_axis_spacing(
     if not np.isfinite(coordinates).all():
         msg = f"Coordinates for operator axis {axis!r} must be finite."
         raise ValueError(msg)
-    spacings = np.diff(coordinates)
-    if not np.all(spacings > 0.0):
+    if not np.all(np.diff(coordinates) > 0.0):
         msg = f"Coordinates for operator axis {axis!r} must be strictly increasing."
         raise ValueError(msg)
+    return coordinates
+
+
+def _uniform_axis_spacing(
+    axis: str,
+    *,
+    axis_coords: Mapping[str, object],
+    size: int,
+) -> float:
+    """Return the positive spacing of one static uniform coordinate axis."""
+    coordinates = _axis_coordinates(axis, axis_coords=axis_coords, size=size)
+    spacings = np.diff(coordinates)
     if not np.allclose(spacings, spacings[0], rtol=1e-10, atol=1e-12):
         msg = (
             f"Operator axis {axis!r} must be uniformly spaced; "
-            "non-uniform grids are not yet supported."
+            "non-uniform grids are not yet supported for this operator."
         )
         raise ValueError(msg)
     return float(spacings[0])
+
+
+def _diffusion_axis_geometry(
+    axis: str,
+    *,
+    axis_coords: Mapping[str, object],
+    size: int,
+) -> tuple[float | None, NDArray[np.float64] | None]:
+    """Return uniform spacing or explicit centers for a diffusion axis."""
+    coordinates = _axis_coordinates(axis, axis_coords=axis_coords, size=size)
+    spacings = np.diff(coordinates)
+    if np.allclose(spacings, spacings[0], rtol=1e-10, atol=1e-12):
+        return float(spacings[0]), None
+    return None, coordinates
 
 
 def _resolve_generator(
@@ -311,15 +336,16 @@ def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
             params=params,
             field="diffusion rate",
         )
-        dx = _uniform_axis_spacing(
+        diffusion_dx, grid = _diffusion_axis_geometry(
             descriptor.axis,
             axis_coords=axis_coords,
             size=len(labels),
         )
         column_operator = build_diffusion_matrix(
             len(labels),
-            dx,
+            diffusion_dx,
             coefficient,
+            grid=grid,
             bc=descriptor.bc or "neumann",
         )
         row_source_operator = np.asarray(column_operator).T
@@ -508,15 +534,16 @@ def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
             xp=xp,
             dtype=reference.dtype,
         )
-        dx = _uniform_axis_spacing(
+        diffusion_dx, grid = _diffusion_axis_geometry(
             descriptor.axis,
             axis_coords=axis_coords,
             size=len(labels),
         )
         column_operator = build_diffusion_matrix(
             len(labels),
-            dx,
+            diffusion_dx,
             coefficient,
+            grid=grid,
             bc=descriptor.bc or "neumann",
             reference=reference,
         )

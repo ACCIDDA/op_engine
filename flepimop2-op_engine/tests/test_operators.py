@@ -27,6 +27,9 @@ from op_engine.matrix_ops import (
 )
 from op_system import OperatorDescriptor
 
+from flepimop2.engine.op_engine.explicit_operators import (
+    compile_structured_operator_drift,
+)
 from flepimop2.engine.op_engine.operators import (
     compile_operator_descriptors,
     typed_operator_descriptors,
@@ -71,16 +74,21 @@ def _advection_descriptor(
     )
 
 
-def _diffusion_descriptor() -> OperatorDescriptor:
+def _diffusion_descriptor(
+    rate: str | float = 0.3,
+) -> OperatorDescriptor:
     """Build a typed diffusion descriptor for the test immune axis.
 
+    Args:
+        rate: Literal diffusivity or parameter name.
+
     Returns:
-        A diffusion descriptor for a no-flux uniform grid.
+        A diffusion descriptor with no-flux boundaries.
     """
     return OperatorDescriptor(
         axis="imm",
         kind="diffusion",
-        rate=0.3,
+        rate=rate,
         bc="neumann",
         apply_to=("X[imm]",),
     )
@@ -287,6 +295,98 @@ def test_diffusion_lifts_portable_operator_over_selected_states() -> None:
 
     np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
     np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
+
+
+def test_diffusion_lifts_nonuniform_axis_coordinates() -> None:
+    """Typed IMEX diffusion accepts monotone non-uniform cell centers."""
+    coordinates = np.asarray([0.0, 0.25, 1.0])
+    state_names = ("X__imm_x0", "X__imm_x1", "X__imm_x2")
+    specs = compile_operator_descriptors(
+        (_diffusion_descriptor(),),
+        method="imex-euler",
+        state_names=state_names,
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_coords={"imm": coordinates},
+        params={},
+    )
+
+    assert callable(specs.default)
+    dt = 0.2
+    left, _right = specs.default(
+        dt,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((len(state_names), 1))),
+    )
+    observed = (np.eye(len(state_names)) - np.asarray(left)) / dt
+    expected = build_diffusion_matrix(
+        3,
+        None,
+        0.3,
+        grid=coordinates,
+        bc="neumann",
+    )
+
+    np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
+
+
+def test_nonuniform_diffusion_imex_preserves_jax_gradient() -> None:
+    """Flat Array-API operator assembly keeps diffusivity traceable."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    coordinates = np.asarray([0.0, 0.25, 1.0])
+    state = jnp.asarray([[1.0], [2.0], [4.0]], dtype=jnp.float32)
+
+    def objective(rate: object) -> object:
+        specs = compile_operator_descriptors(
+            (_diffusion_descriptor("D"),),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1", "x2")},
+            axis_coords={"imm": coordinates},
+            params={"D": rate},
+            reference=state,
+        )
+        assert callable(specs.default)
+        left, _right = specs.default(
+            0.2,
+            1.0,
+            StageOperatorContext(t=0.0, y=state),
+        )
+        change = jnp.eye(3, dtype=state.dtype) - left
+        return jnp.sum(change * change)
+
+    rate = jnp.asarray(0.3, dtype=jnp.float32)
+    value, gradient = jax.jit(jax.value_and_grad(objective))(rate)
+
+    assert gradient == pytest.approx(2.0 * float(value) / float(rate), rel=1e-6)
+
+
+def test_nonuniform_structured_diffusion_preserves_jax_gradient() -> None:
+    """Structured explicit drift shares the non-uniform JAX operator path."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    coordinates = np.asarray([0.0, 0.25, 1.0])
+    state = {"X": jnp.asarray([1.0, 2.0, 4.0], dtype=jnp.float32)}
+
+    def objective(rate: object) -> object:
+        drift = compile_structured_operator_drift(
+            (_diffusion_descriptor("D"),),
+            state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1", "x2")},
+            axis_coords={"imm": coordinates},
+            params={"D": rate},
+            reference=state,
+        )
+        tendency = drift(state)["X"]
+        return jnp.sum(tendency * tendency)
+
+    rate = jnp.asarray(0.3, dtype=jnp.float32)
+    value, gradient = jax.jit(jax.value_and_grad(objective))(rate)
+
+    assert gradient == pytest.approx(2.0 * float(value) / float(rate), rel=1e-6)
 
 
 def test_advection_rejects_nonuniform_axis_coordinates() -> None:

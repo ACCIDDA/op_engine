@@ -7,6 +7,10 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Dense Array-API and sparse SciPy diffusion builders now accept monotone
+  non-uniform cell-center grids with conservative no-flux boundaries. The
+  flepimop2 provider uses the same geometry for flat, PyTree, and block
+  explicit or IMEX execution while retaining JAX differentiation (#45).
 - Explicit adaptive JAX discovery now keeps attempted-step acceptance and
   controller state in a bounded device loop, including conservative shared-mesh
   discovery for block layouts. Compact frozen-mesh replay reports array-valued
