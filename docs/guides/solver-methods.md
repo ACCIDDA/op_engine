@@ -343,6 +343,27 @@ cell-volume weights. It is generally not symmetric in the unweighted Euclidean
 inner product. Periodic non-uniform grids need an explicit wrap spacing, which
 cannot be inferred from center coordinates alone, and are rejected.
 
+Use `generate_adaptive_grid` to create a curvature-weighted point grid from a
+vectorized profile callable:
+
+```python
+from op_engine import generate_adaptive_grid
+
+centers = generate_adaptive_grid(
+    lambda x: np.exp(-10.0 * x * x),
+    (-1.0, 1.0),
+    65,
+    smoothing_window=5,
+    minimum_spacing=1e-3,
+)
+```
+
+The generator returns exactly the requested number of NumPy coordinates,
+including both interval endpoints. It is eager preprocessing rather than part
+of the differentiable solve; the resulting static geometry can drive NumPy,
+JAX, Torch, or another supported Array-API backend. The sampled-data companion
+is `generate_adaptive_grid_from_data`.
+
 For `imex-trbdf2`, provide both stage schemes:
 
 ```python

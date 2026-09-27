@@ -50,6 +50,7 @@ from .nonlinear_solver import (
     NonlinearSolveResult,
     require_converged,
 )
+from .spatial_grid import generate_adaptive_grid, generate_adaptive_grid_from_data
 from .stochastic_solver import (
     DirectSSAConfig,
     DirectSSASolver,
@@ -102,6 +103,8 @@ __all__ = [
     "build_predictor_corrector",
     "clear_implicit_solver_cache",
     "encode_groups",
+    "generate_adaptive_grid",
+    "generate_adaptive_grid_from_data",
     "grouped_count_ids",
     "grouped_sum_ids",
     "grouped_sum_ids_2d",
