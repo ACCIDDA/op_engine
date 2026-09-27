@@ -240,6 +240,93 @@ def test_jax_fixed_explicit_trajectory_is_one_differentiable_scan(
     assert derivative == pytest.approx(np.e, rel=2e-5)
 
 
+def test_fixed_dopri_scan_carries_only_requested_outputs() -> None:
+    """Hidden DOPRI5 states are carry-only rather than scan outputs."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.DOPRI5,
+            fixed_max_step=0.03,
+        ),
+    )
+    system = _GoodSystem()
+    times = np.linspace(0.0, 1.0, 11, dtype=np.float64)
+    model_state = ModelStateSpecification(parameter_names=("x0",))
+
+    def solve(initial: object) -> object:
+        return engine.run(
+            system,
+            times,
+            {"x0": ParameterValue(initial, ResolvedShape())},
+            {},
+            model_state=model_state,
+        )
+
+    jaxpr = jax.make_jaxpr(solve)(jnp.asarray(1.0, dtype=jnp.float32))
+    scan_equations = [
+        equation for equation in jaxpr.jaxpr.eqns if equation.primitive.name == "scan"
+    ]
+    assert len(scan_equations) == 1
+    scan = scan_equations[0]
+    output_shapes = tuple(variable.aval.shape for variable in scan.outvars)
+
+    assert scan.params["length"] == 40
+    assert len(scan.outvars) == 3
+    assert (10, 1, 1) in output_shapes
+    assert (40, 1, 1) not in output_shapes
+
+
+@pytest.mark.parametrize(
+    "checkpoint",
+    [ReplayCheckpoint.STEP, ReplayCheckpoint.CHUNK],
+)
+def test_fixed_dopri_checkpoint_policies_preserve_gradients(
+    checkpoint: ReplayCheckpoint,
+) -> None:
+    """Fixed step/chunk rematerialization preserves values and gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method=SolverMethod.DOPRI5,
+            fixed_max_step=0.03,
+            fixed_checkpoint=checkpoint,
+            checkpoint_chunk_size=7,
+        ),
+    )
+    system = _GoodSystem()
+    times = np.linspace(0.0, 1.0, 11, dtype=np.float64)
+    model_state = ModelStateSpecification(parameter_names=("x0",))
+
+    def solve(initial: Array) -> Array:
+        trajectory = engine.run(
+            system,
+            times,
+            {"x0": ParameterValue(initial, ResolvedShape())},
+            {},
+            model_state=model_state,
+        )
+        return cast("Array", trajectory[-1, 1])
+
+    initial = jnp.asarray(1.0, dtype=jnp.float32)
+    jaxpr = jax.make_jaxpr(solve)(initial)
+    value, gradient = jax.jit(jax.value_and_grad(solve))(initial)
+    scan_equations = [
+        equation for equation in jaxpr.jaxpr.eqns if equation.primitive.name == "scan"
+    ]
+
+    assert len(scan_equations) == 1
+    assert "remat" in str(jaxpr)
+    assert scan_equations[0].params["length"] == (
+        40 if checkpoint is ReplayCheckpoint.STEP else math.ceil(40 / 7)
+    )
+    assert value == pytest.approx(np.e, rel=2e-5)
+    assert gradient == pytest.approx(value, rel=2e-5)
+
+
 def test_adaptive_schedule_discovery_and_replay_are_explicit() -> None:
     """Provider discovery returns a reusable artifact and matching replay."""
     engine = OpEngineFlepimop2Engine(
@@ -440,8 +527,14 @@ def test_compact_replay_scan_and_gradient_parity() -> None:  # noqa: PLR0914
     assert compact_gradient == pytest.approx(finite_gradient, rel=2e-3)
 
 
-def test_checkpointed_compact_replay_rematerializes_the_scan_step() -> None:
-    """The step checkpoint policy emits rematerialization and keeps gradients."""
+@pytest.mark.parametrize(
+    "checkpoint",
+    [ReplayCheckpoint.STEP, ReplayCheckpoint.CHUNK],
+)
+def test_checkpointed_compact_replay_rematerializes_the_scan_step(
+    checkpoint: ReplayCheckpoint,
+) -> None:
+    """Replay checkpoint policies emit rematerialization and keep gradients."""
     jax = pytest.importorskip("jax")
     jnp = pytest.importorskip("jax.numpy")
     times = np.linspace(0.0, 1.0, 33, dtype=np.float64)
@@ -463,7 +556,8 @@ def test_checkpointed_compact_replay_rematerializes_the_scan_step() -> None:
         config=OpEngineEngineConfig(
             adaptive=True,
             adaptive_replay=AdaptiveReplayMode.COMPACT,
-            replay_checkpoint=ReplayCheckpoint.STEP,
+            replay_checkpoint=checkpoint,
+            checkpoint_chunk_size=7,
         ),
     )
 

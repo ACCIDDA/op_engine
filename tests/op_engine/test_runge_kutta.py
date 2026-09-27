@@ -11,6 +11,7 @@ from op_engine._runge_kutta import (
     DORMAND_PRINCE_54,
     HEUN_EULER,
     ExplicitRungeKuttaTableau,
+    evaluate_explicit_runge_kutta,
 )
 
 
@@ -69,3 +70,43 @@ def test_tableau_rejects_inconsistent_fsal_claim() -> None:
             order=2,
             fsal=True,
         )
+
+
+def test_fixed_high_solution_omits_embedded_weighted_sum() -> None:
+    """Fixed execution can skip the unused embedded DOPRI5 solution."""
+    weighted_calls: list[tuple[float, ...]] = []
+
+    def weighted_sum(
+        state: float,
+        dt: float,
+        weights: tuple[float, ...],
+        stages: list[float],
+    ) -> float:
+        weighted_calls.append(weights)
+        return state + dt * sum(
+            weight * stage for weight, stage in zip(weights, stages, strict=True)
+        )
+
+    common = {
+        "t": 0.0,
+        "dt": 0.1,
+        "y": 1.0,
+        "rhs": lambda _time, state: state,
+        "weighted_sum": weighted_sum,
+    }
+    full = evaluate_explicit_runge_kutta(DORMAND_PRINCE_54, **common)
+    assert full[1] is not None
+    assert DORMAND_PRINCE_54.b_embedded in weighted_calls
+    assert DORMAND_PRINCE_54.b not in weighted_calls
+
+    weighted_calls.clear()
+    high_only = evaluate_explicit_runge_kutta(
+        DORMAND_PRINCE_54,
+        **common,
+        compute_embedded=False,
+    )
+
+    assert high_only[0] == pytest.approx(full[0])
+    assert high_only[1] is None
+    assert high_only[3] == pytest.approx(full[3])
+    assert DORMAND_PRINCE_54.b_embedded not in weighted_calls

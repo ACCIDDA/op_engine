@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Fixed flat-state JAX DOPRI5 now computes only its high-order solution, keeps
+  FSAL reuse, and carries a requested-output buffer instead of materializing
+  every hidden internal state. Optional `fixed_checkpoint: step` and `chunk`
+  policies control reverse-mode rematerialization; RK4 retains its smaller
+  compile-sensitive scan. The solver matrix records the resulting forward and
+  gradient IR, compile, memory, runtime, and accuracy changes (#147).
 - The flepimop2 provider can prepare and cache stable flat explicit execution
   plans for fixed stepping and frozen adaptive replay. Prepared callables keep
   array values dynamic for NumPy or caller-owned JAX transforms while reusing

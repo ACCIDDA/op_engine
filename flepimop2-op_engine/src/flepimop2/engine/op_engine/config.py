@@ -128,10 +128,11 @@ class AdaptiveReplayMode(StrEnum):
 
 
 class ReplayCheckpoint(StrEnum):
-    """Rematerialization policy for compact JAX replay."""
+    """Rematerialization policy for compact JAX explicit execution."""
 
     NONE = "none"
     STEP = "step"
+    CHUNK = "chunk"
 
 
 class StochasticMethod(StrEnum):
@@ -173,6 +174,8 @@ class OpEngineEngineConfig(BaseModel):
     adaptive: bool = False
     adaptive_replay: AdaptiveReplayMode = AdaptiveReplayMode.AUTO
     replay_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
+    fixed_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
+    checkpoint_chunk_size: int = Field(default=32, ge=1)
     schedule_tag: str | None = None
     fixed_max_step: float | None = Field(
         default=None,
@@ -283,6 +286,17 @@ class OpEngineEngineConfig(BaseModel):
             self.adaptive_replay is not AdaptiveReplayMode.COMPACT
         ):
             msg = "Replay checkpointing requires adaptive_replay='compact'."
+            raise ValueError(msg)
+        if self.fixed_checkpoint is not ReplayCheckpoint.NONE and (
+            self.adaptive
+            or self.method is not SolverMethod.DOPRI5
+            or self.mode is not ExecutionMode.DETERMINISTIC
+            or self.state_layout is not StateLayout.FLAT
+        ):
+            msg = (
+                "Fixed checkpointing requires deterministic flat-state "
+                "fixed-step DOPRI5 execution."
+            )
             raise ValueError(msg)
         if self.schedule_tag is not None and not self.schedule_tag.strip():
             msg = "schedule_tag must not be empty when provided."

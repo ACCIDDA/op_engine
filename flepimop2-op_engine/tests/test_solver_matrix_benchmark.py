@@ -78,7 +78,10 @@ def test_numpy_smoke_writes_versioned_json(tmp_path: Path) -> None:
 
     document = json.loads(output.read_text(encoding="utf-8"))
     assert document["schema_version"] == solver_matrix.SCHEMA_VERSION
-    assert document["environment"]["git"]["revision"]
+    git_metadata = document["environment"]["git"]
+    assert set(git_metadata) == {"revision", "dirty"}
+    assert git_metadata["revision"] is None or git_metadata["revision"]
+    assert isinstance(git_metadata["dirty"], bool)
     assert document["skipped"] == []
     assert len(document["results"]) == 1
     result = document["results"][0]
