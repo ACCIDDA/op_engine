@@ -46,16 +46,19 @@ too. Explicit methods apply those descriptors as
 additive drift at every Runge--Kutta stage for flat, PyTree, and block state
 layouts; the structured paths use small axis-local matrices rather than a
 dense full-state operator.
-The compiler supports row-source axis-kernel generators, first-order upwind
-advection on uniform axes, and centered finite-volume diffusion on uniform or
-monotone non-uniform cell-center axes, including dynamic signed velocities and
-diffusion coefficients. Non-uniform no-flux diffusion is conservative under
+The compiler supports row-source axis-kernel generators, conservative
+jump-integral matrices with declared direction and continuous-axis target
+quadrature, first-order upwind advection on uniform axes, and centered
+finite-volume diffusion on uniform or monotone non-uniform cell-center axes,
+including dynamic rates, kernels, signed velocities, and diffusion coefficients.
+Non-uniform no-flux diffusion is conservative under
 the inferred cell-volume weights; non-uniform periodic diffusion requires more
 domain geometry than axis centers provide and is rejected explicitly.
-The NumPy path applies op_system's value-dependent generator validation and
-eager scalar checks. A traced non-NumPy path can validate shapes and static
-layout only; producers are responsible for maintaining generator, finiteness,
-and non-negative diffusion-coefficient invariants in dynamic parameter values.
+The NumPy path applies op_system's value-dependent generator and jump-kernel
+validation plus eager scalar checks. A traced non-NumPy path can validate shapes
+and static layout only; producers are responsible for maintaining generator,
+jump-kernel, finiteness, and non-negative diffusion-coefficient invariants in
+dynamic parameter values.
 
 For explicit methods, `fixed_max_step` separates integration accuracy from the
 requested output grid while retaining that compact scan:

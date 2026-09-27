@@ -20,10 +20,12 @@ from .operators import (
     _apply_to_bases,
     _array_namespace,
     _axis_label_map,
+    _axis_type_map,
     _diffusion_axis_geometry,
     _parse_expanded_state_name,
     _require_string_sequence,
     _resolve_generator_array,
+    _resolve_jump_generator_array,
     _resolve_scalar_array,
     _uniform_axis_spacing,
 )
@@ -38,6 +40,7 @@ def _row_source_operator(
     *,
     axis_labels: Mapping[str, tuple[str, ...]],
     axis_coords: Mapping[str, object],
+    axis_types: Mapping[str, str],
     params: Mapping[str, object],
     reference: Array,
 ) -> Array:
@@ -63,6 +66,24 @@ def _row_source_operator(
             dtype=reference.dtype,
         )
         return cast("Array", xp.multiply(generator, velocity))
+    if descriptor.kind == "jump_integral":
+        generator = _resolve_jump_generator_array(
+            descriptor,
+            params=params,
+            size=len(labels),
+            axis_types=axis_types,
+            axis_coords=axis_coords,
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        rate = _resolve_scalar_array(
+            descriptor.rate,
+            params=params,
+            field="jump_integral rate",
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        return cast("Array", xp.multiply(generator, rate))
     if descriptor.kind in {"advection", "transport"}:
         velocity = _resolve_scalar_array(
             descriptor.velocity,
@@ -182,6 +203,7 @@ def compile_structured_operator_drift(
     axis_order: object,
     axis_labels: object,
     axis_coords: object | None = None,
+    axis_types: object | None = None,
     params: Mapping[str, object],
     reference: Mapping[str, Array],
     excluded_axes: tuple[str, ...] = (),
@@ -198,6 +220,7 @@ def compile_structured_operator_drift(
     names = _require_string_sequence(state_names, name="state_names")
     axes = _require_string_sequence(axis_order, name="axis_order")
     labels = _axis_label_map(axis_labels)
+    types = _axis_type_map(axis_types)
     if axis_coords is None:
         coordinates: Mapping[str, object] = {}
     elif isinstance(axis_coords, Mapping) and all(
@@ -219,6 +242,7 @@ def compile_structured_operator_drift(
     for descriptor in descriptors:
         if descriptor.kind not in {
             "axis_kernel",
+            "jump_integral",
             "advection",
             "diffusion",
             "transport",
@@ -238,6 +262,7 @@ def compile_structured_operator_drift(
                 descriptor,
                 axis_labels=labels,
                 axis_coords=coordinates,
+                axis_types=types,
                 params=params,
                 reference=value,
             )

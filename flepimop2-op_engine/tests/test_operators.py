@@ -94,6 +94,40 @@ def _diffusion_descriptor(
     )
 
 
+def _jump_descriptor(
+    *,
+    rate: str | float = "nu",
+    direction: str = "both",
+    apply_to: tuple[str, ...] | None = ("X[imm]",),
+    kernel: dict[str, object] | None = None,
+) -> OperatorDescriptor:
+    """Build a typed conservative jump-integral descriptor.
+
+    Args:
+        rate: Literal jump-rate multiplier or parameter name.
+        direction: Coordinate-order direction mask.
+        apply_to: Optional state-template selector.
+        kernel: Optional forged kernel metadata for rejection tests.
+
+    Returns:
+        A jump-integral descriptor for the test immune axis.
+    """
+    return OperatorDescriptor(
+        axis="imm",
+        kind="jump_integral",
+        rate=rate,
+        bc="reflecting",
+        direction=direction,
+        kernel=kernel
+        or {
+            "form": "matrix",
+            "params": {"matrix": "J"},
+            "param_axes": {"J": ["imm", "imm"]},
+        },
+        apply_to=apply_to,
+    )
+
+
 def test_typed_operator_descriptors_rejects_untyped_options() -> None:
     """Only op_system's immutable typed tuple is accepted as system metadata."""
     descriptor = _generator_descriptor()
@@ -140,6 +174,250 @@ def test_generator_lifts_over_other_axes_and_apply_to() -> None:
 
     np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
     np.testing.assert_array_equal(np.asarray(right), np.eye(len(state_names)))
+
+
+@pytest.mark.parametrize(
+    ("direction", "generator"),
+    [
+        (
+            "up",
+            np.asarray([[-5.0, 2.0, 3.0], [0.0, -7.0, 7.0], [0.0, 0.0, 0.0]]),
+        ),
+        (
+            "down",
+            np.asarray([[0.0, 0.0, 0.0], [5.0, -5.0, 0.0], [11.0, 13.0, -24.0]]),
+        ),
+        (
+            "both",
+            np.asarray([[-5.0, 2.0, 3.0], [5.0, -12.0, 7.0], [11.0, 13.0, -24.0]]),
+        ),
+    ],
+)
+def test_jump_integral_orientation_direction_and_conservation(
+    direction: str,
+    generator: np.ndarray,
+) -> None:
+    """Provider matrices match row-source semantics after column-state lifting."""
+    kernel = np.asarray([[0.0, 2.0, 3.0], [5.0, 0.0, 7.0], [11.0, 13.0, 0.0]])
+    specs = compile_operator_descriptors(
+        (_jump_descriptor(direction=direction),),
+        method="imex-euler",
+        state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_types={"imm": "ordinal"},
+        params={"J": kernel, "nu": 0.4},
+    )
+
+    assert callable(specs.default)
+    dt = 0.2
+    left, right = specs.default(
+        dt,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((3, 1))),
+    )
+    observed = (np.eye(3) - np.asarray(left)) / dt
+
+    np.testing.assert_allclose(observed, 0.4 * generator.T, rtol=0.0, atol=1e-14)
+    np.testing.assert_allclose(observed.sum(axis=0), 0.0, rtol=0.0, atol=1e-14)
+    np.testing.assert_array_equal(np.asarray(right), np.eye(3))
+
+
+def test_jump_integral_reuses_multi_axis_lifting_and_apply_to() -> None:
+    """A selected jump template gets one independent block per other-axis slice."""
+    state_names = (
+        "X__age_young__imm_x0",
+        "X__age_young__imm_x1",
+        "X__age_old__imm_x0",
+        "X__age_old__imm_x1",
+        "Y__age_young__imm_x0",
+        "Y__age_young__imm_x1",
+    )
+    kernel = np.asarray([[0.0, 1.0], [3.0, 0.0]])
+    specs = compile_operator_descriptors(
+        (_jump_descriptor(rate=0.5, apply_to=("X[age, imm]",)),),
+        method="imex-euler",
+        state_names=state_names,
+        axis_order=("state", "subgroup", "age", "imm"),
+        axis_labels={"age": ("young", "old"), "imm": ("x0", "x1")},
+        axis_types={"age": "categorical", "imm": "ordinal"},
+        params={"J": kernel},
+    )
+
+    assert callable(specs.default)
+    left, _right = specs.default(
+        0.2,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((len(state_names), 1))),
+    )
+    observed = (np.eye(len(state_names)) - np.asarray(left)) / 0.2
+    block = 0.5 * np.asarray([[-1.0, 1.0], [3.0, -3.0]]).T
+    expected = np.zeros_like(observed)
+    expected[0:2, 0:2] = block
+    expected[2:4, 2:4] = block
+
+    np.testing.assert_allclose(observed, expected, rtol=0.0, atol=1e-14)
+
+
+def test_continuous_jump_integral_applies_target_trapezoidal_weights() -> None:
+    """Non-uniform continuous coordinates weight destination columns exactly."""
+    coordinates = np.asarray([0.0, 0.4, 1.0])
+    weights = np.asarray([0.2, 0.5, 0.3])
+    kernel = np.asarray([[0.0, 2.0, 3.0], [5.0, 0.0, 7.0], [11.0, 13.0, 0.0]])
+    specs = compile_operator_descriptors(
+        (_jump_descriptor(rate=1.0),),
+        method="imex-euler",
+        state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_coords={"imm": coordinates},
+        axis_types={"imm": "continuous"},
+        params={"J": kernel},
+    )
+
+    assert callable(specs.default)
+    left, _right = specs.default(
+        0.2,
+        1.0,
+        StageOperatorContext(t=0.0, y=np.zeros((3, 1))),
+    )
+    observed = (np.eye(3) - np.asarray(left)) / 0.2
+    rates = kernel * weights[np.newaxis, :]
+    expected_generator = rates - np.diag(rates.sum(axis=1))
+
+    np.testing.assert_allclose(
+        observed,
+        expected_generator.T,
+        rtol=0.0,
+        atol=1e-14,
+    )
+
+
+def test_structured_jump_integral_uses_the_same_axis_local_operator() -> None:
+    """Explicit PyTree execution applies the shared row-source jump matrix."""
+    state = {"X": np.asarray([1.0, 2.0, 4.0])}
+    kernel = np.asarray([[0.0, 2.0, 0.0], [0.0, 0.0, 3.0], [0.0, 0.0, 0.0]])
+    drift = compile_structured_operator_drift(
+        (_jump_descriptor(rate=0.5, direction="up"),),
+        state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+        axis_order=("state", "subgroup", "imm"),
+        axis_labels={"imm": ("x0", "x1", "x2")},
+        axis_types={"imm": "ordinal"},
+        params={"J": kernel},
+        reference=state,
+    )
+    generator = np.asarray([[-2.0, 2.0, 0.0], [0.0, -3.0, 3.0], [0.0, 0.0, 0.0]])
+
+    np.testing.assert_allclose(
+        drift(state)["X"],
+        0.5 * state["X"] @ generator,
+        rtol=0.0,
+        atol=1e-14,
+    )
+
+
+def test_jump_integral_rejects_unsupported_form() -> None:
+    """A manually forged non-matrix descriptor fails closed in the provider."""
+    descriptor = _jump_descriptor(
+        kernel={"form": "gaussian", "params": {"matrix": "J"}}
+    )
+    with pytest.raises(ValueError, match=r"kernel\.form='matrix'"):
+        compile_operator_descriptors(
+            (descriptor,),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1")},
+            axis_types={"imm": "ordinal"},
+            params={"J": np.zeros((2, 2)), "nu": 1.0},
+        )
+
+
+def test_jump_integral_requires_axis_type_metadata() -> None:
+    """Numeric-looking coordinates never substitute for a declared axis type."""
+    with pytest.raises(KeyError, match="no axis_types metadata"):
+        compile_operator_descriptors(
+            (_jump_descriptor(),),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1")},
+            axis_coords={"imm": np.asarray([0.0, 1.0])},
+            params={"J": np.zeros((2, 2)), "nu": 1.0},
+        )
+
+
+def test_continuous_jump_integral_requires_coordinate_mapping() -> None:
+    """Continuous quadrature refuses incomplete provider geometry."""
+    with pytest.raises(KeyError, match="no axis_coords metadata"):
+        compile_operator_descriptors(
+            (_jump_descriptor(),),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1")},
+            axis_types={"imm": "continuous"},
+            params={"J": np.zeros((2, 2)), "nu": 1.0},
+        )
+
+
+def test_jump_integral_uses_shared_eager_value_validation() -> None:
+    """Invalid concrete kernel signs are rejected before factory construction."""
+    with pytest.raises(ValueError, match="nonnegative"):
+        compile_operator_descriptors(
+            (_jump_descriptor(),),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1")},
+            axis_types={"imm": "ordinal"},
+            params={"J": np.asarray([[0.0, -1.0], [0.0, 0.0]]), "nu": 1.0},
+        )
+
+
+def test_jump_integral_rate_and_kernel_are_jittable_and_differentiable() -> None:
+    """Array-API jump assembly keeps both numerical parameters dynamic."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    descriptor = _jump_descriptor(direction="up")
+    kernel_template = jnp.asarray(
+        [[0.0, 1.0, 2.0], [0.0, 0.0, 3.0], [0.0, 0.0, 0.0]],
+        dtype=jnp.float32,
+    )
+    state = jnp.zeros((3, 1), dtype=jnp.float32)
+
+    def objective(rate: object, kernel_scale: object) -> object:
+        specs = compile_operator_descriptors(
+            (descriptor,),
+            method="imex-euler",
+            state_names=("X__imm_x0", "X__imm_x1", "X__imm_x2"),
+            axis_order=("state", "subgroup", "imm"),
+            axis_labels={"imm": ("x0", "x1", "x2")},
+            axis_types={"imm": "ordinal"},
+            params={"J": kernel_template * kernel_scale, "nu": rate},
+            reference=state,
+        )
+        assert callable(specs.default)
+        left, _right = specs.default(
+            0.2,
+            1.0,
+            StageOperatorContext(t=0.0, y=state),
+        )
+        change = jnp.eye(3, dtype=state.dtype) - left
+        return jnp.sum(change * change)
+
+    rate = jnp.asarray(0.4, dtype=jnp.float32)
+    kernel_scale = jnp.asarray(1.3, dtype=jnp.float32)
+    value, gradients = jax.jit(jax.value_and_grad(objective, argnums=(0, 1)))(
+        rate,
+        kernel_scale,
+    )
+
+    assert gradients[0] == pytest.approx(2.0 * float(value) / float(rate), rel=1e-6)
+    assert gradients[1] == pytest.approx(
+        2.0 * float(value) / float(kernel_scale),
+        rel=1e-6,
+    )
 
 
 def test_ark3_compiles_typed_descriptors_to_implicit_euler_factory() -> None:
