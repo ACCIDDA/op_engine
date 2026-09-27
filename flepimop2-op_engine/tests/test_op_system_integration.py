@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 class _NoopBackend(BackendABC, module="test_op_system_noop"):
     """Persistence sink for provider orchestration tests."""
 
-    def _save(self, data: Float64NDArray, run_meta: RunMeta) -> None:
+    def _save(self, data: Array, run_meta: RunMeta) -> None:
         """Accept the result without changing it."""
 
     def _read(self, run_meta: RunMeta) -> Float64NDArray:
@@ -152,6 +152,9 @@ def test_simulator_preserves_parameter_namespace_for_any_backend(
 
     assert engine.backend is ArrayBackend.ANY
     assert result.__array_namespace__() is xp
+    if backend is ArrayBackend.JAX:
+        jax = pytest.importorskip("jax")
+        assert isinstance(result, jax.Array)
     np.testing.assert_allclose(
         np.asarray(result),
         np.asarray([[0.0, 2.0], [0.5, 1.9025]]),

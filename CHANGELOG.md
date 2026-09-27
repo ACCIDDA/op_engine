@@ -53,6 +53,9 @@ versioning while the project remains pre-1.0.
 - The public `Array` protocol now matches `array-api-compat` namespace
   discovery and accepts native tensors such as `torch.Tensor` without requiring
   a direct `__array_namespace__` method (#155).
+- `flepimop2-op-engine` now types public trajectories with Flepimop2's
+  backend-neutral `Array` protocol and returns the native NumPy or JAX result
+  without a NumPy-only cast (#154).
 - Explicit flepimop2 provider methods now add typed op_system axis-kernel,
   advection, and diffusion drift at every Runge--Kutta stage. Flat, PyTree,
   and block layouts share the same namespace-preserving operator path instead

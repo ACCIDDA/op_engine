@@ -174,6 +174,9 @@ flepimop2 defines a structured engine-result contract, the provider flattens
 only the completed history at its public `(time, state...)` result boundary.
 Structured layouts intentionally reject IMEX/implicit, hybrid, stochastic, and
 missing-metadata combinations instead of silently falling back to the flat path.
+The public flat history is returned through Flepimop2's `Array` contract in
+the originating NumPy or JAX namespace; the provider does not coerce it to
+NumPy at that boundary.
 
 Run `uv run python benchmarks/structured_blocks.py` to compare compile time,
 median runtime, host allocation peaks, and device peak bytes (when reported by

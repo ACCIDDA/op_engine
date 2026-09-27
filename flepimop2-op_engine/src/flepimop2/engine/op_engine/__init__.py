@@ -3223,7 +3223,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         *,
         adaptive_schedule: AdaptiveSchedule | None = None,
         **kwargs: Any,  # noqa: ANN401
-    ) -> Float64NDArray:
+    ) -> Array:
         """Execute a simulation, optionally replaying a frozen adaptive mesh."""
         self._last_adaptive_schedule = None
         result = self._execute(
@@ -3236,7 +3236,7 @@ class OpEngineFlepimop2Engine(EngineABC):
             **kwargs,
         )
         self._last_adaptive_schedule = result.schedule
-        return cast("Float64NDArray", result.trajectory)
+        return result.trajectory
 
     def run_adaptive(
         self,
