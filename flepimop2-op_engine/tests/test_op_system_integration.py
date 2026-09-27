@@ -555,6 +555,167 @@ def test_axis_kernel_parameters_are_jittable_and_differentiable() -> None:  # no
     assert derivatives[1] == pytest.approx(expected_generator_derivative, rel=2e-5)
 
 
+def test_jump_integral_runs_real_op_system_imex_integration() -> None:
+    """Typed jump metadata flows through op_system into a conservative solve."""
+    axes = AxisCollection({
+        "imm": Axis(
+            name="imm",
+            kind="ordinal",
+            size=3,
+            labels=("x0", "x1", "x2"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {
+                    "name": "imm",
+                    "type": "ordinal",
+                    "coords": ["x0", "x1", "x2"],
+                }
+            ],
+            "state": ["X[imm]"],
+            "equations": {"X[imm]": "0 * X[imm]"},
+            "initial_state": {
+                "X[imm]": {"shaped": "x_init", "axes": ["imm"]},
+            },
+            "operators": [
+                {
+                    "kind": "jump_integral",
+                    "axis": "imm",
+                    "rate": "nu",
+                    "direction": "up",
+                    "bc": "reflecting",
+                    "kernel": {
+                        "form": "matrix",
+                        "params": {"matrix": "J"},
+                        "param_axes": {"J": ["imm", "imm"]},
+                    },
+                }
+            ],
+        }
+    )
+    kernel = np.asarray(
+        [[0.0, 1.0, 0.0], [0.0, 0.0, 2.0], [0.0, 0.0, 0.0]],
+        dtype=np.float64,
+    )
+    generator = np.asarray(
+        [[-1.0, 1.0, 0.0], [0.0, -2.0, 2.0], [0.0, 0.0, 0.0]],
+        dtype=np.float64,
+    )
+    initial = np.asarray([1.0, 0.0, 0.0], dtype=np.float64)
+    params = {
+        "J": ParameterValue(kernel, axes.resolve_shape(("imm", "imm"))),
+        "nu": ParameterValue(np.asarray(0.5), ResolvedShape()),
+        "x_init": ParameterValue(initial, axes.resolve_shape(("imm",))),
+    }
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
+    )
+
+    assert system.option("axis_types", None)["imm"] == "ordinal"
+    assert engine.validate_system(system) is None
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.2], dtype=np.float64),
+        {},
+        params,
+        model_state=system.model_state(axes),
+    )
+
+    base_operator = 0.5 * generator.T
+    half_step_left = np.eye(3) - 0.1 * base_operator
+    expected = np.linalg.solve(half_step_left, initial)
+    expected = np.linalg.solve(half_step_left, expected)
+    np.testing.assert_allclose(result[1, 1:], expected, rtol=0.0, atol=1e-14)
+    np.testing.assert_allclose(result[1, 1:].sum(), 1.0, rtol=0.0, atol=1e-14)
+
+
+def test_jump_integral_parameters_are_jittable_and_differentiable() -> None:  # noqa: PLR0914
+    """Real jump-integral IMEX solves retain rate and kernel gradients."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    axes = AxisCollection({
+        "imm": Axis(
+            name="imm",
+            kind="ordinal",
+            size=2,
+            labels=("x0", "x1"),
+        ),
+    })
+    system = OpSystemSystem(
+        spec={
+            "kind": "expr",
+            "axes": [
+                {
+                    "name": "imm",
+                    "type": "ordinal",
+                    "coords": ["x0", "x1"],
+                }
+            ],
+            "state": ["X[imm]"],
+            "equations": {"X[imm]": "0 * X[imm]"},
+            "initial_state": {
+                "X[imm]": {"shaped": "x_init", "axes": ["imm"]},
+            },
+            "operators": [
+                {
+                    "kind": "jump_integral",
+                    "axis": "imm",
+                    "rate": "nu",
+                    "direction": "up",
+                    "kernel": {
+                        "form": "matrix",
+                        "params": {"matrix": "J"},
+                        "param_axes": {"J": ["imm", "imm"]},
+                    },
+                }
+            ],
+        }
+    )
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.IMEX_EULER),
+    )
+    times = np.asarray([0.0, 0.2], dtype=np.float64)
+    scalar_shape = ResolvedShape()
+    kernel_shape = axes.resolve_shape(("imm", "imm"))
+    state_shape = axes.resolve_shape(("imm",))
+    kernel_template = jnp.asarray([[0.0, 1.0], [0.0, 0.0]], dtype=jnp.float32)
+    initial = jnp.asarray([1.0, 0.0], dtype=jnp.float32)
+
+    def final_target(rate: object, kernel_scale: object) -> object:
+        result = engine.run(
+            system,
+            times,
+            {},
+            {
+                "nu": ParameterValue(rate, scalar_shape),
+                "J": ParameterValue(kernel_template * kernel_scale, kernel_shape),
+                "x_init": ParameterValue(initial, state_shape),
+            },
+            model_state=system.model_state(axes),
+        )
+        assert result.__array_namespace__() is jnp
+        return result[-1, 2]
+
+    rate = jnp.asarray(0.5, dtype=jnp.float32)
+    kernel_scale = jnp.asarray(1.2, dtype=jnp.float32)
+    value, gradients = jax.jit(jax.value_and_grad(final_target, argnums=(0, 1)))(
+        rate, kernel_scale
+    )
+    decay = 1.0 + 0.1 * float(rate) * float(kernel_scale)
+    expected_value = 1.0 - decay**-2
+    expected_rate_derivative = 0.2 * float(kernel_scale) * decay**-3
+    expected_kernel_derivative = 0.2 * float(rate) * decay**-3
+
+    assert value == pytest.approx(expected_value, rel=2e-5)
+    assert gradients[0] == pytest.approx(expected_rate_derivative, rel=2e-5)
+    assert gradients[1] == pytest.approx(expected_kernel_derivative, rel=2e-5)
+
+
 def test_advection_parameter_is_jittable_and_differentiable() -> None:
     """Typed advection retains a dynamic velocity through the real JAX path."""
     jax = pytest.importorskip("jax")

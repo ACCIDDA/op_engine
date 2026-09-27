@@ -7,6 +7,11 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- The Flepimop provider compiles typed `jump_integral` descriptors into
+  conservative Array-API operators for implicit/IMEX and structured explicit
+  execution. It preserves dynamic rates and kernel matrices under JAX,
+  applies declared direction and continuous target quadrature, and reuses
+  selector/multi-axis lifting with real op_system integration coverage (#94).
 - A finite-element boundary design note and tested 1D P1 diffusion proof of
   concept show how externally assembled mass/stiffness systems use the existing
   stage-operator contract, without adding mesh or element abstractions to core

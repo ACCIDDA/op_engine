@@ -402,10 +402,11 @@ across Array-API namespaces.
 
 `imex-ars443` and `ars443` are aliases for `imex-ark3`.
 
-The flepimop2 provider can compile typed `op_system` `axis_kernel`, `advection`,
-and `diffusion` descriptors into these same factories. Descriptor parsing and
-axis-label resolution belong to the provider; the numerical builders and
-stepping methods remain in `op_engine`.
+The flepimop2 provider can compile typed `op_system` `axis_kernel`,
+`jump_integral`, `advection`, and `diffusion` descriptors into these same
+factories. Descriptor parsing, axis-type/coordinate resolution, and layout
+lifting belong to the provider; portable jump assembly follows op_system's
+public reference semantics, while stepping methods remain in `op_engine`.
 
 ## Linearly implicit methods
 

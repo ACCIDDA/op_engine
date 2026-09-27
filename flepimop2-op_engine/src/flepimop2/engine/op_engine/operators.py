@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from op_engine.matrix_ops import StageOperatorContext
 
 _STATE_LABEL_SAFE_RE = re.compile(r"[^A-Za-z0-9_]")
+_AXIS_TYPES = frozenset({"categorical", "ordinal", "continuous"})
 
 
 def _optional_op_system() -> ModuleType | None:
@@ -99,6 +100,26 @@ def _axis_label_map(value: object) -> dict[str, tuple[str, ...]]:
             raise ValueError(msg)
         labels[axis] = axis_values
     return labels
+
+
+def _axis_type_map(value: object | None) -> dict[str, str]:
+    """Validate normalized numerical axis types supplied by the system."""
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        msg = "system option 'axis_types' must be a mapping."
+        raise TypeError(msg)
+    result: dict[str, str] = {}
+    for axis, raw_axis_type in value.items():
+        if not isinstance(axis, str) or not isinstance(raw_axis_type, str):
+            msg = "system option 'axis_types' must map strings to strings."
+            raise TypeError(msg)
+        axis_type = raw_axis_type.strip().lower()
+        if axis_type not in _AXIS_TYPES:
+            msg = f"Axis {axis!r} has unsupported numerical type {raw_axis_type!r}."
+            raise ValueError(msg)
+        result[axis] = axis_type
+    return result
 
 
 def _parse_expanded_state_name(
@@ -240,6 +261,23 @@ def _diffusion_axis_geometry(
     return None, coordinates
 
 
+def _trapezoidal_weights(
+    axis: str,
+    *,
+    axis_coords: Mapping[str, object],
+    size: int,
+) -> NDArray[np.float64]:
+    """Return target quadrature weights for a continuous coordinate axis."""
+    coordinates = _axis_coordinates(axis, axis_coords=axis_coords, size=size)
+    widths = np.diff(coordinates)
+    weights = np.empty(size, dtype=np.float64)
+    weights[0] = 0.5 * widths[0]
+    weights[-1] = 0.5 * widths[-1]
+    if size > 2:
+        weights[1:-1] = 0.5 * (widths[:-1] + widths[1:])
+    return weights
+
+
 def _resolve_generator(
     descriptor: OperatorDescriptor,
     *,
@@ -289,13 +327,137 @@ def _resolve_generator(
     return generator
 
 
-def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
+def _jump_axis_type(
+    descriptor: OperatorDescriptor,
+    *,
+    axis_types: Mapping[str, str],
+) -> str:
+    """Return the declared type required by jump-integral semantics."""
+    if descriptor.axis not in axis_types:
+        msg = (
+            f"jump_integral axis {descriptor.axis!r} has no axis_types metadata; "
+            "upgrade the system provider or supply the normalized declaration."
+        )
+        raise KeyError(msg)
+    return axis_types[descriptor.axis]
+
+
+def _jump_matrix_value(
+    descriptor: OperatorDescriptor,
+    *,
+    params: Mapping[str, object],
+) -> object:
+    """Resolve the matrix parameter from a normalized jump descriptor."""
+    kernel = descriptor.kernel
+    if not isinstance(kernel, Mapping) or kernel.get("form") != "matrix":
+        msg = (
+            "Only op_system jump_integral operators with "
+            "kernel.form='matrix' are supported by the provider."
+        )
+        raise ValueError(msg)
+    kernel_params = kernel.get("params")
+    if not isinstance(kernel_params, Mapping) or "matrix" not in kernel_params:
+        msg = "jump_integral requires kernel.params.matrix."
+        raise ValueError(msg)
+    matrix_ref = kernel_params["matrix"]
+    if isinstance(matrix_ref, str):
+        if matrix_ref not in params:
+            msg = f"jump_integral matrix references missing parameter {matrix_ref!r}."
+            raise KeyError(msg)
+        return params[matrix_ref]
+    return matrix_ref
+
+
+def _jump_quadrature_weights(
+    descriptor: OperatorDescriptor,
+    *,
+    axis_type: str,
+    axis_coords: Mapping[str, object],
+    size: int,
+) -> NDArray[np.float64] | None:
+    """Return continuous target weights and no weights for discrete axes."""
+    if axis_type != "continuous":
+        return None
+    return _trapezoidal_weights(
+        descriptor.axis,
+        axis_coords=axis_coords,
+        size=size,
+    )
+
+
+def _resolve_jump_generator(
+    descriptor: OperatorDescriptor,
+    *,
+    params: Mapping[str, object],
+    size: int,
+    axis_types: Mapping[str, str],
+    axis_coords: Mapping[str, object],
+) -> NDArray[np.float64]:
+    """Resolve and eagerly validate a conservative jump generator."""
+    axis_type = _jump_axis_type(descriptor, axis_types=axis_types)
+    matrix = np.asarray(
+        _jump_matrix_value(descriptor, params=params),
+        dtype=np.float64,
+    )
+    if matrix.shape != (size, size):
+        msg = (
+            f"jump_integral matrix for axis {descriptor.axis!r} must have "
+            f"shape {(size, size)}; got {matrix.shape}."
+        )
+        raise ValueError(msg)
+    weights = _jump_quadrature_weights(
+        descriptor,
+        axis_type=axis_type,
+        axis_coords=axis_coords,
+        size=size,
+    )
+    module = _optional_op_system()
+    validator = (
+        None
+        if module is None
+        else getattr(module, "validate_jump_integral_kernel", None)
+    )
+    builder = (
+        None if module is None else getattr(module, "jump_integral_generator", None)
+    )
+    if not callable(validator) or not callable(builder):
+        msg = (
+            "jump_integral compilation requires an op_system version that "
+            "exports its reference builder and validator."
+        )
+        raise TypeError(msg)
+    direction = descriptor.direction or "both"
+    boundary = descriptor.bc or "reflecting"
+    problems = validator(
+        matrix,
+        axis_type=axis_type,
+        direction=direction,
+        boundary=boundary,
+        quadrature_weights=weights,
+    )
+    if problems:
+        msg = "Invalid jump_integral kernel: " + "; ".join(problems)
+        raise ValueError(msg)
+    return np.asarray(
+        builder(
+            matrix,
+            axis_type=axis_type,
+            direction=direction,
+            boundary=boundary,
+            quadrature_weights=weights,
+        ),
+        dtype=np.float64,
+    )
+
+
+def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
     descriptor: OperatorDescriptor,
     *,
     state_names: tuple[str, ...],
     axis_order: tuple[str, ...],
     axis_labels: Mapping[str, tuple[str, ...]],
     axis_coords: Mapping[str, object],
+    axis_types: Mapping[str, str],
     params: Mapping[str, object],
 ) -> NDArray[np.float64]:
     """Lift one axis operator into the expanded flat state layout."""
@@ -311,6 +473,20 @@ def _lift_axis_operator(  # noqa: PLR0912, PLR0913, PLR0914
             field="axis_kernel velocity",
         )
         row_source_operator = velocity * generator
+    elif descriptor.kind == "jump_integral":
+        generator = _resolve_jump_generator(
+            descriptor,
+            params=params,
+            size=len(labels),
+            axis_types=axis_types,
+            axis_coords=axis_coords,
+        )
+        rate = _resolve_scalar(
+            descriptor.rate,
+            params=params,
+            field="jump_integral rate",
+        )
+        row_source_operator = rate * generator
     elif descriptor.kind in {"advection", "transport"}:
         velocity = _resolve_scalar(
             descriptor.velocity,
@@ -469,6 +645,56 @@ def _resolve_generator_array(
     return generator
 
 
+def _resolve_jump_generator_array(  # noqa: PLR0913
+    descriptor: OperatorDescriptor,
+    *,
+    params: Mapping[str, object],
+    size: int,
+    axis_types: Mapping[str, str],
+    axis_coords: Mapping[str, object],
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array:
+    """Build a dynamic jump generator in the state array namespace."""
+    axis_type = _jump_axis_type(descriptor, axis_types=axis_types)
+    matrix = cast(
+        "Array",
+        xp.asarray(_jump_matrix_value(descriptor, params=params), dtype=dtype),
+    )
+    if matrix.shape != (size, size):
+        msg = (
+            f"jump_integral matrix for axis {descriptor.axis!r} must have "
+            f"shape {(size, size)}; got {matrix.shape}."
+        )
+        raise ValueError(msg)
+    weights = _jump_quadrature_weights(
+        descriptor,
+        axis_type=axis_type,
+        axis_coords=axis_coords,
+        size=size,
+    )
+    module = _optional_op_system()
+    builder = (
+        None if module is None else getattr(module, "jump_integral_generator", None)
+    )
+    if not callable(builder):
+        msg = (
+            "jump_integral compilation requires an op_system version that "
+            "exports jump_integral_generator."
+        )
+        raise TypeError(msg)
+    return cast(
+        "Array",
+        builder(
+            matrix,
+            axis_type=axis_type,
+            direction=descriptor.direction or "both",
+            boundary=descriptor.bc or "reflecting",
+            quadrature_weights=weights,
+        ),
+    )
+
+
 def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
     descriptor: OperatorDescriptor,
     *,
@@ -476,6 +702,7 @@ def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
     axis_order: tuple[str, ...],
     axis_labels: Mapping[str, tuple[str, ...]],
     axis_coords: Mapping[str, object],
+    axis_types: Mapping[str, str],
     params: Mapping[str, object],
     reference: Array,
 ) -> Array:
@@ -501,6 +728,24 @@ def _lift_axis_operator_array(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
             dtype=reference.dtype,
         )
         row_source_operator = xp.multiply(generator, velocity)
+    elif descriptor.kind == "jump_integral":
+        generator = _resolve_jump_generator_array(
+            descriptor,
+            params=params,
+            size=len(labels),
+            axis_types=axis_types,
+            axis_coords=axis_coords,
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        rate = _resolve_scalar_array(
+            descriptor.rate,
+            params=params,
+            field="jump_integral rate",
+            xp=xp,
+            dtype=reference.dtype,
+        )
+        row_source_operator = xp.multiply(generator, rate)
     elif descriptor.kind in {"advection", "transport"}:
         velocity = _resolve_scalar_array(
             descriptor.velocity,
@@ -649,6 +894,7 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
     axis_order: tuple[str, ...],
     axis_labels: Mapping[str, tuple[str, ...]],
     axis_coords: Mapping[str, object],
+    axis_types: Mapping[str, str],
     params: Mapping[str, object],
     reference: Array,
 ) -> OperatorSpecs:
@@ -661,13 +907,15 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
     for descriptor in descriptors:
         if descriptor.kind not in {
             "axis_kernel",
+            "jump_integral",
             "advection",
             "diffusion",
             "transport",
         }:
             msg = (
                 f"Unsupported op_system operator kind {descriptor.kind!r}; "
-                "axis_kernel, advection, and diffusion operators are supported."
+                "axis_kernel, jump_integral, advection, and diffusion operators "
+                "are supported."
             )
             raise ValueError(msg)
         contribution = _lift_axis_operator_array(
@@ -676,6 +924,7 @@ def _compile_array_operator_descriptors(  # noqa: PLR0913
             axis_order=axis_order,
             axis_labels=axis_labels,
             axis_coords=axis_coords,
+            axis_types=axis_types,
             params=params,
             reference=reference,
         )
@@ -709,6 +958,7 @@ def compile_operator_descriptors(  # noqa: PLR0913
     axis_order: object,
     axis_labels: object,
     axis_coords: object | None = None,
+    axis_types: object | None = None,
     params: Mapping[str, object],
     reference: Array | None = None,
 ) -> OperatorSpecs:
@@ -716,6 +966,7 @@ def compile_operator_descriptors(  # noqa: PLR0913
     names = _require_string_sequence(state_names, name="state_names")
     axes = _require_string_sequence(axis_order, name="axis_order")
     labels = _axis_label_map(axis_labels)
+    types = _axis_type_map(axis_types)
     if axis_coords is None:
         coordinates: Mapping[str, object] = {}
     elif isinstance(axis_coords, Mapping) and all(
@@ -733,6 +984,7 @@ def compile_operator_descriptors(  # noqa: PLR0913
             axis_order=axes,
             axis_labels=labels,
             axis_coords=coordinates,
+            axis_types=types,
             params=params,
             reference=reference,
         )
@@ -741,13 +993,15 @@ def compile_operator_descriptors(  # noqa: PLR0913
     for descriptor in descriptors:
         if descriptor.kind not in {
             "axis_kernel",
+            "jump_integral",
             "advection",
             "diffusion",
             "transport",
         }:
             msg = (
                 f"Unsupported op_system operator kind {descriptor.kind!r}; "
-                "axis_kernel, advection, and diffusion operators are supported."
+                "axis_kernel, jump_integral, advection, and diffusion operators "
+                "are supported."
             )
             raise ValueError(msg)
         base_operator += _lift_axis_operator(
@@ -756,6 +1010,7 @@ def compile_operator_descriptors(  # noqa: PLR0913
             axis_order=axes,
             axis_labels=labels,
             axis_coords=coordinates,
+            axis_types=types,
             params=params,
         )
 
