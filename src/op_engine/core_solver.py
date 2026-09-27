@@ -149,9 +149,7 @@ _UNSUPPORTED_OPERATOR_TYPE_MSG = (
     "Unsupported operator type for current backend. "
     "Expected numpy.ndarray or scipy.sparse.csr_matrix."
 )
-_ARRAY_API_ERROR_MSG = (
-    "Explicit solver arrays must implement __array_namespace__(); got {type_name}."
-)
+_NUMPY_ARRAY_ERROR_MSG = "This solver path requires a NumPy ndarray; got {type_name}."
 _SCHEDULE_TIME_GRID_ERROR_MSG = (
     "Adaptive schedule output_times must match the ModelCore time_grid"
 )
@@ -4345,7 +4343,7 @@ class CoreSolver:
             state = self.core.get_current_state()
             if not isinstance(state, np.ndarray):
                 raise TypeError(
-                    _ARRAY_API_ERROR_MSG.format(type_name=type(state).__name__)
+                    _NUMPY_ARRAY_ERROR_MSG.format(type_name=type(state).__name__)
                 )
             np.copyto(self._y_curr, state)
             t = t0
@@ -4482,7 +4480,7 @@ class CoreSolver:
             state = self.core.get_current_state()
             if not isinstance(state, np.ndarray):
                 raise TypeError(
-                    _ARRAY_API_ERROR_MSG.format(type_name=type(state).__name__)
+                    _NUMPY_ARRAY_ERROR_MSG.format(type_name=type(state).__name__)
                 )
             np.copyto(self._y_curr, state)
 

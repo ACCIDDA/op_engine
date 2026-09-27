@@ -10,11 +10,11 @@ class Array(Protocol):
     """Minimal Array-API duck type used at public numerical boundaries.
 
     The contract intentionally matches :class:`op_system.Array` and
-    :class:`flepimop2.typing.Array`. It describes arrays with the standard
-    ``__array_namespace__`` hook so those package boundaries remain statically
-    compatible. Runtime namespace discovery additionally accepts native arrays
-    such as ``torch.Tensor`` through compatibility namespaces. No backend
-    module is stored in solver configuration.
+    :class:`flepimop2.typing.Array`. It captures only the surface inspected at
+    package boundaries: shape, dtype, and scalar extraction. Runtime namespace
+    discovery is delegated to :func:`op_engine.array_namespace`, which accepts
+    standard-compliant arrays and native arrays such as ``torch.Tensor`` through
+    ``array-api-compat``. No backend module is stored in solver configuration.
     """
 
     @property
@@ -24,13 +24,6 @@ class Array(Protocol):
     @property
     def dtype(self) -> object:
         """Backend-defined array dtype."""
-
-    def __array_namespace__(  # noqa: PLW3201
-        self,
-        *,
-        api_version: Any = None,  # noqa: ANN401
-    ) -> object:
-        """Return the Array-API namespace for this value."""
 
     def item(self) -> Any:  # noqa: ANN401
         """Return a scalar value from a zero-dimensional array."""

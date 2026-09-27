@@ -126,6 +126,8 @@ def test_fixed_explicit_step_accepts_raw_torch_tensor_when_available() -> None:
     solver = CoreSolver(core)
     initial = torch.tensor([[1.0]], dtype=torch.float64, requires_grad=True)
 
+    assert isinstance(initial, Array)
+
     def rhs(_time: Scalar, state: Array) -> Array:
         xp = array_namespace(state)
         return cast("Array", xp.multiply(state, -0.25))
