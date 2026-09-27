@@ -294,6 +294,62 @@ def test_diffusion_conservative_boundaries_have_zero_column_sums(
     )
 
 
+def test_nonuniform_diffusion_stencil_is_conservative_and_weighted_symmetric() -> None:
+    """Variable spacing preserves constants and the cell-volume inner product."""
+    grid = np.asarray([0.0, 1.0, 3.0])
+    operator = np.asarray(build_diffusion_matrix(3, None, 1.0, grid=grid, bc="neumann"))
+    expected = np.asarray([
+        [-1.0, 1.0, 0.0],
+        [2.0 / 3.0, -1.0, 1.0 / 3.0],
+        [0.0, 0.25, -0.25],
+    ])
+    cell_widths = np.asarray([1.0, 1.5, 2.0])
+    weighted = cell_widths[:, np.newaxis] * operator
+
+    np.testing.assert_allclose(operator, expected, rtol=0.0, atol=1e-15)
+    np.testing.assert_allclose(operator @ np.ones(3), np.zeros(3), atol=1e-15)
+    np.testing.assert_allclose(cell_widths @ operator, np.zeros(3), atol=1e-15)
+    np.testing.assert_allclose(weighted, weighted.T, atol=1e-15)
+
+
+def test_explicit_uniform_grid_matches_dx_diffusion() -> None:
+    """Passing uniform center coordinates recovers the legacy dx operator."""
+    grid = np.arange(5, dtype=np.float64) * 0.25
+
+    observed = build_diffusion_matrix(5, None, 0.3, grid=grid, bc="absorbing")
+    expected = build_diffusion_matrix(5, 0.25, 0.3, bc="absorbing")
+
+    np.testing.assert_array_equal(observed, expected)
+
+
+def test_nonuniform_diffusion_spatial_error_is_second_order() -> None:
+    """The full no-flux stencil converges on a smooth mapped cell-center grid."""
+    errors: list[float] = []
+    for n_cells in (32, 64):
+        logical_centers = (np.arange(n_cells, dtype=np.float64) + 0.5) / n_cells
+        grid = logical_centers + 0.1 * np.sin(2.0 * np.pi * logical_centers) / (
+            2.0 * np.pi
+        )
+        left_boundary = grid[0] - 0.5 * (grid[1] - grid[0])
+        right_boundary = grid[-1] + 0.5 * (grid[-1] - grid[-2])
+        domain_length = right_boundary - left_boundary
+        wave_number = 2.0 * np.pi / domain_length
+        state = np.cos(wave_number * (grid - left_boundary))
+        expected = -(wave_number**2) * state
+        operator = build_diffusion_matrix(
+            n_cells,
+            None,
+            1.0,
+            grid=grid,
+            bc="neumann",
+        )
+        observed = operator @ state
+        errors.append(float(np.sqrt(np.mean((observed - expected) ** 2))))
+
+    convergence_ratio = errors[0] / errors[1]
+    assert 3.8 < convergence_ratio < 4.2
+
+
 def test_diffusion_periodic_spatial_error_is_second_order() -> None:
     """The centered periodic Laplacian converges at second order."""
     errors: list[float] = []
@@ -344,6 +400,40 @@ def test_diffusion_coefficient_is_jittable_and_differentiable() -> None:
     )
 
 
+def test_nonuniform_diffusion_coefficient_is_jittable_and_differentiable() -> None:
+    """Static non-uniform geometry retains a dynamic JAX diffusivity."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    grid = np.asarray([0.0, 0.2, 0.55, 1.0])
+    state = jnp.asarray([1.0, 2.0, 4.0, 8.0], dtype=jnp.float32)
+
+    def objective(coefficient: object) -> object:
+        operator = build_diffusion_matrix(
+            state.size,
+            None,
+            coefficient,
+            grid=grid,
+            bc="neumann",
+            reference=state,
+        )
+        tendency = operator @ state
+        return jnp.sum(tendency * tendency)
+
+    coefficient = jnp.asarray(0.5, dtype=jnp.float32)
+    value, gradient = jax.jit(jax.value_and_grad(objective))(coefficient)
+    operator = build_diffusion_matrix(
+        state.size,
+        None,
+        coefficient,
+        grid=grid,
+        bc="neumann",
+        reference=state,
+    )
+
+    assert operator.__array_namespace__() is jnp
+    assert gradient == pytest.approx(2.0 * float(value) / float(coefficient), rel=1e-6)
+
+
 def test_diffusion_rejects_invalid_structural_inputs() -> None:
     """Grid, boundary, coefficient shape, and eager values are validated."""
     with pytest.raises(ValueError, match="grid size must be at least 2"):
@@ -358,6 +448,22 @@ def test_diffusion_rejects_invalid_structural_inputs() -> None:
         build_diffusion_matrix(2, 1.0, np.inf)
     with pytest.raises(ValueError, match="coefficient must be non-negative"):
         build_diffusion_matrix(2, 1.0, -1.0)
+    with pytest.raises(ValueError, match="either dx or grid"):
+        build_diffusion_matrix(3, 1.0, 1.0, grid=[0.0, 1.0, 2.0])
+    with pytest.raises(ValueError, match="must have shape"):
+        build_diffusion_matrix(3, None, 1.0, grid=[0.0, 1.0])
+    with pytest.raises(ValueError, match="coordinates must be finite"):
+        build_diffusion_matrix(3, None, 1.0, grid=[0.0, np.nan, 1.0])
+    with pytest.raises(ValueError, match="strictly increasing"):
+        build_diffusion_matrix(3, None, 1.0, grid=[0.0, 1.0, 0.5])
+    with pytest.raises(ValueError, match="explicit wrap spacing"):
+        build_diffusion_matrix(
+            3,
+            None,
+            1.0,
+            grid=[0.0, 0.5, 1.5],
+            bc="periodic",
+        )
 
 
 # -------------------------------------------------------------------
@@ -399,6 +505,29 @@ def test_laplacian_tridiag_absorbing_structure_small() -> None:
     assert main_diag[0] == pytest.approx(-2.0)
     assert main_diag[-1] == pytest.approx(-2.0)
     assert np.allclose(main_diag[1:-1], -2.0)
+
+
+def test_nonuniform_sparse_laplacian_matches_portable_builder() -> None:
+    """Sparse and namespace-portable builders share variable-grid semantics."""
+    grid = np.asarray([0.0, 0.25, 0.7, 1.4])
+
+    sparse = build_laplacian_tridiag(
+        grid.size,
+        None,
+        0.3,
+        grid=grid,
+        bc="neumann",
+    )
+    dense = build_diffusion_matrix(
+        grid.size,
+        None,
+        0.3,
+        grid=grid,
+        bc="neumann",
+    )
+
+    assert isinstance(sparse, csr_matrix)
+    np.testing.assert_allclose(sparse.toarray(), dense, rtol=0.0, atol=1e-15)
 
 
 def test_laplacian_unknown_bc_raises() -> None:

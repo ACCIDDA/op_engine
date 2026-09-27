@@ -20,6 +20,7 @@ from .operators import (
     _apply_to_bases,
     _array_namespace,
     _axis_label_map,
+    _diffusion_axis_geometry,
     _parse_expanded_state_name,
     _require_string_sequence,
     _resolve_generator_array,
@@ -95,15 +96,16 @@ def _row_source_operator(
             xp=xp,
             dtype=reference.dtype,
         )
-        dx = _uniform_axis_spacing(
+        diffusion_dx, grid = _diffusion_axis_geometry(
             descriptor.axis,
             axis_coords=axis_coords,
             size=len(labels),
         )
         column_operator = build_diffusion_matrix(
             len(labels),
-            dx,
+            diffusion_dx,
             coefficient,
+            grid=grid,
             bc=descriptor.bc or "neumann",
             reference=reference,
         )
