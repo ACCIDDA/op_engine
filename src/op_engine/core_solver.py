@@ -1090,6 +1090,7 @@ class CoreSolver:
         self._y_stage1: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._f_stage1: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
         self._f_extrap: NDArray[np.floating] = np.zeros_like(self._rhs_buffer)
+        self._sparse_identity: csr_matrix | None = None
 
         self._last_adaptive_schedule: AdaptiveStepSchedule | None = None
         self._last_nonlinear_diagnostics: NonlinearIntegrationDiagnostics | None = None
@@ -1371,6 +1372,77 @@ class CoreSolver:
             out=params.out,
         )
 
+    def _apply_additive_implicit(  # noqa: PLR0913
+        self,
+        spec: CoreOperators | StageOperatorFactory | None,
+        *,
+        dt: float,
+        scale: float,
+        t_stage: float,
+        y_stage: NDArray[np.floating],
+        stage: str,
+        base: NDArray[np.floating],
+        addition: NDArray[np.floating],
+        out: NDArray[np.floating],
+    ) -> None:
+        """Solve ``L y = R base + addition`` for an additive IMEX stage.
+
+        Unlike :meth:`_apply_implicit`, the right operator applies only to
+        the prior state. This is required by additive trapezoidal formulas;
+        applying ``R`` to an explicit increment introduces an order-two
+        cross term that is not part of the target differential equation.
+
+        Raises:
+            RuntimeError: If the base and addition state shapes differ.
+        """
+        if spec is None:
+            np.add(base, addition, out=out)
+            return
+
+        ctx = StageOperatorContext(
+            t=float(t_stage),
+            y=y_stage,
+            stage=stage,
+        )
+        predictor, left_op, right_op = self._resolve_stage_operators(
+            spec,
+            dt=dt,
+            scale=scale,
+            ctx=ctx,
+        )
+        if left_op is None or right_op is None:
+            np.add(base, addition, out=out)
+            return
+
+        self._validate_operator_sizes(left_op, right_op)
+        base_2d, original_shape = self._reshape_for_solve(base)
+        addition_2d, addition_shape = self._reshape_for_solve(addition)
+        if addition_shape != original_shape:
+            msg = "additive implicit stage shapes must match"
+            raise RuntimeError(msg)
+        if predictor is not None:
+            base_2d = np.asarray(predictor @ base_2d, dtype=self.dtype)
+            addition_2d = np.asarray(predictor @ addition_2d, dtype=self.dtype)
+
+        left_s = self._as_scipy_operator(left_op)
+        right_s = self._as_scipy_operator(right_op)
+        rhs_2d = np.asarray(right_s @ base_2d + addition_2d, dtype=self.dtype)
+        if isinstance(left_s, csr_matrix):
+            if self._sparse_identity is None:
+                self._sparse_identity = identity(
+                    left_s.shape[0],
+                    dtype=self.dtype,
+                    format="csr",
+                )
+            identity_op: ScipyOperator = self._sparse_identity
+        else:
+            identity_op = self._identity_operator()
+        out_2d = np.asarray(
+            implicit_solve(left_s, identity_op, rhs_2d),
+            dtype=self.dtype,
+        )
+        np.copyto(out, self._unreshape_after_solve(out_2d, original_shape))
+
     def _reshape_array_for_solve(
         self,
         value: Array,
@@ -1446,6 +1518,26 @@ class CoreSolver:
         y2d = cast("Array", xp.matmul(op_array, x2d))
         return self._unreshape_array_after_solve(y2d, original_shape, axes)
 
+    def _apply_predictor_array(
+        self,
+        predictor: PredictorLike,
+        value: Array,
+    ) -> Array:
+        """Apply the deliberately shape-free predictor protocol to an array.
+
+        Returns:
+            Predictor product with the original state shape restored.
+        """
+        xp = _namespace_of(value)
+        value_2d, original_shape, axes = self._reshape_array_for_solve(value)
+        predictor_array = self._operator_array(predictor, value)
+        result_2d = cast("Array", xp.matmul(predictor_array, value_2d))
+        return self._unreshape_array_after_solve(
+            result_2d,
+            original_shape,
+            axes,
+        )
+
     def _apply_operator_solve_array(
         self,
         x: Array,
@@ -1503,6 +1595,59 @@ class CoreSolver:
             predictor=predictor,
             left_op=left_op,
             right_op=right_op,
+        )
+
+    def _apply_additive_implicit_array(  # noqa: PLR0913
+        self,
+        spec: CoreOperators | StageOperatorFactory | None,
+        *,
+        dt: float,
+        scale: float,
+        t_stage: float,
+        y_stage: Array,
+        stage: str,
+        base: Array,
+        addition: Array,
+    ) -> Array:
+        """Solve ``L y = R base + addition`` in the active namespace.
+
+        Returns:
+            The additive implicit stage result.
+        """
+        xp = _namespace_of(base)
+        if spec is None:
+            return cast("Array", xp.add(base, addition))
+
+        ctx = StageOperatorContext(t=float(t_stage), y=y_stage, stage=stage)
+        predictor, left_op, right_op = self._resolve_stage_operators(
+            spec,
+            dt=dt,
+            scale=scale,
+            ctx=ctx,
+        )
+        if left_op is None or right_op is None:
+            return cast("Array", xp.add(base, addition))
+
+        base_input = base
+        addition_input = addition
+        if predictor is not None:
+            base_input = self._apply_predictor_array(predictor, base)
+            addition_input = self._apply_predictor_array(
+                predictor,
+                addition,
+            )
+        implicit_rhs = cast(
+            "Array",
+            xp.add(
+                self._apply_operator_matmul_array(right_op, base_input),
+                addition_input,
+            ),
+        )
+        return self._apply_operator_solve_array(
+            implicit_rhs,
+            predictor=None,
+            left_op=left_op,
+            right_op=self._identity_array(base),
         )
 
     def _identity_array(self, reference: Array) -> Array:
@@ -1877,29 +2022,32 @@ class CoreSolver:
 
         if plan.method == "imex-heun-tr":
             f_n = self._rhs_array(rhs_func, t, y)
-            state_pred = cast("Array", xp.add(y, xp.multiply(f_n, dt)))
-            f_pred = self._rhs_array(rhs_func, t + dt, state_pred)
-            high_rhs = cast(
+            low_increment = cast("Array", xp.multiply(f_n, dt))
+            state_pred = cast("Array", xp.add(y, low_increment))
+            y_low = self._apply_additive_implicit_array(
+                plan.op_default,
+                dt=dt,
+                scale=1.0,
+                t_stage=t + dt,
+                y_stage=state_pred,
+                stage="tr-predictor",
+                base=y,
+                addition=low_increment,
+            )
+            f_pred = self._rhs_array(rhs_func, t + dt, y_low)
+            high_increment = cast(
                 "Array",
-                xp.add(y, xp.multiply(xp.add(f_n, f_pred), 0.5 * dt)),
+                xp.multiply(xp.add(f_n, f_pred), 0.5 * dt),
             )
-            y_low = self._apply_implicit_array(
+            y_high = self._apply_additive_implicit_array(
                 plan.op_default,
                 dt=dt,
                 scale=1.0,
                 t_stage=t + dt,
-                y_stage=state_pred,
+                y_stage=y_low,
                 stage="tr",
-                x=state_pred,
-            )
-            y_high = self._apply_implicit_array(
-                plan.op_default,
-                dt=dt,
-                scale=1.0,
-                t_stage=t + dt,
-                y_stage=state_pred,
-                stage="tr",
-                x=high_rhs,
+                base=y,
+                addition=high_increment,
             )
             return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
 
@@ -3033,38 +3181,33 @@ class CoreSolver:
         self._rhs_into(self._f_n, rhs_func, step.t, step.y)
 
         np.multiply(self._f_n, step.dt, out=self._state_pred)
-        self._state_pred += step.y  # x_low
+        np.add(self._state_pred, step.y, out=self._rhs_buffer)
 
-        self._rhs_into(self._f_pred, rhs_func, step.t + step.dt, self._state_pred)
+        self._apply_additive_implicit(
+            op_spec,
+            dt=step.dt,
+            scale=1.0,
+            t_stage=step.t + step.dt,
+            y_stage=self._rhs_buffer,
+            stage="tr-predictor",
+            base=step.y,
+            addition=self._state_pred,
+            out=self._y_low,
+        )
+        self._rhs_into(self._f_pred, rhs_func, step.t + step.dt, self._y_low)
 
         np.add(self._f_n, self._f_pred, out=self._rhs_buffer)
         self._rhs_buffer *= 0.5 * step.dt
-        self._rhs_buffer += step.y  # x_high
-
-        ctx_y = self._state_pred
-        self._apply_implicit(
-            ImplicitStageParams(
-                spec=op_spec,
-                dt=step.dt,
-                scale=1.0,
-                t_stage=step.t + step.dt,
-                y_stage=ctx_y,
-                stage="tr",
-                x=self._state_pred,
-                out=self._y_low,
-            )
-        )
-        self._apply_implicit(
-            ImplicitStageParams(
-                spec=op_spec,
-                dt=step.dt,
-                scale=1.0,
-                t_stage=step.t + step.dt,
-                y_stage=ctx_y,
-                stage="tr",
-                x=self._rhs_buffer,
-                out=step.out,
-            )
+        self._apply_additive_implicit(
+            op_spec,
+            dt=step.dt,
+            scale=1.0,
+            t_stage=step.t + step.dt,
+            y_stage=self._y_low,
+            stage="tr",
+            base=step.y,
+            addition=self._rhs_buffer,
+            out=step.out,
         )
 
         np.subtract(step.out, self._y_low, out=err_out)

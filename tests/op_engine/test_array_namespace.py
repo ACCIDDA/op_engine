@@ -525,6 +525,51 @@ def test_numpy_and_jax_implicit_methods_agree(method: str) -> None:
     assert np.allclose(np.asarray(jax_result), np.asarray(numpy_result), rtol=2e-5)
 
 
+def test_numpy_and_jax_imex_heun_tr_agree_for_nonlinear_split() -> None:
+    """The additive endpoint predictor is shared by mutable and functional paths."""
+    jnp = pytest.importorskip("jax.numpy")
+    times = np.linspace(0.0, 0.8, 41, dtype=np.float32)
+
+    def solve(xp: Any) -> Array:  # noqa: ANN401
+        core = ModelCore(
+            1,
+            1,
+            times,
+            options=ModelCoreOptions(dtype=np.float32),
+        )
+        core.set_initial_state(xp.asarray([[0.7]], dtype=xp.float32))
+
+        def rhs(_time: float, state: Array) -> Array:
+            namespace = cast("Any", state.__array_namespace__())
+            return cast(
+                "Array",
+                namespace.multiply(namespace.multiply(state, state), -0.4),
+            )
+
+        def operators(
+            dt: float,
+            scale: float,
+            _context: object,
+        ) -> tuple[Array, Array]:
+            identity = xp.eye(1, dtype=xp.float32)
+            scaled = -0.5 * dt * scale * 0.8
+            return (
+                cast("Array", xp.subtract(identity, scaled)),
+                cast("Array", xp.add(identity, scaled)),
+            )
+
+        CoreSolver(core, operators=operators).run(
+            rhs,
+            config=RunConfig(method="imex-heun-tr"),
+        )
+        return core.get_current_state()
+
+    numpy_result = solve(np)
+    jax_result = solve(jnp)
+
+    assert np.allclose(np.asarray(jax_result), np.asarray(numpy_result), rtol=2e-5)
+
+
 @pytest.mark.parametrize("method", ["imex-euler", "implicit-euler"])
 def test_numpy_and_jax_adaptive_implicit_methods_agree(method: str) -> None:
     """Adaptive implicit controllers stay in the active array namespace."""
