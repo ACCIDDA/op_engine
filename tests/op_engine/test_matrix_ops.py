@@ -962,6 +962,30 @@ def test_scipy_sparse_factorization_is_cached(monkeypatch: pytest.MonkeyPatch) -
     assert calls == 1
 
 
+def test_sparse_cache_rejects_recycled_identity_key() -> None:
+    """A same-metadata key collision cannot reuse another operator's factor."""
+    old_left = csr_matrix(np.diag([2.0, 3.0]))
+    old_right = identity(2, format="csr", dtype=np.float64)
+    new_left = csr_matrix(np.diag([4.0, 5.0]))
+    new_right = identity(2, format="csr", dtype=np.float64)
+    state = np.asarray([8.0, 15.0])
+    cache = vars(matrix_ops)["_IMPLICIT_SOLVER_CACHE"]
+
+    clear_implicit_solver_cache()
+    try:
+        old_result = implicit_solve(old_left, old_right, state)
+        old_key = ("scipy", id(old_left), id(old_right))
+        collision_key = ("scipy", id(new_left), id(new_right))
+        cache[collision_key] = cache.pop(old_key)
+
+        new_result = implicit_solve(new_left, new_right, state)
+
+        np.testing.assert_allclose(old_result, [4.0, 5.0])
+        np.testing.assert_allclose(new_result, [2.0, 3.0])
+    finally:
+        clear_implicit_solver_cache()
+
+
 # -------------------------------------------------------------------
 # Group ops & IDs equivalence
 # -------------------------------------------------------------------
