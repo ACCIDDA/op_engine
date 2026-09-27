@@ -7,6 +7,10 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Curvature-weighted 1D spatial-grid generators accept vectorized profile
+  callables or sampled data, with optional curvature smoothing and a feasible
+  minimum-spacing constraint. They return explicit NumPy geometry for use by
+  any runtime array backend (#46).
 - Dense Array-API and sparse SciPy diffusion builders now accept monotone
   non-uniform cell-center grids with conservative no-flux boundaries. The
   flepimop2 provider uses the same geometry for flat, PyTree, and block

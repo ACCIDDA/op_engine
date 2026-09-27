@@ -58,4 +58,5 @@ nav:
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
       - Nonlinear Solver: api-reference/nonlinear_solver.md
+      - Spatial Grid: api-reference/spatial_grid.md
       - Stochastic Solver: api-reference/stochastic_solver.md
