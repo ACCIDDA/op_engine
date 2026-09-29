@@ -36,6 +36,18 @@ With JAX as the array namespace:
 pip install "op_engine[jax]"
 ```
 
+For the other packaged Array-API backends:
+
+```bash
+pip install "op_engine[torch]"
+pip install "op_engine[cupy]"
+```
+
+NumPy is installed with the core package. Backend support is method-specific;
+consult the [backend guide](docs/guides/backends.md) before assuming that JIT,
+automatic differentiation, adaptivity, or stochastic sampling have identical
+semantics across namespaces.
+
 With flepimop2 adapter:
 
 ```bash
@@ -87,7 +99,8 @@ adaptive controller is eager Python control flow. See the
 
 ```python
 import numpy as np
-from op_engine import CoreSolver, ModelCore, OperatorSpecs
+from op_engine import CoreSolver, ModelCore
+from op_engine.core_solver import OperatorSpecs, RunConfig
 
 n = 4
 times = np.linspace(0.0, 1.0, 11)
@@ -104,12 +117,19 @@ def rhs(t, y):
     return -0.1 * y
 
 
-solver = CoreSolver(core, operators=ops.default, operator_axis="state")
-solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
-
-# For IMEX methods set method and operators via RunConfig:
-# from op_engine.core_solver import RunConfig, AdaptiveConfig, DtControllerConfig
+solver = CoreSolver(core, operator_axis="state")
+solver.run(
+    rhs,
+    config=RunConfig(
+        method="imex-heun-tr",
+        operators=ops,
+    ),
+)
 ```
+
+This compact example uses identity left/right operators to show the API. For a
+nontrivial implicit term, construct timestep-aware operator factories as in the
+[solver guide](docs/guides/solver-methods.md#imex-methods-and-operator-factories).
 
 ## Public API
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
@@ -118,7 +138,9 @@ solver.run(rhs, config=None)  # defaults: method="heun" (explicit)
 - `AdaptiveTauLeapingSolver`: adaptive non-negative stochastic leaps using explicit reactant stoichiometry and injected Poisson plus exact-event sampling.
 - `TauLeapingSolver`: portable stoichiometric updates with NumPy, JAX, or another Array-API namespace supplying Poisson samples.
 - Operator utilities (`matrix_ops`): portable upwind advection, Laplacian, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, and grouped aggregation utilities.
-- Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, `DtControllerConfig` for method/IMEX/adaptive control.
+- Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, and
+  `DtControllerConfig` from `op_engine.core_solver` for method, IMEX, and
+  adaptive control.
 - Adapters: optional flepimop2 integration (extra dependency) via entrypoints in the adapter package. The adapter merges any `mixing_kernels` already computed by op_system (no automatic generation) and consumes config-supplied IMEX operator specs (dict or `OperatorSpecs`), forwarding the chosen `operator_axis` to `CoreSolver`.
 
 ## Development
