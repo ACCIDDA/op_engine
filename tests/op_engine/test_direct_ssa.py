@@ -119,6 +119,40 @@ def test_direct_ssa_config_rejects_invalid_event_limit(max_events: object) -> No
         DirectSSAConfig(max_events=max_events)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    "breakpoints",
+    [
+        None,
+        1.0,
+        [[1.0]],
+        (True,),
+        ("1.0",),
+        (1.0j,),
+        (np.nan,),
+        (np.inf,),
+        (-np.inf,),
+        (1.0, 1.0),
+        (2.0, 1.0),
+    ],
+)
+def test_direct_ssa_config_rejects_invalid_forcing_breakpoints(
+    breakpoints: object,
+) -> None:
+    """Forcing times must be finite real scalars in strictly increasing order."""
+    with pytest.raises(ValueError, match="forcing_breakpoints"):
+        DirectSSAConfig(forcing_breakpoints=breakpoints)  # type: ignore[arg-type]
+
+
+def test_direct_ssa_config_snapshots_forcing_breakpoints() -> None:
+    """Caller-owned arrays cannot mutate a frozen configuration's schedule."""
+    breakpoints = np.asarray([-1.0, 0.5, 1.0])
+    config = DirectSSAConfig(forcing_breakpoints=breakpoints)  # type: ignore[arg-type]
+    breakpoints[:] = 99.0
+
+    assert config.forcing_breakpoints == (-1.0, 0.5, 1.0)
+    assert isinstance(config.forcing_breakpoints, tuple)
+
+
 def test_direct_ssa_retains_event_across_output_boundaries() -> None:
     """Observation times neither discard nor resample a pending event."""
     core = _make_core(1, 1, np.asarray([0.0, 0.5, 1.0]))
@@ -139,6 +173,53 @@ def test_direct_ssa_retains_event_across_output_boundaries() -> None:
     np.testing.assert_allclose(propensity_times, [0.0, 0.75])
     np.testing.assert_allclose(sampler.total_rates, [2.0, 2.0])
     np.testing.assert_allclose(sampler.probabilities, [[[1.0]], [[1.0]]])
+    assert sampler.draw_indices == [0, 1]
+
+
+def test_direct_ssa_discards_event_at_forcing_breakpoint() -> None:
+    """Forcing boundaries redraw events while observation times retain them."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.25, 0.5, 1.0, 1.5, 2.0]))
+    core.set_initial_state(np.zeros((1, 1)))
+    sampler = _RecordingSSASampler(_sample(1.25, 0), _sample(0.25, 0), _sample(2.0, 0))
+    propensity_times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        propensity_times.append(time)
+        return cast("Array", np.asarray([[2.0 if time < 1.0 else 4.0]]))
+
+    DirectSSASolver(core, np.asarray([[1]])).run(
+        propensity,
+        sampler,
+        config=DirectSSAConfig(forcing_breakpoints=(1.0,)),
+    )
+
+    assert core.state_array is not None
+    np.testing.assert_array_equal(core.state_array[:, 0, 0], [0, 0, 0, 0, 1, 1])
+    np.testing.assert_allclose(propensity_times, [0.0, 1.0, 1.25])
+    np.testing.assert_allclose(sampler.total_rates, [2.0, 4.0, 4.0])
+    assert sampler.draw_indices == [0, 1, 2]
+
+
+def test_zero_propensity_resumes_at_a_later_forcing_breakpoint() -> None:
+    """Dormant intervals do not sample or become permanently absorbing."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]))
+    core.set_initial_state(np.zeros((1, 1)))
+    sampler = _RecordingSSASampler(_sample(0.25, 0), _sample(2.0, 0))
+    propensity_times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        propensity_times.append(time)
+        return cast("Array", np.asarray([[0.0 if time < 2.0 else 4.0]]))
+
+    DirectSSASolver(core, np.asarray([[1]])).run(
+        propensity,
+        sampler,
+        config=DirectSSAConfig(forcing_breakpoints=(1.0, 2.0)),
+    )
+
+    assert core.state_array is not None
+    np.testing.assert_array_equal(core.state_array[:, 0, 0], [0, 0, 0, 0, 0, 1, 1])
+    np.testing.assert_allclose(propensity_times, [0.0, 1.0, 2.0, 2.25])
     assert sampler.draw_indices == [0, 1]
 
 

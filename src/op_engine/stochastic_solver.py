@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias, cast
 import numpy as np
 
 from ._array import array_namespace as _namespace_of
+from ._forcing import _ForcingSchedule
 
 if TYPE_CHECKING:
     from ._typing import Array
@@ -136,15 +137,20 @@ class DirectSSAConfig:
     Attributes:
         max_events: Maximum number of events applied in one output interval.
             This guard detects explosive or otherwise pathological processes.
+        forcing_breakpoints: Strictly increasing times at which external
+            forcing may change. Propensities must be constant in time between
+            these boundaries while the state is unchanged. Forcing is
+            right-continuous; an event at a boundary is discarded and redrawn.
     """
 
     max_events: int = 1_000_000
+    forcing_breakpoints: tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
-        """Validate the event-count guard.
+        """Validate the event-count guard and snapshot forcing boundaries.
 
         Raises:
-            ValueError: If ``max_events`` is not a positive integer.
+            ValueError: If the event-count guard or forcing schedule is invalid.
         """
         if (
             not isinstance(self.max_events, Integral)
@@ -153,6 +159,8 @@ class DirectSSAConfig:
         ):
             msg = "max_events must be a positive integer"
             raise ValueError(msg)
+        schedule = _ForcingSchedule(self.forcing_breakpoints)
+        object.__setattr__(self, "forcing_breakpoints", schedule.breakpoints)
 
 
 class NumpyPoissonSampler:
@@ -310,6 +318,22 @@ def _draw_ssa_event(
         xp=xp,
         n_events=int(np.prod(propensity.shape)),
     )
+
+
+def _ssa_event_time(time: float, waiting_time: float) -> float:
+    """Add a validated wait without silently stalling the event clock.
+
+    Returns:
+        The absolute event time.
+
+    Raises:
+        RuntimeError: If the waiting time is below the clock's precision.
+    """
+    event_time = time + waiting_time
+    if event_time <= time:
+        msg = "Direct SSA event time failed to advance"
+        raise RuntimeError(msg)
+    return event_time
 
 
 class _ReactionNetwork:
@@ -603,8 +627,8 @@ class DirectSSASolver:
     All reaction channels and batch cells form one flattened categorical event
     space. This is the superposition of the independent batched processes, so
     each accepted event changes exactly one batch cell. Propensities must be
-    time-homogeneous between events; requested output times only observe the
-    path and never cause an event to be resampled.
+    constant in time between events and declared forcing boundaries. Requested
+    output times only observe the path and never cause an event to be resampled.
     """
 
     def __init__(
@@ -631,6 +655,25 @@ class DirectSSASolver:
         """Return the number of reaction channels."""
         return self._network.n_reactions
 
+    def _apply_event(self, event_index: int, state: Array) -> Array:
+        """Apply one reaction, failing visibly on impossible consumption.
+
+        Returns:
+            The updated population array.
+
+        Raises:
+            RuntimeError: If the reaction produces a negative population.
+        """
+        proposed = self._network.apply_event(event_index, state)
+        try:
+            self._network.validate_finite_nonnegative(
+                proposed,
+                message=_SSA_NEGATIVE_STATE,
+            )
+        except ValueError as error:
+            raise RuntimeError(_SSA_NEGATIVE_STATE) from error
+        return proposed
+
     def run(
         self,
         propensity_func: PropensityFunction,
@@ -641,19 +684,22 @@ class DirectSSASolver:
         """Advance an exact reaction trajectory through the core output grid.
 
         An event drawn beyond an output boundary is retained for the following
-        interval. A zero total propensity is absorbing, and the sampler is not
-        called again.
+        interval. A pending event at or beyond a forcing boundary is discarded.
+        Zero total propensity waits for the next forcing boundary without
+        sampling; with no future boundary it is absorbing.
 
         Args:
-            propensity_func: Time-homogeneous reaction-channel propensities.
+            propensity_func: Reaction-channel propensities, constant in time
+                between events and configured forcing boundaries.
             ssa_sampler: Backend-specific exponential/categorical sampler.
-            config: Optional event-count guard.
+            config: Optional event-count guard and forcing schedule.
 
         Raises:
             RuntimeError: If an interval exceeds its event limit or a reaction
                 produces a negative population.
         """
         cfg = config or DirectSSAConfig()
+        forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self.core.get_current_state()
         self._network.validate_finite_nonnegative(
             state,
@@ -671,6 +717,7 @@ class DirectSSASolver:
             target = float(time_grid[output_index + 1])
             interval_events = 0
             while not absorbing and t < target:
+                boundary = forcing.next_after(t)
                 if pending_time is None:
                     propensity = self._network.evaluate_propensity(
                         propensity_func,
@@ -683,11 +730,20 @@ class DirectSSASolver:
                         draw_index=draw_index,
                     )
                     if event is None:
-                        absorbing = True
-                        break
-                    waiting_time, pending_event_index = event
-                    pending_time = t + waiting_time
-                    draw_index += 1
+                        if not np.isfinite(boundary):
+                            absorbing = True
+                            break
+                        pending_time = boundary
+                    else:
+                        pending_time = _ssa_event_time(t, event[0])
+                        pending_event_index = event[1]
+                        draw_index += 1
+
+                if boundary <= target and boundary <= pending_time:
+                    t = boundary
+                    pending_time = None
+                    pending_event_index = None
+                    continue
 
                 if pending_time > target:
                     break
@@ -697,15 +753,7 @@ class DirectSSASolver:
                     msg = "Direct SSA event state is inconsistent"
                     raise RuntimeError(msg)
 
-                proposed = self._network.apply_event(pending_event_index, state)
-                try:
-                    self._network.validate_finite_nonnegative(
-                        proposed,
-                        message=_SSA_NEGATIVE_STATE,
-                    )
-                except ValueError as error:
-                    raise RuntimeError(_SSA_NEGATIVE_STATE) from error
-                state = proposed
+                state = self._apply_event(pending_event_index, state)
                 t = pending_time
                 pending_time = None
                 pending_event_index = None
