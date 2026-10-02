@@ -441,6 +441,83 @@ def _flat_cell(
     return block.offset + int(np.ravel_multi_index(index, block.shape))
 
 
+def _reaction_axis_metadata(
+    reaction: ReactionArtifact,
+    *,
+    from_axes: tuple[str, ...],
+    full_axes: tuple[str, ...],
+) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    """Validate one reaction's channel, destination, and offset axes.
+
+    Every destination axis is copied from the channel (``to_axes``), fixed
+    (``pinned``), or shifted from the channel coordinate (``offsets``, from
+    op_system's axis-wide ``coord_shift``). Artifacts that predate
+    ``offsets`` publish none.
+
+    Returns:
+        ``(pinned, from_pinned, offsets)`` keyed by axis name.
+
+    Raises:
+        ValueError: If the axis metadata is inconsistent.
+    """
+    to_axes = _require_string_tuple(reaction.to_axes, field="to_axes")
+    sum_axes = _require_string_tuple(reaction.sum_axes, field="sum_axes")
+    pinned = _require_pins(reaction.pinned, field="pinned")
+    from_pinned = _require_pins(reaction.from_pinned, field="from_pinned")
+    offsets = _require_pins(getattr(reaction, "offsets", ()), field="offsets")
+    if not set(from_axes).issubset(full_axes):
+        msg = f"Reaction {reaction.name!r} has axes outside full_axes."
+        raise ValueError(msg)
+    if not set(to_axes).issubset(full_axes):
+        msg = f"Reaction {reaction.name!r} has destination axes outside full_axes."
+        raise ValueError(msg)
+    if (
+        not set(offsets).issubset(from_axes)
+        or set(offsets) & (set(to_axes) | set(pinned))
+        or 0 in offsets.values()
+    ):
+        msg = (
+            f"Reaction {reaction.name!r} offsets must shift channel axes that "
+            "are neither copied nor pinned, by a nonzero step."
+        )
+        raise ValueError(msg)
+    if set(sum_axes) != set(from_axes) - set(to_axes) - set(offsets):
+        msg = f"Reaction {reaction.name!r} has inconsistent sum_axes metadata."
+        raise ValueError(msg)
+    # Source-only channels use destination wildcard axes and have no
+    # donor pins. Validate donor coverage only when a donor exists.
+    if reaction.from_base is not None and (
+        set(from_axes) | set(from_pinned) != set(full_axes)
+    ):
+        msg = f"Reaction {reaction.name!r} has incomplete source-axis metadata."
+        raise ValueError(msg)
+    if set(to_axes) | set(pinned) | set(offsets) != set(full_axes):
+        msg = f"Reaction {reaction.name!r} has incomplete destination metadata."
+        raise ValueError(msg)
+    return pinned, from_pinned, offsets
+
+
+def _destination_cell(
+    block: _StateBlock,
+    axes: tuple[str, ...],
+    coordinates: Mapping[str, int],
+    *,
+    offsets: Mapping[str, int],
+) -> int | None:
+    """Locate a firing's destination, shifting each offset axis by its step.
+
+    Returns:
+        Flat state index, or ``None`` when a shifted coordinate leaves its
+        axis: the firing then removes the donor unit without a deposit.
+    """
+    shifted = dict(coordinates)
+    for axis, step in offsets.items():
+        shifted[axis] += step
+        if not 0 <= shifted[axis] < block.shape[axes.index(axis)]:
+            return None
+    return _flat_cell(block, axes, shifted)
+
+
 def compile_reaction_network(
     system: ReactionSystem,
     params: Mapping[str, object],
@@ -453,7 +530,9 @@ def compile_reaction_network(
     Each source-cell propensity becomes one channel. Consequently, a collapsed
     axis is represented by distinct columns that share one destination row;
     summing simultaneous firings is then exactly the stoichiometric matrix
-    multiplication performed by the core stochastic solvers.
+    multiplication performed by the core stochastic solvers. An offset axis
+    moves each channel to its shifted coordinate; when that leaves the axis,
+    the column only removes the donor.
 
     Args:
         system: System exposing typed reaction and layout options.
@@ -535,31 +614,9 @@ def compile_reaction_network(
             raise ValueError(msg)
         reactants_complete = reactants_complete and complete
         from_axes = _require_string_tuple(reaction.from_axes, field="from_axes")
-        to_axes = _require_string_tuple(reaction.to_axes, field="to_axes")
-        sum_axes = _require_string_tuple(reaction.sum_axes, field="sum_axes")
-        full_axes = base_axes[reaction.to_base]
-        if not set(from_axes).issubset(full_axes):
-            msg = f"Reaction {reaction.name!r} has axes outside full_axes."
-            raise ValueError(msg)
-        if not set(to_axes).issubset(full_axes):
-            msg = f"Reaction {reaction.name!r} has destination axes outside full_axes."
-            raise ValueError(msg)
-        if set(sum_axes) != set(from_axes) - set(to_axes):
-            msg = f"Reaction {reaction.name!r} has inconsistent sum_axes metadata."
-            raise ValueError(msg)
-
-        pinned = _require_pins(reaction.pinned, field="pinned")
-        from_pinned = _require_pins(reaction.from_pinned, field="from_pinned")
-        # Source-only channels use destination wildcard axes and have no
-        # donor pins. Validate donor coverage only when a donor exists.
-        if reaction.from_base is not None and (
-            set(from_axes) | set(from_pinned) != set(full_axes)
-        ):
-            msg = f"Reaction {reaction.name!r} has incomplete source-axis metadata."
-            raise ValueError(msg)
-        if set(to_axes) | set(pinned) != set(full_axes):
-            msg = f"Reaction {reaction.name!r} has incomplete destination metadata."
-            raise ValueError(msg)
+        pinned, from_pinned, offsets = _reaction_axis_metadata(
+            reaction, from_axes=from_axes, full_axes=base_axes[reaction.to_base]
+        )
 
         event_shape = tuple(axis_sizes[axis] for axis in from_axes)
         event_shapes.append(event_shape)
@@ -585,13 +642,14 @@ def compile_reaction_network(
                 n_state=n_state,
             )
 
-            destination_coordinates = {**varying, **pinned}
-            destination = _flat_cell(
+            destination = _destination_cell(
                 blocks[reaction.to_base],
                 base_axes[reaction.to_base],
-                destination_coordinates,
+                {**varying, **pinned},
+                offsets=offsets,
             )
-            column[destination] += 1
+            if destination is not None:
+                column[destination] += 1
             columns.append(column)
             reactant_columns.append(reactants)
             channel_reactions.append(reaction.name)
