@@ -353,17 +353,57 @@ boundaries while the state is unchanged for direct SSA and adaptive exact
 fallback. Output times observe exact paths and also cap tau-leaps, so changing
 the output grid may change a tau-leaping approximation.
 
-Nonempty forcing schedules require `mode: stochastic`. Deterministic and hybrid
-execution reject them explicitly. Forcing times must be finite real values in
+Nonempty engine-config forcing schedules require `mode: stochastic`.
+Forcing times must be finite real values in
 strictly increasing order. JSON/YAML lists become immutable tuples; global
-schedules may include times outside the run. Omitting the schedule or supplying
-an empty list preserves the existing execution path. Forcing changes share the
+schedules may include times outside the run. An empty engine schedule adds no
+extra boundaries. Forcing changes share the
 whole-interval `stochastic_max_steps` guard for fixed and adaptive tau-leaping.
 
-`op_system`'s existing time-indexed parameters use linear interpolation. This
-setting does not change that interpolation or make those varying rates exact.
-Step-table inputs need an explicit piecewise-constant producer; general
-continuous forcing needs a different SSA waiting-time method.
+Pure stochastic runs automatically consume `system.option('forcing_breakpoints')`
+when a producer publishes it. The engine validates that schedule and takes its
+sorted union with explicit engine boundaries, removing overlaps. The combined
+schedule is local to each run; the engine configuration stays unchanged when
+the same engine is reused with another system. A producer without this option
+retains the existing execution path. Observation times do not supply forcing
+boundaries.
+
+For a producer containing [op_system PR #241](https://github.com/ACCIDDA/op_system/pull/241),
+select hold interpolation in the **system specification**. For example:
+
+```yaml
+kind: transitions
+time_interpolation: previous
+axes:
+  - {name: group, coords: [a]}
+  - {name: day, type: continuous, coords: [0.0, 0.5, 0.75]}
+time_axis: day
+state: ["A[group]", "B[group]"]
+transitions:
+  - name: transfer
+    from: "A[group]"
+    to: "B[group]"
+    rate: "rate[day]"
+    reactants: [{state: "A[group]", order: 1}]
+```
+
+The parameter producer supplies the full `rate[day]` table; its values are held
+on each interval and clamp beyond the endpoints. The engine consumes the
+declared changes at `0.5` and `0.75` without duplicating them in its config.
+The development dependency pins include this producer change. Hold-table
+support requires a producer containing it; the published minimum dependency
+continues to support older producers for other execution paths.
+
+Hybrid execution rejects nonempty producer schedules during validation and
+execution because its split deterministic/stochastic steps do not yet support
+forcing boundaries. Deterministic execution evaluates the producer's table
+using the ordinary deterministic method and step controls.
+
+`op_system` still defaults to linear interpolation. Linear tables publish no
+forcing changes, and their time coordinates do not become engine boundaries.
+Manually listing those coordinates does not make frozen-rate SSA exact for
+smooth rates. General continuous forcing needs a different SSA waiting-time
+method, tracked in [issue #173](https://github.com/ACCIDDA/op_engine/issues/173).
 
 NumPy arrays use seeded `NumpyPoissonSampler` or `NumpySSASampler` instances.
 Other namespaces inject a `poisson_sampler=` or `ssa_sampler=` callable into
