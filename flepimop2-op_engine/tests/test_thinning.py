@@ -298,3 +298,218 @@ def test_provider_candidate_guard_counts_rejections_across_observations() -> Non
             thinning_sampler=sampler,
         )
     assert sampler.indices == [0, 1, 2]
+
+
+@pytest.mark.parametrize("bound", [-1, np.inf, np.nan, True, "2", [2]])
+def test_invalid_run_time_bounds_fail_before_sampling(bound: object) -> None:
+    """The run-time scalar interface retains the core's strict bound contract."""
+    sampler = _Candidates()
+    with pytest.raises(ValueError, match="rate_bound"):
+        _engine().run(
+            _birth_system(),
+            np.asarray([0.0, 1.0]),
+            {},
+            {},
+            rate_bound=bound,
+            thinning_sampler=sampler,
+        )
+    assert sampler.indices == []
+
+
+def test_missing_and_conflicting_bound_sources_fail_before_sampling() -> None:
+    """A missing bound or two simultaneous bound sources cannot fall back silently."""
+    system = _birth_system()
+    sampler = _Candidates()
+    with pytest.raises(ValueError, match="requires thinning_rate_bound"):
+        _engine().run(system, np.asarray([0.0, 1.0]), {}, {}, thinning_sampler=sampler)
+    with pytest.raises(ValueError, match="not both"):
+        _engine(thinning_rate_bound=2).run(
+            system,
+            np.asarray([0.0, 1.0]),
+            {},
+            {},
+            rate_bound=2,
+            thinning_sampler=sampler,
+        )
+    assert sampler.indices == []
+
+
+def test_violated_bound_and_invalid_callback_expiry_fail_visibly() -> None:
+    """The provider forwards the bound contract without clipping or extending it."""
+    system = _birth_system()
+    sampler = _Candidates((0.75, 0.99))
+    with pytest.raises(ValueError, match="exceeds bound rate"):
+        _engine(thinning_rate_bound=1).run(
+            system,
+            np.asarray([0.0, 1.0]),
+            {},
+            {},
+            thinning_sampler=sampler,
+        )
+    assert sampler.indices == [0]
+    with pytest.raises(ValueError, match="valid_until"):
+        _engine().run(
+            system,
+            np.asarray([0.0, 1.0]),
+            {},
+            {},
+            rate_bound=lambda _t, _y, limit: TotalRateBound(2, limit + 1),
+            thinning_sampler=_Candidates(),
+        )
+
+
+def test_invalid_sampler_and_missing_jax_sampler_fail() -> None:
+    """A sampler must be callable, and non-NumPy runs must inject one."""
+    system = _birth_system()
+    with pytest.raises(TypeError, match="thinning_sampler must be callable"):
+        _engine(thinning_rate_bound=2).run(
+            system,
+            np.asarray([0.0, 1.0]),
+            {},
+            {},
+            thinning_sampler=123,
+        )
+    jnp = pytest.importorskip("jax.numpy")
+    initial = {
+        str(name): ParameterValue(jnp.asarray(0.0), ResolvedShape())
+        for name in system.option("state_names")
+    }
+    with pytest.raises(TypeError, match="required for non-NumPy"):
+        _engine(thinning_rate_bound=2).run(system, np.asarray([0.0, 1.0]), initial, {})
+    with pytest.raises(TypeError, match="preserve the state array namespace"):
+        _engine(thinning_rate_bound=2).run(
+            system,
+            np.asarray([0.0, 1.0]),
+            initial,
+            {},
+            thinning_sampler=lambda _r, _i: ThinningSample(
+                np.asarray(0.25), np.asarray(0.5)
+            ),
+        )
+
+
+@pytest.mark.parametrize("mode", ["deterministic", "stochastic", "hybrid"])
+@pytest.mark.parametrize("input_name", ["rate_bound", "thinning_sampler"])
+def test_thinning_inputs_cannot_be_ignored_by_other_methods(
+    mode: str, input_name: str
+) -> None:
+    """Reserved thinning inputs require an explicit selection of the method."""
+    engine = _engine(
+        mode=mode,
+        stochastic_method="tau-leaping",
+        stochastic_reactions=("birth",) if mode == "hybrid" else (),
+    )
+    with pytest.raises(ValueError, match="require stochastic_method"):
+        engine.run(
+            _birth_system(),
+            np.asarray([0.0, 1.0]),
+            {},
+            {},
+            **{input_name: 2 if input_name == "rate_bound" else _Candidates()},
+        )
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+def test_zero_bound_hold_intervals_resume_without_sampling(backend: str) -> None:
+    """A dormant producer advances to its next change and resumes under a new bound."""
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    system = _table_system("previous")
+    initial = {
+        str(name): ParameterValue(xp.asarray(0.0), ResolvedShape())
+        for name in system.option("state_names")
+    }
+    params = {
+        "rate": ParameterValue(
+            xp.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+        )
+    }
+    sampler = _Candidates((0.125, 0), (0.125, 0))
+    result = _engine().run(
+        system,
+        np.asarray([0, 0.25, 0.5, 0.625, 0.75, 1]),
+        initial,
+        params,
+        rate_bound=lambda t, _y, limit: TotalRateBound(
+            1 if 0.5 <= t < 0.75 else 0, limit
+        ),
+        thinning_sampler=sampler,
+    )
+    np.testing.assert_array_equal(np.asarray(result)[:, 1], [0, 0, 0, 1, 1, 1])
+    assert sampler.indices == [0, 1]
+
+
+def _transfer_system(rate: str) -> OpSystemSystem:
+    """Return a generic one-cell A-to-B network."""
+    return OpSystemSystem(
+        spec={
+            "kind": "transitions",
+            "axes": [{"name": "group", "coords": ["a"]}],
+            "state": ["A[group]", "B[group]"],
+            "transitions": [
+                {
+                    "name": "transfer",
+                    "from": "A[group]",
+                    "to": "B[group]",
+                    "rate": rate,
+                    "reactants": [{"state": "A[group]", "order": 1}],
+                }
+            ],
+        }
+    )
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+def test_accepted_events_refresh_state_dependent_provider_bounds(backend: str) -> None:
+    """Bounds use updated native populations and become zero after exhaustion."""
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    system = _transfer_system("2 * t")
+    initial = {
+        str(name): ParameterValue(xp.asarray(value), ResolvedShape())
+        for name, value in zip(system.option("state_names"), (2.0, 0.0), strict=True)
+    }
+    bounds: list[float] = []
+
+    def bound(_t: float, state: Array, limit: float) -> TotalRateBound:
+        assert state.__array_namespace__() is xp
+        rate = 2 * limit * float(np.asarray(state)[0, 0])
+        bounds.append(rate)
+        return TotalRateBound(rate, limit)
+
+    sampler = _Candidates((0.25, 0.1), (0.25, 0.1))
+    result = _engine().run(
+        system,
+        np.asarray([0, 0.1, 0.25, 0.5, 1]),
+        initial,
+        {},
+        rate_bound=bound,
+        thinning_sampler=sampler,
+    )
+    np.testing.assert_array_equal(
+        np.asarray(result)[:, 1:], [[2, 0], [2, 0], [1, 1], [0, 2], [0, 2]]
+    )
+    assert bounds == [4, 2, 0]
+    assert sampler.rates == [4, 2]
+
+
+@pytest.mark.parametrize(
+    "method", ["tau-leaping", "adaptive-tau-leaping", "direct-ssa"]
+)
+def test_legacy_provider_seeded_histories_remain_unchanged(method: str) -> None:
+    """Histories recorded from merged main retain the pre-thinning random streams."""
+    system = _transfer_system("0.1")
+    initial = {
+        str(name): ParameterValue(np.asarray(value), ResolvedShape())
+        for name, value in zip(system.option("state_names"), (100.0, 0.0), strict=True)
+    }
+    engine = _engine(
+        stochastic_method=method,
+        random_seed=173,
+        tau_max_step=0.1 if method == "tau-leaping" else None,
+    )
+    result = engine.run(system, np.asarray([0, 0.2, 0.5, 1]), initial, {})
+    expected = (
+        [[100, 0], [96, 4], [92, 8], [81, 19]]
+        if method == "tau-leaping"
+        else [[100, 0], [100, 0], [95, 5], [91, 9]]
+    )
+    np.testing.assert_array_equal(np.asarray(result)[:, 1:], expected)
