@@ -246,6 +246,84 @@ def test_adaptive_forcing_does_not_reset_interval_step_limit() -> None:
     assert poisson.draw_indices == [0, 1]
 
 
+def test_adaptive_retries_remain_inside_the_forcing_segment() -> None:
+    """A rejected leap halves its capped duration without crossing forcing."""
+    core = _make_core(1, 1, np.asarray([0.0, 1.0]))
+    core.set_initial_state(np.asarray([[1.0]]))
+    poisson = _RecordingPoissonSampler(np.asarray([[2]]))
+    times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        times.append(time)
+        return cast("Array", np.asarray([[1.0 if time < 0.5 else 0.0]]))
+
+    AdaptiveTauLeapingSolver(core, np.asarray([[-1]]), np.asarray([[1]])).run(
+        propensity,
+        poisson,
+        _RecordingSSASampler(),
+        config=AdaptiveTauLeapingConfig(
+            critical_threshold=0,
+            exact_fallback_multiplier=0.0,
+            forcing_breakpoints=(0.5,),
+        ),
+    )
+    assert times == [0.0, 0.25, 0.5]
+    np.testing.assert_allclose(np.asarray(poisson.means).ravel(), [0.5, 0.25, 0.25])
+    assert poisson.draw_indices == [0, 1, 2]
+    np.testing.assert_array_equal(core.get_current_state(), [[1.0]])
+
+
+def test_adaptive_exact_forcing_keeps_interval_step_guard() -> None:
+    """Boundary redraws never restart the exact fallback's accepted-step count."""
+    core = _make_core(1, 1, np.asarray([0.0, 1.0]))
+    core.set_initial_state(np.asarray([[3.0]]))
+    exact = _RecordingSSASampler(_sample(0.25, 0), _sample(0.75, 0))
+    with pytest.raises(RuntimeError, match="max_steps"):
+        AdaptiveTauLeapingSolver(core, np.asarray([[-1]]), np.asarray([[1]])).run(
+            lambda _t, state: state,
+            _RecordingPoissonSampler(),
+            exact,
+            config=AdaptiveTauLeapingConfig(max_steps=1, forcing_breakpoints=(0.5,)),
+        )
+    assert exact.draw_indices == [0]
+
+
+def test_adaptive_global_schedule_skips_initial_and_final_boundary_draws() -> None:
+    """Endpoints observe the state without spending draws on unused segments."""
+    core = _make_core(1, 1, np.asarray([1.0, 1.25, 2.0]))
+    core.set_initial_state(np.asarray([[2.0]]))
+    exact = _RecordingSSASampler(_sample(1.0, 0), _sample(1.0, 0))
+    times: list[float] = []
+
+    def propensity(time: float, state: Array) -> Array:
+        times.append(time)
+        return state
+
+    AdaptiveTauLeapingSolver(core, np.asarray([[-1]]), np.asarray([[1]])).run(
+        propensity,
+        _RecordingPoissonSampler(),
+        exact,
+        config=AdaptiveTauLeapingConfig(forcing_breakpoints=(-1.0, 1.0, 1.5, 2.0, 3.0)),
+    )
+    assert times == [1.0, 1.5]
+    assert exact.draw_indices == [0, 1]
+    np.testing.assert_array_equal(np.asarray(core.state_array).ravel(), [2.0] * 3)
+
+
+def test_adaptive_exact_tiny_wait_fails_before_applying_event() -> None:
+    """Exact fallback must advance representable time before changing state."""
+    core = _make_core(1, 1, np.asarray([1.0, 2.0]))
+    core.set_initial_state(np.asarray([[2.0]]))
+    with pytest.raises(RuntimeError, match="underflowed"):
+        AdaptiveTauLeapingSolver(core, np.asarray([[-1]]), np.asarray([[1]])).run(
+            lambda _t, state: state,
+            _RecordingPoissonSampler(),
+            _RecordingSSASampler(_sample(np.finfo(float).tiny, 0)),
+            config=AdaptiveTauLeapingConfig(forcing_breakpoints=(1.5,)),
+        )
+    np.testing.assert_array_equal(core.get_current_state(), [[2.0]])
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
