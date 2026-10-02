@@ -103,12 +103,15 @@ class TauLeapingConfig:
 
     Attributes:
         max_step: Maximum internal tau. ``None`` takes one leap per output
-            interval.
+            interval, split at forcing boundaries.
         max_steps: Maximum number of internal leaps per output interval.
+        forcing_breakpoints: Strictly increasing finite forcing-change times.
+            Leaps end at these boundaries and reevaluate right-continuous rates.
     """
 
     max_step: float | None = None
     max_steps: int = 1_000_000
+    forcing_breakpoints: tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate fixed tau controls.
@@ -128,6 +131,8 @@ class TauLeapingConfig:
         ):
             msg = "max_steps must be a positive integer"
             raise ValueError(msg)
+        schedule = _ForcingSchedule(self.forcing_breakpoints)
+        object.__setattr__(self, "forcing_breakpoints", schedule.breakpoints)
 
 
 @dataclass(slots=True, frozen=True)
@@ -582,13 +587,14 @@ class TauLeapingSolver:
         Args:
             propensity_func: Reaction-channel propensity function.
             poisson_sampler: Backend-specific Poisson sampler.
-            config: Optional fixed-tau controls.
+            config: Optional fixed-tau controls and forcing schedule.
 
         Raises:
             RuntimeError: If an interval exceeds its step limit or a leap
                 produces a negative population.
         """
         cfg = config or TauLeapingConfig()
+        forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self.core.get_current_state()
         self._network.validate_finite_nonnegative(
             state,
@@ -605,8 +611,12 @@ class TauLeapingSolver:
             while t < target:
                 if interval_steps >= cfg.max_steps:
                     raise RuntimeError(_MAX_STEPS)
-                remaining = target - t
+                limit = min(target, forcing.next_after(t))
+                remaining = limit - t
                 dt = remaining if cfg.max_step is None else min(cfg.max_step, remaining)
+                if t + dt <= t:
+                    msg = "Tau-leaping step size underflowed"
+                    raise RuntimeError(msg)
                 state = self._step(
                     propensity_func,
                     poisson_sampler,
@@ -615,7 +625,7 @@ class TauLeapingSolver:
                     state=state,
                     step_index=step_index,
                 )
-                t += dt
+                t = limit if dt == remaining else t + dt
                 step_index += 1
                 interval_steps += 1
             self.core.advance_timestep(state)
