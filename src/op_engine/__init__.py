@@ -62,6 +62,15 @@ from .stochastic_solver import (
     TauLeapingConfig,
     TauLeapingSolver,
 )
+from .thinning_ssa import (
+    NumpyThinningSampler,
+    RateBoundFunction,
+    ThinningSample,
+    ThinningSampler,
+    ThinningSSAConfig,
+    ThinningSSASolver,
+    TotalRateBound,
+)
 
 __all__ = [
     "AdaptiveTauLeapingConfig",
@@ -88,13 +97,20 @@ __all__ = [
     "NonlinearSolver",
     "NumpyPoissonSampler",
     "NumpySSASampler",
+    "NumpyThinningSampler",
     "Operator",
     "PoissonSampler",
+    "RateBoundFunction",
     "SSASample",
     "SSASampler",
     "Scalar",
     "TauLeapingConfig",
     "TauLeapingSolver",
+    "ThinningSSAConfig",
+    "ThinningSSASolver",
+    "ThinningSample",
+    "ThinningSampler",
+    "TotalRateBound",
     "array_namespace",
     "build_advection_matrix",
     "build_crank_nicolson_operator",

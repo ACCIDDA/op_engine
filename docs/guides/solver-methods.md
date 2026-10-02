@@ -2,7 +2,8 @@
 
 `ModelCore` owns output times and state storage. Deterministic systems use
 `CoreSolver` and a method selected by `RunConfig`. Stochastic reaction networks
-use `DirectSSASolver`, `TauLeapingSolver`, or `AdaptiveTauLeapingSolver`, because
+use `DirectSSASolver`, `ThinningSSASolver`, `TauLeapingSolver`, or
+`AdaptiveTauLeapingSolver`, because
 propensities and stoichiometry have different semantics from an ODE right-hand side. In every
 case the state array selects the Array-API namespace; choosing JAX instead of
 NumPy does not select a different numerical method.
@@ -137,6 +138,14 @@ automatically in pure stochastic mode and combines them with any extra
 boundaries in the engine configuration. This also supports fixed and adaptive
 tau-leaping. Any additional direct time dependence must still satisfy the
 chosen solver's exactness conditions.
+
+### Exact SSA for smooth forcing
+
+`ThinningSSASolver` accepts time-dependent propensities and a user-certified
+total-rate bound. It samples candidates at the bound rate, then evaluates
+channel rates at the candidate time to reject or apply one event. See the
+[bounded thinning guide](bounded-thinning.md) for constant and callback bounds,
+sampling injection, interval expiry, and a runnable smooth-birth example.
 
 ### Bounded adaptive tau-leaping
 
