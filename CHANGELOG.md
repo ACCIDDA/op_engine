@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Stochastic execution consumes axis-wide `coord_shift` reactions from
+  op_system: each source bin of an `offsets` axis becomes a channel that moves
+  one unit by the published step, and off-axis destinations only deplete the
+  donor. Direct SSA reproduces Poisson bin occupancy and Erlang exit times for
+  pure aging chains. Artifacts without `offsets` compile unchanged (#180).
+
 - Direct SSA accepts explicit forcing breakpoints for exact piecewise-constant
   rates, including dormant zero-rate intervals, while retaining pending events
   across observation times. The provider exposes this for pure direct SSA (#171).
