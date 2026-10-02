@@ -59,6 +59,11 @@ from op_engine.stochastic_solver import (
     TauLeapingConfig,
     TauLeapingSolver,
 )
+from op_engine.thinning_ssa import (
+    NumpyThinningSampler,
+    ThinningSSAConfig,
+    ThinningSSASolver,
+)
 
 from .config import (
     AdaptiveReplayMode,
@@ -91,6 +96,7 @@ if TYPE_CHECKING:
     from op_engine.core_solver import CoreOperators, RunConfig, StageOperatorFactory
     from op_engine.nonlinear_solver import NonlinearSolver
     from op_engine.stochastic_solver import PoissonSampler, SSASampler
+    from op_engine.thinning_ssa import RateBoundFunction, ThinningSampler
 
     StateTree = dict[str, Array]
     CarryT = TypeVar("CarryT")
@@ -2798,6 +2804,55 @@ def _run_stochastic_core(
     )
 
 
+def _run_thinning_core(
+    core: ModelCore,
+    network: CompiledReactionNetwork,
+    config: OpEngineEngineConfig,
+    kwargs: Mapping[str, object],
+) -> None:
+    """Resolve the thinning bound and sampler and run one continuous path.
+
+    Raises:
+        ValueError: If a bound is missing or supplied through both interfaces.
+        TypeError: If a sampler is invalid or missing for a non-NumPy state.
+    """
+    if "rate_bound" in kwargs and config.thinning_rate_bound is not None:
+        msg = "Provide either thinning_rate_bound or rate_bound=, not both."
+        raise ValueError(msg)
+    bound = kwargs.get("rate_bound", config.thinning_rate_bound)
+    if bound is None:
+        msg = "thinning-ssa requires thinning_rate_bound or rate_bound=."
+        raise ValueError(msg)
+    sampler = kwargs.get("thinning_sampler")
+    if sampler is not None and not callable(sampler):
+        msg = "thinning_sampler must be callable."
+        raise TypeError(msg)
+    state = core.get_current_state()
+    xp = _namespace_of(state)
+    if sampler is None and xp is np:
+        _, seed = _split_numpy_seeds(config.random_seed)
+        sampler = NumpyThinningSampler(seed)
+    if sampler is None:
+        msg = (
+            "A thinning_sampler preserving the state array namespace is "
+            "required for non-NumPy stochastic runs."
+        )
+        raise TypeError(msg)
+    solver = ThinningSSASolver(
+        core,
+        cast("Array", xp.asarray(network.stoichiometry, dtype=state.dtype)),
+    )
+    solver.run(
+        network.propensity,
+        cast("ThinningSampler", sampler),
+        rate_bound=cast("float | RateBoundFunction", bound),
+        config=ThinningSSAConfig(
+            max_candidates=config.thinning_max_candidates,
+            forcing_breakpoints=config.forcing_breakpoints,
+        ),
+    )
+
+
 def _run_pure_stochastic(
     times: np.ndarray,
     y0: Array,
@@ -2806,15 +2861,18 @@ def _run_pure_stochastic(
     kwargs: Mapping[str, object],
 ) -> Array:
     """Run all typed reactions as one discrete process."""
-    poisson_sampler, ssa_sampler = _resolve_samplers(y0, config, kwargs)
     core = _make_core(times, y0)
-    _run_stochastic_core(
-        core,
-        network,
-        config,
-        poisson_sampler=poisson_sampler,
-        ssa_sampler=ssa_sampler,
-    )
+    if config.stochastic_method is StochasticMethod.THINNING_SSA:
+        _run_thinning_core(core, network, config, kwargs)
+    else:
+        poisson_sampler, ssa_sampler = _resolve_samplers(y0, config, kwargs)
+        _run_stochastic_core(
+            core,
+            network,
+            config,
+            poisson_sampler=poisson_sampler,
+            ssa_sampler=ssa_sampler,
+        )
     return _extract_states_2d(core, n_state=network.n_state)
 
 
@@ -3449,6 +3507,14 @@ class OpEngineFlepimop2Engine(EngineABC):
         _ensure_strictly_increasing(times, name="eval_times")
         mode = self.config.mode
         stochastic_config = _stochastic_forcing_config(system, self.config)
+        if self.config.stochastic_method is not StochasticMethod.THINNING_SSA and (
+            "rate_bound" in kwargs or "thinning_sampler" in kwargs
+        ):
+            msg = (
+                "rate_bound and thinning_sampler require "
+                "stochastic_method='thinning-ssa'."
+            )
+            raise ValueError(msg)
         if adaptive_schedule is not None:
             if not isinstance(adaptive_schedule, AdaptiveSchedule):
                 msg = "adaptive_schedule must be an AdaptiveSchedule"

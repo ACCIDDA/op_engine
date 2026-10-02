@@ -1428,7 +1428,14 @@ def test_invalid_producer_forcing_fails_validation_and_run(points: object) -> No
     assert exact.indices == []
 
 
-@pytest.mark.parametrize("method", list(StochasticMethod))
+@pytest.mark.parametrize(
+    "method",
+    [
+        method
+        for method in StochasticMethod
+        if method is not StochasticMethod.THINNING_SSA
+    ],
+)
 def test_hybrid_rejects_declared_producer_forcing(method: StochasticMethod) -> None:
     """Unsupported splitting cannot silently drop a producer's forcing changes."""
     system = _time_table_system()
