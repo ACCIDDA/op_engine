@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from op_engine import (
+    AdaptiveTauLeapingConfig,
     Array,
     ModelCore,
     NumpyPoissonSampler,
@@ -62,16 +63,22 @@ def _core(times: list[float], *, initial: float = 0.0) -> ModelCore:
         (1.0, 0.5),
     ],
 )
-def test_fixed_config_rejects_invalid_schedule(points: object) -> None:
+@pytest.mark.parametrize("config_type", [TauLeapingConfig, AdaptiveTauLeapingConfig])
+def test_tau_config_rejects_invalid_schedule(
+    points: object, config_type: type[TauLeapingConfig | AdaptiveTauLeapingConfig]
+) -> None:
     """Tau schedules use the same strict validation as exact SSA."""
     with pytest.raises(ValueError, match="forcing_breakpoints"):
-        TauLeapingConfig(forcing_breakpoints=points)  # type: ignore[arg-type]
+        config_type(forcing_breakpoints=points)  # type: ignore[arg-type]
 
 
-def test_fixed_config_snapshots_mutable_schedule() -> None:
+@pytest.mark.parametrize("config_type", [TauLeapingConfig, AdaptiveTauLeapingConfig])
+def test_tau_config_snapshots_mutable_schedule(
+    config_type: type[TauLeapingConfig | AdaptiveTauLeapingConfig],
+) -> None:
     """Changing the caller's list cannot move a solver boundary."""
     points = [-1.0, 0.5, 1.0]
-    config = TauLeapingConfig(forcing_breakpoints=points)  # type: ignore[arg-type]
+    config = config_type(forcing_breakpoints=points)  # type: ignore[arg-type]
     points.append(2.0)
     assert config.forcing_breakpoints == (-1.0, 0.5, 1.0)
     assert isinstance(config.forcing_breakpoints, tuple)

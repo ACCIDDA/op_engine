@@ -117,6 +117,135 @@ def _make_core(
     )
 
 
+def test_adaptive_leaps_stop_at_each_forcing_boundary() -> None:
+    """State-independent birth rates use each capped segment's starting rate."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.5, 1.0]))
+    core.set_initial_state(np.zeros((1, 1)))
+    poisson = _RecordingPoissonSampler()
+    exact = _RecordingSSASampler()
+    times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        times.append(time)
+        rate = 1.0 if time < 0.3 else (2.0 if time < 0.7 else 4.0)
+        return cast("Array", np.asarray([[rate]]))
+
+    AdaptiveTauLeapingSolver(core, np.asarray([[1]]), np.asarray([[0]])).run(
+        propensity,
+        poisson,
+        exact,
+        config=AdaptiveTauLeapingConfig(forcing_breakpoints=(0.3, 0.7)),
+    )
+    assert times == [0.0, 0.3, 0.5, 0.7]
+    np.testing.assert_allclose(np.asarray(poisson.means).ravel(), [0.3, 0.4, 0.4, 1.2])
+    assert poisson.draw_indices == [0, 1, 2, 3]
+    assert exact.draw_indices == []
+
+
+@pytest.mark.parametrize("waiting_time", [0.5, 0.75])
+@pytest.mark.parametrize("critical_threshold", [0, 10])
+def test_adaptive_exact_events_are_redrawn_at_forcing_changes(
+    waiting_time: float,
+    critical_threshold: int,
+) -> None:
+    """Critical-only and tolerance fallback discard stale channel selections."""
+    core = _make_core(2, 1, np.asarray([0.0, 0.2, 0.5, 0.6, 0.75, 1.0]))
+    core.set_initial_state(np.asarray([[2.0], [2.0]]))
+    poisson = _RecordingPoissonSampler()
+    exact = _RecordingSSASampler(
+        _sample(waiting_time, 0), _sample(0.25, 1), _sample(1.0, 1)
+    )
+    times: list[float] = []
+
+    def propensity(time: float, state: Array) -> Array:
+        times.append(time)
+        rates = np.asarray([[1.0], [0.0]]) if time < 0.5 else np.asarray([[0.0], [1.0]])
+        return cast("Array", rates * np.asarray(state))
+
+    AdaptiveTauLeapingSolver(core, -np.eye(2, dtype=int), np.eye(2, dtype=int)).run(
+        propensity,
+        poisson,
+        exact,
+        config=AdaptiveTauLeapingConfig(
+            forcing_breakpoints=(0.5,), critical_threshold=critical_threshold
+        ),
+    )
+    assert times == [0.0, 0.5, 0.75]
+    assert core.state_array is not None
+    np.testing.assert_array_equal(
+        core.state_array[:, :, 0], [[2, 2]] * 4 + [[2, 1]] * 2
+    )
+    assert exact.draw_indices == [0, 1, 2]
+    assert poisson.draw_indices == []
+    np.testing.assert_array_equal(exact.probabilities[1], [[0.0], [1.0]])
+
+
+def test_adaptive_zero_rate_waits_for_forcing_without_random_draws() -> None:
+    """Observations in dormant segments neither freeze nor resample the path."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.2, 0.5, 0.6, 0.75, 1.0]))
+    core.set_initial_state(np.asarray([[2.0]]))
+    poisson = _RecordingPoissonSampler()
+    exact = _RecordingSSASampler(_sample(0.25, 0))
+    times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        times.append(time)
+        return cast("Array", np.asarray([[1.0 if 0.5 <= time < 0.75 else 0.0]]))
+
+    AdaptiveTauLeapingSolver(core, np.asarray([[-1]]), np.asarray([[1]])).run(
+        propensity,
+        poisson,
+        exact,
+        config=AdaptiveTauLeapingConfig(forcing_breakpoints=(0.5, 0.75)),
+    )
+    assert times == [0.0, 0.5, 0.75]
+    assert exact.draw_indices == [0]
+    assert poisson.draw_indices == []
+    np.testing.assert_array_equal(np.asarray(core.state_array).ravel(), [2.0] * 6)
+
+
+@pytest.mark.parametrize("boundary", [(), (0.5,)])
+def test_adaptive_mixed_critical_tie_respects_boundary_precedence(
+    boundary: tuple[float, ...],
+) -> None:
+    """Critical events fire at an observation endpoint, but not a forcing tie."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.5, 1.0]))
+    core.set_initial_state(np.asarray([[1.0]]))
+    poisson = _RecordingPoissonSampler()
+    exact = _RecordingSSASampler(_sample(0.5, 1))
+
+    def propensity(time: float, _state: Array) -> Array:
+        return cast("Array", np.asarray([[1.0], [1.0 if time < 0.5 else 0.0]]))
+
+    AdaptiveTauLeapingSolver(core, np.asarray([[1, -1]]), np.asarray([[0, 1]])).run(
+        propensity,
+        poisson,
+        exact,
+        config=AdaptiveTauLeapingConfig(forcing_breakpoints=boundary),
+    )
+    expected = [1, 1, 1] if boundary else [1, 0, 0]
+    np.testing.assert_array_equal(np.asarray(core.state_array).ravel(), expected)
+    assert exact.draw_indices == [0]
+    assert poisson.draw_indices == [0, 1]
+
+
+def test_adaptive_forcing_does_not_reset_interval_step_limit() -> None:
+    """Boundary-capped leaps share the existing whole-interval safety guard."""
+    core = _make_core(1, 1, np.asarray([0.0, 1.0]))
+    core.set_initial_state(np.zeros((1, 1)))
+    poisson = _RecordingPoissonSampler()
+    with pytest.raises(RuntimeError, match="max_steps"):
+        AdaptiveTauLeapingSolver(core, np.asarray([[1]]), np.asarray([[0]])).run(
+            lambda _t, _y: cast("Array", np.ones((1, 1))),
+            poisson,
+            _RecordingSSASampler(),
+            config=AdaptiveTauLeapingConfig(
+                max_steps=2, forcing_breakpoints=(0.25, 0.5)
+            ),
+        )
+    assert poisson.draw_indices == [0, 1]
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
