@@ -317,6 +317,13 @@ reaction artifacts, or use `mode: hybrid`, which integrates everything outside
 its jump partition deterministically. Producers that predate coverage records
 are not checked.
 
+Axis-less states take part like templated ones. With op_system
+[PR #250](https://github.com/ACCIDDA/op_system/pull/250), a scalar S→I→R model
+publishes one 0-d channel per transition. Mixed models can move units between
+an axis-less state and a pinned cell or a whole template. Each reaction's
+target is indexed with its own axis order (`to_full_axes`), which can differ
+from the source's (`full_axes`).
+
 Three methods are available:
 
 ```yaml

@@ -13,6 +13,11 @@ versioning while the project remains pre-1.0.
   Each uncovered transition is named by origin, selectors, and reason, so it
   can no longer be dropped silently. Hybrid mode and producers without
   coverage records are unchanged (#182).
+- Stochastic execution supports reactions between templates with different
+  axes, including axis-less states: scalar S→I→R models, axis-less donors
+  depositing into a pinned cell, and templated sources collapsing into an
+  axis-less state. Targets are indexed with op_system's `to_full_axes`,
+  falling back to `full_axes` for older producers (#184).
 
 - Stochastic execution consumes axis-wide `coord_shift` reactions from
   op_system: each source bin of an `offsets` axis becomes a channel that moves
