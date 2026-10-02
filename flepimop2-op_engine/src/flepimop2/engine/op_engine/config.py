@@ -142,6 +142,7 @@ class StochasticMethod(StrEnum):
     ADAPTIVE_TAU_LEAPING = "adaptive-tau-leaping"
     DIRECT_SSA = "direct-ssa"
     TAU_LEAPING = "tau-leaping"
+    THINNING_SSA = "thinning-ssa"
 
 
 class OpEngineEngineConfig(BaseModel):
@@ -170,6 +171,13 @@ class OpEngineEngineConfig(BaseModel):
     )
     tau_max_retries: int = Field(default=20, ge=0)
     ssa_max_events: int = Field(default=1_000_000, ge=1)
+    thinning_rate_bound: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+        strict=True,
+    )
+    thinning_max_candidates: int = Field(default=1_000_000, ge=1, strict=True)
     forcing_breakpoints: tuple[float, ...] = ()
     state_layout: StateLayout = StateLayout.FLAT
     block_axis: str | None = None
@@ -215,6 +223,28 @@ class OpEngineEngineConfig(BaseModel):
             Validated, snapshotted forcing times.
         """
         return DirectSSAConfig(forcing_breakpoints=points).forcing_breakpoints
+
+    @model_validator(mode="after")
+    def _validate_thinning_configuration(self) -> OpEngineEngineConfig:
+        """Restrict thinning to its supported mode and controls.
+
+        Returns:
+            The validated configuration.
+
+        Raises:
+            ValueError: If thinning is requested outside its supported path.
+        """
+        if self.stochastic_method is StochasticMethod.THINNING_SSA:
+            if self.mode is not ExecutionMode.STOCHASTIC:
+                msg = "thinning-ssa requires mode='stochastic'."
+                raise ValueError(msg)
+        elif (
+            self.thinning_rate_bound is not None
+            or self.thinning_max_candidates != 1_000_000
+        ):
+            msg = "Thinning controls require stochastic_method='thinning-ssa'."
+            raise ValueError(msg)
+        return self
 
     @model_validator(mode="after")
     def _validate_execution_configuration(self) -> OpEngineEngineConfig:

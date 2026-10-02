@@ -313,16 +313,16 @@ engine:
   state_change: flow
   config:
     mode: stochastic
-    stochastic_method: tau-leaping  # adaptive-tau-leaping or direct-ssa
+    stochastic_method: tau-leaping  # also adaptive-tau-leaping, direct-ssa, thinning-ssa
     random_seed: 90210              # NumPy convenience path
     tau_max_step: 0.1               # fixed tau-leaping only
 ```
 
 `tau-leaping` accepts `tau_max_step` and `stochastic_max_steps`.
-All three stochastic methods accept `forcing_breakpoints` in pure stochastic
+All stochastic methods accept `forcing_breakpoints` in pure stochastic
 mode. `direct-ssa` accepts `ssa_max_events`; its exact
 interpretation requires propensities to remain constant in time between events
-and declared forcing boundaries. All three methods
+and declared forcing boundaries. All methods
 preserve the usual `(time, state...)` provider trajectory and fail visibly on
 invalid propensities, invalid random draws, or negative states. Populations are
 never silently clipped.
@@ -402,11 +402,12 @@ using the ordinary deterministic method and step controls.
 `op_system` still defaults to linear interpolation. Linear tables publish no
 forcing changes, and their time coordinates do not become engine boundaries.
 Manually listing those coordinates does not make frozen-rate SSA exact for
-smooth rates. General continuous forcing needs a different SSA waiting-time
-method, tracked in [issue #173](https://github.com/ACCIDDA/op_engine/issues/173).
+smooth rates. Select bounded thinning for smooth time dependence with a valid
+total-rate bound, as described below.
 
-NumPy arrays use seeded `NumpyPoissonSampler` or `NumpySSASampler` instances.
-Other namespaces inject a `poisson_sampler=` or `ssa_sampler=` callable into
+NumPy arrays use seeded `NumpyPoissonSampler`, `NumpySSASampler`, or
+`NumpyThinningSampler` instances. Other namespaces inject a `poisson_sampler=`,
+`ssa_sampler=`, or `thinning_sampler=` callable into
 `run`. The callable must return arrays in the input namespace. Its integer
 step/draw index is stable and run-global, including across hybrid subproblems,
 so functional PRNG implementations can derive reproducible keys without
@@ -428,6 +429,94 @@ events and low-count fallbacks are exact. NumPy supplies both from
 trajectory is not a pathwise-differentiable computation. JAX still preserves
 array placement and remains available for deterministic differentiation, but a
 stochastic gradient estimator must be supplied explicitly above this layer.
+
+### Bounded thinning SSA
+
+`thinning-ssa` is an exact method for time-dependent propensities in pure
+stochastic mode. Use matching core/provider builds containing this feature.
+The caller must supply a valid upper bound on the **total** propensity across
+every expanded reaction channel and cell; the bound applies with the current
+state held fixed. A zero instantaneous rate can become active later when the
+bound is positive.
+
+For example, a single source-only birth channel with rate `2 * t` over `[0, 1]`
+has total bound `2`. Its system specification is:
+
+```yaml
+kind: transitions
+axes: [{name: group, coords: [a]}]
+state: ["X[group]"]
+transitions:
+  - name: birth
+    from: null
+    to: "X[group]"
+    rate: "2 * t"
+    reactants: []
+```
+
+Configure a constant bound independently of observation times:
+
+```yaml
+engine:
+  module: flepimop2.engine.op_engine
+  state_change: flow
+  config:
+    mode: stochastic
+    stochastic_method: thinning-ssa
+    thinning_rate_bound: 2.0
+    thinning_max_candidates: 1000000
+    random_seed: 173
+```
+
+For `N` such cells the constant bound is `2 * N`. A constant must bound every
+state reached during the whole run, up to each forcing change or solve end.
+It must be finite and non-negative. `thinning_max_candidates` counts all draws
+throughout one run, including rejected candidates and candidates discarded
+at forcing changes or bound expiry. Observations do not reset the guard.
+
+For a bound that depends on time or state, leave `thinning_rate_bound` unset
+and pass `rate_bound=` to `run`. It accepts a scalar or a callback with the
+core `RateBoundFunction` contract. For the birth example above:
+
+```python
+from op_engine import TotalRateBound
+
+
+def birth_bound(time, state, limit):
+    # state has shape (n_flat_state_cells, 1) in the producer's state order.
+    # This example has one source-only channel for each state cell.
+    return TotalRateBound(2 * limit * state.shape[0], limit)
+
+
+# engine is configured for thinning-ssa without thinning_rate_bound.
+trajectory = engine.run(
+    system, times, initial_state, params, rate_bound=birth_bound,
+)
+```
+
+The callback receives the native state array and a `limit` equal to the next
+combined producer/explicit forcing boundary or solve endpoint. It returns
+`TotalRateBound(rate, valid_until)` with `time < valid_until <= limit`, bounding
+all rates on `[time, valid_until)`. Treat inputs as read-only. Accepted events
+refresh the bound at the updated state; rejected candidates retain it. Zero
+bounds advance without drawing and can resume at the next bound interval.
+Supplying both configuration and run-time bounds raises an error.
+
+Candidates tied with expiry or a forcing change are discarded; forcing is
+right-continuous. Pending candidates survive observations, so adding output
+times with unchanged solve endpoints preserves a seeded exact path. The core
+checks bounds at interval starts and candidate times and raises on encountered
+violations. These checks cannot certify a bound at unsampled times. See the
+[core bound guide](https://github.com/ACCIDDA/op_engine/blob/main/docs/guides/bounded-thinning.md)
+for endpoint and floating-point details.
+
+Non-NumPy runs inject `thinning_sampler(bound_rate, draw_index)`, returning
+`ThinningSample(waiting_time, uniform)` with real floating scalar arrays in
+the state namespace. The wait must be finite and positive, exponentially
+distributed at `bound_rate`; the independent uniform lies in `[0, 1)`.
+Draw indices increase globally, including rejection and expiry. Candidate-time
+rates determine both acceptance and the selected flattened channel.
+Hybrid thinning and thinning inputs supplied to other methods are rejected.
 
 ## Hybrid execution
 

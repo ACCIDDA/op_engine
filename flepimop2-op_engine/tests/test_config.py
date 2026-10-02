@@ -389,6 +389,67 @@ def test_engine_config_accepts_pure_direct_ssa() -> None:
     assert config.ssa_max_events == 1_000_000
 
 
+@pytest.mark.parametrize("bound", [None, 0.0, 2.0])
+def test_engine_config_round_trips_thinning_controls(bound: float | None) -> None:
+    """JSON configuration supports constants and run-time callback bounds."""
+    config = OpEngineEngineConfig(
+        mode=ExecutionMode.STOCHASTIC,
+        stochastic_method=StochasticMethod.THINNING_SSA,
+        thinning_rate_bound=bound,
+        thinning_max_candidates=123,
+    )
+    assert (
+        OpEngineEngineConfig.model_validate_json(
+            config.model_dump_json(exclude_unset=True)
+        )
+        == config
+    )
+
+
+@pytest.mark.parametrize("bound", [-1, np.inf, np.nan, True, "2", [2]])
+def test_engine_config_rejects_invalid_thinning_bounds(bound: object) -> None:
+    """Bounds are finite non-negative real scalars without string/bool coercion."""
+    with pytest.raises(ValidationError, match="thinning_rate_bound"):
+        OpEngineEngineConfig.model_validate({
+            "mode": "stochastic",
+            "stochastic_method": "thinning-ssa",
+            "thinning_rate_bound": bound,
+        })
+
+
+@pytest.mark.parametrize("limit", [0, -1, 1.5, True, "2"])
+def test_engine_config_rejects_invalid_thinning_candidate_limits(limit: object) -> None:
+    """The candidate limit must be a positive integer without coercion."""
+    with pytest.raises(ValidationError, match="thinning_max_candidates"):
+        OpEngineEngineConfig.model_validate({
+            "mode": "stochastic",
+            "stochastic_method": "thinning-ssa",
+            "thinning_max_candidates": limit,
+        })
+
+
+@pytest.mark.parametrize("mode", [ExecutionMode.DETERMINISTIC, ExecutionMode.HYBRID])
+def test_thinning_requires_pure_stochastic_mode(mode: ExecutionMode) -> None:
+    """An exact thinning claim cannot silently become a hybrid split path."""
+    with pytest.raises(ValidationError, match="thinning-ssa requires"):
+        OpEngineEngineConfig(
+            mode=mode,
+            stochastic_method=StochasticMethod.THINNING_SSA,
+            stochastic_reactions=("transfer",) if mode is ExecutionMode.HYBRID else (),
+        )
+
+
+@pytest.mark.parametrize(
+    "controls", [{"thinning_rate_bound": 2}, {"thinning_max_candidates": 3}]
+)
+def test_thinning_controls_require_the_thinning_method(
+    controls: dict[str, object],
+) -> None:
+    """Existing methods must not silently ignore configured thinning controls."""
+    with pytest.raises(ValidationError, match="Thinning controls require"):
+        OpEngineEngineConfig.model_validate({"mode": "stochastic"} | controls)
+
+
 @pytest.mark.parametrize("method", list(StochasticMethod))
 def test_engine_config_round_trips_forcing_breakpoints(
     method: StochasticMethod,
@@ -456,6 +517,7 @@ def test_engine_config_exposes_every_stochastic_core_method() -> None:
         StochasticMethod.ADAPTIVE_TAU_LEAPING,
         StochasticMethod.DIRECT_SSA,
         StochasticMethod.TAU_LEAPING,
+        StochasticMethod.THINNING_SSA,
     }
 
 

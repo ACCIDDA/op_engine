@@ -2,8 +2,8 @@
 
 `ThinningSSASolver` provides an exact waiting-time method for smoothly varying
 propensities with user-certified bounds. This design addresses
-[#173](https://github.com/ACCIDDA/op_engine/issues/173); flepimop2 provider wiring
-follows after the core PR is reviewed and merged.
+[#173](https://github.com/ACCIDDA/op_engine/issues/173), including the flepimop2
+provider's explicit `thinning-ssa` method.
 
 ## Bound contract
 
@@ -100,6 +100,13 @@ for this example. For consuming reactions, a bound that depends on the current
 state can be refreshed after each accepted event. A loose bound remains valid
 but generates more rejected candidates.
 
-The provider does not yet expose this method. Existing direct SSA and
-tau-leaping defaults remain unchanged; use this core API for smooth forcing
-until the provider follow-up is merged.
+The flepimop2 provider selects this method through
+`mode: stochastic` and `stochastic_method: thinning-ssa`. Supply a constant
+`thinning_rate_bound` in configuration, or leave it unset and pass a scalar or
+`RateBoundFunction` through `run(..., rate_bound=...)`. Both interfaces cannot
+be supplied together. `thinning_max_candidates` sets the per-run candidate
+guard. NumPy has seeded sampling through `random_seed`; other backends inject
+`thinning_sampler=`. Hybrid thinning is unsupported. See the
+[provider examples](https://github.com/ACCIDDA/op_engine/tree/main/flepimop2-op_engine#bounded-thinning-ssa)
+for configuration and callback usage. Existing direct SSA and tau-leaping
+defaults remain unchanged.
