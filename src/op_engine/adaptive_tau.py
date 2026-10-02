@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 
 from ._array import array_namespace as _namespace_of
+from ._forcing import _ForcingSchedule
 from .stochastic_solver import (
     PoissonSampler,
     PropensityFunction,
@@ -49,6 +50,10 @@ class AdaptiveTauLeapingConfig:
             disables this fallback.
         max_steps: Maximum accepted leaps or exact events per output interval.
         max_retries: Maximum post-leap rejections before failing.
+        forcing_breakpoints: Strictly increasing finite forcing-change times.
+            Leaps end at these boundaries; exact events at or beyond a boundary
+            are discarded. Rates must be right-continuous and constant in time
+            between boundaries for exact fallback.
     """
 
     leap_tolerance: float = 0.03
@@ -56,6 +61,7 @@ class AdaptiveTauLeapingConfig:
     exact_fallback_multiplier: float = 10.0
     max_steps: int = 1_000_000
     max_retries: int = 20
+    forcing_breakpoints: tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate adaptive controls.
@@ -100,6 +106,8 @@ class AdaptiveTauLeapingConfig:
         ):
             msg = "max_retries must be a non-negative integer"
             raise ValueError(msg)
+        schedule = _ForcingSchedule(self.forcing_breakpoints)
+        object.__setattr__(self, "forcing_breakpoints", schedule.breakpoints)
 
 
 class _ReactantStructure:
@@ -468,6 +476,7 @@ class AdaptiveTauLeapingSolver:
         *,
         tau_candidate: float,
         remaining: float,
+        forcing_boundary: bool,
         poisson_draw_index: int,
         ssa_draw_index: int,
         config: AdaptiveTauLeapingConfig,
@@ -522,6 +531,7 @@ class AdaptiveTauLeapingSolver:
                 critical_index is not None
                 and critical_wait <= tau_cap
                 and critical_wait <= remaining
+                and (not forcing_boundary or critical_wait < remaining)
             ):
                 proposed = self._network.apply_event(critical_index, proposed)
 
@@ -563,7 +573,7 @@ class AdaptiveTauLeapingSolver:
             raise RuntimeError(_EXACT_NEGATIVE_STATE) from error
         return proposed
 
-    def run(  # noqa: C901, PLR0914, PLR0915
+    def run(  # noqa: C901, PLR0912, PLR0914, PLR0915
         self,
         propensity_func: PropensityFunction,
         poisson_sampler: PoissonSampler,
@@ -577,13 +587,14 @@ class AdaptiveTauLeapingSolver:
             propensity_func: Reaction-channel propensities.
             poisson_sampler: Backend-specific noncritical Poisson sampler.
             ssa_sampler: Backend-specific exact-event sampler.
-            config: Optional adaptive and retry controls.
+            config: Optional adaptive, retry, and forcing controls.
 
         Raises:
             RuntimeError: If a step guard, retry guard, or non-negativity
                 invariant fails.
         """
         cfg = config or AdaptiveTauLeapingConfig()
+        forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self.core.get_current_state()
         self._network.validate_finite_nonnegative(
             state,
@@ -601,7 +612,13 @@ class AdaptiveTauLeapingSolver:
             target = float(time_grid[output_index + 1])
             interval_steps = 0
             while not absorbing and t < target:
+                boundary = forcing.next_after(t)
                 if pending_exact_time is not None:
+                    if boundary <= target and boundary <= pending_exact_time:
+                        t = boundary
+                        pending_exact_time = None
+                        pending_exact_index = None
+                        continue
                     if pending_exact_time > target:
                         break
                     if interval_steps >= cfg.max_steps:
@@ -630,6 +647,9 @@ class AdaptiveTauLeapingSolver:
                 )
                 total_rate_value = float(total_rate.item())
                 if total_rate_value == 0.0:
+                    if np.isfinite(boundary):
+                        pending_exact_time = boundary
+                        continue
                     absorbing = True
                     break
 
@@ -668,9 +688,13 @@ class AdaptiveTauLeapingSolver:
                         break
                     waiting_time, pending_exact_index = event
                     pending_exact_time = t + waiting_time
+                    if pending_exact_time <= t:
+                        raise RuntimeError(_STEP_UNDERFLOW)
                     ssa_draw_index += 1
                     continue
 
+                limit = min(target, boundary)
+                remaining = limit - t
                 result = self._attempt_leap(
                     state,
                     propensity,
@@ -678,7 +702,8 @@ class AdaptiveTauLeapingSolver:
                     poisson_sampler,
                     ssa_sampler,
                     tau_candidate=tau_candidate,
-                    remaining=target - t,
+                    remaining=remaining,
+                    forcing_boundary=boundary <= target,
                     poisson_draw_index=poisson_draw_index,
                     ssa_draw_index=ssa_draw_index,
                     config=cfg,
@@ -686,7 +711,7 @@ class AdaptiveTauLeapingSolver:
                 state = result.state
                 if t + result.dt == t:
                     raise RuntimeError(_STEP_UNDERFLOW)
-                t += result.dt
+                t = limit if result.dt == remaining else t + result.dt
                 poisson_draw_index = result.poisson_draw_index
                 ssa_draw_index = result.ssa_draw_index
                 interval_steps += 1

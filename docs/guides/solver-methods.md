@@ -2,8 +2,8 @@
 
 `ModelCore` owns output times and state storage. Deterministic systems use
 `CoreSolver` and a method selected by `RunConfig`. Stochastic reaction networks
-use `DirectSSASolver` or `TauLeapingSolver`, because propensities and
-stoichiometry have different semantics from an ODE right-hand side. In every
+use `DirectSSASolver`, `TauLeapingSolver`, or `AdaptiveTauLeapingSolver`, because
+propensities and stoichiometry have different semantics from an ODE right-hand side. In every
 case the state array selects the Array-API namespace; choosing JAX instead of
 NumPy does not select a different numerical method.
 
@@ -132,6 +132,42 @@ listing their grid points as breakpoints does not make direct SSA exact for
 those interpolated rates.
 
 ### Bounded adaptive tau-leaping
+
+Both tau-leaping configurations accept the same `forcing_breakpoints` schedule
+as direct SSA. Each leap is capped at the next observation or forcing time,
+as well as the method's usual step-size limit. The next leap evaluates the
+right-continuous rates at that boundary. Boundaries count toward the fixed or
+adaptive method's `max_steps` guard for the entire output interval; they do
+not reset it.
+
+For example, the piecewise birth callback above can also use fixed tau-leaping:
+
+```python
+from op_engine import NumpyPoissonSampler, TauLeapingConfig, TauLeapingSolver
+
+core = ModelCore(n_states=1, n_subgroups=1, time_grid=np.linspace(0.0, 3.0, 13))
+core.set_initial_state(np.zeros((1, 1)))
+
+TauLeapingSolver(core, np.asarray([[1]])).run(
+    forced_birth_rate,
+    NumpyPoissonSampler(seed=2026),
+    config=TauLeapingConfig(max_step=0.1, forcing_breakpoints=(1.0, 2.0)),
+)
+```
+
+Adaptive tau-leaping uses these caps for both accepted leaps and rejected
+proposals. A critical event tied with a forcing boundary is discarded, while
+noncritical Poisson counts cover the segment ending there. During exact
+fallback, a pending event survives observation times but is discarded at or
+beyond the next forcing change. Zero total propensity waits for that change
+without drawing randomness; without a future boundary it remains absorbing.
+
+Boundary caps keep a leap from using the old rate across a known change. The
+usual tau-leaping approximation still freezes state-dependent propensities
+within each leap. Smooth time variation between boundaries also remains an
+approximation for leaps and is unsupported by adaptive exact fallback. For
+that fallback, use rates constant in time between declared forcing changes
+while the state is unchanged.
 
 `AdaptiveTauLeapingSolver` implements the species-based pre-leap selector of
 [Cao, Gillespie, and Petzold](https://doi.org/10.1063/1.2159468) together with
