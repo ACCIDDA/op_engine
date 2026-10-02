@@ -1,8 +1,9 @@
 # Bounded thinning SSA
 
-This implementation proposal addresses [#173](https://github.com/ACCIDDA/op_engine/issues/173)
-in two increments: the core numerical method and its validation, followed by
-flepimop2 provider wiring after the core PR is reviewed and merged.
+`ThinningSSASolver` provides an exact waiting-time method for smoothly varying
+propensities with user-certified bounds. This design addresses
+[#173](https://github.com/ACCIDDA/op_engine/issues/173); flepimop2 provider wiring
+follows after the core PR is reviewed and merged.
 
 ## Bound contract
 
@@ -34,6 +35,10 @@ bound still produces candidates, allowing smooth rates to become active.
 The caller must prove the bound over the whole interval. Checks at interval
 starts and candidate times detect encountered violations but cannot certify
 unsampled times. A violation fails visibly rather than clipping acceptance.
+Bounds and cumulative rates use the state's floating dtype. Bounds that
+overflow or become zero on conversion fail; tight bounds should allow for
+floating-point rounding when summing many channels. Callback inputs must be
+treated as read-only, and callbacks must not depend on observation storage.
 
 ## Sampling contract
 
@@ -66,16 +71,35 @@ The bound and expiry contract extends it to state-dependent reaction networks;
 exactness remains conditional on the caller's bound and random sampling laws.
 Existing direct SSA and tau-leaping behavior and samplers are unchanged.
 
-## Delivery and validation
+## Example
 
-The first PR implements the core method, NumPy sampling, documentation, and
-NumPy/JAX conformance tests. It checks accepted and rejected candidates,
-state-dependent bounds, expiry and forcing ties, dormant recovery, observation
-invariance, malformed contracts, analytic smooth-birth mean and variance, and
-constant-rate agreement with direct SSA. A generic large-population transfer
-network checks stochastic mean/drift against its deterministic solution.
+For an independent birth channel in each batch cell with rate `2 * time`, the
+integrated intensity over `[0, 1]` is one per cell. The total upper bound must
+include every batch cell:
 
-The next PR exposes an explicit `thinning-ssa` provider method and its bound
-and sampling inputs, retaining existing defaults. This keeps each PR near the
-requested 1,000-line review limit. Issue #173 remains open until both increments
-are complete.
+```python
+import numpy as np
+
+from op_engine import ModelCore, NumpyThinningSampler, ThinningSSASolver
+
+core = ModelCore(1, 100, np.linspace(0, 1, 11))
+core.set_initial_state(np.zeros((1, 100)))
+
+
+def smooth_birth(time, state):
+    return np.full(state.shape, 2 * time, dtype=state.dtype)
+
+
+ThinningSSASolver(core, np.asarray([[1]])).run(
+    smooth_birth, NumpyThinningSampler(seed=173), rate_bound=200,
+)
+```
+
+A callback can instead return `TotalRateBound(2 * limit * state.shape[1], limit)`
+for this example. For consuming reactions, a bound that depends on the current
+state can be refreshed after each accepted event. A loose bound remains valid
+but generates more rejected candidates.
+
+The provider does not yet expose this method. Existing direct SSA and
+tau-leaping defaults remain unchanged; use this core API for smooth forcing
+until the provider follow-up is merged.

@@ -49,6 +49,7 @@ nav:
   - Guides:
       - Getting Started: guides/getting-started.md
       - Choosing a Solver: guides/solver-methods.md
+      - Bounded Thinning SSA: guides/bounded-thinning.md
       - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Biogeochemical Network: guides/biogeochemical-network.md
@@ -62,3 +63,4 @@ nav:
       - Nonlinear Solver: api-reference/nonlinear_solver.md
       - Spatial Grid: api-reference/spatial_grid.md
       - Stochastic Solver: api-reference/stochastic_solver.md
+      - Thinning Ssa: api-reference/thinning_ssa.md

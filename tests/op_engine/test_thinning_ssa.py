@@ -477,6 +477,7 @@ def test_seeded_path_and_callback_history_ignore_added_observations(
         if backend == "jax":
             assert core.get_current_state().__array_namespace__() is jnp
         shared = np.asarray(core.state_array)[[times.index(t) for t in (0, 0.5, 1)]]
+        assert shared[-1].sum() > 0
         return shared, indices, evaluations
 
     histories = [
