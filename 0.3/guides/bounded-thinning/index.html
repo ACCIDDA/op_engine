@@ -1087,8 +1087,8 @@
 <h1 id="bounded-thinning-ssa">Bounded thinning SSA<a class="headerlink" href="#bounded-thinning-ssa" title="Permanent link">&para;</a></h1>
 <p><code>ThinningSSASolver</code> provides an exact waiting-time method for smoothly varying
 propensities with user-certified bounds. This design addresses
-<a href="https://github.com/ACCIDDA/op_engine/issues/173">#173</a>; flepimop2 provider wiring
-follows after the core PR is reviewed and merged.</p>
+<a href="https://github.com/ACCIDDA/op_engine/issues/173">#173</a>, including the flepimop2
+provider's explicit <code>thinning-ssa</code> method.</p>
 <h2 id="bound-contract">Bound contract<a class="headerlink" href="#bound-contract" title="Permanent link">&para;</a></h2>
 <p><code>ThinningSSASolver.run(propensity_func, thinning_sampler, *, rate_bound, config=None)</code>
 uses the same stoichiometry, reaction axis, and batched propensity contract as
@@ -1169,9 +1169,16 @@ ThinningSSASolver(core, np.asarray([[1]])).run(
 for this example. For consuming reactions, a bound that depends on the current
 state can be refreshed after each accepted event. A loose bound remains valid
 but generates more rejected candidates.</p>
-<p>The provider does not yet expose this method. Existing direct SSA and
-tau-leaping defaults remain unchanged; use this core API for smooth forcing
-until the provider follow-up is merged.</p>
+<p>The flepimop2 provider selects this method through
+<code>mode: stochastic</code> and <code>stochastic_method: thinning-ssa</code>. Supply a constant
+<code>thinning_rate_bound</code> in configuration, or leave it unset and pass a scalar or
+<code>RateBoundFunction</code> through <code>run(..., rate_bound=...)</code>. Both interfaces cannot
+be supplied together. <code>thinning_max_candidates</code> sets the per-run candidate
+guard. NumPy has seeded sampling through <code>random_seed</code>; other backends inject
+<code>thinning_sampler=</code>. Hybrid thinning is unsupported. See the
+<a href="https://github.com/ACCIDDA/op_engine/tree/main/flepimop2-op_engine#bounded-thinning-ssa">provider examples</a>
+for configuration and callback usage. Existing direct SSA and tau-leaping
+defaults remain unchanged.</p>
 
 
 
