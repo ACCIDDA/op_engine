@@ -19,12 +19,23 @@
 from __future__ import annotations
 
 import dataclasses
+import math
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
+from flepimop2.axis import ResolvedShape
+from flepimop2.parameter.abc import ParameterValue
 from flepimop2.system.op_system import OpSystemSystem
+from flepimop2.typing import StateChangeEnum
+from op_engine import SSASample
 
+from flepimop2.engine.op_engine import OpEngineEngineConfig, OpEngineFlepimop2Engine
 from flepimop2.engine.op_engine.reactions import compile_reaction_network
+
+if TYPE_CHECKING:
+    from flepimop2.typing import Array
+    from numpy.typing import NDArray
 
 N_AGE = 4
 
@@ -192,3 +203,133 @@ def test_malformed_offsets_fail_visibly(changes: dict[str, object], match: str) 
     )
     with pytest.raises(ValueError, match=match):
         compile_reaction_network(system, {"aging_rate": np.ones(N_AGE)}, n_state=N_AGE)
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+def test_prescribed_firings_age_a_unit_until_it_is_absorbed(backend: str) -> None:
+    """Direct SSA moves one unit bin by bin, then removes it at the last bin."""
+    system = _aging_system("absorb")
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    values = np.zeros(N_AGE)
+    values[0] = 1
+    initial = {
+        str(name): ParameterValue(xp.asarray(value), ResolvedShape())
+        for name, value in zip(system.option("state_names"), values, strict=True)
+    }
+    rates = np.asarray([0.5, 1.0, 1.5, 2.0])
+    params = {
+        "aging_rate": ParameterValue(
+            xp.asarray(rates), ResolvedShape(("age",), (N_AGE,))
+        )
+    }
+    observed: list[float] = []
+
+    def sampler(rate: Array, probabilities: Array, index: int, /) -> SSASample:
+        """Fire the only live channel, which is the unit's current bin.
+
+        Returns:
+            Waiting time and channel index in the state's namespace.
+        """
+        observed.append(float(rate.item()))
+        assert rate.__array_namespace__() is xp
+        assert np.asarray(probabilities).ravel()[index] > 0
+        return SSASample(
+            xp.asarray(0.2, dtype=rate.dtype), xp.asarray(index, dtype=xp.int32)
+        )
+
+    times = np.asarray([0.0, 0.25, 0.45, 0.65, 0.85])
+    history = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(mode="stochastic", stochastic_method="direct-ssa"),
+    ).run(system, times, initial, params, ssa_sampler=sampler)
+    assert history.__array_namespace__() is xp
+    expected = np.zeros((times.size, N_AGE))
+    for row in range(N_AGE):
+        expected[row, row] = 1
+    np.testing.assert_array_equal(np.asarray(history)[:, 1:], expected)
+    np.testing.assert_allclose(observed, rates, rtol=1e-6)
+
+
+def _ensemble_history(
+    system: OpSystemSystem,
+    initial_per_group: int,
+    n_groups: int,
+    rate: float,
+    times: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Run independently seeded direct-SSA paths across disjoint group channels.
+
+    Returns:
+        History shaped as (time, age, independent replicate).
+    """
+    population = np.zeros((N_AGE, n_groups))
+    population[0] = initial_per_group
+    initial = {
+        str(name): ParameterValue(np.asarray(value), ResolvedShape())
+        for name, value in zip(
+            system.option("state_names"), population.ravel(), strict=True
+        )
+    }
+    params = {
+        "aging_rate": ParameterValue(
+            np.full(N_AGE, rate), ResolvedShape(("age",), (N_AGE,))
+        )
+    }
+    histories = []
+    for seed in range(180, 196):
+        engine = OpEngineFlepimop2Engine(
+            state_change=StateChangeEnum.FLOW,
+            config=OpEngineEngineConfig(
+                mode="stochastic", stochastic_method="direct-ssa", random_seed=seed
+            ),
+        )
+        history = np.asarray(engine.run(system, times, initial, params))
+        np.testing.assert_array_equal(history[:, 0], times)
+        histories.append(history[:, 1:].reshape(times.size, N_AGE, n_groups))
+    return np.concatenate(histories, axis=-1)
+
+
+@pytest.mark.parametrize("boundary", ["absorb", "stay"])
+def test_pure_aging_ssa_matches_erlang_occupancy(boundary: str) -> None:
+    """Equal-rate aging gives Poisson bin occupancy and an Erlang exit time.
+
+    Each individual independently reaches bin ``j < n - 1`` with probability
+    ``exp(-r t) (r t)**j / j!``. Under ``absorb`` it has left the axis with
+    the Erlang(n, r) distribution function. Under ``stay`` the last bin keeps
+    everyone older, so it holds the Erlang(n - 1, r) distribution function
+    and the total is conserved on every path.
+    """
+    rate, per_group, n_groups = 2.0, 5, 64
+    times = np.asarray([0.0, 0.5, 1.0, 1.5, 2.5])
+    history = _ensemble_history(
+        _aging_system(boundary, n_groups=n_groups), per_group, n_groups, rate, times
+    )
+    np.testing.assert_array_equal(history, np.floor(history))
+    assert np.all(history >= 0)
+    totals = history.sum(axis=1)
+    assert np.all(np.diff(totals, axis=0) <= 0)
+    if boundary == "stay":
+        np.testing.assert_array_equal(totals, per_group)
+
+    replicates = history.shape[-1]
+    elapsed = rate * times[1:, None]
+    ages = np.arange(N_AGE)[None, :]
+    poisson = np.exp(-elapsed) * elapsed**ages / np.vectorize(math.factorial)(ages)
+    if boundary == "stay":
+        poisson[:, -1] = 1.0 - poisson[:, :-1].sum(axis=1)
+    occupancy = history[1:]
+    errors = np.sqrt(per_group * poisson * (1 - poisson) / replicates)
+    assert np.all(
+        np.abs(occupancy.mean(axis=-1) - per_group * poisson) <= 5 * errors + 1e-12
+    )
+
+    erlang = 1.0 - poisson.sum(axis=1)
+    exited = per_group - totals[1:]
+    exit_errors = np.sqrt(per_group * erlang * (1 - erlang) / replicates)
+    if boundary == "absorb":
+        assert np.all(
+            np.abs(exited.mean(axis=-1) - per_group * erlang) <= 5 * exit_errors
+        )
+        assert exited[-1].mean() > 0
+    else:
+        np.testing.assert_array_equal(exited, 0)
