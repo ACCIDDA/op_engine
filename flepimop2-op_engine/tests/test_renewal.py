@@ -390,3 +390,74 @@ def test_prescribed_birth_aging_and_departure_fire_into_the_selected_cells(
     np.testing.assert_array_equal(np.asarray(history)[:, 0], times)
     assert draws == [0, 1, 2, 3]
     np.testing.assert_allclose(rates, [7.9, 8.5, 8.6, 7.9], rtol=1e-6)
+
+
+def test_seeded_renewal_paths_preserve_shared_observations() -> None:
+    """Reusing a seed or inserting observations retains the same exact path."""
+    system = _renewal_system(2, demography=True)
+    values = np.concatenate([np.asarray([2.0, 4.0, 1.0, 3.0, 5.0, 6.0]), np.zeros(12)])
+    initial = {
+        str(name): ParameterValue(np.asarray(value), ResolvedShape())
+        for name, value in zip(system.option("state_names"), values, strict=True)
+    }
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode="stochastic", stochastic_method="direct-ssa", random_seed=178
+        ),
+    )
+    params = _population_parameters(0.25)
+    coarse = np.asarray([0.0, 0.5, 1.0])
+    dense = np.asarray([0.0, 0.125, 0.25, 0.5, 0.75, 1.0])
+    first = np.asarray(engine.run(system, coarse, initial, params))
+    np.testing.assert_array_equal(first, engine.run(system, coarse, initial, params))
+    np.testing.assert_array_equal(
+        first, np.asarray(engine.run(system, dense, initial, params))[[0, 3, 5]]
+    )
+    assert np.any(first[-1, 1:] != values)
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+def test_extinction_is_absorbing_despite_a_nonzero_departure_counter(
+    backend: str,
+) -> None:
+    """An empty living population gives no birth, aging, or departure hazard."""
+    system = _renewal_system(None, demography=True)
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    values = np.zeros(9)
+    values[0] = 1
+    initial = {
+        str(name): ParameterValue(xp.asarray(value), ResolvedShape())
+        for name, value in zip(system.option("state_names"), values, strict=True)
+    }
+    draws: list[int] = []
+
+    def sampler(rate: Array, probabilities: Array, index: int, /) -> SSASample:
+        """Choose the departure of the only living individual.
+
+        Returns:
+            One prescribed departure in the active namespace.
+        """
+        draws.append(index)
+        np.testing.assert_allclose(float(rate.item()), 0.75)
+        assert np.asarray(probabilities).ravel()[1] > 0
+        return SSASample(
+            xp.asarray(0.125, dtype=rate.dtype), xp.asarray(1, dtype=xp.int32)
+        )
+
+    history = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(mode="stochastic", stochastic_method="direct-ssa"),
+    ).run(
+        system,
+        np.asarray([0.0, 0.25, 0.5, 1.0]),
+        initial,
+        _population_parameters(0.25),
+        ssa_sampler=sampler,
+    )
+    assert history.__array_namespace__() is xp
+    expected = np.zeros((4, 9))
+    expected[0, 0] = 1
+    expected[1:, 6] = 1
+    np.testing.assert_array_equal(np.asarray(history)[:, 1:], expected)
+    assert draws == [0]

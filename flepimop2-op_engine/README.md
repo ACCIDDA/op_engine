@@ -430,6 +430,106 @@ trajectory is not a pathwise-differentiable computation. JAX still preserves
 array placement and remains available for deterministic differentiation, but a
 stochastic gradient estimator must be supplied explicitly above this layer.
 
+### Renewal births and pinned age bins
+
+Renewal models can sum fertility across living age bins and send each birth to
+the youngest bin. Use matching provider builds containing this support and an
+op_system producer containing [PR #242](https://github.com/ACCIDDA/op_system/pull/242).
+The development dependency pins include that producer; the published minimum
+dependencies remain unchanged for existing execution paths.
+
+This three-bin example has a living population `N` and an absorbing departure
+counter `D`. A birth has no donor and declares `reactants: []`, even though its
+rate depends on the living state. Fully pinned aging transitions move one
+individual from the selected donor bin into its successor. The last bin is an
+open-ended age tail.
+
+```python
+import numpy as np
+from flepimop2.axis import ResolvedShape
+from flepimop2.parameter.abc import ParameterValue
+from flepimop2.system.op_system import OpSystemSystem
+from flepimop2.typing import StateChangeEnum
+
+from flepimop2.engine.op_engine import OpEngineEngineConfig, OpEngineFlepimop2Engine
+
+transitions = [
+    {
+        "name": "renewal",
+        "from": None,
+        "to": "N[age=a0]",
+        "rate": "sum_over(B[age:a] * N[age:a], age=a)",
+        "reactants": [],
+    },
+    {
+        "name": "depart",
+        "from": "N[age]",
+        "to": "D[age]",
+        "rate": "mu",
+        "reactants": [{"state": "N[age]", "order": 1}],
+    },
+]
+for age in range(2):
+    source = f"N[age=a{age}]"
+    transitions.append({
+        "name": f"age_{age}",
+        "from": source,
+        "to": f"N[age=a{age + 1}]",
+        "rate": "aging",
+        "reactants": [{"state": source, "order": 1}],
+    })
+system = OpSystemSystem(spec={
+    "kind": "transitions",
+    "axes": [{"name": "age", "coords": ["a0", "a1", "a2"]}],
+    "state": ["N[age]", "D[age]"],
+    "transitions": transitions,
+})
+initial = {
+    str(name): ParameterValue(np.asarray(value), ResolvedShape())
+    for name, value in zip(
+        system.option("state_names"), [10.0, 5.0, 5.0, 0.0, 0.0, 0.0], strict=True
+    )
+}
+parameters = {
+    "B": ParameterValue(np.full(3, 0.25), ResolvedShape(("age",), (3,))),
+    "mu": ParameterValue(np.asarray(0.25), ResolvedShape()),
+    "aging": ParameterValue(np.asarray(0.25), ResolvedShape()),
+}
+engine = OpEngineFlepimop2Engine(
+    state_change=StateChangeEnum.FLOW,
+    config=OpEngineEngineConfig(
+        mode="stochastic", stochastic_method="direct-ssa", random_seed=178
+    ),
+)
+history = engine.run(system, np.asarray([0.0, 0.25, 0.5, 1.0]), initial, parameters)
+living_total = history[:, 1:4].sum(axis=1)
+departures = history[:, 4:7].sum(axis=1)
+```
+
+The first result column is time; remaining columns follow `state_names`, here
+the three `N` bins followed by the three `D` bins. Additional retained axes,
+such as `group`, produce one renewal channel per group after reducing age;
+births increment only that group's youngest bin and consume no donor.
+
+With uniform fertility equal to departure rate `mu`, the living total `X` has
+`E[X(t)] = X(0)` and `Var[X(t)] = 2 * mu * X(0) * t` for a fixed initial state.
+For aging rate `g`, stationary living mean proportions are
+`(1 - q, q * (1 - q), q**2)` with `q = g / (g + mu)`. The example starts at
+those proportions, so its living bin means remain `(10, 5, 5)` across an
+ensemble. Individual paths fluctuate and can become extinct. When every living
+bin reaches zero, births stop; the nonzero `D` counter contributes no fertility.
+Exclude `D` from living population metrics.
+
+For equal finite-bin width `h`, an exponential-fitted rate
+`g = mu / expm1(mu * h)` matches the bin integrals of `mu * exp(-mu * age)`.
+The example uses `h = log(2) / mu`. Ordinary upwind aging `g = 1 / h` instead
+has the geometric proportions above with its own value of `q`.
+
+Removing the aging and departure transitions instead gives births-only growth.
+For uniform fertility `b`, the total has `E[X(t)] = X(0) * exp(b * t)` and
+`Var[X(t)] = X(0) * exp(b * t) * (exp(b * t) - 1)`; older bins stay unchanged.
+These are ensemble expectations rather than requirements on each sampled path.
+
 ### Bounded thinning SSA
 
 `thinning-ssa` is an exact method for time-dependent propensities in pure
