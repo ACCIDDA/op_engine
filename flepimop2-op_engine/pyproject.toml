@@ -67,11 +67,11 @@ op-engine = { path = "..", editable = true }
 # PRs #344, #347, and #348 while those changes await review and merge.
 flepimop2 = { git = "https://github.com/ACCIDDA/flepimop2", rev = "4b75ac5130f5942360cd668250d80e5b33182576" }
 # Reproducible development pins for hold interpolation, pinned renewal flows,
-# axis-wide coord_shift offset reactions, reaction coverage records, and
-# axis-less states (op_system #249 and #250).
+# axis-wide coord_shift offset reactions, reaction coverage records,
+# axis-less states, and generated and routed reactions (op_system #249-#252).
 # Published wheel metadata continues to use the registry requirements above.
-flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "66b18559dcd818c7b981238e62ef30fba8ff825d", subdirectory = "flepimop2-op_system" }
-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "66b18559dcd818c7b981238e62ef30fba8ff825d" }
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "30883ea15cf7540d017b5672806f9dc3f4e7cdef", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "30883ea15cf7540d017b5672806f9dc3f4e7cdef" }
 
 
 [tool.ruff.format]
