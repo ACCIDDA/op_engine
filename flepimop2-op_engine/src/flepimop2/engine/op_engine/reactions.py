@@ -550,7 +550,11 @@ def compile_reaction_network(
 
         pinned = _require_pins(reaction.pinned, field="pinned")
         from_pinned = _require_pins(reaction.from_pinned, field="from_pinned")
-        if set(from_axes) | set(from_pinned) != set(full_axes):
+        # Source-only channels use destination wildcard axes and have no
+        # donor pins. Validate donor coverage only when a donor exists.
+        if reaction.from_base is not None and (
+            set(from_axes) | set(from_pinned) != set(full_axes)
+        ):
             msg = f"Reaction {reaction.name!r} has incomplete source-axis metadata."
             raise ValueError(msg)
         if set(to_axes) | set(pinned) != set(full_axes):
