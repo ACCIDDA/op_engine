@@ -14,7 +14,7 @@
         <link rel="prev" href="../getting-started/">
       
       
-        <link rel="next" href="../linear-multistep-methods/">
+        <link rel="next" href="../bounded-thinning/">
       
       
         
@@ -565,6 +565,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#exact-ssa-for-smooth-forcing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact SSA for smooth forcing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#bounded-adaptive-tau-leaping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -639,6 +650,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bounded-thinning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Thinning SSA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1034,6 +1073,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/thinning_ssa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thinning Ssa
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1115,6 +1182,17 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exact-ssa-for-smooth-forcing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact SSA for smooth forcing
+      
+    </span>
+  </a>
   
 </li>
         
@@ -1209,7 +1287,8 @@
 <h1 id="choosing-and-configuring-a-solver">Choosing and configuring a solver<a class="headerlink" href="#choosing-and-configuring-a-solver" title="Permanent link">&para;</a></h1>
 <p><code>ModelCore</code> owns output times and state storage. Deterministic systems use
 <code>CoreSolver</code> and a method selected by <code>RunConfig</code>. Stochastic reaction networks
-use <code>DirectSSASolver</code>, <code>TauLeapingSolver</code>, or <code>AdaptiveTauLeapingSolver</code>, because
+use <code>DirectSSASolver</code>, <code>ThinningSSASolver</code>, <code>TauLeapingSolver</code>, or
+<code>AdaptiveTauLeapingSolver</code>, because
 propensities and stoichiometry have different semantics from an ODE right-hand side. In every
 case the state array selects the Array-API namespace; choosing JAX instead of
 NumPy does not select a different numerical method.</p>
@@ -1399,6 +1478,12 @@ automatically in pure stochastic mode and combines them with any extra
 boundaries in the engine configuration. This also supports fixed and adaptive
 tau-leaping. Any additional direct time dependence must still satisfy the
 chosen solver's exactness conditions.</p>
+<h3 id="exact-ssa-for-smooth-forcing">Exact SSA for smooth forcing<a class="headerlink" href="#exact-ssa-for-smooth-forcing" title="Permanent link">&para;</a></h3>
+<p><code>ThinningSSASolver</code> accepts time-dependent propensities and a user-certified
+total-rate bound. It samples candidates at the bound rate, then evaluates
+channel rates at the candidate time to reject or apply one event. See the
+<a href="../bounded-thinning/">bounded thinning guide</a> for constant and callback bounds,
+sampling injection, interval expiry, and a runnable smooth-birth example.</p>
 <h3 id="bounded-adaptive-tau-leaping">Bounded adaptive tau-leaping<a class="headerlink" href="#bounded-adaptive-tau-leaping" title="Permanent link">&para;</a></h3>
 <p>Both tau-leaping configurations accept the same <code>forcing_breakpoints</code> schedule
 as direct SSA. Each leap is capped at the next observation or forcing time,

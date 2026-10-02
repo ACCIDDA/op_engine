@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://accidda.github.io/op_engine/0.3/guides/nonlinear-solvers/">
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.3/guides/bounded-thinning/">
       
       
-        <link rel="prev" href="../linear-multistep-methods/">
+        <link rel="prev" href="../solver-methods/">
       
       
-        <link rel="next" href="../biogeochemical-network/">
+        <link rel="next" href="../linear-multistep-methods/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Nonlinear Solvers - op_engine Documentation</title>
+        <title>Bounded Thinning SSA - op_engine Documentation</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#nonlinear-solver-contract" class="md-skip">
+        <a href="#bounded-thinning-ssa" class="md-skip">
           Skip to content
         </a>
       
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Nonlinear Solvers
+              Bounded Thinning SSA
             
           </span>
         </div>
@@ -479,10 +479,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../bounded-thinning/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Thinning SSA
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -498,6 +525,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#bound-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sampling-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sampling contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -535,37 +615,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Nonlinear Solvers
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../nonlinear-solvers/" class="md-nav__link">
         
   
   
@@ -581,81 +634,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#portable-dense-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Portable dense default
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#failure-and-adaptive-stepping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Failure and adaptive stepping
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jax-differentiation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        JAX differentiation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuring-sdirk2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuring SDIRK2
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#integration-diagnostics-and-replay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Integration diagnostics and replay
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1057,10 +1035,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#portable-dense-default" class="md-nav__link">
+  <a href="#bound-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Portable dense default
+        Bound contract
       
     </span>
   </a>
@@ -1068,10 +1046,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#failure-and-adaptive-stepping" class="md-nav__link">
+  <a href="#sampling-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Failure and adaptive stepping
+        Sampling contract
       
     </span>
   </a>
@@ -1079,32 +1057,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jax-differentiation" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        JAX differentiation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuring-sdirk2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuring SDIRK2
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#integration-diagnostics-and-replay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Integration diagnostics and replay
+        Example
       
     </span>
   </a>
@@ -1128,171 +1084,94 @@
 
 
 
-<h1 id="nonlinear-solver-contract">Nonlinear solver contract<a class="headerlink" href="#nonlinear-solver-contract" title="Permanent link">&para;</a></h1>
-<p><code>op_engine</code> exposes the two-stage Alexander SDIRK2 method for systems that need
-a genuine nonlinear solve at each implicit stage. The existing
-<code>implicit-euler</code>, <code>trapezoidal</code>, and <code>bdf2</code> methods still take only one Jacobian
-linearization per attempted step; despite their historical method names, they
-are linearly implicit approximations rather than converged nonlinear methods.</p>
-<p>The public nonlinear contract used by SDIRK2 keeps the method independent of a
-specific array package. <code>NonlinearProblem</code> supplies a residual plus an
-optional dense Jacobian and/or Jacobian-vector product. Each callback must
-preserve the iterate's array namespace and dtype. Residuals retain the iterate
-shape; dense Jacobians act on the flattened state and therefore have shape
-<code>(state_size, state_size)</code>.</p>
+<h1 id="bounded-thinning-ssa">Bounded thinning SSA<a class="headerlink" href="#bounded-thinning-ssa" title="Permanent link">&para;</a></h1>
+<p><code>ThinningSSASolver</code> provides an exact waiting-time method for smoothly varying
+propensities with user-certified bounds. This design addresses
+<a href="https://github.com/ACCIDDA/op_engine/issues/173">#173</a>; flepimop2 provider wiring
+follows after the core PR is reviewed and merged.</p>
+<h2 id="bound-contract">Bound contract<a class="headerlink" href="#bound-contract" title="Permanent link">&para;</a></h2>
+<p><code>ThinningSSASolver.run(propensity_func, thinning_sampler, *, rate_bound, config=None)</code>
+uses the same stoichiometry, reaction axis, and batched propensity contract as
+direct SSA. It permits arbitrary time dependence between events when a valid
+upper bound is supplied.</p>
+<p><code>rate_bound</code> is either a finite non-negative real constant, or a
+<code>RateBoundFunction(t, state, limit)</code> returning <code>TotalRateBound(rate, valid_until)</code>.
+The bound covers the sum of <strong>all</strong> reaction and batch-cell propensities with
+the supplied state held fixed, over <code>[t, valid_until)</code>. The callback chooses a
+finite endpoint satisfying <code>t &lt; valid_until &lt;= limit</code>. <code>limit</code> is the earlier
+of the next declared forcing change and the solve's final time; observations
+do not shorten it. A constant bound applies to every state reached during the
+solve, until the next forcing change or final time.</p>
+<p>After an accepted event, the state changes and the callback is queried again.
+A rejected candidate leaves the state and current bound unchanged. At expiry,
+the solver discards a tied or later candidate, advances without firing, and
+requests a new bound. The same rule applies at forcing changes, with
+right-continuous propensities. No candidate fires exactly at an interval's
+right endpoint, including the solve's final endpoint.</p>
+<p>A zero bound declares the entire interval inactive. The solver checks rates
+at the interval's start, advances to its endpoint without sampling, and can
+resume with a positive bound. Zero instantaneous propensity with a positive
+bound still produces candidates, allowing smooth rates to become active.
+The caller must prove the bound over the whole interval. Checks at interval
+starts and candidate times detect encountered violations but cannot certify
+unsampled times. A violation fails visibly rather than clipping acceptance.
+Bounds and cumulative rates use the state's floating dtype. Bounds that
+overflow or become zero on conversion fail; tight bounds should allow for
+floating-point rounding when summing many channels. Callback inputs must be
+treated as read-only, and callbacks must not depend on observation storage.</p>
+<h2 id="sampling-contract">Sampling contract<a class="headerlink" href="#sampling-contract" title="Permanent link">&para;</a></h2>
+<p><code>ThinningSampler(bound_rate, draw_index)</code> returns
+<code>ThinningSample(waiting_time, uniform)</code>, both scalar arrays in the state array
+namespace. The wait is finite and strictly positive, sampled exponentially at
+<code>bound_rate</code>. The independent uniform lies in <code>[0, 1)</code>. Draw indices start at
+zero and increase globally, including rejected and expired candidates.
+<code>NumpyThinningSampler(seed)</code> supplies the NumPy implementation; other backends
+inject their own sampler.</p>
+<p>At a candidate time, the solver evaluates the actual channel rates. If
+<code>uniform * bound_rate</code> is at least the actual total rate, it rejects the
+candidate. Otherwise it selects the flattened channel/batch event whose
+cumulative propensity contains that threshold. This uses one uniform for
+acceptance and channel selection: each channel has probability
+<code>channel_rate / bound_rate</code>, and the remaining probability rejects.</p>
+<p>Candidates beyond an observation are retained with their sampled uniform;
+their propensities are evaluated only when the solver reaches them. Inserting
+observations with the same solve endpoints therefore preserves the seeded path
+and callback/sampler history. <code>ThinningSSAConfig.max_candidates</code> bounds all
+candidate draws during one run, including rejection and expiry. Invalid
+sampler values, non-advancing clocks, invalid bounds, and impossible population
+updates fail explicitly.</p>
+<p>The construction follows
+<a href="https://doi.org/10.1002/nav.3800260304">Lewis and Shedler's thinning method</a>.
+The bound and expiry contract extends it to state-dependent reaction networks;
+exactness remains conditional on the caller's bound and random sampling laws.
+Existing direct SSA and tau-leaping behavior and samplers are unchanged.</p>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<p>For an independent birth channel in each batch cell with rate <code>2 * time</code>, the
+integrated intensity over <code>[0, 1]</code> is one per cell. The total upper bound must
+include every batch cell:</p>
 <pre><code class="language-python">import numpy as np
 
-from op_engine import DenseNewtonSolver, NonlinearProblem, require_converged
+from op_engine import ModelCore, NumpyThinningSampler, ThinningSSASolver
+
+core = ModelCore(1, 100, np.linspace(0, 1, 11))
+core.set_initial_state(np.zeros((1, 100)))
 
 
-def residual(value):
-    return value * value - 2.0
+def smooth_birth(time, state):
+    return np.full(state.shape, 2 * time, dtype=state.dtype)
 
 
-def jacobian(value):
-    return np.reshape(2.0 * value, (1, 1))
-
-
-result = DenseNewtonSolver().solve(
-    NonlinearProblem(residual=residual, jacobian=jacobian),
-    np.asarray([1.5]),
+ThinningSSASolver(core, np.asarray([[1]])).run(
+    smooth_birth, NumpyThinningSampler(seed=173), rate_bound=200,
 )
-root = require_converged(result).value
 </code></pre>
-<p>The solver receives the initial guess on every call. It has no hidden warm-start
-cache. SDIRK2 selects a deterministic lower-triangular stage predictor; a
-rejected attempt does not mutate solver state used by its retry.</p>
-<h2 id="portable-dense-default">Portable dense default<a class="headerlink" href="#portable-dense-default" title="Permanent link">&para;</a></h2>
-<p><code>DenseNewtonSolver</code> requires a floating-point initial guess and uses
-<a href="https://data-apis.org/array-api/2024.12/extensions/generated/array_api.linalg.solve.html"><code>xp.linalg.solve</code></a>
-from that array's Array-API namespace. It performs exactly
-<code>NewtonConfig.max_iterations</code> updates. The fixed loop length is deliberate: it
-can be statically unrolled by JAX and does not need a traced value to control a
-Python loop.</p>
-<p>The result always contains the candidate, final residual, and diagnostics.
-<code>converged</code>, the initial/final residual norms, and the final step norm remain
-zero-dimensional arrays in the active namespace. No host scalar conversion is
-performed during the solve. The convergence test is</p>
-<p><code>final_rms &lt;= atol + rtol * initial_rms</code></p>
-<p>and also requires every final residual element to be finite. A missing dense
-Jacobian, callback shape/dtype/namespace violation, or exception raised by the
-underlying linear solve is a fatal evaluation error. If a backend instead
-represents a singular solve with non-finite arrays, the final diagnostic reports
-nonconvergence.</p>
-<p>The dense default is intentionally small. Sparse direct solvers, Krylov/JVP
-methods, line searches, trust regions, and PETSc- or package-specific state
-belong in optional implementations of the <code>NonlinearSolver</code> protocol. Core
-configuration depends only on that protocol; it has no SciPy-, JAX-, or
-PETSc-specific field or backend selector.</p>
-<h2 id="failure-and-adaptive-stepping">Failure and adaptive stepping<a class="headerlink" href="#failure-and-adaptive-stepping" title="Permanent link">&para;</a></h2>
-<p>Nonconvergence is data until an integration boundary applies policy:</p>
-<table>
-<thead>
-<tr>
-<th>Execution context</th>
-<th>Required behavior</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Eager fixed step</td>
-<td><code>CoreSolver.run</code> raises <code>NonlinearConvergenceError</code> with the failed stage result attached and does not advance state.</td>
-</tr>
-<tr>
-<td>Live adaptive step</td>
-<td>Reject the attempted step, reduce <code>dt</code>, and charge the rejection against <code>AdaptiveConfig.max_reject</code>. Never advance state from a failed candidate.</td>
-</tr>
-<tr>
-<td>Compiled accepted-schedule replay</td>
-<td>Return array-valued diagnostics and validate them afterward. A failed stage invalidates that replay; the recorded mesh cannot be changed inside the trace.</td>
-</tr>
-<tr>
-<td>Callback or linear-algebra exception</td>
-<td>Propagate as a fatal evaluation/configuration error; do not reinterpret arbitrary exceptions as a recoverable timestep rejection.</td>
-</tr>
-</tbody>
-</table>
-<p>These rules keep numerical nonconvergence distinct from malformed callbacks and
-backend failures. They also prevent a compiled replay from silently accepting a
-failed stage merely because its timestep sequence is fixed.</p>
-<h2 id="jax-differentiation">JAX differentiation<a class="headerlink" href="#jax-differentiation" title="Permanent link">&para;</a></h2>
-<p>With JAX arrays, the dense default is compatible with <code>jax.jit</code>, and automatic
-differentiation follows the fixed sequence of Newton operations. This is
-unrolled-iteration differentiation: computation and derivative cost grow with
-<code>max_iterations</code>, and the derivative is that of the finite iteration, not an
-implicit-function derivative of an exact root.</p>
-<p><code>require_converged</code> is an eager host boundary and must not be called inside a
-JAX trace. Return the array-valued diagnostics from compiled code and inspect
-them afterward.</p>
-<p>A JAX-specific optional solver may instead implement implicit differentiation
-or a custom solve behind the same protocol. For example, JAX provides
-<a href="https://docs.jax.dev/en/latest/_autosummary/jax.lax.custom_root.html"><code>jax.lax.custom_root</code></a>
-for roots whose gradients are defined by the implicit function theorem. That
-package-specific mechanism does not enter the core configuration or alter the
-portable default's semantics.</p>
-<h2 id="configuring-sdirk2">Configuring SDIRK2<a class="headerlink" href="#configuring-sdirk2" title="Permanent link">&para;</a></h2>
-<p>The public <code>sdirk2</code> method uses the two-stage, second-order, L-stable formula
-from <a href="https://epubs.siam.org/doi/10.1137/0714068">Alexander (1977)</a>, with
-<code>gamma = 1 - 1/sqrt(2)</code>, coefficient rows <code>(gamma)</code> and
-<code>(1 - gamma, gamma)</code>, and weights equal to the final row. It is stiffly
-accurate: a converged final stage is the accepted state.</p>
-<p>Every stage constructs a <code>NonlinearProblem</code>, starts from its explicit
-lower-triangular predictor, and returns its <code>NonlinearSolveDiagnostics</code> without
-a host decision. Adaptive step doubling evaluates one full step and two
-half steps, scales their difference by <code>1 / (2**order - 1)</code>, and combines all
-six stage-convergence flags for an adaptive controller.</p>
-<p>Supply its full-system RHS Jacobian through a separate configuration. This
-Jacobian always has shape <code>(state.size, state.size)</code>, even when the state has
-several axes. It is not the operator-axis <code>RunConfig.jacobian</code> used by the
-linearly implicit methods.</p>
-<pre><code class="language-python">import numpy as np
-
-from op_engine import CoreSolver, ModelCore, NonlinearMethodConfig
-from op_engine.core_solver import AdaptiveConfig, RunConfig
-
-times = np.linspace(0.0, 1.0, 11)
-core = ModelCore(1, 1, times)
-core.set_initial_state(np.asarray([[1.0]]))
-
-
-def rhs(_time, state):
-    return -(state * state)
-
-
-def full_rhs_jacobian(_time, state):
-    return np.reshape(-2.0 * state, (1, 1))
-
-
-config = RunConfig(
-    method=&quot;sdirk2&quot;,
-    adaptive=True,
-    adaptive_cfg=AdaptiveConfig(rtol=1e-6, atol=1e-9),
-    nonlinear=NonlinearMethodConfig(rhs_jacobian=full_rhs_jacobian),
-)
-diagnostics = CoreSolver(core).run(rhs, config=config)
-assert diagnostics is not None
-diagnostics.require_converged()
-</code></pre>
-<p><code>NonlinearMethodConfig</code> defaults to the backend-neutral <code>DenseNewtonSolver</code> and
-also accepts another <code>NonlinearSolver</code> implementation. It never stores an
-array namespace or backend module.</p>
-<h2 id="integration-diagnostics-and-replay">Integration diagnostics and replay<a class="headerlink" href="#integration-diagnostics-and-replay" title="Permanent link">&para;</a></h2>
-<p><code>CoreSolver.run</code> and <code>replay_adaptive_schedule</code> return
-<code>NonlinearIntegrationDiagnostics</code> for SDIRK2. All fields are native arrays.
-<code>step_converged</code>, <code>step_accepted</code>, and <code>step_sizes</code> describe attempted steps;
-rejected adaptive attempts remain present. <code>stages_per_step</code> maps the flattened
-stage fields back to each attempt. The stage fields include convergence flags,
-iteration/evaluation counts, and initial, final, and update RMS norms.</p>
-<p>Live adaptive integration may therefore finish successfully even though a
-rejected attempt has <code>step_converged=False</code>; the aggregate <code>converged</code> flag
-requires every accepted step to converge. <code>last_nonlinear_diagnostics</code> retains
-the most recent record, including after a fixed failure or exhausted rejection
-budget.</p>
-<p>Compiled replay cannot change its frozen mesh. Return its diagnostics from the
-transformed function, then call <code>diagnostics.require_converged()</code> outside the
-trace. A <code>NonlinearIntegrationConvergenceError</code> means the replayed state and
-derivatives must be discarded. A valid replay remains differentiable through
-the fixed Newton iterations with JAX.</p>
+<p>A callback can instead return <code>TotalRateBound(2 * limit * state.shape[1], limit)</code>
+for this example. For consuming reactions, a bound that depends on the current
+state can be refreshed after each accepted event. A loose bound remains valid
+but generates more rejected candidates.</p>
+<p>The provider does not yet expose this method. Existing direct SSA and
+tau-leaping defaults remain unchanged; use this core API for smooth forcing
+until the provider follow-up is merged.</p>
 
 
 
