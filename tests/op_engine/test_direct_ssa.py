@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pytest
+from scipy.stats import chisquare, poisson
 
 from op_engine import (
     Array,
@@ -223,6 +224,162 @@ def test_zero_propensity_resumes_at_a_later_forcing_breakpoint() -> None:
     assert sampler.draw_indices == [0, 1]
 
 
+@pytest.mark.parametrize("waiting_time", [1.0, 1.25])
+def test_forcing_boundary_discards_stale_channel_selection(
+    waiting_time: float,
+) -> None:
+    """Events at or beyond a forcing change use newly evaluated channel rates."""
+    core = _make_core(2, 1, np.asarray([0.0, 0.5, 1.0, 1.5]))
+    core.set_initial_state(np.zeros((2, 1)))
+    sampler = _RecordingSSASampler(
+        _sample(waiting_time, 0), _sample(0.125, 1), _sample(1.0, 1)
+    )
+
+    def propensity(time: float, _state: Array) -> Array:
+        rates = [[2.0], [0.0]] if time < 1.0 else [[0.0], [3.0]]
+        return cast("Array", np.asarray(rates))
+
+    DirectSSASolver(core, np.eye(2)).run(
+        propensity,
+        sampler,
+        config=DirectSSAConfig(forcing_breakpoints=(1.0,)),
+    )
+
+    np.testing.assert_array_equal(core.get_current_state(), [[0.0], [1.0]])
+    np.testing.assert_array_equal(
+        sampler.probabilities, [[[1], [0]], [[0], [1]], [[0], [1]]]
+    )
+    assert sampler.draw_indices == [0, 1, 2]
+
+
+def test_zero_propensity_becomes_absorbing_after_last_breakpoint() -> None:
+    """Zero-rate schedules visit boundaries without drawing random numbers."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.25, 1.0, 1.5, 2.0, 3.0]))
+    core.set_initial_state(np.asarray([[7.0]]))
+    sampler = _RecordingSSASampler()
+    propensity_times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        propensity_times.append(time)
+        return cast("Array", np.zeros((1, 1)))
+
+    DirectSSASolver(core, np.asarray([[1]])).run(
+        propensity,
+        sampler,
+        config=DirectSSAConfig(forcing_breakpoints=(0.5, 1.0)),
+    )
+
+    assert core.state_array is not None
+    np.testing.assert_array_equal(core.state_array[:, 0, 0], 7.0)
+    assert propensity_times == [0.0, 0.5, 1.0]
+    assert sampler.draw_indices == []
+
+
+def test_global_forcing_schedule_respects_solve_endpoints() -> None:
+    """Past boundaries are skipped and the final boundary causes no new draw."""
+    core = _make_core(1, 1, np.asarray([0.0, 0.5, 1.0, 2.0]))
+    core.set_initial_state(np.zeros((1, 1)))
+    sampler = _RecordingSSASampler(_sample(2.0, 0), _sample(1.0, 0))
+    propensity_times: list[float] = []
+
+    def propensity(time: float, _state: Array) -> Array:
+        propensity_times.append(time)
+        return cast("Array", np.ones((1, 1)))
+
+    DirectSSASolver(core, np.asarray([[1]])).run(
+        propensity,
+        sampler,
+        config=DirectSSAConfig(forcing_breakpoints=(-1.0, 0.0, 1.0, 2.0, 3.0)),
+    )
+
+    np.testing.assert_array_equal(core.get_current_state(), [[0.0]])
+    assert propensity_times == [0.0, 1.0]
+    assert sampler.draw_indices == [0, 1]
+
+
+def test_forcing_changes_do_not_reset_the_output_interval_event_guard() -> None:
+    """The event budget covers the whole observation interval."""
+    core = _make_core(1, 1, np.asarray([0.0, 1.0]))
+    core.set_initial_state(np.zeros((1, 1)))
+
+    def propensity(_time: float, _state: Array) -> Array:
+        return cast("Array", np.ones((1, 1)))
+
+    with pytest.raises(RuntimeError, match="max_events"):
+        DirectSSASolver(core, np.asarray([[1]])).run(
+            propensity,
+            _ConstantSSASampler(0.2),
+            config=DirectSSAConfig(max_events=2, forcing_breakpoints=(0.5,)),
+        )
+
+
+def test_direct_ssa_rejects_a_wait_that_cannot_advance_the_clock() -> None:
+    """Finite positive draws must still advance a large absolute time."""
+    start = 1e16
+    core = _make_core(1, 1, np.asarray([start, np.nextafter(start, np.inf)]))
+    core.set_initial_state(np.zeros((1, 1)))
+
+    def propensity(_time: float, _state: Array) -> Array:
+        return cast("Array", np.ones((1, 1)))
+
+    with pytest.raises(RuntimeError, match="event time failed to advance"):
+        DirectSSASolver(core, np.asarray([[1]])).run(
+            propensity, _ConstantSSASampler(0.1)
+        )
+
+
+def test_seeded_piecewise_forcing_is_independent_of_observation_grid() -> None:
+    """Adding observations, including at forcing changes, preserves the path."""
+    histories: list[NDArray[np.floating]] = []
+    grids = (np.asarray([0.0, 0.5, 1.0]), np.linspace(0.0, 1.0, 9))
+    for times in grids:
+        core = _make_core(1, 8, times)
+        core.set_initial_state(np.zeros((1, 8)))
+
+        def propensity(time: float, state: Array) -> Array:
+            rate = 3.0 if time < 0.375 else (0.0 if time < 0.625 else 6.0)
+            return cast("Array", np.full(state.shape, rate))
+
+        DirectSSASolver(core, np.asarray([[1]])).run(
+            propensity,
+            NumpySSASampler(2028),
+            config=DirectSSAConfig(forcing_breakpoints=(0.375, 0.625)),
+        )
+        assert core.state_array is not None
+        histories.append(np.asarray(core.state_array))
+
+    np.testing.assert_array_equal(histories[0], histories[1][[0, 4, 8]])
+
+
+def test_piecewise_birth_counts_match_the_integrated_poisson_law() -> None:
+    """Independent batched counts follow Poisson of the integrated rate."""
+    n_replicates = 1_000
+    boundaries = np.asarray([0.0, 0.2, 0.45, 0.9, 1.2, 1.5])
+    rates = np.asarray([0.0, 3.0, 1.0, 4.0, 0.0])
+    core = _make_core(1, n_replicates, np.asarray([0.0, 1.5]))
+    core.set_initial_state(np.zeros((1, n_replicates)))
+
+    def propensity(time: float, state: Array) -> Array:
+        index = int(np.searchsorted(boundaries[1:-1], time, side="right"))
+        return cast("Array", np.full(state.shape, rates[index]))
+
+    DirectSSASolver(core, np.asarray([[1]])).run(
+        propensity,
+        NumpySSASampler(2029),
+        config=DirectSSAConfig(forcing_breakpoints=tuple(boundaries[1:-1])),
+    )
+    samples = np.asarray(core.get_current_state())[0]
+    integrated_rate = float(np.dot(np.diff(boundaries), rates))
+    # Pool counts >= 5 so every expected chi-square bin is well populated.
+    observed = np.bincount(np.minimum(samples.astype(int), 5), minlength=6)
+    probabilities = poisson.pmf(np.arange(5), integrated_rate)
+    expected = n_replicates * np.append(probabilities, 1.0 - probabilities.sum())
+
+    assert float(chisquare(observed, expected).pvalue) > 1e-4
+    assert float(np.mean(samples)) == pytest.approx(integrated_rate, rel=0.08)
+    assert float(np.var(samples)) == pytest.approx(integrated_rate, rel=0.15)
+
+
 def test_direct_ssa_uses_normalized_channel_probabilities() -> None:
     """Direct-method category weights equal each propensity over total rate."""
     core = _make_core(1, 1, np.asarray([0.0, 0.1]))
@@ -359,7 +516,9 @@ def test_numpy_ssa_sampler_matches_analytic_wait_and_channel_laws() -> None:
     assert float(np.mean(event_indices == 1)) == pytest.approx(0.75, rel=0.02)
 
 
-def _run_seeded_birth_process(seed: int) -> NDArray[np.floating]:
+def _run_seeded_birth_process(
+    seed: int, *, config: DirectSSAConfig | None = None
+) -> NDArray[np.floating]:
     """Run a small reproducibility fixture.
 
     Returns:
@@ -374,6 +533,7 @@ def _run_seeded_birth_process(seed: int) -> NDArray[np.floating]:
     DirectSSASolver(core, np.asarray([[1]])).run(
         propensity,
         NumpySSASampler(seed),
+        config=config,
     )
     assert core.state_array is not None
     return np.asarray(core.state_array)
@@ -384,6 +544,19 @@ def test_numpy_ssa_sampler_is_reproducible() -> None:
     np.testing.assert_array_equal(
         _run_seeded_birth_process(1234),
         _run_seeded_birth_process(1234),
+    )
+
+
+@pytest.mark.parametrize("config", [None, DirectSSAConfig()])
+@pytest.mark.parametrize(("seed", "expected"), [(1234, [0, 0, 1]), (2026, [0, 2, 4])])
+def test_empty_forcing_schedule_preserves_legacy_seeded_history(
+    config: DirectSSAConfig | None,
+    seed: int,
+    expected: list[int],
+) -> None:
+    """Omitted and empty schedules reproduce histories recorded from main."""
+    np.testing.assert_array_equal(
+        _run_seeded_birth_process(seed, config=config)[:, 0, 0], expected
     )
 
 
@@ -434,7 +607,10 @@ def test_direct_ssa_matches_binomial_death_distribution() -> None:
     assert float(np.var(samples)) == pytest.approx(expected_variance, rel=0.12)
 
 
-def test_direct_ssa_preserves_jax_namespace_with_explicit_keys() -> None:
+@pytest.mark.parametrize("breakpoints", [(), (0.1, 0.3)])
+def test_direct_ssa_preserves_jax_namespace_with_explicit_keys(
+    breakpoints: tuple[float, ...],
+) -> None:
     """JAX supplies eager randomness without becoming a solver dependency."""
     jax = pytest.importorskip("jax")
     jnp = pytest.importorskip("jax.numpy")
@@ -472,7 +648,9 @@ def test_direct_ssa_preserves_jax_namespace_with_explicit_keys() -> None:
         )
         return SSASample(cast("Array", wait), cast("Array", event))
 
-    DirectSSASolver(core, np.asarray([[-1], [1]])).run(propensity, sample)
+    DirectSSASolver(core, np.asarray([[-1], [1]])).run(
+        propensity, sample, config=DirectSSAConfig(forcing_breakpoints=breakpoints)
+    )
 
     state = core.get_current_state()
     assert state.__array_namespace__() is jnp
