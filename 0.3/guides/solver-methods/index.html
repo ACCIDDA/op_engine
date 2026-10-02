@@ -1389,9 +1389,16 @@ An omitted or empty schedule preserves ordinary time-homogeneous execution.</p>
 <p>The schedule does not freeze or interpolate callback values. All time
 dependence between boundaries must be constant for this exactness claim;
 smoothly varying rates require a different waiting-time method. In particular,
-<code>op_system</code> currently linearly interpolates its time-indexed parameters, so
+<code>op_system</code> defaults to linear interpolation of time-indexed parameters, so
 listing their grid points as breakpoints does not make direct SSA exact for
-those interpolated rates.</p>
+those interpolated rates. Producers containing
+<a href="https://github.com/ACCIDDA/op_system/pull/241">op_system PR #241</a> can select
+<code>time_interpolation: previous</code> to hold table values until the next coordinate.
+The flepimop2 engine provider consumes their published <code>forcing_breakpoints</code>
+automatically in pure stochastic mode and combines them with any extra
+boundaries in the engine configuration. This also supports fixed and adaptive
+tau-leaping. Any additional direct time dependence must still satisfy the
+chosen solver's exactness conditions.</p>
 <h3 id="bounded-adaptive-tau-leaping">Bounded adaptive tau-leaping<a class="headerlink" href="#bounded-adaptive-tau-leaping" title="Permanent link">&para;</a></h3>
 <p>Both tau-leaping configurations accept the same <code>forcing_breakpoints</code> schedule
 as direct SSA. Each leap is capped at the next observation or forcing time,
