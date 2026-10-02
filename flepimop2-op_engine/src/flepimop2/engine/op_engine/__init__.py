@@ -2706,6 +2706,7 @@ def _run_stochastic_core(
             config=TauLeapingConfig(
                 max_step=config.tau_max_step,
                 max_steps=config.stochastic_max_steps,
+                forcing_breakpoints=config.forcing_breakpoints,
             ),
         )
         return
@@ -2740,6 +2741,7 @@ def _run_stochastic_core(
                 exact_fallback_multiplier=config.tau_exact_fallback_multiplier,
                 max_steps=config.stochastic_max_steps,
                 max_retries=config.tau_max_retries,
+                forcing_breakpoints=config.forcing_breakpoints,
             ),
         )
         return

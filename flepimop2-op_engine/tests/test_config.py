@@ -389,12 +389,15 @@ def test_engine_config_accepts_pure_direct_ssa() -> None:
     assert config.ssa_max_events == 1_000_000
 
 
-def test_engine_config_round_trips_forcing_breakpoints() -> None:
+@pytest.mark.parametrize("method", list(StochasticMethod))
+def test_engine_config_round_trips_forcing_breakpoints(
+    method: StochasticMethod,
+) -> None:
     """JSON/YAML-style lists become immutable schedules without coercion."""
     points = [0.5, 1.0]
     config = OpEngineEngineConfig.model_validate({
         "mode": "stochastic",
-        "stochastic_method": "direct-ssa",
+        "stochastic_method": method,
         "forcing_breakpoints": points,
     })
     points[0] = 99.0
@@ -421,8 +424,17 @@ def test_engine_config_rejects_invalid_forcing_breakpoints(points: object) -> No
     "kwargs",
     [
         {},
-        {"mode": "stochastic", "stochastic_method": "tau-leaping"},
-        {"mode": "stochastic", "stochastic_method": "adaptive-tau-leaping"},
+        {"mode": "deterministic", "stochastic_method": "tau-leaping"},
+        {
+            "mode": "hybrid",
+            "stochastic_method": "tau-leaping",
+            "stochastic_reactions": ["infect"],
+        },
+        {
+            "mode": "hybrid",
+            "stochastic_method": "adaptive-tau-leaping",
+            "stochastic_reactions": ["infect"],
+        },
         {
             "mode": "hybrid",
             "stochastic_method": "direct-ssa",

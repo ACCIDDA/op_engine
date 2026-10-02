@@ -1192,10 +1192,16 @@ def test_direct_ssa_retains_an_event_across_an_output_boundary() -> None:
 
 
 @pytest.mark.parametrize("backend", ["numpy", "jax"])
-def test_provider_direct_ssa_resumes_a_piecewise_forced_reaction(backend: str) -> None:
+@pytest.mark.parametrize(
+    "method", [StochasticMethod.DIRECT_SSA, StochasticMethod.ADAPTIVE_TAU_LEAPING]
+)
+def test_provider_exact_paths_resume_a_piecewise_forced_reaction(
+    backend: str,
+    method: StochasticMethod,
+) -> None:
     """The provider forwards forcing times and keeps typed callbacks native."""
     xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
-    system = _single_reaction_system()
+    system = _single_reaction_system(complete_reactants=True)
     reaction = cast("tuple[CompiledReaction, ...]", system.option("reactions"))[0]
 
     def forced_propensity(t: object, y: StateDict, **params: object) -> object:
@@ -1213,17 +1219,19 @@ def test_provider_direct_ssa_resumes_a_piecewise_forced_reaction(backend: str) -
         state_change=StateChangeEnum.FLOW,
         config=OpEngineEngineConfig(
             mode=ExecutionMode.STOCHASTIC,
-            stochastic_method=StochasticMethod.DIRECT_SSA,
+            stochastic_method=method,
             forcing_breakpoints=(0.5,),
         ),
     )
     sampler = _ConstantSSASampler(0.25)
+    poisson = _UnitPoissonSampler()
     result = engine.run(
         system,
         np.asarray([0.0, 0.2, 0.5, 0.6, 0.75, 1.0]),
         _named_initial_state(system, (xp.asarray(2.0), xp.asarray(0.0))),
         {"beta": _scalar(1.0)},
         ssa_sampler=sampler,
+        poisson_sampler=poisson,
     )
 
     assert result.__array_namespace__() is xp
@@ -1232,6 +1240,80 @@ def test_provider_direct_ssa_resumes_a_piecewise_forced_reaction(backend: str) -
         [[2, 0], [2, 0], [2, 0], [2, 0], [1, 1], [0, 2]],
     )
     assert sampler.indices == [0, 1]
+    assert poisson.indices == []
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+@pytest.mark.parametrize(
+    "method", [StochasticMethod.TAU_LEAPING, StochasticMethod.ADAPTIVE_TAU_LEAPING]
+)
+def test_provider_tau_leaps_cap_a_piecewise_forced_reaction(
+    backend: str,
+    method: StochasticMethod,
+) -> None:
+    """Both tau methods receive forcing caps and retain backend-native arrays."""
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    system = _single_reaction_system(complete_reactants=True)
+    reaction = cast("tuple[CompiledReaction, ...]", system.option("reactions"))[0]
+    evaluated: list[float] = []
+    means: list[float] = []
+    indices: list[int] = []
+
+    def forced_propensity(t: object, y: StateDict, **params: object) -> object:
+        """Gate the compiled callback and record its evaluation times.
+
+        Returns:
+            Backend-native reaction rates.
+        """
+        time = cast("float", t)
+        evaluated.append(time)
+        params |= {"beta": 1.0 if 0.25 <= time < 0.75 else 0.0}
+        return reaction.propensity_fn(t, y, **params)
+
+    def poisson_sampler(mean: Array, index: int, /) -> Array:
+        """Record native means without consuming any population.
+
+        Returns:
+            Zero integer reaction counts.
+        """
+        assert mean.__array_namespace__() is xp
+        means.append(float(mean.item()))
+        indices.append(index)
+        return xp.zeros_like(mean, dtype=xp.int32)
+
+    system.options["reactions"] = (replace(reaction, propensity_fn=forced_propensity),)
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=method,
+            forcing_breakpoints=(0.25, 0.75),
+            tau_leap_tolerance=0.9,
+            tau_critical_threshold=0,
+            tau_exact_fallback_multiplier=0.0,
+        ),
+    )
+    exact = _ConstantSSASampler(1.0)
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.5, 1.0]),
+        _named_initial_state(system, (xp.asarray(100.0), xp.asarray(0.0))),
+        {"beta": _scalar(1.0)},
+        poisson_sampler=poisson_sampler,
+        ssa_sampler=exact,
+    )
+
+    assert result.__array_namespace__() is xp
+    np.testing.assert_array_equal(np.asarray(result)[:, 1:], [[100, 0]] * 3)
+    assert evaluated == [0.0, 0.25, 0.5, 0.75]
+    expected_means = (
+        [0.0, 25.0, 25.0, 0.0]
+        if method is StochasticMethod.TAU_LEAPING
+        else [25.0, 25.0]
+    )
+    np.testing.assert_allclose(means, expected_means)
+    assert indices == list(range(len(expected_means)))
+    assert exact.indices == []
 
 
 def test_tau_indices_are_global_across_output_intervals() -> None:

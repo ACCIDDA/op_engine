@@ -319,7 +319,8 @@ engine:
 ```
 
 `tau-leaping` accepts `tau_max_step` and `stochastic_max_steps`.
-`direct-ssa` accepts `ssa_max_events` and `forcing_breakpoints`; its exact
+All three stochastic methods accept `forcing_breakpoints` in pure stochastic
+mode. `direct-ssa` accepts `ssa_max_events`; its exact
 interpretation requires propensities to remain constant in time between events
 and declared forcing boundaries. All three methods
 preserve the usual `(time, state...)` provider trajectory and fail visibly on
@@ -340,12 +341,24 @@ engine:
     forcing_breakpoints: [1.0, 2.0]
 ```
 
-A pending event at or beyond a breakpoint is discarded and redrawn from the
-new rates; zero-rate intervals wait for a future forcing change. The producer
+A pending direct-SSA or adaptive exact-fallback event at or beyond a breakpoint
+is discarded and redrawn from the new rates; zero-rate intervals wait for a
+future forcing change. Fixed and adaptive tau-leaps end at the next forcing
+boundary and reevaluate the rates for the following leap. Adaptive retries
+remain within the current forcing segment, and a critical event tied with its
+end is discarded. These caps preserve the usual tau-leaping approximation;
+state-dependent rates are still frozen during each leap. The producer
 must return the new rates at each boundary and keep them constant between
-boundaries while the state is unchanged. Output times remain observations.
-Nonempty forcing schedules currently require pure `direct-ssa` execution;
-other provider modes and stochastic methods reject them explicitly.
+boundaries while the state is unchanged for direct SSA and adaptive exact
+fallback. Output times observe exact paths and also cap tau-leaps, so changing
+the output grid may change a tau-leaping approximation.
+
+Nonempty forcing schedules require `mode: stochastic`. Deterministic and hybrid
+execution reject them explicitly. Forcing times must be finite real values in
+strictly increasing order. JSON/YAML lists become immutable tuples; global
+schedules may include times outside the run. Omitting the schedule or supplying
+an empty list preserves the existing execution path. Forcing changes share the
+whole-interval `stochastic_max_steps` guard for fixed and adaptive tau-leaping.
 
 `op_system`'s existing time-indexed parameters use linear interpolation. This
 setting does not change that interpolation or make those varying rates exact.

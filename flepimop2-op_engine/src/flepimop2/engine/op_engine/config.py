@@ -218,14 +218,8 @@ class OpEngineEngineConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_execution_configuration(self) -> OpEngineEngineConfig:
-        if self.forcing_breakpoints and (
-            self.mode is not ExecutionMode.STOCHASTIC
-            or self.stochastic_method is not StochasticMethod.DIRECT_SSA
-        ):
-            msg = (
-                "forcing_breakpoints currently require mode='stochastic' "
-                "and stochastic_method='direct-ssa'."
-            )
+        if self.forcing_breakpoints and self.mode is not ExecutionMode.STOCHASTIC:
+            msg = "forcing_breakpoints currently require mode='stochastic'."
             raise ValueError(msg)
         if (
             self.mode is not ExecutionMode.STOCHASTIC
