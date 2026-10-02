@@ -133,37 +133,30 @@ def test_producers_without_coverage_records_are_not_checked() -> None:
         pytest.param(
             {
                 "kind": "transitions",
-                "state": ["S", "R"],
-                "chain": [
+                "axes": [AGE],
+                "state": ["S[age]"],
+                "transitions": [
                     {
-                        "name": "I",
-                        "length": 2,
-                        "entry": {"from": "S", "rate": "beta"},
-                        "forward": ["gamma"],
-                        "exit": {"to": "R", "rate": "gamma"},
+                        "coord_shift": {"age": "c -> a"},
+                        "rate": "gamma",
+                        "apply_to": ["S"],
                     }
                 ],
-                "transitions": [],
             },
-            "chain[0].forward[0] unnamed: I1 -> I2 (unnamed)",
-            id="chain",
+            "transitions[0] unnamed: S[age=c] -> S[age=a] (unnamed)",
+            id="unnamed-coord-shift",
         ),
         pytest.param(
             {
                 "kind": "transitions",
-                "axes": [IMM],
-                "state": ["X[imm]"],
+                "axes": [AGE],
+                "state": ["S", "I[age]"],
                 "transitions": [
-                    {
-                        "name": "wane",
-                        "from": "X[imm:i]",
-                        "to": "X[imm:j]",
-                        "rate": "gamma * K[imm:i, imm:j]",
-                    }
+                    {"name": "seed", "from": "S", "to": "I[age]", "rate": "beta"}
                 ],
             },
-            "transitions[0] wane: X[imm:i] -> X[imm:j] (routing)",
-            id="routing",
+            "transitions[0] seed: S -> I[age] (target_axis_not_on_source)",
+            id="target-axis",
         ),
     ],
 )

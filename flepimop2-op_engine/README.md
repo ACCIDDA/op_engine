@@ -303,8 +303,8 @@ Set `mode: stochastic` to execute every named reaction artifact published by
 `system.option("reactions")` as a discrete process. The provider does not parse
 raw transition configuration. It expands each typed reaction's source cells
 into flat channels and compiles the associated transition, source-only,
-pinned-axis, summed-axis, and offset-axis bookkeeping into one stoichiometric
-matrix.
+pinned-axis, summed-axis, offset-axis, and routed-axis bookkeeping into one
+stoichiometric matrix.
 
 Pure stochastic mode runs only those reactions, so it refuses models whose
 dynamics they do not cover. When the producer reports transitions without a
@@ -323,6 +323,13 @@ publishes one 0-d channel per transition. Mixed models can move units between
 an axis-less state and a pinned cell or a whole template. Each reaction's
 target is indexed with its own axis order (`to_full_axes`), which can differ
 from the source's (`full_axes`).
+
+Routing (`X[imm:i] -> X[imm:j]`) and target-only fan-out
+(`I[age] -> X[age, imm:j]`) reactions from op_system
+[PR #252](https://github.com/ACCIDDA/op_system/pull/252) expand into one
+channel per source cell and target coordinate (`routed_axes`), named like
+`wane[imm=0,to:imm=1]`. A waning generator therefore runs as discrete moves
+between immunity bins; op_system gives the no-op diagonal zero propensity.
 
 Three methods are available:
 

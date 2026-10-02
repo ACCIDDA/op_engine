@@ -18,6 +18,10 @@ versioning while the project remains pre-1.0.
   depositing into a pinned cell, and templated sources collapsing into an
   axis-less state. Targets are indexed with op_system's `to_full_axes`,
   falling back to `full_axes` for older producers (#184).
+- Stochastic execution runs routing and target-only fan-out reactions: each
+  source cell and routed target coordinate (op_system's `routed_axes`) is one
+  channel, so routing generators move discrete units between bins. Artifacts
+  without `routed_axes` compile unchanged (#186).
 
 - Stochastic execution consumes axis-wide `coord_shift` reactions from
   op_system: each source bin of an `offsets` axis becomes a channel that moves

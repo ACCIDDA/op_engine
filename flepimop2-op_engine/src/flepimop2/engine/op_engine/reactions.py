@@ -466,18 +466,20 @@ def _reaction_axis_metadata(
     from_axes: tuple[str, ...],
     source_axes: tuple[str, ...],
     target_axes: tuple[str, ...],
-) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
-    """Validate one reaction's channel, destination, and offset axes.
+) -> tuple[dict[str, int], dict[str, int], dict[str, int], tuple[str, ...]]:
+    """Validate one reaction's channel, destination, offset, and routed axes.
 
     Every destination axis is copied from the channel (``to_axes``), fixed
-    (``pinned``), or shifted from the channel coordinate (``offsets``, from
-    op_system's axis-wide ``coord_shift``). Artifacts that predate
-    ``offsets`` publish none. Channel and donor axes are checked against the
-    source template (the destination template for a source-only reaction),
-    and destination axes against the target template.
+    (``pinned``), shifted from the channel coordinate (``offsets``, from
+    op_system's axis-wide ``coord_shift``), or read from a trailing channel
+    dimension (``routed_axes``, from routing and fan-out transitions).
+    Artifacts that predate ``offsets`` or ``routed_axes`` publish none.
+    Channel and donor axes are checked against the source template (the
+    destination template for a source-only reaction), and destination axes
+    against the target template.
 
     Returns:
-        ``(pinned, from_pinned, offsets)`` keyed by axis name.
+        ``(pinned, from_pinned, offsets, routed_axes)``.
 
     Raises:
         ValueError: If the axis metadata is inconsistent.
@@ -487,22 +489,23 @@ def _reaction_axis_metadata(
     pinned = _require_pins(reaction.pinned, field="pinned")
     from_pinned = _require_pins(reaction.from_pinned, field="from_pinned")
     offsets = _require_pins(getattr(reaction, "offsets", ()), field="offsets")
+    routed = _require_string_tuple(
+        getattr(reaction, "routed_axes", ()), field="routed_axes"
+    )
     if not set(from_axes).issubset(source_axes):
         msg = f"Reaction {reaction.name!r} has axes outside full_axes."
         raise ValueError(msg)
     if not set(to_axes).issubset(target_axes):
         msg = f"Reaction {reaction.name!r} has destination axes outside full_axes."
         raise ValueError(msg)
-    if (
-        not set(offsets).issubset(from_axes)
-        or set(offsets) & (set(to_axes) | set(pinned))
-        or 0 in offsets.values()
-    ):
-        msg = (
-            f"Reaction {reaction.name!r} offsets must shift channel axes that "
-            "are neither copied nor pinned, by a nonzero step."
-        )
-        raise ValueError(msg)
+    _validate_moved_axes(
+        reaction,
+        from_axes=from_axes,
+        target_axes=target_axes,
+        fixed=set(to_axes) | set(pinned),
+        offsets=offsets,
+        routed=routed,
+    )
     if set(sum_axes) != set(from_axes) - set(to_axes) - set(offsets):
         msg = f"Reaction {reaction.name!r} has inconsistent sum_axes metadata."
         raise ValueError(msg)
@@ -513,10 +516,43 @@ def _reaction_axis_metadata(
     ):
         msg = f"Reaction {reaction.name!r} has incomplete source-axis metadata."
         raise ValueError(msg)
-    if set(to_axes) | set(pinned) | set(offsets) != set(target_axes):
+    if set(to_axes) | set(pinned) | set(offsets) | set(routed) != set(target_axes):
         msg = f"Reaction {reaction.name!r} has incomplete destination metadata."
         raise ValueError(msg)
-    return pinned, from_pinned, offsets
+    return pinned, from_pinned, offsets, routed
+
+
+def _validate_moved_axes(  # noqa: PLR0913
+    reaction: ReactionArtifact,
+    *,
+    from_axes: tuple[str, ...],
+    target_axes: tuple[str, ...],
+    fixed: set[str],
+    offsets: Mapping[str, int],
+    routed: tuple[str, ...],
+) -> None:
+    """Check offset and routed destination axes against the other fields.
+
+    Raises:
+        ValueError: If an offset does not shift a channel axis by a nonzero
+            step, or a routed axis is not a free target axis.
+    """
+    if (
+        not set(offsets).issubset(from_axes)
+        or set(offsets) & fixed
+        or 0 in offsets.values()
+    ):
+        msg = (
+            f"Reaction {reaction.name!r} offsets must shift channel axes that "
+            "are neither copied nor pinned, by a nonzero step."
+        )
+        raise ValueError(msg)
+    if not set(routed).issubset(target_axes) or set(routed) & (fixed | set(offsets)):
+        msg = (
+            f"Reaction {reaction.name!r} routed axes must be target axes that "
+            "are neither copied, pinned, nor offset."
+        )
+        raise ValueError(msg)
 
 
 def _destination_cell(
@@ -637,7 +673,7 @@ def compile_reaction_network(
         reactants_complete = reactants_complete and complete
         from_axes = _require_string_tuple(reaction.from_axes, field="from_axes")
         target_axes = base_axes[reaction.to_base]
-        pinned, from_pinned, offsets = _reaction_axis_metadata(
+        pinned, from_pinned, offsets, routed = _reaction_axis_metadata(
             reaction,
             from_axes=from_axes,
             source_axes=(
@@ -648,11 +684,13 @@ def compile_reaction_network(
             target_axes=target_axes,
         )
 
-        event_shape = tuple(axis_sizes[axis] for axis in from_axes)
+        # A routed target coordinate is a trailing channel dimension.
+        event_shape = tuple(axis_sizes[axis] for axis in from_axes + routed)
         event_shapes.append(event_shape)
         coordinates = np.ndindex(event_shape) if event_shape else iter(((),))
         for coordinate in coordinates:
-            varying = dict(zip(from_axes, coordinate, strict=True))
+            varying = dict(zip(from_axes, coordinate[: len(from_axes)], strict=True))
+            routed_to = dict(zip(routed, coordinate[len(from_axes) :], strict=True))
             column = np.zeros(n_state, dtype=np.int64)
             if reaction.from_base is not None:
                 source_coordinates = {**varying, **from_pinned}
@@ -675,7 +713,7 @@ def compile_reaction_network(
             destination = _destination_cell(
                 blocks[reaction.to_base],
                 base_axes[reaction.to_base],
-                {**varying, **pinned},
+                {**varying, **pinned, **routed_to},
                 offsets=offsets,
             )
             if destination is not None:
@@ -684,8 +722,8 @@ def compile_reaction_network(
             reactant_columns.append(reactants)
             channel_reactions.append(reaction.name)
             coordinate_text = ",".join(
-                f"{axis}={index}"
-                for axis, index in zip(from_axes, coordinate, strict=True)
+                [f"{axis}={index}" for axis, index in varying.items()]
+                + [f"to:{axis}={index}" for axis, index in routed_to.items()]
             )
             channel_names.append(
                 reaction.name
