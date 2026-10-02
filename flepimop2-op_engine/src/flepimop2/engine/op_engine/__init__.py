@@ -2596,6 +2596,41 @@ def _split_numpy_seeds(seed: int | None) -> tuple[int | None, int | None]:
     return poisson_seed, ssa_seed
 
 
+def _stochastic_forcing_config(
+    system: SystemABC,
+    config: OpEngineEngineConfig,
+) -> OpEngineEngineConfig:
+    """Combine declared producer changes with explicit stochastic boundaries.
+
+    Returns:
+        A run-local configuration with the validated union of forcing times.
+
+    Raises:
+        ValueError: If producer metadata is invalid or requires hybrid forcing.
+    """
+    if config.mode is ExecutionMode.DETERMINISTIC:
+        return config
+    try:
+        points = DirectSSAConfig(
+            forcing_breakpoints=cast(
+                "tuple[float, ...]", system.option("forcing_breakpoints", ())
+            ),
+        ).forcing_breakpoints
+    except ValueError as error:
+        msg = f"Invalid system.option('forcing_breakpoints'): {error}"
+        raise ValueError(msg) from error
+    if not points:
+        return config
+    if config.mode is ExecutionMode.HYBRID:
+        msg = (
+            "Producer forcing_breakpoints require mode='stochastic'; "
+            "hybrid forcing is unsupported."
+        )
+        raise ValueError(msg)
+    combined = tuple(sorted(set(points) | set(config.forcing_breakpoints)))
+    return config.model_copy(update={"forcing_breakpoints": combined})
+
+
 def _resolve_samplers(
     y0: Array,
     config: OpEngineEngineConfig,
@@ -3176,6 +3211,10 @@ class OpEngineFlepimop2Engine(EngineABC):
 
         mode = self.config.mode
         if mode is not ExecutionMode.DETERMINISTIC:
+            try:
+                _stochastic_forcing_config(system, self.config)
+            except ValueError as error:
+                issues.append(ValidationIssue(msg=str(error), kind="invalid_forcing"))
             reactions = system.option("reactions", None)
             if not isinstance(reactions, tuple | list) or not reactions:
                 issues.append(
@@ -3409,6 +3448,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         times = _as_float64_1d(eval_times, name="eval_times")
         _ensure_strictly_increasing(times, name="eval_times")
         mode = self.config.mode
+        stochastic_config = _stochastic_forcing_config(system, self.config)
         if adaptive_schedule is not None:
             if not isinstance(adaptive_schedule, AdaptiveSchedule):
                 msg = "adaptive_schedule must be an AdaptiveSchedule"
@@ -3464,7 +3504,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 times,
                 y0,
                 stochastic_network,
-                self.config,
+                stochastic_config,
                 kwargs,
             )
             return _ExecutionResult(

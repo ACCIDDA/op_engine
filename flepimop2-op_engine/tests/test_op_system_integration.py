@@ -1243,6 +1243,295 @@ def test_provider_exact_paths_resume_a_piecewise_forced_reaction(
     assert poisson.indices == []
 
 
+def _time_table_system(policy: str = "previous") -> OpSystemSystem:
+    """Build a real producer with a time-indexed transfer rate.
+
+    Returns:
+        Compiled system publishing its interpolation and forcing metadata.
+    """
+    return OpSystemSystem(
+        spec={
+            "kind": "transitions",
+            "time_axis": "day",
+            "time_interpolation": policy,
+            "axes": [
+                {"name": "group", "coords": ["g0"]},
+                {"name": "day", "type": "continuous", "coords": [0.0, 0.5, 0.75]},
+            ],
+            "state": ["A[group]", "B[group]"],
+            "transitions": [
+                {
+                    "name": "transfer",
+                    "from": "A[group]",
+                    "to": "B[group]",
+                    "rate": "rate[day]",
+                    "reactants": [{"state": "A[group]", "order": 1}],
+                }
+            ],
+        }
+    )
+
+
+class _RecordingZeroPoissonSampler:
+    """Record backend-native leap means without changing populations."""
+
+    def __init__(self) -> None:
+        self.means: list[float] = []
+        self.indices: list[int] = []
+
+    def __call__(self, mean: Array, index: int, /) -> Array:
+        """Record a draw and preserve its namespace.
+
+        Returns:
+            Zero reaction counts.
+        """
+        self.means.append(float(mean.item()))
+        self.indices.append(index)
+        xp = mean.__array_namespace__()
+        return xp.zeros_like(mean, dtype=xp.int32)
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+@pytest.mark.parametrize(
+    "method", [StochasticMethod.DIRECT_SSA, StochasticMethod.ADAPTIVE_TAU_LEAPING]
+)
+@pytest.mark.parametrize("waiting_time", [0.125, 0.25])
+def test_real_hold_producer_resumes_exact_paths_without_engine_schedule(
+    backend: str,
+    method: StochasticMethod,
+    waiting_time: float,
+) -> None:
+    """Producer declarations wake zero-rate paths and discard boundary ties."""
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    system = _time_table_system()
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC, stochastic_method=method
+        ),
+    )
+    exact = _ConstantSSASampler(waiting_time)
+    poisson = _RecordingZeroPoissonSampler()
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.2, 0.5, 0.6, 0.75, 1.0]),
+        _named_initial_state(system, (xp.asarray(2.0), xp.asarray(0.0))),
+        {
+            "rate": ParameterValue(
+                xp.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+            )
+        },
+        ssa_sampler=exact,
+        poisson_sampler=poisson,
+    )
+    assert system.option("forcing_breakpoints") == (0.5, 0.75)
+    assert engine.validate_system(system) is None
+    assert result.__array_namespace__() is xp
+    final = [1.0, 1.0] if waiting_time == 0.125 else [2.0, 0.0]
+    np.testing.assert_array_equal(
+        np.asarray(result)[:, 1:], [[2.0, 0.0]] * 4 + [final] * 2
+    )
+    assert exact.indices == ([0, 1] if waiting_time == 0.125 else [0])
+    assert poisson.indices == []
+    assert engine.config.forcing_breakpoints == ()
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+@pytest.mark.parametrize(
+    "method", [StochasticMethod.TAU_LEAPING, StochasticMethod.ADAPTIVE_TAU_LEAPING]
+)
+def test_real_hold_producer_caps_tau_leaps_and_unions_extra_boundaries(
+    backend: str,
+    method: StochasticMethod,
+) -> None:
+    """A producer schedule and extra callback boundary share one capped path."""
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    system = _time_table_system()
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=method,
+            forcing_breakpoints=(0.5, 0.625),
+            tau_leap_tolerance=0.9,
+            tau_critical_threshold=0,
+            tau_exact_fallback_multiplier=0.0,
+        ),
+    )
+    poisson = _RecordingZeroPoissonSampler()
+    exact = _ConstantSSASampler(1.0)
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.25, 1.0]),
+        _named_initial_state(system, (xp.asarray(100.0), xp.asarray(0.0))),
+        {
+            "rate": ParameterValue(
+                xp.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+            )
+        },
+        poisson_sampler=poisson,
+        ssa_sampler=exact,
+    )
+    expected = (
+        [0.0, 0.0, 12.5, 12.5, 0.0]
+        if method is StochasticMethod.TAU_LEAPING
+        else [12.5, 12.5]
+    )
+    np.testing.assert_allclose(poisson.means, expected)
+    assert poisson.indices == list(range(len(expected)))
+    assert exact.indices == []
+    assert result.__array_namespace__() is xp
+    np.testing.assert_array_equal(np.asarray(result)[:, 1:], [[100, 0]] * 3)
+    assert engine.config.forcing_breakpoints == (0.5, 0.625)
+
+
+@pytest.mark.parametrize(
+    "points",
+    [
+        None,
+        0.5,
+        (True,),
+        ("0.5",),
+        (np.nan,),
+        (np.inf,),
+        (0.75, 0.5),
+        (0.5, 0.5),
+        ((0.5,),),
+    ],
+)
+def test_invalid_producer_forcing_fails_validation_and_run(points: object) -> None:
+    """Malformed declarations fail before rates or samplers are evaluated."""
+    system = _time_table_system()
+    system.options["forcing_breakpoints"] = points
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC, stochastic_method=StochasticMethod.DIRECT_SSA
+        ),
+    )
+    issues = engine.validate_system(system)
+    assert issues is not None
+    assert [issue.kind for issue in issues] == ["invalid_forcing"]
+    exact = _ConstantSSASampler(0.25)
+    with pytest.raises(ValueError, match="Invalid system"):
+        engine.run(
+            system,
+            np.asarray([0.0, 1.0]),
+            _named_initial_state(system, (np.asarray(2.0), np.asarray(0.0))),
+            {
+                "rate": ParameterValue(
+                    np.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+                )
+            },
+            ssa_sampler=exact,
+        )
+    assert exact.indices == []
+
+
+@pytest.mark.parametrize("method", list(StochasticMethod))
+def test_hybrid_rejects_declared_producer_forcing(method: StochasticMethod) -> None:
+    """Unsupported splitting cannot silently drop a producer's forcing changes."""
+    system = _time_table_system()
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.HYBRID,
+            stochastic_method=method,
+            stochastic_reactions=("transfer",),
+        ),
+    )
+    issues = engine.validate_system(system)
+    assert issues is not None
+    assert [issue.kind for issue in issues] == ["invalid_forcing"]
+    with pytest.raises(ValueError, match="hybrid forcing is unsupported"):
+        engine.run(
+            system,
+            np.asarray([0.0, 1.0]),
+            _named_initial_state(system, (np.asarray(2.0), np.asarray(0.0))),
+            {
+                "rate": ParameterValue(
+                    np.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+                )
+            },
+        )
+
+
+def test_deterministic_execution_uses_the_real_hold_producer() -> None:
+    """Producer metadata remains compatible with ordinary deterministic steps."""
+    system = _time_table_system()
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method=SolverMethod.EULER, fixed_max_step=0.125),
+    )
+    assert engine.validate_system(system) is None
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.5, 0.75, 1.0]),
+        _named_initial_state(system, (np.asarray(2.0), np.asarray(0.0))),
+        {
+            "rate": ParameterValue(
+                np.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+            )
+        },
+    )
+    np.testing.assert_allclose(
+        np.asarray(result)[:, 1:], [[2.0, 0.0]] * 2 + [[1.53125, 0.46875]] * 2
+    )
+
+
+def test_linear_table_coordinates_do_not_create_tau_boundaries() -> None:
+    """A smooth producer retains the existing left-endpoint leap approximation."""
+    system = _time_table_system("linear")
+    assert system.option("time_coordinates") == (0.0, 0.5, 0.75)
+    assert system.option("forcing_breakpoints") == ()
+    poisson = _RecordingZeroPoissonSampler()
+    _stochastic_engine().run(
+        system,
+        np.asarray([0.0, 1.0]),
+        _named_initial_state(system, (np.asarray(100.0), np.asarray(0.0))),
+        {
+            "rate": ParameterValue(
+                np.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+            )
+        },
+        poisson_sampler=poisson,
+    )
+    assert poisson.means == [0.0]
+    assert poisson.indices == [0]
+
+
+def test_producer_schedule_is_run_local_and_optional_for_legacy_systems() -> None:
+    """Reusing an engine with an older producer cannot retain forcing times."""
+    engine = _stochastic_engine()
+    forced = _time_table_system()
+    first = _RecordingZeroPoissonSampler()
+    engine.run(
+        forced,
+        np.asarray([0.0, 1.0]),
+        _named_initial_state(forced, (np.asarray(100.0), np.asarray(0.0))),
+        {
+            "rate": ParameterValue(
+                np.asarray([0.0, 1.0, 0.0]), ResolvedShape(("day",), (3,))
+            )
+        },
+        poisson_sampler=first,
+    )
+    assert first.means == [0.0, 25.0, 0.0]
+    legacy = _single_reaction_system()
+    legacy.options.pop("forcing_breakpoints")
+    second = _RecordingZeroPoissonSampler()
+    engine.run(
+        legacy,
+        np.asarray([0.0, 1.0]),
+        _named_initial_state(legacy, (np.asarray(100.0), np.asarray(0.0))),
+        {"beta": _scalar(0.1)},
+        poisson_sampler=second,
+    )
+    assert second.means == [10.0]
+    assert second.indices == [0]
+    assert engine.config.forcing_breakpoints == ()
+
+
 @pytest.mark.parametrize("backend", ["numpy", "jax"])
 @pytest.mark.parametrize(
     "method", [StochasticMethod.TAU_LEAPING, StochasticMethod.ADAPTIVE_TAU_LEAPING]
