@@ -303,7 +303,8 @@ Set `mode: stochastic` to execute every named reaction artifact published by
 `system.option("reactions")` as a discrete process. The provider does not parse
 raw transition configuration. It expands each typed reaction's source cells
 into flat channels and compiles the associated transition, source-only,
-pinned-axis, and summed-axis bookkeeping into one stoichiometric matrix.
+pinned-axis, summed-axis, and offset-axis bookkeeping into one stoichiometric
+matrix.
 
 Three methods are available:
 
@@ -529,6 +530,67 @@ Removing the aging and departure transitions instead gives births-only growth.
 For uniform fertility `b`, the total has `E[X(t)] = X(0) * exp(b * t)` and
 `Var[X(t)] = X(0) * exp(b * t) * (exp(b * t) - 1)`; older bins stay unchanged.
 These are ensemble expectations rather than requirements on each sampled path.
+
+### Axis-wide aging chains
+
+An op_system producer containing
+[PR #243](https://github.com/ACCIDDA/op_system/pull/243) can declare a whole
+aging chain with one axis-wide `coord_shift` entry. It publishes one reaction
+per state template, rather than one pinned reaction per pair of bins. Its
+`offsets` field names the shifted axis and step: a firing in bin `k` moves one
+individual to bin `k + step`. The provider expands every source bin into its
+own channel. When `k + step` leaves the axis, that channel only removes the
+donor (`boundary: absorb`). Under `boundary: stay`, the producer gives those
+bins zero propensity, so the last bin is an open-ended tail.
+
+```python
+import numpy as np
+from flepimop2.axis import ResolvedShape
+from flepimop2.parameter.abc import ParameterValue
+from flepimop2.system.op_system import OpSystemSystem
+from flepimop2.typing import StateChangeEnum
+
+from flepimop2.engine.op_engine import OpEngineEngineConfig, OpEngineFlepimop2Engine
+
+system = OpSystemSystem(spec={
+    "kind": "transitions",
+    "axes": [{"name": "age", "type": "ordinal", "coords": ["a0", "a1", "a2", "a3"]}],
+    "state": ["S[age]"],
+    "transitions": [
+        {
+            "name": "aging",
+            "coord_shift": {"axis": "age", "step": 1, "boundary": "absorb"},
+            "rate": "aging_rate[age]",
+            "apply_to": ["S"],
+        }
+    ],
+})
+initial = {
+    str(name): ParameterValue(np.asarray(value), ResolvedShape())
+    for name, value in zip(
+        system.option("state_names"), [20.0, 0.0, 0.0, 0.0], strict=True
+    )
+}
+parameters = {
+    "aging_rate": ParameterValue(np.full(4, 2.0), ResolvedShape(("age",), (4,))),
+}
+engine = OpEngineFlepimop2Engine(
+    state_change=StateChangeEnum.FLOW,
+    config=OpEngineEngineConfig(
+        mode="stochastic", stochastic_method="direct-ssa", random_seed=180
+    ),
+)
+history = engine.run(system, np.asarray([0.0, 0.5, 1.0, 2.0]), initial, parameters)
+remaining = history[:, 1:].sum(axis=1)
+```
+
+With equal rate `r` for every bin, each individual independently occupies bin
+`j` at time `t` with probability `exp(-r * t) * (r * t)**j / j!`. The time it
+takes to leave a chain of `n` bins is Erlang(`n`, `r`), so `remaining` falls
+in expectation by that distribution function. Under `stay`, the last bin
+instead accumulates the Erlang(`n - 1`, `r`) probability and the total is
+conserved on every path. Reaction artifacts from producers that predate
+`offsets` compile exactly as before.
 
 ### Bounded thinning SSA
 
