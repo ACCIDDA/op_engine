@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import replace
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pytest
@@ -45,6 +46,7 @@ from flepimop2.engine.op_engine import (
 if TYPE_CHECKING:
     from flepimop2.meta import RunMeta
     from flepimop2.typing import Array, Float64NDArray
+    from op_system.compile import CompiledReaction, StateDict
 
 
 class _NoopBackend(BackendABC, module="test_op_system_noop"):
@@ -1185,6 +1187,49 @@ def test_direct_ssa_retains_an_event_across_an_output_boundary() -> None:
     np.testing.assert_array_equal(
         result,
         np.asarray([[0.0, 2.0, 0.0], [0.2, 2.0, 0.0], [1.0, 0.0, 2.0]]),
+    )
+    assert sampler.indices == [0, 1]
+
+
+@pytest.mark.parametrize("backend", ["numpy", "jax"])
+def test_provider_direct_ssa_resumes_a_piecewise_forced_reaction(backend: str) -> None:
+    """The provider forwards forcing times and keeps typed callbacks native."""
+    xp = np if backend == "numpy" else pytest.importorskip("jax.numpy")
+    system = _single_reaction_system()
+    reaction = cast("tuple[CompiledReaction, ...]", system.option("reactions"))[0]
+
+    def forced_propensity(t: object, y: StateDict, **params: object) -> object:
+        """Gate a compiled reaction with an explicitly piecewise-constant rate.
+
+        Returns:
+            The original compiled propensity in the state namespace.
+        """
+        if cast("float", t) < 0.5:
+            params |= {"beta": 0.0}
+        return reaction.propensity_fn(t, y, **params)
+
+    system.options["reactions"] = (replace(reaction, propensity_fn=forced_propensity),)
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            mode=ExecutionMode.STOCHASTIC,
+            stochastic_method=StochasticMethod.DIRECT_SSA,
+            forcing_breakpoints=(0.5,),
+        ),
+    )
+    sampler = _ConstantSSASampler(0.25)
+    result = engine.run(
+        system,
+        np.asarray([0.0, 0.2, 0.5, 0.6, 0.75, 1.0]),
+        _named_initial_state(system, (xp.asarray(2.0), xp.asarray(0.0))),
+        {"beta": _scalar(1.0)},
+        ssa_sampler=sampler,
+    )
+
+    assert result.__array_namespace__() is xp
+    np.testing.assert_array_equal(
+        np.asarray(result)[:, 1:],
+        [[2, 0], [2, 0], [2, 0], [2, 0], [1, 1], [0, 2]],
     )
     assert sampler.indices == [0, 1]
 

@@ -82,6 +82,9 @@ semantics.
 `NumpySSASampler` and `NumpyPoissonSampler` are provided as conveniences.
 JAX users can construct fresh keys from the stable direct-SSA `draw_index` or
 tau-leaping `step_index`.
+Direct SSA's optional forcing schedule is static Python configuration. It
+preserves the state namespace and uses fresh draw indices when a forcing
+boundary invalidates a pending event; observation times retain that event.
 
 The current safety checks and stochastic event loops are eager, so these
 stochastic solvers are not JIT-compatible paths. Adaptive selection also reads

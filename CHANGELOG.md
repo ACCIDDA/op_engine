@@ -7,6 +7,9 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Direct SSA accepts explicit forcing breakpoints for exact piecewise-constant
+  rates, including dormant zero-rate intervals, while retaining pending events
+  across observation times. The provider exposes this for pure direct SSA (#171).
 - Prepared Flepimop2 execution plans now support explicit PyTree and JAX block
   layouts for fixed steps and frozen adaptive replay, including structured typed
   operators, while preserving dynamic-value cache contracts (#168).

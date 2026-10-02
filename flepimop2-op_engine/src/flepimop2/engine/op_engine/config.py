@@ -21,7 +21,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from op_engine.core_solver import (
     AdaptiveConfig,
@@ -30,6 +30,7 @@ from op_engine.core_solver import (
     OperatorSpecs,
     RunConfig,
 )
+from op_engine.stochastic_solver import DirectSSAConfig
 
 
 def _has_operator_specs(specs: OperatorSpecs | None) -> bool:
@@ -169,6 +170,7 @@ class OpEngineEngineConfig(BaseModel):
     )
     tau_max_retries: int = Field(default=20, ge=0)
     ssa_max_events: int = Field(default=1_000_000, ge=1)
+    forcing_breakpoints: tuple[float, ...] = ()
     state_layout: StateLayout = StateLayout.FLAT
     block_axis: str | None = None
     adaptive: bool = False
@@ -202,8 +204,29 @@ class OpEngineEngineConfig(BaseModel):
     operator_axis: str | int = "state"
     operators: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("forcing_breakpoints", mode="before")
+    @classmethod
+    def _validate_forcing_breakpoints(
+        cls, points: tuple[float, ...]
+    ) -> tuple[float, ...]:
+        """Apply the core solver's immutable forcing-schedule contract.
+
+        Returns:
+            Validated, snapshotted forcing times.
+        """
+        return DirectSSAConfig(forcing_breakpoints=points).forcing_breakpoints
+
     @model_validator(mode="after")
     def _validate_execution_configuration(self) -> OpEngineEngineConfig:
+        if self.forcing_breakpoints and (
+            self.mode is not ExecutionMode.STOCHASTIC
+            or self.stochastic_method is not StochasticMethod.DIRECT_SSA
+        ):
+            msg = (
+                "forcing_breakpoints currently require mode='stochastic' "
+                "and stochastic_method='direct-ssa'."
+            )
+            raise ValueError(msg)
         if (
             self.mode is not ExecutionMode.STOCHASTIC
             and self.method.startswith("imex-")

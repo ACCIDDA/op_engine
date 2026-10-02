@@ -389,6 +389,55 @@ def test_engine_config_accepts_pure_direct_ssa() -> None:
     assert config.ssa_max_events == 1_000_000
 
 
+def test_engine_config_round_trips_forcing_breakpoints() -> None:
+    """JSON/YAML-style lists become immutable schedules without coercion."""
+    points = [0.5, 1.0]
+    config = OpEngineEngineConfig.model_validate({
+        "mode": "stochastic",
+        "stochastic_method": "direct-ssa",
+        "forcing_breakpoints": points,
+    })
+    points[0] = 99.0
+
+    assert config.forcing_breakpoints == (0.5, 1.0)
+    serialized = config.model_dump_json(exclude_unset=True)
+    assert OpEngineEngineConfig.model_validate_json(serialized) == config
+
+
+@pytest.mark.parametrize(
+    "points", [None, 0.5, [[0.5]], [True], ["0.5"], [np.nan], [np.inf], [1, 1], [1, 0]]
+)
+def test_engine_config_rejects_invalid_forcing_breakpoints(points: object) -> None:
+    """Provider configuration uses the same schedule validation as the core."""
+    with pytest.raises(ValidationError, match="forcing_breakpoints"):
+        OpEngineEngineConfig.model_validate({
+            "mode": "stochastic",
+            "stochastic_method": "direct-ssa",
+            "forcing_breakpoints": points,
+        })
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"mode": "stochastic", "stochastic_method": "tau-leaping"},
+        {"mode": "stochastic", "stochastic_method": "adaptive-tau-leaping"},
+        {
+            "mode": "hybrid",
+            "stochastic_method": "direct-ssa",
+            "stochastic_reactions": ["infect"],
+        },
+    ],
+)
+def test_forcing_breakpoints_reject_unsupported_execution_paths(
+    kwargs: dict[str, object],
+) -> None:
+    """Unsupported methods must not silently ignore a forcing schedule."""
+    with pytest.raises(ValidationError, match="forcing_breakpoints currently require"):
+        OpEngineEngineConfig.model_validate(kwargs | {"forcing_breakpoints": [0.5]})
+
+
 def test_engine_config_exposes_every_stochastic_core_method() -> None:
     """The provider makes an explicit decision for each stochastic solver."""
     assert set(StochasticMethod) == {
