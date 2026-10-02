@@ -2853,6 +2853,60 @@ def _run_thinning_core(
     )
 
 
+def _describe_reaction_gap(gap: object) -> str:
+    """Render one producer reaction-coverage record for an error message.
+
+    Returns:
+        ``origin name: source -> target (reason)``.
+    """
+    name = getattr(gap, "name", None) or "unnamed"
+    source = getattr(gap, "source", None) or "(none)"
+    target = getattr(gap, "target", None) or "(none)"
+    return (
+        f"{getattr(gap, 'origin', '?')} {name}: {source} -> {target} "
+        f"({getattr(gap, 'reason', 'unknown')})"
+    )
+
+
+def _pure_stochastic_coverage_issues(system: SystemABC) -> list[ValidationIssue]:
+    """Find model dynamics that pure stochastic execution would drop.
+
+    Pure stochastic mode executes only reaction artifacts. Transitions the
+    producer reports in ``reaction_gaps`` (op_system #244) and typed
+    operators have no discrete counterpart there. Producers that predate
+    ``reaction_gaps`` are not checked.
+
+    Returns:
+        One issue per kind of uncovered dynamics, or an empty list.
+    """
+    issues: list[ValidationIssue] = []
+    gaps = system.option("reaction_gaps", None)
+    if isinstance(gaps, tuple | list) and gaps:
+        listed = "; ".join(_describe_reaction_gap(gap) for gap in gaps)
+        issues.append(
+            ValidationIssue(
+                msg=(
+                    "Pure stochastic mode executes only reaction artifacts, but "
+                    f"{len(gaps)} transition(s) have none and would never fire: "
+                    f"{listed}. Give each a reaction artifact, or use "
+                    "mode='hybrid' to integrate them deterministically."
+                ),
+                kind="uncovered_transitions",
+            )
+        )
+    if system.option("operators", None):
+        issues.append(
+            ValidationIssue(
+                msg=(
+                    "Pure stochastic mode cannot execute typed operators; use "
+                    "mode='hybrid' to integrate them deterministically."
+                ),
+                kind="stochastic_operators",
+            )
+        )
+    return issues
+
+
 def _run_pure_stochastic(
     times: np.ndarray,
     y0: Array,
@@ -3312,6 +3366,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                     ),
                 )
             if mode is ExecutionMode.STOCHASTIC:
+                issues.extend(_pure_stochastic_coverage_issues(system))
                 return issues or None
 
         method = self.config.method
@@ -3561,6 +3616,9 @@ class OpEngineFlepimop2Engine(EngineABC):
             )
 
         if mode is ExecutionMode.STOCHASTIC:
+            coverage_issues = _pure_stochastic_coverage_issues(system)
+            if coverage_issues:
+                raise ValueError(" ".join(issue.msg for issue in coverage_issues))
             stochastic_network = compile_reaction_network(
                 system,
                 raw_params,
