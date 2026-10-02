@@ -1097,7 +1097,10 @@ NumPy's stateful generator and JAX's explicit keys have intentionally different
 semantics.
 <code>NumpySSASampler</code> and <code>NumpyPoissonSampler</code> are provided as conveniences.
 JAX users can construct fresh keys from the stable direct-SSA <code>draw_index</code> or
-tau-leaping <code>step_index</code>.</p>
+tau-leaping <code>step_index</code>.
+Direct SSA's optional forcing schedule is static Python configuration. It
+preserves the state namespace and uses fresh draw indices when a forcing
+boundary invalidates a pending event; observation times retain that event.</p>
 <p>The current safety checks and stochastic event loops are eager, so these
 stochastic solvers are not JIT-compatible paths. Adaptive selection also reads
 drift/variance reductions, critical classifications, and accept/reject results

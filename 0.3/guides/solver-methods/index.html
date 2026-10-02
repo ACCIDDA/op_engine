@@ -545,6 +545,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Exact direct SSA">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#piecewise-constant-forcing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Piecewise-constant forcing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1082,6 +1099,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Exact direct SSA">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#piecewise-constant-forcing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Piecewise-constant forcing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1288,7 +1322,8 @@ reaction axis.</p>
 exponential waiting time and one categorical reaction/batch event, applies
 exactly one stoichiometric update, and repeats. A draw beyond an output boundary
 is retained rather than discarded, so adding observation times does not alter
-the simulated path. Zero total propensity is absorbing.</p>
+the simulated path. Zero total propensity is absorbing when no declared future
+forcing boundary remains.</p>
 <p>Use direct SSA as the reference method for low-copy-number networks, rare-event
 questions, or checking a tau-leaping approximation. Its cost is proportional to
 the number of individual events, so tau-leaping is usually preferable when
@@ -1314,10 +1349,49 @@ DirectSSASolver(core, stoichiometry).run(
     NumpySSASampler(seed=2026),
 )
 </code></pre>
-<p>The direct method assumes propensities remain constant between reaction events,
-as in a time-homogeneous continuous-time Markov chain. Across batch cells it
-samples from the superposed event process; the result is equivalent to
+<p>The direct method assumes propensities remain constant in time while the state
+is unchanged, except at explicitly declared forcing boundaries. Across batch
+cells it samples from the superposed event process; the result is equivalent to
 independent direct-method trajectories for independent batch cells.</p>
+<h4 id="piecewise-constant-forcing">Piecewise-constant forcing<a class="headerlink" href="#piecewise-constant-forcing" title="Permanent link">&para;</a></h4>
+<p>Declare every forcing change through <code>DirectSSAConfig.forcing_breakpoints</code>:</p>
+<pre><code class="language-python">from op_engine import DirectSSAConfig, array_namespace
+
+core = ModelCore(n_states=1, n_subgroups=1, time_grid=np.linspace(0.0, 3.0, 13))
+core.set_initial_state(np.zeros((1, 1)))
+
+
+def forced_birth_rate(time, state):
+    xp = array_namespace(state)
+    rate = 0.0 if time &lt; 1.0 else (3.0 if time &lt; 2.0 else 1.0)
+    return xp.full(state.shape, rate, dtype=state.dtype)
+
+
+DirectSSASolver(core, np.asarray([[1]])).run(
+    forced_birth_rate,
+    NumpySSASampler(seed=2026),
+    config=DirectSSAConfig(forcing_breakpoints=(1.0, 2.0)),
+)
+</code></pre>
+<p>If an event would reach or cross a forcing boundary, the solver advances to
+that boundary without firing, reevaluates the rates, and redraws. Exponential
+memorylessness makes this exact for piecewise-constant forcing. Zero-rate
+intervals advance to the next forcing boundary without drawing randomness.</p>
+<p>Forcing is right-continuous: the callback must return the new rates at a
+breakpoint. In an exact event/breakpoint tie, the forcing boundary wins and the
+old event is discarded. Observation times remain independent of the forcing
+schedule, even when an observation coincides with a breakpoint.</p>
+<p>Breakpoints must be finite real scalars in strictly increasing order. They are
+snapshotted as an immutable tuple; a global schedule may include times outside
+the solve interval. Boundaries at the initial time are already reflected in
+the first evaluation, and the final boundary causes no extra random draw.
+An omitted or empty schedule preserves ordinary time-homogeneous execution.</p>
+<p>The schedule does not freeze or interpolate callback values. All time
+dependence between boundaries must be constant for this exactness claim;
+smoothly varying rates require a different waiting-time method. In particular,
+<code>op_system</code> currently linearly interpolates its time-indexed parameters, so
+listing their grid points as breakpoints does not make direct SSA exact for
+those interpolated rates.</p>
 <h3 id="bounded-adaptive-tau-leaping">Bounded adaptive tau-leaping<a class="headerlink" href="#bounded-adaptive-tau-leaping" title="Permanent link">&para;</a></h3>
 <p><code>AdaptiveTauLeapingSolver</code> implements the species-based pre-leap selector of
 <a href="https://doi.org/10.1063/1.2159468">Cao, Gillespie, and Petzold</a> together with

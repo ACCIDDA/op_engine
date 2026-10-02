@@ -1555,7 +1555,7 @@ API.</p>
 
 
 <h3 id="op_engine.stochastic_solver.DirectSSAConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">DirectSSAConfig</span><span class="p">(</span><span class="n">max_events</span><span class="o">=</span><span class="mi">1000000</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">DirectSSAConfig</span><span class="p">(</span><span class="n">max_events</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span> <span class="n">forcing_breakpoints</span><span class="o">=</span><span class="p">())</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -1590,6 +1590,20 @@ API.</p>
               <div class="doc-md-description">
                 <p>Maximum number of events applied in one output interval.
 This guard detects explosive or otherwise pathological processes.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.stochastic_solver.DirectSSAConfig.forcing_breakpoints">forcing_breakpoints</span></code></td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="float">float</span>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Strictly increasing times at which external
+forcing may change. Propensities must be constant in time between
+these boundaries while the state is unchanged. Forcing is
+right-continuous; an event at a boundary is discarded and redrawn.</p>
               </div>
             </td>
           </tr>
@@ -1628,7 +1642,7 @@ This guard detects explosive or otherwise pathological processes.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Validate the event-count guard.</p>
+        <p>Validate the event-count guard and snapshot forcing boundaries.</p>
 
 
 <p><span class="doc-section-title">Raises:</span></p>
@@ -1646,7 +1660,7 @@ This guard detects explosive or otherwise pathological processes.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If <code>max_events</code> is not a positive integer.</p>
+                <p>If the event-count guard or forcing schedule is invalid.</p>
               </div>
             </td>
           </tr>
@@ -1656,23 +1670,25 @@ This guard detects explosive or otherwise pathological processes.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">149</span>
 <span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
 <span class="normal">153</span>
 <span class="normal">154</span>
-<span class="normal">155</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Validate the event-count guard.</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Validate the event-count guard and snapshot forcing boundaries.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If ``max_events`` is not a positive integer.</span>
+<span class="sd">        ValueError: If the event-count guard or forcing schedule is invalid.</span>
 <span class="sd">    """</span>
     <span class="k">if</span> <span class="p">(</span>
         <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_events</span><span class="p">,</span> <span class="n">Integral</span><span class="p">)</span>
@@ -1681,6 +1697,8 @@ This guard detects explosive or otherwise pathological processes.</p>
     <span class="p">):</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="s2">"max_events must be a positive integer"</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">schedule</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
+    <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"forcing_breakpoints"</span><span class="p">,</span> <span class="n">schedule</span><span class="o">.</span><span class="n">breakpoints</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -1713,8 +1731,8 @@ This guard detects explosive or otherwise pathological processes.</p>
 <p>All reaction channels and batch cells form one flattened categorical event
 space. This is the superposition of the independent batched processes, so
 each accepted event changes exactly one batch cell. Propensities must be
-time-homogeneous between events; requested output times only observe the
-path and never cause an event to be resampled.</p>
+constant in time between events and declared forcing boundaries. Requested
+output times only observe the path and never cause an event to be resampled.</p>
 
         <p>Initialize a reaction network.</p>
 
@@ -1791,24 +1809,24 @@ path and never cause an event to be resampled.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">610</span>
-<span class="normal">611</span>
-<span class="normal">612</span>
-<span class="normal">613</span>
-<span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span>
-<span class="normal">617</span>
-<span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span>
-<span class="normal">625</span>
-<span class="normal">626</span>
-<span class="normal">627</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -1877,8 +1895,9 @@ path and never cause an event to be resampled.</p>
 
         <p>Advance an exact reaction trajectory through the core output grid.</p>
 <p>An event drawn beyond an output boundary is retained for the following
-interval. A zero total propensity is absorbing, and the sampler is not
-called again.</p>
+interval. A pending event at or beyond a forcing boundary is discarded.
+Zero total propensity waits for the next forcing boundary without
+sampling; with no future boundary it is absorbing.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1901,7 +1920,8 @@ called again.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Time-homogeneous reaction-channel propensities.</p>
+                <p>Reaction-channel propensities, constant in time
+between events and configured forcing boundaries.</p>
               </div>
             </td>
             <td>
@@ -1929,7 +1949,7 @@ called again.</p>
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="DirectSSAConfig(max_events=1000000)
+                  <code><a class="autorefs autorefs-internal" title="DirectSSAConfig(max_events=1000000, forcing_breakpoints=())
 
   
       dataclass
@@ -1937,7 +1957,7 @@ called again.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional event-count guard.</p>
+                <p>Optional event-count guard and forcing schedule.</p>
               </div>
             </td>
             <td>
@@ -1974,50 +1994,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">634</span>
-<span class="normal">635</span>
-<span class="normal">636</span>
-<span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span>
-<span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span>
-<span class="normal">662</span>
-<span class="normal">663</span>
-<span class="normal">664</span>
-<span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span>
-<span class="normal">672</span>
-<span class="normal">673</span>
-<span class="normal">674</span>
-<span class="normal">675</span>
-<span class="normal">676</span>
-<span class="normal">677</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">677</span>
 <span class="normal">678</span>
 <span class="normal">679</span>
 <span class="normal">680</span>
@@ -2054,7 +2031,55 @@ produces a negative population.</p>
 <span class="normal">711</span>
 <span class="normal">712</span>
 <span class="normal">713</span>
-<span class="normal">714</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
+<span class="normal">739</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
     <span class="n">ssa_sampler</span><span class="p">:</span> <span class="n">SSASampler</span><span class="p">,</span>
@@ -2064,19 +2089,22 @@ produces a negative population.</p>
 <span class="w">    </span><span class="sd">"""Advance an exact reaction trajectory through the core output grid.</span>
 
 <span class="sd">    An event drawn beyond an output boundary is retained for the following</span>
-<span class="sd">    interval. A zero total propensity is absorbing, and the sampler is not</span>
-<span class="sd">    called again.</span>
+<span class="sd">    interval. A pending event at or beyond a forcing boundary is discarded.</span>
+<span class="sd">    Zero total propensity waits for the next forcing boundary without</span>
+<span class="sd">    sampling; with no future boundary it is absorbing.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        propensity_func: Time-homogeneous reaction-channel propensities.</span>
+<span class="sd">        propensity_func: Reaction-channel propensities, constant in time</span>
+<span class="sd">            between events and configured forcing boundaries.</span>
 <span class="sd">        ssa_sampler: Backend-specific exponential/categorical sampler.</span>
-<span class="sd">        config: Optional event-count guard.</span>
+<span class="sd">        config: Optional event-count guard and forcing schedule.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        RuntimeError: If an interval exceeds its event limit or a reaction</span>
 <span class="sd">            produces a negative population.</span>
 <span class="sd">    """</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">DirectSSAConfig</span><span class="p">()</span>
+    <span class="n">forcing</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="o">.</span><span class="n">validate_finite_nonnegative</span><span class="p">(</span>
         <span class="n">state</span><span class="p">,</span>
@@ -2094,6 +2122,7 @@ produces a negative population.</p>
         <span class="n">target</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_grid</span><span class="p">[</span><span class="n">output_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
         <span class="n">interval_events</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">while</span> <span class="ow">not</span> <span class="n">absorbing</span> <span class="ow">and</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">target</span><span class="p">:</span>
+            <span class="n">boundary</span> <span class="o">=</span> <span class="n">forcing</span><span class="o">.</span><span class="n">next_after</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">pending_time</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">propensity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="o">.</span><span class="n">evaluate_propensity</span><span class="p">(</span>
                     <span class="n">propensity_func</span><span class="p">,</span>
@@ -2106,11 +2135,20 @@ produces a negative population.</p>
                     <span class="n">draw_index</span><span class="o">=</span><span class="n">draw_index</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="k">if</span> <span class="n">event</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">absorbing</span> <span class="o">=</span> <span class="kc">True</span>
-                    <span class="k">break</span>
-                <span class="n">waiting_time</span><span class="p">,</span> <span class="n">pending_event_index</span> <span class="o">=</span> <span class="n">event</span>
-                <span class="n">pending_time</span> <span class="o">=</span> <span class="n">t</span> <span class="o">+</span> <span class="n">waiting_time</span>
-                <span class="n">draw_index</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">boundary</span><span class="p">):</span>
+                        <span class="n">absorbing</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">break</span>
+                    <span class="n">pending_time</span> <span class="o">=</span> <span class="n">boundary</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pending_time</span> <span class="o">=</span> <span class="n">_ssa_event_time</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">event</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">pending_event_index</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">draw_index</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="n">boundary</span> <span class="o">&lt;=</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">boundary</span> <span class="o">&lt;=</span> <span class="n">pending_time</span><span class="p">:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="n">boundary</span>
+                <span class="n">pending_time</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">pending_event_index</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">continue</span>
 
             <span class="k">if</span> <span class="n">pending_time</span> <span class="o">&gt;</span> <span class="n">target</span><span class="p">:</span>
                 <span class="k">break</span>
@@ -2120,15 +2158,7 @@ produces a negative population.</p>
                 <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Direct SSA event state is inconsistent"</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
-            <span class="n">proposed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="o">.</span><span class="n">apply_event</span><span class="p">(</span><span class="n">pending_event_index</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="o">.</span><span class="n">validate_finite_nonnegative</span><span class="p">(</span>
-                    <span class="n">proposed</span><span class="p">,</span>
-                    <span class="n">message</span><span class="o">=</span><span class="n">_SSA_NEGATIVE_STATE</span><span class="p">,</span>
-                <span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">_SSA_NEGATIVE_STATE</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
-            <span class="n">state</span> <span class="o">=</span> <span class="n">proposed</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_event</span><span class="p">(</span><span class="n">pending_event_index</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
             <span class="n">t</span> <span class="o">=</span> <span class="n">pending_time</span>
             <span class="n">pending_time</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">pending_event_index</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2207,13 +2237,13 @@ produces a negative population.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">161</span>
-<span class="normal">162</span>
-<span class="normal">163</span>
-<span class="normal">164</span>
-<span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Create a NumPy generator.</span>
 
 <span class="sd">    Args:</span>
@@ -2345,15 +2375,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">177</span>
 <span class="normal">178</span>
 <span class="normal">179</span>
 <span class="normal">180</span>
@@ -2362,7 +2384,15 @@ produces a negative population.</p>
 <span class="normal">183</span>
 <span class="normal">184</span>
 <span class="normal">185</span>
-<span class="normal">186</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Draw Poisson firing counts in the NumPy namespace.</span>
 
 <span class="sd">    Args:</span>
@@ -2452,13 +2482,13 @@ produces a negative population.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Create a NumPy generator.</span>
 
 <span class="sd">    Args:</span>
@@ -2606,15 +2636,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">208</span>
 <span class="normal">209</span>
 <span class="normal">210</span>
 <span class="normal">211</span>
@@ -2645,7 +2667,15 @@ produces a negative population.</p>
 <span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
-<span class="normal">239</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">total_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">probabilities</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -2757,8 +2787,8 @@ PRNG ecosystems can derive a distinct key from it without mutable state.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">60</span>
-<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">61</span>
+<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Draw independent Poisson counts with the shape of ``mean``."""</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2919,14 +2949,14 @@ addresses their flattened representation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">86</span>
-<span class="normal">87</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">87</span>
 <span class="normal">88</span>
 <span class="normal">89</span>
 <span class="normal">90</span>
 <span class="normal">91</span>
 <span class="normal">92</span>
-<span class="normal">93</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">93</span>
+<span class="normal">94</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">total_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">probabilities</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -3065,8 +3095,7 @@ interval.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
-<span class="normal">113</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -3082,7 +3111,8 @@ interval.</p>
 <span class="normal">126</span>
 <span class="normal">127</span>
 <span class="normal">128</span>
-<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">129</span>
+<span class="normal">130</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate fixed tau controls.</span>
 
 <span class="sd">    Raises:</span>
@@ -3210,24 +3240,24 @@ function returns the same batched shape with <code>n_reactions</code> replacing
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -3390,31 +3420,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">573</span>
 <span class="normal">574</span>
 <span class="normal">575</span>
 <span class="normal">576</span>
@@ -3438,7 +3444,31 @@ produces a negative population.</p>
 <span class="normal">594</span>
 <span class="normal">595</span>
 <span class="normal">596</span>
-<span class="normal">597</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
     <span class="n">poisson_sampler</span><span class="p">:</span> <span class="n">PoissonSampler</span><span class="p">,</span>
