@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Pure stochastic validation and execution reject models with dynamics that
+  have no reaction artifact. These are transitions listed in the producer's
+  `reaction_gaps` coverage records (op_system #249), and typed operators.
+  Each uncovered transition is named by origin, selectors, and reason, so it
+  can no longer be dropped silently. Hybrid mode and producers without
+  coverage records are unchanged (#182).
+
 - Stochastic execution consumes axis-wide `coord_shift` reactions from
   op_system: each source bin of an `offsets` axis becomes a channel that moves
   one unit by the published step, and off-axis destinations only deplete the

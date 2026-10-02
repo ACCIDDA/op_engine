@@ -306,6 +306,17 @@ into flat channels and compiles the associated transition, source-only,
 pinned-axis, summed-axis, and offset-axis bookkeeping into one stoichiometric
 matrix.
 
+Pure stochastic mode runs only those reactions, so it refuses models whose
+dynamics they do not cover. When the producer reports transitions without a
+reaction artifact (`system.option("reaction_gaps")`, from op_system
+[PR #249](https://github.com/ACCIDDA/op_system/pull/249)), validation and
+`run` fail and list each one by spec origin, selectors, and reason. Examples
+are an unnamed transition, a `chain:` stage, or a routing transition. Typed
+operators are rejected for the same reason. Name the transitions to give them
+reaction artifacts, or use `mode: hybrid`, which integrates everything outside
+its jump partition deterministically. Producers that predate coverage records
+are not checked.
+
 Three methods are available:
 
 ```yaml
