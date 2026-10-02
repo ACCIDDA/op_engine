@@ -1171,7 +1171,7 @@
 
 
 <h3 id="op_engine.adaptive_tau.AdaptiveTauLeapingConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">AdaptiveTauLeapingConfig</span><span class="p">(</span><span class="n">leap_tolerance</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">critical_threshold</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">exact_fallback_multiplier</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">max_steps</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">AdaptiveTauLeapingConfig</span><span class="p">(</span><span class="n">leap_tolerance</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">critical_threshold</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">exact_fallback_multiplier</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">max_steps</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">forcing_breakpoints</span><span class="o">=</span><span class="p">())</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -1256,6 +1256,20 @@ disables this fallback.</p>
               </div>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.adaptive_tau.AdaptiveTauLeapingConfig.forcing_breakpoints">forcing_breakpoints</span></code></td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="float">float</span>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Strictly increasing finite forcing-change times.
+Leaps end at these boundaries; exact events at or beyond a boundary
+are discarded. Rates must be right-continuous and constant in time
+between boundaries for exact fallback.</p>
+              </div>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -1319,13 +1333,7 @@ disables this fallback.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/adaptive_tau.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 60</span>
-<span class="normal"> 61</span>
-<span class="normal"> 62</span>
-<span class="normal"> 63</span>
-<span class="normal"> 64</span>
-<span class="normal"> 65</span>
-<span class="normal"> 66</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 66</span>
 <span class="normal"> 67</span>
 <span class="normal"> 68</span>
 <span class="normal"> 69</span>
@@ -1361,7 +1369,15 @@ disables this fallback.</p>
 <span class="normal"> 99</span>
 <span class="normal">100</span>
 <span class="normal">101</span>
-<span class="normal">102</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate adaptive controls.</span>
 
 <span class="sd">    Raises:</span>
@@ -1404,6 +1420,8 @@ disables this fallback.</p>
     <span class="p">):</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="s2">"max_retries must be a non-negative integer"</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">schedule</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
+    <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"forcing_breakpoints"</span><span class="p">,</span> <span class="n">schedule</span><span class="o">.</span><span class="n">breakpoints</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -1531,15 +1549,7 @@ stoichiometry for catalytic reactions.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/adaptive_tau.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">400</span>
-<span class="normal">401</span>
-<span class="normal">402</span>
-<span class="normal">403</span>
-<span class="normal">404</span>
-<span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
@@ -1554,7 +1564,15 @@ stoichiometry for catalytic reactions.</p>
 <span class="normal">420</span>
 <span class="normal">421</span>
 <span class="normal">422</span>
-<span class="normal">423</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -1694,7 +1712,7 @@ stoichiometry for catalytic reactions.</p>
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="AdaptiveTauLeapingConfig(leap_tolerance=0.03, critical_threshold=10, exact_fallback_multiplier=10.0, max_steps=1000000, max_retries=20)
+                  <code><a class="autorefs autorefs-internal" title="AdaptiveTauLeapingConfig(leap_tolerance=0.03, critical_threshold=10, exact_fallback_multiplier=10.0, max_steps=1000000, max_retries=20, forcing_breakpoints=())
 
   
       dataclass
@@ -1702,7 +1720,7 @@ stoichiometry for catalytic reactions.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional adaptive and retry controls.</p>
+                <p>Optional adaptive, retry, and forcing controls.</p>
               </div>
             </td>
             <td>
@@ -1739,17 +1757,7 @@ invariant fails.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/adaptive_tau.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">576</span>
 <span class="normal">577</span>
 <span class="normal">578</span>
 <span class="normal">579</span>
@@ -1867,7 +1875,32 @@ invariant fails.</p>
 <span class="normal">691</span>
 <span class="normal">692</span>
 <span class="normal">693</span>
-<span class="normal">694</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: C901, PLR0914, PLR0915</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
+<span class="normal">697</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: C901, PLR0912, PLR0914, PLR0915</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
     <span class="n">poisson_sampler</span><span class="p">:</span> <span class="n">PoissonSampler</span><span class="p">,</span>
@@ -1881,13 +1914,14 @@ invariant fails.</p>
 <span class="sd">        propensity_func: Reaction-channel propensities.</span>
 <span class="sd">        poisson_sampler: Backend-specific noncritical Poisson sampler.</span>
 <span class="sd">        ssa_sampler: Backend-specific exact-event sampler.</span>
-<span class="sd">        config: Optional adaptive and retry controls.</span>
+<span class="sd">        config: Optional adaptive, retry, and forcing controls.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        RuntimeError: If a step guard, retry guard, or non-negativity</span>
 <span class="sd">            invariant fails.</span>
 <span class="sd">    """</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AdaptiveTauLeapingConfig</span><span class="p">()</span>
+    <span class="n">forcing</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="o">.</span><span class="n">validate_finite_nonnegative</span><span class="p">(</span>
         <span class="n">state</span><span class="p">,</span>
@@ -1905,7 +1939,13 @@ invariant fails.</p>
         <span class="n">target</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_grid</span><span class="p">[</span><span class="n">output_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
         <span class="n">interval_steps</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">while</span> <span class="ow">not</span> <span class="n">absorbing</span> <span class="ow">and</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">target</span><span class="p">:</span>
+            <span class="n">boundary</span> <span class="o">=</span> <span class="n">forcing</span><span class="o">.</span><span class="n">next_after</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">pending_exact_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">boundary</span> <span class="o">&lt;=</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">boundary</span> <span class="o">&lt;=</span> <span class="n">pending_exact_time</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="n">boundary</span>
+                    <span class="n">pending_exact_time</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">pending_exact_index</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">pending_exact_time</span> <span class="o">&gt;</span> <span class="n">target</span><span class="p">:</span>
                     <span class="k">break</span>
                 <span class="k">if</span> <span class="n">interval_steps</span> <span class="o">&gt;=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">max_steps</span><span class="p">:</span>
@@ -1934,6 +1974,9 @@ invariant fails.</p>
             <span class="p">)</span>
             <span class="n">total_rate_value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">total_rate</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
             <span class="k">if</span> <span class="n">total_rate_value</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">boundary</span><span class="p">):</span>
+                    <span class="n">pending_exact_time</span> <span class="o">=</span> <span class="n">boundary</span>
+                    <span class="k">continue</span>
                 <span class="n">absorbing</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">break</span>
 
@@ -1972,9 +2015,13 @@ invariant fails.</p>
                     <span class="k">break</span>
                 <span class="n">waiting_time</span><span class="p">,</span> <span class="n">pending_exact_index</span> <span class="o">=</span> <span class="n">event</span>
                 <span class="n">pending_exact_time</span> <span class="o">=</span> <span class="n">t</span> <span class="o">+</span> <span class="n">waiting_time</span>
+                <span class="k">if</span> <span class="n">pending_exact_time</span> <span class="o">&lt;=</span> <span class="n">t</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">_STEP_UNDERFLOW</span><span class="p">)</span>
                 <span class="n">ssa_draw_index</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="k">continue</span>
 
+            <span class="n">limit</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">boundary</span><span class="p">)</span>
+            <span class="n">remaining</span> <span class="o">=</span> <span class="n">limit</span> <span class="o">-</span> <span class="n">t</span>
             <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attempt_leap</span><span class="p">(</span>
                 <span class="n">state</span><span class="p">,</span>
                 <span class="n">propensity</span><span class="p">,</span>
@@ -1982,7 +2029,8 @@ invariant fails.</p>
                 <span class="n">poisson_sampler</span><span class="p">,</span>
                 <span class="n">ssa_sampler</span><span class="p">,</span>
                 <span class="n">tau_candidate</span><span class="o">=</span><span class="n">tau_candidate</span><span class="p">,</span>
-                <span class="n">remaining</span><span class="o">=</span><span class="n">target</span> <span class="o">-</span> <span class="n">t</span><span class="p">,</span>
+                <span class="n">remaining</span><span class="o">=</span><span class="n">remaining</span><span class="p">,</span>
+                <span class="n">forcing_boundary</span><span class="o">=</span><span class="n">boundary</span> <span class="o">&lt;=</span> <span class="n">target</span><span class="p">,</span>
                 <span class="n">poisson_draw_index</span><span class="o">=</span><span class="n">poisson_draw_index</span><span class="p">,</span>
                 <span class="n">ssa_draw_index</span><span class="o">=</span><span class="n">ssa_draw_index</span><span class="p">,</span>
                 <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">,</span>
@@ -1990,7 +2038,7 @@ invariant fails.</p>
             <span class="n">state</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">state</span>
             <span class="k">if</span> <span class="n">t</span> <span class="o">+</span> <span class="n">result</span><span class="o">.</span><span class="n">dt</span> <span class="o">==</span> <span class="n">t</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">_STEP_UNDERFLOW</span><span class="p">)</span>
-            <span class="n">t</span> <span class="o">+=</span> <span class="n">result</span><span class="o">.</span><span class="n">dt</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">limit</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">dt</span> <span class="o">==</span> <span class="n">remaining</span> <span class="k">else</span> <span class="n">t</span> <span class="o">+</span> <span class="n">result</span><span class="o">.</span><span class="n">dt</span>
             <span class="n">poisson_draw_index</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">poisson_draw_index</span>
             <span class="n">ssa_draw_index</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">ssa_draw_index</span>
             <span class="n">interval_steps</span> <span class="o">+=</span> <span class="mi">1</span>

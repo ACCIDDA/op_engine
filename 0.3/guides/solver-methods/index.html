@@ -1209,8 +1209,8 @@
 <h1 id="choosing-and-configuring-a-solver">Choosing and configuring a solver<a class="headerlink" href="#choosing-and-configuring-a-solver" title="Permanent link">&para;</a></h1>
 <p><code>ModelCore</code> owns output times and state storage. Deterministic systems use
 <code>CoreSolver</code> and a method selected by <code>RunConfig</code>. Stochastic reaction networks
-use <code>DirectSSASolver</code> or <code>TauLeapingSolver</code>, because propensities and
-stoichiometry have different semantics from an ODE right-hand side. In every
+use <code>DirectSSASolver</code>, <code>TauLeapingSolver</code>, or <code>AdaptiveTauLeapingSolver</code>, because
+propensities and stoichiometry have different semantics from an ODE right-hand side. In every
 case the state array selects the Array-API namespace; choosing JAX instead of
 NumPy does not select a different numerical method.</p>
 <h2 id="deterministic-method-guide">Deterministic method guide<a class="headerlink" href="#deterministic-method-guide" title="Permanent link">&para;</a></h2>
@@ -1393,6 +1393,36 @@ smoothly varying rates require a different waiting-time method. In particular,
 listing their grid points as breakpoints does not make direct SSA exact for
 those interpolated rates.</p>
 <h3 id="bounded-adaptive-tau-leaping">Bounded adaptive tau-leaping<a class="headerlink" href="#bounded-adaptive-tau-leaping" title="Permanent link">&para;</a></h3>
+<p>Both tau-leaping configurations accept the same <code>forcing_breakpoints</code> schedule
+as direct SSA. Each leap is capped at the next observation or forcing time,
+as well as the method's usual step-size limit. The next leap evaluates the
+right-continuous rates at that boundary. Boundaries count toward the fixed or
+adaptive method's <code>max_steps</code> guard for the entire output interval; they do
+not reset it.</p>
+<p>For example, the piecewise birth callback above can also use fixed tau-leaping:</p>
+<pre><code class="language-python">from op_engine import NumpyPoissonSampler, TauLeapingConfig, TauLeapingSolver
+
+core = ModelCore(n_states=1, n_subgroups=1, time_grid=np.linspace(0.0, 3.0, 13))
+core.set_initial_state(np.zeros((1, 1)))
+
+TauLeapingSolver(core, np.asarray([[1]])).run(
+    forced_birth_rate,
+    NumpyPoissonSampler(seed=2026),
+    config=TauLeapingConfig(max_step=0.1, forcing_breakpoints=(1.0, 2.0)),
+)
+</code></pre>
+<p>Adaptive tau-leaping uses these caps for both accepted leaps and rejected
+proposals. A critical event tied with a forcing boundary is discarded, while
+noncritical Poisson counts cover the segment ending there. During exact
+fallback, a pending event survives observation times but is discarded at or
+beyond the next forcing change. Zero total propensity waits for that change
+without drawing randomness; without a future boundary it remains absorbing.</p>
+<p>Boundary caps keep a leap from using the old rate across a known change. The
+usual tau-leaping approximation still freezes state-dependent propensities
+within each leap. Smooth time variation between boundaries also remains an
+approximation for leaps and is unsupported by adaptive exact fallback. For
+that fallback, use rates constant in time between declared forcing changes
+while the state is unchanged.</p>
 <p><code>AdaptiveTauLeapingSolver</code> implements the species-based pre-leap selector of
 <a href="https://doi.org/10.1063/1.2159468">Cao, Gillespie, and Petzold</a> together with
 their <a href="https://doi.org/10.1063/1.1992473">non-negative modified Poisson
