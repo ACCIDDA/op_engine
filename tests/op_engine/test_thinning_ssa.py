@@ -9,7 +9,9 @@ import pytest
 
 from op_engine import (
     Array,
+    DirectSSASolver,
     ModelCore,
+    NumpySSASampler,
     NumpyThinningSampler,
     ThinningSample,
     ThinningSSAConfig,
@@ -96,6 +98,259 @@ def test_candidate_time_channels_rejections_and_pending_observations() -> None:
     )
     assert sampler.indices == [0, 1, 2, 3]
     assert bounds == [(0, 0, 1), (0.5, 1, 1), (0.75, 2, 1)]
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, True])
+def test_invalid_candidate_limits(value: object) -> None:
+    """The per-run candidate limit must be a positive integer."""
+    with pytest.raises(ValueError, match="max_candidates"):
+        ThinningSSAConfig(max_candidates=value)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("points", [(0.5, 0.5), (1, 0), (np.inf,), (True,)])
+def test_invalid_forcing_schedules(points: tuple[float, ...]) -> None:
+    """Thinning uses the same strict forcing schedule as direct SSA."""
+    with pytest.raises(ValueError, match="forcing_breakpoints"):
+        ThinningSSAConfig(forcing_breakpoints=points)
+
+
+@pytest.mark.parametrize("value", [-1, np.nan, np.inf, True, "1", None, [1]])
+def test_invalid_constant_and_callback_bound_rates(value: object) -> None:
+    """Neither bound interface accepts malformed or non-finite rates."""
+    with pytest.raises(ValueError, match="rate_bound"):
+        ThinningSSASolver(_core(), np.asarray([[1]])).run(
+            _smooth_birth,
+            _Samples(),
+            rate_bound=value,  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValueError, match="bound rate"):
+        TotalRateBound(value, 1)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("endpoint", [-1, 0, 2, np.nan, np.inf, True])
+def test_invalid_bound_endpoints(endpoint: float) -> None:
+    """Callback endpoints must be finite and strictly advance within the limit."""
+
+    def bound(_t: float, _state: Array, _limit: float) -> TotalRateBound:
+        return TotalRateBound(2, endpoint)
+
+    with pytest.raises(ValueError, match="valid_until"):
+        ThinningSSASolver(_core(), np.asarray([[1]])).run(
+            _smooth_birth, _Samples(), rate_bound=bound
+        )
+
+
+@pytest.mark.parametrize(
+    ("wait", "uniform"),
+    [
+        (0, 0.5),
+        (-1, 0.5),
+        (np.nan, 0.5),
+        (np.inf, 0.5),
+        (0.25, -0.1),
+        (0.25, 1),
+        (0.25, np.nan),
+        (0.25, np.inf),
+    ],
+)
+def test_invalid_candidate_randomness(wait: float, uniform: float) -> None:
+    """Invalid exponential or uniform results fail before applying an event."""
+    with pytest.raises(ValueError, match=r"waiting_time|uniform"):
+        ThinningSSASolver(_core(), np.asarray([[1]])).run(
+            _smooth_birth,
+            _Samples((wait, uniform)),
+            rate_bound=2,
+        )
+
+
+@pytest.mark.parametrize("initial_violation", [False, True])
+def test_violated_bounds_fail_at_interval_start_and_candidate_time(
+    *, initial_violation: bool
+) -> None:
+    """Rates exceeding a bound fail visibly even when the candidate would reject."""
+
+    def rates(t: float, _state: Array) -> Array:
+        return cast("Array", np.asarray([[2 if initial_violation or t > 0 else 0.0]]))
+
+    sampler = _Samples((0.25, 0.99))
+    with pytest.raises(
+        ValueError, match=r"Total propensity 2\.0 exceeds bound rate 1\.0"
+    ):
+        ThinningSSASolver(_core(), np.asarray([[1]])).run(rates, sampler, rate_bound=1)
+    assert sampler.indices == ([] if initial_violation else [0])
+
+
+def test_impossible_reaction_and_nonadvancing_clock_fail() -> None:
+    """Impossible consumption and waits below clock precision cannot be hidden."""
+    rates = lambda _t, _y: cast("Array", np.ones((1, 1)))  # noqa: E731
+    with pytest.raises(RuntimeError, match="invalid populations"):
+        ThinningSSASolver(_core(), np.asarray([[-1]])).run(
+            rates, _Samples((0.25, 0)), rate_bound=1
+        )
+    with pytest.raises(RuntimeError, match="failed to advance"):
+        ThinningSSASolver(_core((1e16, 1e16 + 4)), np.asarray([[1]])).run(
+            rates,
+            _Samples((0.1, 0)),
+            rate_bound=1,
+        )
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_numpy_sampling_laws_and_dtype(dtype: type[np.floating]) -> None:
+    """The sampler supplies independent exponential and uniform scalar laws."""
+    sampler = NumpyThinningSampler(1730)
+    rate = cast("Array", np.asarray(3, dtype=dtype))
+    draws = [sampler(rate, index) for index in range(12_000)]
+    values = np.asarray(draws)
+    assert values.dtype == dtype
+    assert np.all(values[:, 0] > 0)
+    assert np.all((values[:, 1] >= 0) & (values[:, 1] < 1))
+    assert np.mean(values[:, 0]) == pytest.approx(1 / 3, rel=0.03)
+    assert np.var(values[:, 0]) == pytest.approx(1 / 9, rel=0.08)
+    assert np.mean(values[:, 1]) == pytest.approx(0.5, abs=0.01)
+    assert np.var(values[:, 1]) == pytest.approx(1 / 12, rel=0.04)
+    assert abs(np.corrcoef(values.T)[0, 1]) < 0.03
+
+
+@pytest.mark.parametrize(
+    "value",
+    [np.asarray([0.5]), np.asarray(1, dtype=bool), np.asarray(1), np.asarray(0.5j)],
+)
+@pytest.mark.parametrize("field", ["waiting_time", "uniform"])
+def test_sampler_requires_real_floating_scalar_arrays(value: Array, field: str) -> None:
+    """Non-scalar and non-floating samples cannot be interpreted as random draws."""
+
+    def sampler(_rate: Array, _index: int, /) -> ThinningSample:
+        valid = cast("Array", np.asarray(0.25))
+        return (
+            ThinningSample(value, valid)
+            if field == "waiting_time"
+            else ThinningSample(valid, value)
+        )
+
+    with pytest.raises(ValueError, match="real floating scalar"):
+        ThinningSSASolver(_core(), np.asarray([[1]])).run(
+            _smooth_birth, sampler, rate_bound=2
+        )
+
+
+def test_callback_and_sampler_return_types_are_checked() -> None:
+    """Malformed records fail with actionable contract errors."""
+
+    def bad_bound(_t: float, _state: Array, _limit: float) -> TotalRateBound:
+        return cast("TotalRateBound", (2, 1))
+
+    def bad_sample(_rate: Array, _index: int, /) -> ThinningSample:
+        return cast("ThinningSample", (np.asarray(0.25), np.asarray(0.5)))
+
+    solver = ThinningSSASolver(_core(), np.asarray([[1]]))
+    with pytest.raises(TypeError, match="return a TotalRateBound"):
+        solver.run(_smooth_birth, _Samples(), rate_bound=bad_bound)
+    with pytest.raises(TypeError, match="return a ThinningSample"):
+        solver.run(_smooth_birth, bad_sample, rate_bound=2)
+
+
+def test_jax_sampler_cannot_return_numpy_randomness() -> None:
+    """Array namespaces are enforced at the injected sampler boundary."""
+    jnp = pytest.importorskip("jax.numpy")
+    core = _core(initial=np.zeros((1, 1), dtype=np.float32))
+    core.set_initial_state(jnp.zeros((1, 1), dtype=jnp.float32))
+
+    def sampler(_rate: Array, _index: int, /) -> ThinningSample:
+        return ThinningSample(
+            cast("Array", np.asarray(0.25)), cast("Array", jnp.asarray(0.5))
+        )
+
+    with pytest.raises(TypeError, match="preserve the state array namespace"):
+        ThinningSSASolver(core, np.asarray([[1]])).run(
+            _smooth_birth, sampler, rate_bound=2
+        )
+
+
+@pytest.mark.parametrize("smooth", [False, True])
+def test_birth_distribution_matches_integrated_intensity(*, smooth: bool) -> None:
+    """Smooth births match analytic Poisson moments; constant births agree with SSA."""
+    core = _core(initial=np.zeros((1, 1200)))
+    rates = (
+        _smooth_birth if smooth else lambda _t, y: cast("Array", np.full(y.shape, 2.0))
+    )
+    ThinningSSASolver(core, np.asarray([[1]])).run(
+        rates,
+        NumpyThinningSampler(1731),
+        rate_bound=2400,
+    )
+    sample = np.asarray(core.get_current_state()).ravel()
+    intensity = 1 if smooth else 2
+    assert np.mean(sample) == pytest.approx(intensity, rel=0.08)
+    assert np.var(sample) == pytest.approx(intensity, rel=0.15)
+    if not smooth:
+        reference = _core(initial=np.zeros((1, 1200)))
+        DirectSSASolver(reference, np.asarray([[1]])).run(rates, NumpySSASampler(1732))
+        direct = np.asarray(reference.get_current_state()).ravel()
+        assert abs(np.mean(sample) - np.mean(direct)) < 0.15
+        assert abs(np.var(sample) - np.var(direct)) < 0.3
+
+
+@pytest.mark.parametrize("rate", [1e100, 1e-100])
+def test_bound_must_be_representable_in_state_dtype(rate: float) -> None:
+    """Casting a finite bound cannot overflow or silently become zero."""
+    core = _core(initial=np.zeros((1, 1), dtype=np.float32))
+    with pytest.raises(ValueError, match="representable"):
+        ThinningSSASolver(core, np.asarray([[1]])).run(
+            _smooth_birth, _Samples(), rate_bound=rate
+        )
+
+
+@pytest.mark.parametrize("times", [(0,), (0, 1)])
+def test_final_boundary_and_singleton_grid_do_not_fire(
+    times: tuple[float, ...],
+) -> None:
+    """The final exclusive endpoint discards a tied candidate without resampling."""
+    core = _core(times)
+    sampler = _Samples((1, 0))
+    ThinningSSASolver(core, np.asarray([[1]])).run(_smooth_birth, sampler, rate_bound=2)
+    np.testing.assert_array_equal(core.get_current_state(), [[0]])
+    assert sampler.indices == ([] if len(times) == 1 else [0])
+
+
+def test_nondefault_reaction_axis() -> None:
+    """A reaction axis other than the first state dimension is respected."""
+    core = _core(initial=np.zeros((1, 2)))
+    ThinningSSASolver(core, np.eye(2), reaction_axis=1).run(
+        lambda _t, _y: cast("Array", np.asarray([[0, 1.0]])),
+        _Samples((0.25, 0), (1, 0)),
+        rate_bound=1,
+    )
+    np.testing.assert_array_equal(core.get_current_state(), [[0, 1]])
+
+
+def test_large_population_transfer_mean_and_drift_match_deterministic_solution() -> (
+    None
+):
+    """A generic A-to-B network matches its smoothly forced mean and interval drift."""
+    times = np.asarray([0, 0.5, 1])
+    core = _core(times, np.asarray([np.full(64, 2000.0), np.zeros(64)]))
+
+    def rates(t: float, state: Array) -> Array:
+        return cast("Array", (0.02 + 0.03 * t) * np.asarray(state)[0:1])
+
+    def bound(_t: float, state: Array, limit: float) -> TotalRateBound:
+        return TotalRateBound(
+            (0.02 + 0.03 * limit) * float(np.sum(np.asarray(state)[0])), limit
+        )
+
+    ThinningSSASolver(core, np.asarray([[-1], [1]])).run(
+        rates, NumpyThinningSampler(1733), rate_bound=bound
+    )
+    history = np.asarray(core.state_array)
+    np.testing.assert_array_equal(history.sum(axis=1), np.full((3, 64), 2000))
+    mean = history.mean(axis=2)
+    expected_a = 2000 * np.exp(-0.02 * times - 0.015 * times**2)
+    expected = np.stack((expected_a, 2000 - expected_a), axis=1)
+    np.testing.assert_allclose(mean, expected, atol=3, rtol=0)
+    np.testing.assert_allclose(
+        np.diff(mean, axis=0), np.diff(expected, axis=0), atol=3, rtol=0
+    )
 
 
 @pytest.mark.parametrize("forcing", [False, True])

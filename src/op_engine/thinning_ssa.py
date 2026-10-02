@@ -30,10 +30,14 @@ def _nonnegative_real(value: float, *, name: str) -> float:
     Raises:
         ValueError: If the control is not a finite non-negative real number.
     """
+    try:
+        finite = math.isfinite(value)
+    except (TypeError, OverflowError):
+        finite = False
     if (
         not isinstance(value, Real)
         or isinstance(value, bool)
-        or not math.isfinite(value)
+        or not finite
         or value < 0
     ):
         msg = f"{name} must be a finite non-negative real scalar"
@@ -63,14 +67,18 @@ class TotalRateBound:
         object.__setattr__(
             self, "rate", _nonnegative_real(self.rate, name="bound rate")
         )
+        try:
+            endpoint = float(self.valid_until)
+        except (TypeError, ValueError, OverflowError):
+            endpoint = math.nan
         if (
             not isinstance(self.valid_until, Real)
             or isinstance(self.valid_until, bool)
-            or not math.isfinite(self.valid_until)
+            or not math.isfinite(endpoint)
         ):
             msg = "valid_until must be a finite real scalar"
             raise ValueError(msg)
-        object.__setattr__(self, "valid_until", float(self.valid_until))
+        object.__setattr__(self, "valid_until", endpoint)
 
 
 class RateBoundFunction(Protocol):
@@ -157,7 +165,7 @@ class NumpyThinningSampler:
             self._rng.exponential(scale=1.0 / float(bound_rate.item())),
             dtype=bound_rate.dtype,
         )
-        uniform = np.asarray(self._rng.random(dtype=bound_rate.dtype))
+        uniform = np.asarray(self._rng.random(size=(), dtype=bound_rate.dtype))
         return ThinningSample(cast("Array", wait), cast("Array", uniform))
 
 
@@ -219,6 +227,9 @@ def _resolve_bound(
         msg = f"valid_until must satisfy {t} < valid_until <= {limit}"
         raise ValueError(msg)
     xp = _namespace_of(state)
+    if bound.rate > float(xp.finfo(state.dtype).max):
+        msg = "bound rate must be representable in the state dtype"
+        raise ValueError(msg)
     rate = float(xp.asarray(bound.rate, dtype=state.dtype).item())
     if not math.isfinite(rate) or (bound.rate > 0 and rate == 0):
         msg = "bound rate must be representable in the state dtype"
@@ -321,7 +332,12 @@ class ThinningSSASolver:
         """
         cumulative, total = self._rates(propensity_func, t, state, bound)
         xp = _namespace_of(state)
-        threshold = uniform * bound.rate
+        threshold = float(
+            xp.multiply(
+                xp.asarray(uniform, dtype=state.dtype),
+                xp.asarray(bound.rate, dtype=state.dtype),
+            ).item()
+        )
         if threshold >= total:
             return state, False
         event = int(xp.sum(xp.less_equal(cumulative, threshold)).item())
