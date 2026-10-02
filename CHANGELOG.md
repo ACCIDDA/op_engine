@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Adaptive tau-leaping validation reports incomplete reactant metadata before
+  running, and both validation and run name each incomplete reaction and the
+  remedy: `reactants` on ordinary op_system transitions, or `catalysts` on
+  `chain:` and `coord_shift` entries. Generated chain and aging reactions with
+  declared catalysts run under adaptive tau-leaping (#188).
+
 - Pure stochastic validation and execution reject models with dynamics that
   have no reaction artifact. These are transitions listed in the producer's
   `reaction_gaps` coverage records (op_system #249), and typed operators.
