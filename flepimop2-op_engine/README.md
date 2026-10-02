@@ -319,11 +319,38 @@ engine:
 ```
 
 `tau-leaping` accepts `tau_max_step` and `stochastic_max_steps`.
-`direct-ssa` accepts `ssa_max_events`; its exact interpretation requires
-propensities to remain time-homogeneous between events. All three methods
+`direct-ssa` accepts `ssa_max_events` and `forcing_breakpoints`; its exact
+interpretation requires propensities to remain constant in time between events
+and declared forcing boundaries. All three methods
 preserve the usual `(time, state...)` provider trajectory and fail visibly on
 invalid propensities, invalid random draws, or negative states. Populations are
 never silently clipped.
+
+For an explicitly piecewise-constant propensity producer, configure its forcing
+changes independently of the requested observation times:
+
+```yaml
+engine:
+  module: flepimop2.engine.op_engine
+  state_change: flow
+  config:
+    mode: stochastic
+    stochastic_method: direct-ssa
+    random_seed: 90210
+    forcing_breakpoints: [1.0, 2.0]
+```
+
+A pending event at or beyond a breakpoint is discarded and redrawn from the
+new rates; zero-rate intervals wait for a future forcing change. The producer
+must return the new rates at each boundary and keep them constant between
+boundaries while the state is unchanged. Output times remain observations.
+Nonempty forcing schedules currently require pure `direct-ssa` execution;
+other provider modes and stochastic methods reject them explicitly.
+
+`op_system`'s existing time-indexed parameters use linear interpolation. This
+setting does not change that interpolation or make those varying rates exact.
+Step-table inputs need an explicit piecewise-constant producer; general
+continuous forcing needs a different SSA waiting-time method.
 
 NumPy arrays use seeded `NumpyPoissonSampler` or `NumpySSASampler` instances.
 Other namespaces inject a `poisson_sampler=` or `ssa_sampler=` callable into

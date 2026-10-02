@@ -48,7 +48,8 @@ reaction axis.
 exponential waiting time and one categorical reaction/batch event, applies
 exactly one stoichiometric update, and repeats. A draw beyond an output boundary
 is retained rather than discarded, so adding observation times does not alter
-the simulated path. Zero total propensity is absorbing.
+the simulated path. Zero total propensity is absorbing when no declared future
+forcing boundary remains.
 
 Use direct SSA as the reference method for low-copy-number networks, rare-event
 questions, or checking a tau-leaping approximation. Its cost is proportional to
@@ -78,10 +79,57 @@ DirectSSASolver(core, stoichiometry).run(
 )
 ```
 
-The direct method assumes propensities remain constant between reaction events,
-as in a time-homogeneous continuous-time Markov chain. Across batch cells it
-samples from the superposed event process; the result is equivalent to
+The direct method assumes propensities remain constant in time while the state
+is unchanged, except at explicitly declared forcing boundaries. Across batch
+cells it samples from the superposed event process; the result is equivalent to
 independent direct-method trajectories for independent batch cells.
+
+#### Piecewise-constant forcing
+
+Declare every forcing change through `DirectSSAConfig.forcing_breakpoints`:
+
+```python
+from op_engine import DirectSSAConfig, array_namespace
+
+core = ModelCore(n_states=1, n_subgroups=1, time_grid=np.linspace(0.0, 3.0, 13))
+core.set_initial_state(np.zeros((1, 1)))
+
+
+def forced_birth_rate(time, state):
+    xp = array_namespace(state)
+    rate = 0.0 if time < 1.0 else (3.0 if time < 2.0 else 1.0)
+    return xp.full(state.shape, rate, dtype=state.dtype)
+
+
+DirectSSASolver(core, np.asarray([[1]])).run(
+    forced_birth_rate,
+    NumpySSASampler(seed=2026),
+    config=DirectSSAConfig(forcing_breakpoints=(1.0, 2.0)),
+)
+```
+
+If an event would reach or cross a forcing boundary, the solver advances to
+that boundary without firing, reevaluates the rates, and redraws. Exponential
+memorylessness makes this exact for piecewise-constant forcing. Zero-rate
+intervals advance to the next forcing boundary without drawing randomness.
+
+Forcing is right-continuous: the callback must return the new rates at a
+breakpoint. In an exact event/breakpoint tie, the forcing boundary wins and the
+old event is discarded. Observation times remain independent of the forcing
+schedule, even when an observation coincides with a breakpoint.
+
+Breakpoints must be finite real scalars in strictly increasing order. They are
+snapshotted as an immutable tuple; a global schedule may include times outside
+the solve interval. Boundaries at the initial time are already reflected in
+the first evaluation, and the final boundary causes no extra random draw.
+An omitted or empty schedule preserves ordinary time-homogeneous execution.
+
+The schedule does not freeze or interpolate callback values. All time
+dependence between boundaries must be constant for this exactness claim;
+smoothly varying rates require a different waiting-time method. In particular,
+`op_system` currently linearly interpolates its time-indexed parameters, so
+listing their grid points as breakpoints does not make direct SSA exact for
+those interpolated rates.
 
 ### Bounded adaptive tau-leaping
 

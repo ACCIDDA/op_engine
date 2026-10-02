@@ -2754,7 +2754,10 @@ def _run_stochastic_core(
     exact_solver.run(
         network.propensity,
         ssa_sampler,
-        config=DirectSSAConfig(max_events=config.ssa_max_events),
+        config=DirectSSAConfig(
+            max_events=config.ssa_max_events,
+            forcing_breakpoints=config.forcing_breakpoints,
+        ),
     )
 
 
