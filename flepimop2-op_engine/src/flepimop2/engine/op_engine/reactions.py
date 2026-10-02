@@ -272,6 +272,20 @@ def _state_blocks(
     return tuple(blocks)
 
 
+def _target_axes(reaction: ReactionArtifact) -> object:
+    """Return the target template's axis order.
+
+    ``full_axes`` is the source template's order. op_system #250 publishes
+    ``to_full_axes`` because an axis-less source and a templated target (or
+    the reverse) do not share it; older artifacts imply the shared order.
+
+    Returns:
+        ``to_full_axes`` when published, otherwise ``full_axes``.
+    """
+    to_full_axes = getattr(reaction, "to_full_axes", None)
+    return reaction.full_axes if to_full_axes is None else to_full_axes
+
+
 def _reaction_axes(
     reactions: Sequence[ReactionArtifact],
     blocks: Mapping[str, _StateBlock],
@@ -311,10 +325,15 @@ def _reaction_axes(
             raise ValueError(msg)
 
     for reaction in reactions:
-        for base in (reaction.from_base, reaction.to_base):
-            if base is None:
-                continue
-            register(base, reaction.full_axes, reaction_name=reaction.name)
+        if reaction.from_base is not None:
+            register(
+                reaction.from_base, reaction.full_axes, reaction_name=reaction.name
+            )
+        register(
+            reaction.to_base,
+            _target_axes(reaction),
+            reaction_name=reaction.name,
+        )
         raw_reactants = getattr(reaction, "reactants", ())
         if not isinstance(raw_reactants, tuple | list):
             msg = f"Reaction {reaction.name!r} reactants must be a sequence."
@@ -445,14 +464,17 @@ def _reaction_axis_metadata(
     reaction: ReactionArtifact,
     *,
     from_axes: tuple[str, ...],
-    full_axes: tuple[str, ...],
+    source_axes: tuple[str, ...],
+    target_axes: tuple[str, ...],
 ) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
     """Validate one reaction's channel, destination, and offset axes.
 
     Every destination axis is copied from the channel (``to_axes``), fixed
     (``pinned``), or shifted from the channel coordinate (``offsets``, from
     op_system's axis-wide ``coord_shift``). Artifacts that predate
-    ``offsets`` publish none.
+    ``offsets`` publish none. Channel and donor axes are checked against the
+    source template (the destination template for a source-only reaction),
+    and destination axes against the target template.
 
     Returns:
         ``(pinned, from_pinned, offsets)`` keyed by axis name.
@@ -465,10 +487,10 @@ def _reaction_axis_metadata(
     pinned = _require_pins(reaction.pinned, field="pinned")
     from_pinned = _require_pins(reaction.from_pinned, field="from_pinned")
     offsets = _require_pins(getattr(reaction, "offsets", ()), field="offsets")
-    if not set(from_axes).issubset(full_axes):
+    if not set(from_axes).issubset(source_axes):
         msg = f"Reaction {reaction.name!r} has axes outside full_axes."
         raise ValueError(msg)
-    if not set(to_axes).issubset(full_axes):
+    if not set(to_axes).issubset(target_axes):
         msg = f"Reaction {reaction.name!r} has destination axes outside full_axes."
         raise ValueError(msg)
     if (
@@ -487,11 +509,11 @@ def _reaction_axis_metadata(
     # Source-only channels use destination wildcard axes and have no
     # donor pins. Validate donor coverage only when a donor exists.
     if reaction.from_base is not None and (
-        set(from_axes) | set(from_pinned) != set(full_axes)
+        set(from_axes) | set(from_pinned) != set(source_axes)
     ):
         msg = f"Reaction {reaction.name!r} has incomplete source-axis metadata."
         raise ValueError(msg)
-    if set(to_axes) | set(pinned) | set(offsets) != set(full_axes):
+    if set(to_axes) | set(pinned) | set(offsets) != set(target_axes):
         msg = f"Reaction {reaction.name!r} has incomplete destination metadata."
         raise ValueError(msg)
     return pinned, from_pinned, offsets
@@ -614,8 +636,16 @@ def compile_reaction_network(
             raise ValueError(msg)
         reactants_complete = reactants_complete and complete
         from_axes = _require_string_tuple(reaction.from_axes, field="from_axes")
+        target_axes = base_axes[reaction.to_base]
         pinned, from_pinned, offsets = _reaction_axis_metadata(
-            reaction, from_axes=from_axes, full_axes=base_axes[reaction.to_base]
+            reaction,
+            from_axes=from_axes,
+            source_axes=(
+                target_axes
+                if reaction.from_base is None
+                else base_axes[reaction.from_base]
+            ),
+            target_axes=target_axes,
         )
 
         event_shape = tuple(axis_sizes[axis] for axis in from_axes)
