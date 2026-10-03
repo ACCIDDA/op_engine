@@ -66,11 +66,10 @@ op-engine = { path = "..", editable = true }
 # Exercise the Array producer/consumer and callable seams stacked in flepimop2
 # PRs #344, #347, and #348 while those changes await review and merge.
 flepimop2 = { git = "https://github.com/ACCIDDA/flepimop2", rev = "4b75ac5130f5942360cd668250d80e5b33182576" }
-# Reproducible development pins for the op_system 0.6.0 provider and reaction
-# artifacts.
+# Reproducible development pins for the op_system 0.6.0 release.
 # Published wheel metadata continues to use the registry requirements above.
-flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "89c34a6e5ac32ec8362452bea268af8b2831e916", subdirectory = "flepimop2-op_system" }
-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "89c34a6e5ac32ec8362452bea268af8b2831e916" }
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "d1b46b4741c74ad4307c8bd2ba135d49e471605d", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "d1b46b4741c74ad4307c8bd2ba135d49e471605d" }
 
 
 [tool.ruff.format]
