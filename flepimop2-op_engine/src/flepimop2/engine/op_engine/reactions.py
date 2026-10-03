@@ -97,6 +97,8 @@ class CompiledReactionNetwork:
     _event_shapes: tuple[tuple[int, ...], ...]
     _params: Mapping[str, object]
     reactants_complete: bool = False
+    #: Names of selected reactions without complete reactant metadata.
+    incomplete_reactions: tuple[str, ...] = ()
 
     @property
     def n_state(self) -> int:
@@ -658,6 +660,7 @@ def compile_reaction_network(
     channel_names: list[str] = []
     event_shapes: list[tuple[int, ...]] = []
     reactants_complete = True
+    incomplete: list[str] = []
 
     for reaction in reactions:
         complete = getattr(reaction, "reactants_complete", False)
@@ -671,6 +674,8 @@ def compile_reaction_network(
             )
             raise ValueError(msg)
         reactants_complete = reactants_complete and complete
+        if not complete:
+            incomplete.append(reaction.name)
         from_axes = _require_string_tuple(reaction.from_axes, field="from_axes")
         target_axes = base_axes[reaction.to_base]
         pinned, from_pinned, offsets, routed = _reaction_axis_metadata(
@@ -741,6 +746,22 @@ def compile_reaction_network(
         _event_shapes=tuple(event_shapes),
         _params=dict(params),
         reactants_complete=reactants_complete,
+        incomplete_reactions=tuple(incomplete),
+    )
+
+
+def incomplete_reactants_message(names: Sequence[str]) -> str:
+    """Explain how to complete reactant metadata for adaptive tau-leaping.
+
+    Returns:
+        A message naming the reactions and both op_system remedies.
+    """
+    return (
+        "Adaptive tau-leaping requires complete molecular reactant metadata, "
+        f"but these reactions lack it: {', '.join(names)}. Declare an explicit "
+        "'reactants' list on ordinary op_system transitions, or 'catalysts' "
+        "on chain: entries (entry.catalysts and catalysts) and coord_shift "
+        "entries, which add the consumed source themselves."
     )
 
 

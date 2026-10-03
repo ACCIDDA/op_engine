@@ -81,7 +81,11 @@ from .operators import (
     compile_operator_descriptors,
     typed_operator_descriptors,
 )
-from .reactions import CompiledReactionNetwork, compile_reaction_network
+from .reactions import (
+    CompiledReactionNetwork,
+    compile_reaction_network,
+    incomplete_reactants_message,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -2754,11 +2758,7 @@ def _run_stochastic_core(
 
     if config.stochastic_method is StochasticMethod.ADAPTIVE_TAU_LEAPING:
         if not network.reactants_complete:
-            msg = (
-                "Adaptive tau-leaping requires complete molecular reactant "
-                "metadata for every selected reaction. Add an explicit "
-                "reactants list to each op_system transition."
-            )
+            msg = incomplete_reactants_message(network.incomplete_reactions)
             raise ValueError(msg)
         if poisson_sampler is None or ssa_sampler is None:
             msg = "Adaptive tau-leaping sampler resolution is inconsistent."
@@ -2851,6 +2851,39 @@ def _run_thinning_core(
             forcing_breakpoints=config.forcing_breakpoints,
         ),
     )
+
+
+def _adaptive_tau_reactant_issues(
+    reactions: object, config: OpEngineEngineConfig
+) -> list[ValidationIssue]:
+    """Report selected reactions that adaptive tau-leaping cannot use.
+
+    Returns:
+        One issue naming every selected reaction without complete reactant
+        metadata, or an empty list.
+    """
+    if config.stochastic_method is not StochasticMethod.ADAPTIVE_TAU_LEAPING or (
+        not isinstance(reactions, tuple | list)
+    ):
+        return []
+    selected = (
+        set(config.stochastic_reactions)
+        if config.mode is ExecutionMode.HYBRID
+        else None
+    )
+    names = [
+        str(getattr(reaction, "name", "?"))
+        for reaction in reactions
+        if (selected is None or getattr(reaction, "name", None) in selected)
+        and getattr(reaction, "reactants_complete", False) is not True
+    ]
+    if not names:
+        return []
+    return [
+        ValidationIssue(
+            msg=incomplete_reactants_message(names), kind="incomplete_reactants"
+        )
+    ]
 
 
 def _describe_reaction_gap(gap: object) -> str:
@@ -3365,6 +3398,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                         kind="missing_reaction_layout",
                     ),
                 )
+            issues.extend(_adaptive_tau_reactant_issues(reactions, self.config))
             if mode is ExecutionMode.STOCHASTIC:
                 issues.extend(_pure_stochastic_coverage_issues(system))
                 return issues or None
