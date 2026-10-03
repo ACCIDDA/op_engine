@@ -5,20 +5,36 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-02
+
 ### Added
 
-- Adaptive tau-leaping validation reports incomplete reactant metadata before
-  running, and both validation and run name each incomplete reaction and the
-  remedy: `reactants` on ordinary op_system transitions, or `catalysts` on
-  `chain:` and `coord_shift` entries. Generated chain and aging reactions with
-  declared catalysts run under adaptive tau-leaping (#188).
-
+- Prepared Flepimop2 execution plans now support explicit PyTree and JAX block
+  layouts for fixed steps and frozen adaptive replay, including structured typed
+  operators, while preserving dynamic-value cache contracts (#168).
+- Direct SSA accepts explicit forcing breakpoints for exact piecewise-constant
+  rates, including dormant zero-rate intervals, while retaining pending events
+  across observation times. The provider exposes this for pure direct SSA (#171).
+- Fixed and adaptive tau-leaping stop at declared forcing changes, so each
+  leap segment uses its own starting rate; forcing boundaries take precedence
+  over tied critical or exact-fallback events (#174).
+- Pure stochastic runs consume the producer's declared `forcing_breakpoints`
+  (op_system `time_interpolation: previous`), combined with explicit engine
+  boundaries. Hybrid mode reports producer forcing as unsupported (#175).
+- `stochastic_method: thinning-ssa` gives exact bounded thinning for smoothly
+  time-varying rates. Supply a total-rate bound as `thinning_rate_bound` or a
+  `RateBoundFunction` through `run(..., rate_bound=...)`; `ThinningSSASolver`
+  is available in the core package (#173, #176, #177).
+- Stochastic execution consumes axis-wide `coord_shift` reactions from
+  op_system: each source bin of an `offsets` axis becomes a channel that moves
+  one unit by the published step, and off-axis destinations only deplete the
+  donor. Direct SSA reproduces Poisson bin occupancy and Erlang exit times for
+  pure aging chains (#180).
 - Pure stochastic validation and execution reject models with dynamics that
-  have no reaction artifact. These are transitions listed in the producer's
-  `reaction_gaps` coverage records (op_system #249), and typed operators.
-  Each uncovered transition is named by origin, selectors, and reason, so it
-  can no longer be dropped silently. Hybrid mode and producers without
-  coverage records are unchanged (#182).
+  have no reaction artifact: transitions listed in the producer's
+  `reaction_gaps` coverage records, and typed operators. Each uncovered
+  transition is named by origin, selectors, and reason. Hybrid mode and
+  producers without coverage records are unchanged (#182).
 - Stochastic execution supports reactions between templates with different
   axes, including axis-less states: scalar S→I→R models, axis-less donors
   depositing into a pinned cell, and templated sources collapsing into an
@@ -26,27 +42,27 @@ versioning while the project remains pre-1.0.
   falling back to `full_axes` for older producers (#184).
 - Stochastic execution runs routing and target-only fan-out reactions: each
   source cell and routed target coordinate (op_system's `routed_axes`) is one
-  channel, so routing generators move discrete units between bins. Artifacts
-  without `routed_axes` compile unchanged (#186).
+  channel, so routing generators move discrete units between bins (#186).
+- Adaptive tau-leaping validation reports incomplete reactant metadata before
+  running, and both validation and run name each incomplete reaction and the
+  remedy: `reactants` on ordinary op_system transitions, or `catalysts` on
+  `chain:` and `coord_shift` entries (#188).
 
-- Stochastic execution consumes axis-wide `coord_shift` reactions from
-  op_system: each source bin of an `offsets` axis becomes a channel that moves
-  one unit by the published step, and off-axis destinations only deplete the
-  donor. Direct SSA reproduces Poisson bin occupancy and Erlang exit times for
-  pure aging chains. Artifacts without `offsets` compile unchanged (#180).
+### Changed
 
-- Direct SSA accepts explicit forcing breakpoints for exact piecewise-constant
-  rates, including dormant zero-rate intervals, while retaining pending events
-  across observation times. The provider exposes this for pure direct SSA (#171).
-- Prepared Flepimop2 execution plans now support explicit PyTree and JAX block
-  layouts for fixed steps and frozen adaptive replay, including structured typed
-  operators, while preserving dynamic-value cache contracts (#168).
+- The provider's optional `op_system` integration requires
+  `flepimop2-op-system>=0.6.0` and `op-system>=0.6.0`.
+- Pure stochastic runs that previously dropped uncovered transitions or typed
+  operators silently now fail validation; use `mode: hybrid` or give each
+  transition a reaction artifact (#182).
 
 ### Fixed
 
 - `PreparedExecution` can be passed directly to JAX transformations, including
   mixed NumPy/JAX samples whose effective namespaces and dtypes are canonicalized
   by JAX during tracing (#168).
+- Pinned source-only renewal births are accepted: donor-axis coverage is
+  validated only for reactions with a donor (#178, #179).
 
 ## [0.3.0] - 2026-09-27
 
