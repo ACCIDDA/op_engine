@@ -5,8 +5,18 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
 ### Added
 
+- `op_engine.from_compiled_rhs(compiled, params)` and
+  `op_engine.compile_reaction_network(reactions, template_shapes=...,
+  axis_sizes=..., params=...)` build the flat stochastic reaction network from
+  op_system reaction artifacts in the core package, with no flepimop2
+  dependency. `from_compiled_rhs` refuses a RHS with reaction gaps unless
+  `allow_gaps=True` or a `reaction_names` partition is given. The new guide
+  covers the `mean_drift` consistency check against the deterministic RHS
+  (#191).
 - `op_engine.steady_state(rhs, y0, ...)` finds equilibria by pseudo-transient
   continuation, without a long burn-in. `fixed` holds absorbing states
   (cumulative counters) at their starting values; `invariants` enforces
@@ -17,14 +27,6 @@ versioning while the project remains pre-1.0.
   such as births `mu * N`), and `sink_states` find what to pass.
   Diagnostics stay arrays, and `loop=jax.lax.fori_loop` runs the solve under
   `jax.jit` and `jax.vmap`. See the new steady-states guide (#192).
-- `op_engine.from_compiled_rhs(compiled, params)` and
-  `op_engine.compile_reaction_network(reactions, template_shapes=...,
-  axis_sizes=..., params=...)` build the flat stochastic reaction network from
-  op_system reaction artifacts in the core package, with no flepimop2
-  dependency. `from_compiled_rhs` refuses a RHS with reaction gaps unless
-  `allow_gaps=True` or a `reaction_names` partition is given. The new guide
-  covers the `mean_drift` consistency check against the deterministic RHS
-  (#191).
 - `AdaptiveTauLeapingSolver` accepts `dependency_incidence` and
   `propensity_orders` for reactions that are not mass action, such as
   frequency-dependent infection. Each species a reaction reads gets a
@@ -45,7 +47,7 @@ versioning while the project remains pre-1.0.
 - The provider requires op_system 0.7.0. With it, a reaction whose rate reads
   no state is complete without declarations, so constant-rate flows no longer
   block adaptive tau-leaping, and the incomplete-reactants message suggests
-  `reactants: auto` / `catalysts: auto`.
+  `reactants: auto` / `catalysts: auto` (#191).
 
 ## [0.4.0] - 2026-10-02
 
