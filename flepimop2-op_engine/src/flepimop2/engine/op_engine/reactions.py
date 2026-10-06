@@ -96,14 +96,16 @@ def incomplete_reactants_message(names: Sequence[str]) -> str:
     """Explain how to complete reactant metadata for adaptive tau-leaping.
 
     Returns:
-        A message naming the reactions and both op_system remedies.
+        A message naming the reactions and the op_system remedies.
     """
     return (
         "Adaptive tau-leaping requires complete molecular reactant metadata, "
-        f"but these reactions lack it: {', '.join(names)}. Declare an explicit "
-        "'reactants' list on ordinary op_system transitions, or 'catalysts' "
-        "on chain: entries (entry.catalysts and catalysts) and coord_shift "
-        "entries, which add the consumed source themselves."
+        f"but these reactions lack it: {', '.join(names)}. Declare "
+        "'reactants: auto' (op_system 0.7.0+) to infer them from the rate, or "
+        "an explicit 'reactants' list, on ordinary op_system transitions; on "
+        "chain: entries (entry.catalysts and catalysts) and coord_shift "
+        "entries, declare 'catalysts' (or 'catalysts: auto'), and the "
+        "consumed source is added for you."
     )
 
 

@@ -127,29 +127,47 @@ def test_declared_generated_reactions_run_under_adaptive_tau() -> None:
 
 
 def test_undeclared_generated_reactions_name_the_remedy() -> None:
-    """Validation and run name every incomplete reaction and both remedies."""
+    """Validation and run name each incomplete reaction and the remedies.
+
+    Since op_system 0.7.0 a reaction whose rate reads no state is complete
+    without declarations, so only the entry, whose rate reads both stages,
+    is named.
+    """
     system = _system(declared=False)
     engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW, config=CONFIG)
     issues = engine.validate_system(system) or []
     (issue,) = [issue for issue in issues if issue.kind == "incomplete_reactants"]
-    for name in ("I_entry", "I_advance_1", "I_exit", "aging_S", "aging_R"):
-        assert name in issue.msg
+    assert "lack it: I_entry." in issue.msg
+    for name in ("I_advance_1", "I_exit", "aging_S", "aging_R"):
+        assert name not in issue.msg
     assert "'catalysts'" in issue.msg
     assert "'reactants'" in issue.msg
-    with pytest.raises(
-        ValueError, match=r"lack it: aging_S, aging_I1, aging_I2, aging_R, I_entry"
-    ):
+    assert "'reactants: auto'" in issue.msg
+    with pytest.raises(ValueError, match=r"lack it: I_entry\."):
         _run(system)
 
 
-def test_hybrid_validation_checks_only_selected_reactions() -> None:
+@pytest.mark.parametrize(
+    ("selected", "incomplete"),
+    [
+        pytest.param(("aging_S", "I_exit"), None, id="complete-partition"),
+        pytest.param(("aging_S", "I_entry"), "I_entry", id="includes-entry"),
+    ],
+)
+def test_hybrid_validation_checks_only_selected_reactions(
+    selected: tuple[str, ...], incomplete: str | None
+) -> None:
     """A hybrid jump partition is checked for its own reactions only."""
     config = OpEngineEngineConfig(
         mode="hybrid",
         stochastic_method="adaptive-tau-leaping",
-        stochastic_reactions=("aging_S",),
+        stochastic_reactions=selected,
     )
     engine = OpEngineFlepimop2Engine(state_change=StateChangeEnum.FLOW, config=config)
     issues = engine.validate_system(_system(declared=False)) or []
-    (issue,) = [issue for issue in issues if issue.kind == "incomplete_reactants"]
-    assert "lack it: aging_S." in issue.msg
+    messages = [issue.msg for issue in issues if issue.kind == "incomplete_reactants"]
+    if incomplete is None:
+        assert messages == []
+    else:
+        (message,) = messages
+        assert f"lack it: {incomplete}." in message

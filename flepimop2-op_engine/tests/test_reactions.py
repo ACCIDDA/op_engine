@@ -143,16 +143,46 @@ def test_summed_axis_channels_share_the_pinned_destination(
     np.testing.assert_array_equal(stoichiometry[:, 10:14], expected)
 
 
-def test_legacy_reactions_keep_source_fallback_but_are_incomplete(
+def test_omitted_reactants_publish_the_source_and_complete_state_free_rates(
     network: CompiledReactionNetwork,
 ) -> None:
-    """Omitted declarations remain usable without claiming catalyst safety."""
+    """Omitted declarations publish the consumed source at order one.
+
+    Every fixture rate is a parameter, so op_system (0.7.0+) also marks the
+    reactions complete: nothing else can be a reactant.
+    """
     expected = np.zeros((12, 4), dtype=np.int64)
     for cell in range(4):
         expected[cell, cell] = 1
 
-    assert network.reactants_complete is False
+    assert network.reactants_complete is True
+    assert network.incomplete_reactions == ()
     np.testing.assert_array_equal(network.reactant_stoichiometry[:, :4], expected)
+
+
+def test_omitted_reactants_stay_incomplete_when_the_rate_reads_state() -> None:
+    """A rate reading another state may hide a catalyst, so it is incomplete."""
+    system = OpSystemSystem(
+        spec={
+            "kind": "transitions",
+            "axes": [{"name": "age", "coords": ["a0", "a1"]}],
+            "state": ["S[age]", "I[age]"],
+            "transitions": [
+                {
+                    "name": "infect",
+                    "from": "S[age]",
+                    "to": "I[age]",
+                    "rate": "b * I[age]",
+                },
+                {"name": "recover", "from": "I[age]", "to": "S[age]", "rate": "g"},
+            ],
+        }
+    )
+    network = compile_reaction_network(
+        system, {"b": np.asarray(0.1), "g": np.asarray(0.2)}, n_state=4
+    )
+    assert network.reactants_complete is False
+    assert network.incomplete_reactions == ("infect",)
 
 
 def test_explicit_reactants_expand_multiplicity_and_grouped_catalysts() -> None:
