@@ -1,0 +1,3458 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.5/api-reference/steady_state/">
+      
+      
+        <link rel="prev" href="../spatial_grid/">
+      
+      
+        <link rel="next" href="../stochastic_solver/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Steady State - op_engine Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#steady-state" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest version.
+  <a href="../../..">
+    <strong>Click here to go to latest.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            op_engine Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Steady State
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    op_engine Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/creating-a-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating A Release
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/fem-assembly-boundary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finite-Element Assembly Boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/solver-methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing a Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/bounded-thinning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Thinning SSA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/op-system-reactions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Simulation From op_system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/linear-multistep-methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Multistep Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/nonlinear-solvers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solvers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/steady-states/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Steady States
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/biogeochemical-network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biogeochemical Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/chemostat-pde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trait-Structured Chemostat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adaptive_tau/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adaptive Tau
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../matrix_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Matrix Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model_core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nonlinear_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reactions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reactions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spatial_grid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Grid
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Steady State
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Steady State
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#op_engine.steady_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        steady_state
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="steady_state">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SteadyStateConfig
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SteadyStateConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateConfig.__post_init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __post_init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateConvergenceError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SteadyStateConvergenceError
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SteadyStateResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.conserved_quantities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conserved_quantities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.linear_invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        linear_invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.require_steady_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        require_steady_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.sink_states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sink_states
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.steady_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        steady_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stochastic_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../thinning_ssa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thinning Ssa
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#op_engine.steady_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        steady_state
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="steady_state">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SteadyStateConfig
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SteadyStateConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateConfig.__post_init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __post_init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateConvergenceError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SteadyStateConvergenceError
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.SteadyStateResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SteadyStateResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.conserved_quantities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conserved_quantities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.linear_invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        linear_invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.require_steady_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        require_steady_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.sink_states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sink_states
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.steady_state.steady_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        steady_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="steady-state">Steady State<a class="headerlink" href="#steady-state" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="op_engine.steady_state" class="doc doc-heading">
+            <code>steady_state</code>
+
+
+<a href="#op_engine.steady_state" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Steady states of autonomous ODE right-hand sides.</p>
+<p>:func:<code>steady_state</code> finds <code>y*</code> with <code>rhs(t, y*) = 0</code> by pseudo-transient
+continuation (PTC). Each iteration solves the implicit-Euler step</p>
+<pre><code>(I / dt - J) delta = rhs(t, y)
+</code></pre>
+<p>and grows <code>dt</code> by the ratio of successive residuals, so early iterations
+follow the dynamics and later ones become Newton steps. Three features of
+epidemic models need handling (issue #192):</p>
+<ul>
+<li><strong>Absorbing states.</strong> Cumulative counters (deaths, incidence) never reach a
+  zero derivative. Pass them as <code>fixed</code>: they keep their initial value and
+  are excluded from the convergence norms. :func:<code>sink_states</code> finds states
+  that no derivative depends on.</li>
+<li><strong>Conserved totals.</strong> When <code>w @ rhs(t, y) = 0</code> for every <code>y</code>, the total
+  <code>w @ y</code> is conserved, the steady states form a family indexed by it, and
+  <code>J</code> is singular. As <code>dt</code> grows, <code>I / dt - J</code> becomes ill conditioned
+  and the total drifts. Pass the conserved directions as <code>invariants</code>: the
+  step solves a bordered system that holds <code>W @ y</code> at its initial value
+  exactly and stays nonsingular as <code>dt</code> grows without bound.
+  :func:<code>conserved_quantities</code> gives the structural invariants of a
+  stoichiometry matrix; :func:<code>linear_invariants</code> also finds totals that are
+  conserved because rates balance (births <code>mu * N</code>), which the
+  stoichiometry alone misses.</li>
+<li><strong>Slow modes.</strong> A small residual can hide a large state error along a slowly
+  decaying mode (error ~ residual / rate). Convergence therefore also requires
+  a small Newton correction <code>-J^{-1} rhs</code>, which measures that error, and the
+  final correction is applied to the returned state.</li>
+</ul>
+<p>The iteration count is static and every diagnostic stays an array, so the
+solver runs under <code>jax.jit</code> and <code>jax.vmap</code>. Pass
+<code>loop=jax.lax.fori_loop</code> there, so the iteration is compiled once rather
+than unrolled.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.steady_state.SteadyStateConfig" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">SteadyStateConfig</span><span class="p">(</span><span class="n">dt0</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dt_max</span><span class="o">=</span><span class="mf">1000000000000.0</span><span class="p">,</span> <span class="n">min_growth</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">max_growth</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">residual_tol</span><span class="o">=</span><span class="mf">1e-09</span><span class="p">,</span> <span class="n">step_tol</span><span class="o">=</span><span class="mf">1e-09</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-08</span><span class="p">,</span> <span class="n">early_exit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.steady_state.SteadyStateConfig" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Controls for :func:<code>steady_state</code>.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.dt0">dt0</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Initial pseudo-time step, in the RHS's time units.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.dt_max">dt_max</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Largest pseudo-time step.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.min_growth">min_growth</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Smallest factor by which <code>dt</code> grows when the unscaled
+residual did not increase. Without it, a slowly decaying mode
+barely shrinks the residual and <code>dt</code> stalls. <code>dt</code> is held
+while the residual grows by less than this factor per step, as
+it does while an epidemic takes off, and shrinks beyond that.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.max_growth">max_growth</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Largest factor by which <code>dt</code> grows, or shrinks, in one
+iteration. Between the two bounds <code>dt</code> follows the ratio of
+successive unscaled residual norms (switched evolution
+relaxation).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.max_iterations">max_iterations</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Iteration budget; the loop is unrolled this many times
+when <code>early_exit</code> is false.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.residual_tol">residual_tol</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bound on the RMS of <code>rhs / (atol + |y|)</code> over the
+unknowns, in inverse time units.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.step_tol">step_tol</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bound on the RMS of the Newton correction
+<code>(I / dt_max - J)^{-1} rhs / (atol + |y|)</code>, a relative
+state-error estimate.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.atol">atol</span></code></td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Absolute floor of the per-state scale <code>atol + |y|</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateConfig.early_exit">early_exit</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>With the default Python loop, stop as soon as the solve
+converges. This converts the convergence flag to a host boolean,
+so under <code>jax.jit</code> or <code>jax.vmap</code> either set it to <code>False</code> or,
+better, pass <code>loop=jax.lax.fori_loop</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.steady_state.SteadyStateConfig.__post_init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">__post_init__</span><span class="p">()</span></code>
+
+<a href="#op_engine.steady_state.SteadyStateConfig.__post_init__" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Validate the controls.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a control is outside its valid range.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Validate the controls.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a control is outside its valid range.</span>
+<span class="sd">    """</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"dt0"</span><span class="p">,</span> <span class="s2">"dt_max"</span><span class="p">,</span> <span class="s2">"residual_tol"</span><span class="p">,</span> <span class="s2">"step_tol"</span><span class="p">,</span> <span class="s2">"atol"</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Real</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mf">0.0</span>
+        <span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be finite and positive"</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_max</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt0</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"dt_max must be at least dt0"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"min_growth"</span><span class="p">,</span> <span class="s2">"max_growth"</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Real</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mf">1.0</span>
+        <span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be finite and at least one"</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_growth</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_growth</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"max_growth must be at least min_growth"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span> <span class="n">Integral</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span> <span class="o">&lt;</span> <span class="mi">1</span>
+    <span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"max_iterations must be a positive integer"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.steady_state.SteadyStateConvergenceError" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">SteadyStateConvergenceError</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code>
+
+<a href="#op_engine.steady_state.SteadyStateConvergenceError" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="RuntimeError">RuntimeError</span></code></p>
+
+
+
+        <p>Raised at an eager boundary when a steady-state solve did not converge.</p>
+
+        <p>Store the failed result.</p>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">SteadyStateResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Store the failed result."""</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="s2">"Steady-state solve did not converge after "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">iterations</span><span class="o">.</span><span class="n">item</span><span class="p">())</span><span class="si">}</span><span class="s2"> iterations; scaled residual "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">residual_norm</span><span class="o">.</span><span class="n">item</span><span class="p">())</span><span class="si">!r}</span><span class="s2">, Newton correction "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">step_norm</span><span class="o">.</span><span class="n">item</span><span class="p">())</span><span class="si">!r}</span><span class="s2">"</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.steady_state.SteadyStateResult" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">SteadyStateResult</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">residual</span><span class="p">,</span> <span class="n">converged</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">,</span> <span class="n">step_norm</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">invariant_drift</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.steady_state.SteadyStateResult" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Candidate steady state and array-valued diagnostics.</p>
+<p>Every diagnostic is a zero-dimensional array in the state's namespace, so
+a traced solve returns them without a host conversion; check them
+afterwards, or call :func:<code>require_steady_state</code> at an eager boundary.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.state">state</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The candidate steady state, including fixed states.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.residual">residual</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>rhs(t, state)</code>, zero at fixed states.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.converged">converged</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether both the residual and the Newton correction met
+their tolerances.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.iterations">iterations</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>PTC iterations performed before convergence.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.residual_norm">residual_norm</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Scaled residual RMS at <code>state</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.step_norm">step_norm</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Scaled RMS of the last Newton correction.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.dt">dt</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Final pseudo-time step.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.steady_state.SteadyStateResult.invariant_drift">invariant_drift</span></code></td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Largest <code>|W @ state - W @ y0|</code> relative to
+<code>1 + |W @ y0|</code>; zero without invariants.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.steady_state.conserved_quantities" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">conserved_quantities</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">)</span></code>
+
+<a href="#op_engine.steady_state.conserved_quantities" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the structural conservation laws of a reaction network.</p>
+<p>Rows <code>w</code> satisfy <code>w @ stoichiometry = 0</code>, so <code>w @ y</code> is unchanged by
+every reaction, whatever the rates. Totals conserved only because rates
+balance (births <code>mu * N</code> against deaths) are not structural; use
+:func:<code>linear_invariants</code> for those.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>stoichiometry</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n_state, n_reactions)</code> net change matrix, such as
+<code>CompiledReactionNetwork.stoichiometry</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>tol</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Relative singular-value threshold.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1e-10</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(k, n_state)</code> orthonormal rows, possibly empty.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">conserved_quantities</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the structural conservation laws of a reaction network.</span>
+
+<span class="sd">    Rows ``w`` satisfy ``w @ stoichiometry = 0``, so ``w @ y`` is unchanged by</span>
+<span class="sd">    every reaction, whatever the rates. Totals conserved only because rates</span>
+<span class="sd">    balance (births ``mu * N`` against deaths) are not structural; use</span>
+<span class="sd">    :func:`linear_invariants` for those.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        stoichiometry: ``(n_state, n_reactions)`` net change matrix, such as</span>
+<span class="sd">            ``CompiledReactionNetwork.stoichiometry``.</span>
+<span class="sd">        tol: Relative singular-value threshold.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``(k, n_state)`` orthonormal rows, possibly empty.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">_left_null_space</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.steady_state.linear_invariants" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">linear_invariants</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-06</span><span class="p">)</span></code>
+
+<a href="#op_engine.steady_state.linear_invariants" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Find totals <code>w @ y</code> that the dynamics conserve at sampled states.</p>
+<p>A row <code>w</code> is returned when <code>w @ J(y) = 0</code> and <code>w @ rhs(t, y) = 0</code> at
+every sampled <code>y</code>, which includes rate-balanced totals that
+:func:<code>conserved_quantities</code> misses. Sample a few varied states away from
+special points such as the disease-free state.</p>
+<p>The test is numerical. A mode decaying more slowly than <code>tol</code> times the
+fastest rate looks conserved, and each row's accuracy is limited by the
+Jacobian's error relative to the slowest real rate: a slow mode tilts the
+rows toward itself. The default Jacobian uses central differences for
+that reason; an exact one (<code>jax.jacfwd</code>, for example) is better still.
+When you know an invariant, such as a row of ones over the living
+compartments, pass that exact row to :func:<code>steady_state</code> and use this
+function to confirm that nothing else is conserved.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>rhs</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateRhs">SteadyStateRhs</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>rhs(t, y) -&gt; dy/dt</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>states</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="op_engine._typing.Array">Array</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Sample states, each a one-dimensional array.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>t</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Evaluation time.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>jacobian</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateJacobian">SteadyStateJacobian</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dense Jacobian callback; central differences by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fixed</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="int">int</span>] | <span title="op_engine._typing.Array">Array</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Indices, or a boolean mask, of states that
+:func:<code>steady_state</code> will hold fixed. They are left out, so the
+rows have zeros there.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>tol</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Singular-value threshold relative to the fastest rate.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1e-06</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(k, n_state)</code> orthonormal rows, possibly empty.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>states</code> is empty.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">linear_invariants</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+    <span class="n">rhs</span><span class="p">:</span> <span class="n">SteadyStateRhs</span><span class="p">,</span>
+    <span class="n">states</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Array</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">t</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">jacobian</span><span class="p">:</span> <span class="n">SteadyStateJacobian</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">fixed</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Find totals ``w @ y`` that the dynamics conserve at sampled states.</span>
+
+<span class="sd">    A row ``w`` is returned when ``w @ J(y) = 0`` and ``w @ rhs(t, y) = 0`` at</span>
+<span class="sd">    every sampled ``y``, which includes rate-balanced totals that</span>
+<span class="sd">    :func:`conserved_quantities` misses. Sample a few varied states away from</span>
+<span class="sd">    special points such as the disease-free state.</span>
+
+<span class="sd">    The test is numerical. A mode decaying more slowly than ``tol`` times the</span>
+<span class="sd">    fastest rate looks conserved, and each row's accuracy is limited by the</span>
+<span class="sd">    Jacobian's error relative to the slowest real rate: a slow mode tilts the</span>
+<span class="sd">    rows toward itself. The default Jacobian uses central differences for</span>
+<span class="sd">    that reason; an exact one (``jax.jacfwd``, for example) is better still.</span>
+<span class="sd">    When you know an invariant, such as a row of ones over the living</span>
+<span class="sd">    compartments, pass that exact row to :func:`steady_state` and use this</span>
+<span class="sd">    function to confirm that nothing else is conserved.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rhs: ``rhs(t, y) -&gt; dy/dt``.</span>
+<span class="sd">        states: Sample states, each a one-dimensional array.</span>
+<span class="sd">        t: Evaluation time.</span>
+<span class="sd">        jacobian: Dense Jacobian callback; central differences by default.</span>
+<span class="sd">        fixed: Indices, or a boolean mask, of states that</span>
+<span class="sd">            :func:`steady_state` will hold fixed. They are left out, so the</span>
+<span class="sd">            rows have zeros there.</span>
+<span class="sd">        tol: Singular-value threshold relative to the fastest rate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``(k, n_state)`` orthonormal rows, possibly empty.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``states`` is empty.</span>
+<span class="sd">    """</span>
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">jacobian</span> <span class="ow">or</span> <span class="n">_central_difference_jacobian</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+    <span class="n">blocks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">free</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">states</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">free</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">free</span> <span class="o">=</span> <span class="n">_free_mask</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">jac</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">jacobian</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="n">free</span><span class="p">)]</span>
+        <span class="c1"># Divide by the state's size so both blocks are rates, comparable</span>
+        <span class="c1"># with one threshold.</span>
+        <span class="n">rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rhs</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)[</span><span class="n">free</span><span class="p">]</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="mf">1.0</span>
+        <span class="p">)</span>
+        <span class="n">blocks</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">jac</span><span class="p">,</span> <span class="n">rate</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">free</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"linear_invariants needs at least one sample state"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">_left_null_space</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+    <span class="n">embedded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">rows</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">free</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">embedded</span><span class="p">[:,</span> <span class="n">free</span><span class="p">]</span> <span class="o">=</span> <span class="n">rows</span>
+    <span class="k">return</span> <span class="n">embedded</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.steady_state.require_steady_state" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">require_steady_state</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code>
+
+<a href="#op_engine.steady_state.require_steady_state" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a converged result or raise.</p>
+<p>This converts the convergence flag to a Python boolean; do not call it
+inside <code>jax.jit</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>result</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SteadyStateResult(state, residual, converged, iterations, residual_norm, step_norm, dt, invariant_drift)
+
+  
+      dataclass
+   (op_engine.steady_state.SteadyStateResult)" href="#op_engine.steady_state.SteadyStateResult">SteadyStateResult</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Result to check.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SteadyStateResult(state, residual, converged, iterations, residual_norm, step_norm, dt, invariant_drift)
+
+  
+      dataclass
+   (op_engine.steady_state.SteadyStateResult)" href="#op_engine.steady_state.SteadyStateResult">SteadyStateResult</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>result</code> unchanged.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SteadyStateConvergenceError(result) (op_engine.steady_state.SteadyStateConvergenceError)" href="#op_engine.steady_state.SteadyStateConvergenceError">SteadyStateConvergenceError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the solve did not converge.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_steady_state</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">SteadyStateResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SteadyStateResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return a converged result or raise.</span>
+
+<span class="sd">    This converts the convergence flag to a Python boolean; do not call it</span>
+<span class="sd">    inside ``jax.jit``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        result: Result to check.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``result`` unchanged.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        SteadyStateConvergenceError: If the solve did not converge.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">converged</span><span class="o">.</span><span class="n">item</span><span class="p">()):</span>
+        <span class="k">raise</span> <span class="n">SteadyStateConvergenceError</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.steady_state.sink_states" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">sink_states</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-09</span><span class="p">)</span></code>
+
+<a href="#op_engine.steady_state.sink_states" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a mask of states no derivative depends on.</p>
+<p>Cumulative counters and absorbing compartments that feed nothing back have
+a zero Jacobian column. They never reach a zero derivative while their
+inflow is positive, so hold them fixed in :func:<code>steady_state</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>rhs</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateRhs">SteadyStateRhs</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>rhs(t, y) -&gt; dy/dt</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>states</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="op_engine._typing.Array">Array</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Sample states.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>t</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Evaluation time.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>jacobian</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateJacobian">SteadyStateJacobian</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dense Jacobian callback; central differences by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>tol</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Largest column entry, relative to the largest Jacobian entry,
+still treated as zero.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1e-09</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Boolean <code>(n_state,)</code> mask.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">sink_states</span><span class="p">(</span>
+    <span class="n">rhs</span><span class="p">:</span> <span class="n">SteadyStateRhs</span><span class="p">,</span>
+    <span class="n">states</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Array</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">t</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">jacobian</span><span class="p">:</span> <span class="n">SteadyStateJacobian</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return a mask of states no derivative depends on.</span>
+
+<span class="sd">    Cumulative counters and absorbing compartments that feed nothing back have</span>
+<span class="sd">    a zero Jacobian column. They never reach a zero derivative while their</span>
+<span class="sd">    inflow is positive, so hold them fixed in :func:`steady_state`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rhs: ``rhs(t, y) -&gt; dy/dt``.</span>
+<span class="sd">        states: Sample states.</span>
+<span class="sd">        t: Evaluation time.</span>
+<span class="sd">        jacobian: Dense Jacobian callback; central differences by default.</span>
+<span class="sd">        tol: Largest column entry, relative to the largest Jacobian entry,</span>
+<span class="sd">            still treated as zero.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Boolean ``(n_state,)`` mask.</span>
+<span class="sd">    """</span>
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">jacobian</span> <span class="ow">or</span> <span class="n">_central_difference_jacobian</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">states</span><span class="p">:</span>
+        <span class="n">magnitude</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">jacobian</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">magnitude</span> <span class="k">if</span> <span class="n">columns</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">magnitude</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">columns</span> <span class="o">&lt;=</span> <span class="n">tol</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">columns</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)),</span> <span class="mf">1e-300</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.steady_state.steady_state" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">steady_state</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invariants</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loop</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#op_engine.steady_state.steady_state" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Find a steady state of <code>rhs</code> near <code>y0</code> by pseudo-transient continuation.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>rhs</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateRhs">SteadyStateRhs</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>rhs(t, y) -&gt; dy/dt</code> for a one-dimensional state <code>y</code>, such as
+<code>lambda t, y: compiled.eval_fn(t, y, **params)</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>y0</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Starting state. It also fixes the absorbing states' values and the
+invariant totals.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>t</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Time at which the autonomous RHS is evaluated.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>jacobian</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateJacobian">SteadyStateJacobian</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>jacobian(t, y) -&gt; (n, n)</code> dense array. Defaults to forward
+differences (<code>n</code> RHS evaluations per iteration); pass
+<code>lambda t, y: jax.jacfwd(lambda z: rhs(t, z))(y)</code> under JAX.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fixed</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="int">int</span>] | <span title="op_engine._typing.Array">Array</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Indices, or a boolean mask, of states held at <code>y0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>invariants</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span> | <span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Sequence">Sequence</span>[<span title="float">float</span>]] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(k, n)</code> linearly independent rows <code>W</code> whose totals
+<code>W @ y</code> the dynamics conserve; held at <code>W @ y0</code>. They are
+setup data, checked on the host, so they must be concrete values
+(not traced inside <code>jax.jit</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>config</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SteadyStateConfig(dt0=1.0, dt_max=1000000000000.0, min_growth=2.0, max_growth=10.0, max_iterations=100, residual_tol=1e-09, step_tol=1e-09, atol=1e-08, early_exit=True)
+
+  
+      dataclass
+   (op_engine.steady_state.SteadyStateConfig)" href="#op_engine.steady_state.SteadyStateConfig">SteadyStateConfig</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Iteration controls.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>loop</code>
+            </td>
+            <td>
+                  <code><span title="op_engine.steady_state.SteadyStateLoop">SteadyStateLoop</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>loop(lower, upper, body, carry)</code> driver for the
+iterations, such as <code>jax.lax.fori_loop</code>. Under <code>jax.jit</code> it
+compiles the iteration once instead of unrolling
+<code>max_iterations</code> copies; it runs every iteration, ignoring
+<code>early_exit</code>. <code>None</code> uses a Python loop.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SteadyStateResult(state, residual, converged, iterations, residual_norm, step_norm, dt, invariant_drift)
+
+  
+      dataclass
+   (op_engine.steady_state.SteadyStateResult)" href="#op_engine.steady_state.SteadyStateResult">SteadyStateResult</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The candidate steady state and diagnostics.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If shapes are inconsistent.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>y0</code> is not a floating-point vector.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">steady_state</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913, PLR0914, PLR0915</span>
+    <span class="n">rhs</span><span class="p">:</span> <span class="n">SteadyStateRhs</span><span class="p">,</span>
+    <span class="n">y0</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">t</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">jacobian</span><span class="p">:</span> <span class="n">SteadyStateJacobian</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">fixed</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">invariants</span><span class="p">:</span> <span class="n">Array</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">SteadyStateConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">loop</span><span class="p">:</span> <span class="n">SteadyStateLoop</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SteadyStateResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Find a steady state of ``rhs`` near ``y0`` by pseudo-transient continuation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rhs: ``rhs(t, y) -&gt; dy/dt`` for a one-dimensional state ``y``, such as</span>
+<span class="sd">            ``lambda t, y: compiled.eval_fn(t, y, **params)``.</span>
+<span class="sd">        y0: Starting state. It also fixes the absorbing states' values and the</span>
+<span class="sd">            invariant totals.</span>
+<span class="sd">        t: Time at which the autonomous RHS is evaluated.</span>
+<span class="sd">        jacobian: ``jacobian(t, y) -&gt; (n, n)`` dense array. Defaults to forward</span>
+<span class="sd">            differences (``n`` RHS evaluations per iteration); pass</span>
+<span class="sd">            ``lambda t, y: jax.jacfwd(lambda z: rhs(t, z))(y)`` under JAX.</span>
+<span class="sd">        fixed: Indices, or a boolean mask, of states held at ``y0``.</span>
+<span class="sd">        invariants: ``(k, n)`` linearly independent rows ``W`` whose totals</span>
+<span class="sd">            ``W @ y`` the dynamics conserve; held at ``W @ y0``. They are</span>
+<span class="sd">            setup data, checked on the host, so they must be concrete values</span>
+<span class="sd">            (not traced inside ``jax.jit``).</span>
+<span class="sd">        config: Iteration controls.</span>
+<span class="sd">        loop: Optional ``loop(lower, upper, body, carry)`` driver for the</span>
+<span class="sd">            iterations, such as ``jax.lax.fori_loop``. Under ``jax.jit`` it</span>
+<span class="sd">            compiles the iteration once instead of unrolling</span>
+<span class="sd">            ``max_iterations`` copies; it runs every iteration, ignoring</span>
+<span class="sd">            ``early_exit``. ``None`` uses a Python loop.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The candidate steady state and diagnostics.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If shapes are inconsistent.</span>
+<span class="sd">        TypeError: If ``y0`` is not a floating-point vector.</span>
+<span class="sd">    """</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">SteadyStateConfig</span><span class="p">()</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">_namespace_of</span><span class="p">(</span><span class="n">y0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y0</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">y0</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"y0 must be a non-empty vector; got shape </span><span class="si">{</span><span class="n">y0</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">xp</span><span class="o">.</span><span class="n">isdtype</span><span class="p">(</span><span class="n">y0</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="s2">"real floating"</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"y0 must have a real floating-point dtype"</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y0</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">y0</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">jacobian</span> <span class="ow">or</span> <span class="n">_finite_difference_jacobian</span><span class="p">(</span><span class="n">rhs</span><span class="p">)</span>
+    <span class="n">free_host</span> <span class="o">=</span> <span class="n">_free_mask</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">n_free</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">free_host</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">free</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">free_host</span><span class="p">)</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">_invariant_matrix</span><span class="p">(</span><span class="n">invariants</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">xp</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">totals</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">y0</span><span class="p">)</span>
+
+    <span class="n">eye</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">free_pair</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">)))</span>
+    <span class="n">inv_dt_max</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">dt_max</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">masked_rhs</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># noqa: ANN401</span>
+        <span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="n">rhs</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">jac</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">inv_dt</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># noqa: ANN401</span>
+<span class="w">        </span><span class="sd">"""Solve ``(I/dt - J) delta = rhs`` with fixed rows and invariants.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The step ``delta`` for the state.</span>
+<span class="sd">        """</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">free_pair</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">eye</span><span class="p">,</span> <span class="n">inv_dt</span><span class="p">),</span> <span class="n">jac</span><span class="p">),</span> <span class="n">eye</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">bordered</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">matrix</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matrix_transpose</span><span class="p">(</span><span class="n">w</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">w</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">value</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">totals</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">y</span><span class="p">))))</span>
+        <span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">bordered</span><span class="p">,</span> <span class="n">target</span><span class="p">)[:</span><span class="n">n</span><span class="p">]</span>
+
+    <span class="n">value0</span> <span class="o">=</span> <span class="n">masked_rhs</span><span class="p">(</span><span class="n">y0</span><span class="p">)</span>
+    <span class="n">scale0</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">atol</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">y0</span><span class="p">))</span>
+    <span class="n">initial</span><span class="p">:</span> <span class="n">_Carry</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">y0</span><span class="p">,</span>
+        <span class="n">value0</span><span class="p">,</span>
+        <span class="n">scale0</span><span class="p">,</span>
+        <span class="n">_scaled_rms</span><span class="p">(</span><span class="n">value0</span><span class="p">,</span> <span class="n">scale0</span><span class="p">,</span> <span class="n">free</span><span class="p">,</span> <span class="n">n_free</span><span class="p">,</span> <span class="n">xp</span><span class="p">),</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">value0</span><span class="p">,</span> <span class="n">value0</span><span class="p">))),</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">dt0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">bool</span><span class="p">),</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">iterate</span><span class="p">(</span><span class="n">_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">carry</span><span class="p">:</span> <span class="n">_Carry</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_Carry</span><span class="p">:</span>  <span class="c1"># noqa: PLR0914</span>
+<span class="w">        </span><span class="sd">"""Advance one PTC iteration; a converged carry passes through.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The next carry.</span>
+<span class="sd">        """</span>
+        <span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">,</span> <span class="n">raw_norm</span><span class="p">,</span> <span class="n">_step_norm</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">converged</span><span class="p">,</span>
+         <span class="n">iterations</span><span class="p">)</span> <span class="o">=</span> <span class="n">carry</span>  <span class="c1"># fmt: skip</span>
+        <span class="n">jac</span> <span class="o">=</span> <span class="n">jacobian</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="c1"># The Newton correction is taken at dt_max rather than an infinite</span>
+        <span class="c1"># step: identical for every mode faster than 1/dt_max, and finite</span>
+        <span class="c1"># (but huge, so unconverged) along a conserved direction that was</span>
+        <span class="c1"># not declared, where pure Newton would be singular.</span>
+        <span class="n">newton</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="n">inv_dt_max</span><span class="p">)</span>
+        <span class="n">ptc</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dt</span><span class="p">))</span>
+        <span class="n">newton_norm</span> <span class="o">=</span> <span class="n">_scaled_rms</span><span class="p">(</span><span class="n">newton</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">free</span><span class="p">,</span> <span class="n">n_free</span><span class="p">,</span> <span class="n">xp</span><span class="p">)</span>
+        <span class="n">done_now</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span><span class="n">residual_norm</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">residual_tol</span><span class="p">),</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span><span class="n">newton_norm</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">step_tol</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">newton</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="c1"># A converged iterate takes its Newton correction as a final polish.</span>
+        <span class="n">candidate</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">done_now</span><span class="p">,</span> <span class="n">newton</span><span class="p">,</span> <span class="n">ptc</span><span class="p">))</span>
+        <span class="n">candidate_value</span> <span class="o">=</span> <span class="n">masked_rhs</span><span class="p">(</span><span class="n">candidate</span><span class="p">)</span>
+        <span class="n">candidate_scale</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">atol</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">candidate</span><span class="p">))</span>
+        <span class="n">candidate_raw</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">candidate_value</span><span class="p">,</span> <span class="n">candidate_value</span><span class="p">)))</span>
+        <span class="n">positive</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">greater</span><span class="p">(</span><span class="n">candidate_raw</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">ratio</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">positive</span><span class="p">,</span>
+            <span class="c1"># Both branches are evaluated, so keep the denominator nonzero.</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">raw_norm</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">positive</span><span class="p">,</span> <span class="n">candidate_raw</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="c1"># Grow while the residual falls; hold through moderate rises, which</span>
+        <span class="c1"># ordinary dynamics produce (an epidemic taking off); shrink only when</span>
+        <span class="c1"># the residual jumps by more than min_growth in one step.</span>
+        <span class="n">factor</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">greater_equal</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">min_growth</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">greater_equal</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">min_growth</span><span class="p">),</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">ratio</span><span class="p">),</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">updated</span><span class="p">:</span> <span class="n">_Carry</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">candidate</span><span class="p">,</span>
+            <span class="n">candidate_value</span><span class="p">,</span>
+            <span class="n">candidate_scale</span><span class="p">,</span>
+            <span class="n">_scaled_rms</span><span class="p">(</span><span class="n">candidate_value</span><span class="p">,</span> <span class="n">candidate_scale</span><span class="p">,</span> <span class="n">free</span><span class="p">,</span> <span class="n">n_free</span><span class="p">,</span> <span class="n">xp</span><span class="p">),</span>
+            <span class="n">candidate_raw</span><span class="p">,</span>
+            <span class="n">newton_norm</span><span class="p">,</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">factor</span><span class="p">),</span> <span class="n">config</span><span class="o">.</span><span class="n">dt_max</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">done_now</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">iterations</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">iterations</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="n">held</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">old</span><span class="p">,</span> <span class="n">new</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">old</span><span class="p">,</span> <span class="n">new</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">carry</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">updated</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="s2">"_Carry"</span><span class="p">,</span>
+            <span class="p">(</span><span class="o">*</span><span class="n">held</span><span class="p">,</span> <span class="n">updated</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">updated</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])),</span>
+        <span class="p">)</span>
+
+    <span class="n">carry</span> <span class="o">=</span> <span class="n">initial</span>
+    <span class="k">if</span> <span class="n">loop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">carry</span> <span class="o">=</span> <span class="n">loop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span> <span class="n">iterate</span><span class="p">,</span> <span class="n">carry</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">):</span>
+            <span class="n">carry</span> <span class="o">=</span> <span class="n">iterate</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">carry</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">early_exit</span> <span class="ow">and</span> <span class="nb">bool</span><span class="p">(</span><span class="n">carry</span><span class="p">[</span><span class="mi">7</span><span class="p">]):</span>
+                <span class="k">break</span>
+    <span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">step_norm</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">converged</span><span class="p">,</span> <span class="n">iterations</span><span class="p">)</span> <span class="o">=</span> <span class="n">carry</span>
+
+    <span class="n">drift</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">xp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">totals</span><span class="p">)),</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">totals</span><span class="p">)),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">SteadyStateResult</span><span class="p">(</span>
+        <span class="n">state</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+        <span class="n">residual</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span>
+        <span class="n">converged</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">converged</span><span class="p">),</span>
+        <span class="n">iterations</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">iterations</span><span class="p">),</span>
+        <span class="n">residual_norm</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">),</span>
+        <span class="n">step_norm</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">step_norm</span><span class="p">),</span>
+        <span class="n">dt</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">dt</span><span class="p">),</span>
+        <span class="n">invariant_drift</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">drift</span><span class="p">),</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
