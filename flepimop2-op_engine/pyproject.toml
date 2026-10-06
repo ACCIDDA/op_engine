@@ -34,7 +34,7 @@ classifiers = [
 
 [project.optional-dependencies]
 op-system = [
-  "flepimop2-op-system>=0.6.0",
+  "flepimop2-op-system>=0.7.0",
 ]
 jax = [
   "jax>=0.4.32; python_version < '3.13'",
@@ -66,10 +66,19 @@ op-engine = { path = "..", editable = true }
 # Exercise the Array producer/consumer and callable seams stacked in flepimop2
 # PRs #344, #347, and #348 while those changes await review and merge.
 flepimop2 = { git = "https://github.com/ACCIDDA/flepimop2", rev = "4b75ac5130f5942360cd668250d80e5b33182576" }
-# Reproducible development pins for the op_system 0.6.0 release.
+# Reproducible development pins for the op_system 0.7.0 release.
 # Published wheel metadata continues to use the registry requirements above.
-flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "d1b46b4741c74ad4307c8bd2ba135d49e471605d", subdirectory = "flepimop2-op_system" }
-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "d1b46b4741c74ad4307c8bd2ba135d49e471605d" }
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "f503364f34a98d1f149017edcb113cf97fa43d5d", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "f503364f34a98d1f149017edcb113cf97fa43d5d" }
+
+
+[tool.mypy]
+# flepimop2/ and flepimop2/engine/ are namespace packages. Without explicit
+# bases, mypy names src/flepimop2/engine/op_engine/reactions.py
+# "op_engine.reactions", shadowing the core module it imports.
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true
 
 
 [tool.ruff.format]
@@ -92,15 +101,14 @@ ignore = [
 "src/flepimop2/engine/op_engine/__init__.py" = ["C901", "DOC201", "DOC501", "PLR0912", "PLR0913", "PLR0914", "PLR0915", "RUF067"]
 "src/flepimop2/engine/op_engine/explicit_operators.py" = ["C901", "DOC201", "DOC501", "PLR0913"]
 "src/flepimop2/engine/op_engine/operators.py" = ["C901", "DOC201", "DOC501"]
-"src/flepimop2/engine/op_engine/reactions.py" = ["C901", "DOC501", "PLR0912", "PLR0914", "PLR0915"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [dependency-groups]
 dev = [
-  "flepimop2-op-system>=0.6.0",
-  "op-system>=0.6.0",
+  "flepimop2-op-system>=0.7.0",
+  "op-system>=0.7.0",
   "jax>=0.4.32; python_version < '3.13'",
   "jax>=0.4.36; python_version == '3.13'",
   "jax>=0.7.1; python_version >= '3.14'",

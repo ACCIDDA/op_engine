@@ -50,6 +50,7 @@ nav:
       - Getting Started: guides/getting-started.md
       - Choosing a Solver: guides/solver-methods.md
       - Bounded Thinning SSA: guides/bounded-thinning.md
+      - Stochastic Simulation From op_system: guides/op-system-reactions.md
       - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Biogeochemical Network: guides/biogeochemical-network.md
@@ -61,6 +62,7 @@ nav:
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
       - Nonlinear Solver: api-reference/nonlinear_solver.md
+      - Reactions: api-reference/reactions.md
       - Spatial Grid: api-reference/spatial_grid.md
       - Stochastic Solver: api-reference/stochastic_solver.md
       - Thinning Ssa: api-reference/thinning_ssa.md

@@ -50,6 +50,11 @@ from .nonlinear_solver import (
     NonlinearSolveResult,
     require_converged,
 )
+from .reactions import (
+    CompiledReactionNetwork,
+    compile_reaction_network,
+    from_compiled_rhs,
+)
 from .spatial_grid import generate_adaptive_grid, generate_adaptive_grid_from_data
 from .stochastic_solver import (
     DirectSSAConfig,
@@ -76,6 +81,7 @@ __all__ = [
     "AdaptiveTauLeapingConfig",
     "AdaptiveTauLeapingSolver",
     "Array",
+    "CompiledReactionNetwork",
     "CoreSolver",
     "DenseNewtonSolver",
     "DiffusionConfig",
@@ -118,7 +124,9 @@ __all__ = [
     "build_laplacian_tridiag",
     "build_predictor_corrector",
     "clear_implicit_solver_cache",
+    "compile_reaction_network",
     "encode_groups",
+    "from_compiled_rhs",
     "generate_adaptive_grid",
     "generate_adaptive_grid_from_data",
     "grouped_count_ids",

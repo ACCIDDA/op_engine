@@ -1035,7 +1035,9 @@ class _ConstantSSASampler:
         )
 
 
-def _single_reaction_system(*, complete_reactants: bool = False) -> OpSystemSystem:
+def _single_reaction_system(
+    *, complete_reactants: bool = False, rate: str = "beta"
+) -> OpSystemSystem:
     """Build a one-cell transition system for stochastic integration tests.
 
     Returns:
@@ -1045,7 +1047,7 @@ def _single_reaction_system(*, complete_reactants: bool = False) -> OpSystemSyst
         "name": "infect",
         "from": "S[group]",
         "to": "I[group]",
-        "rate": "beta",
+        "rate": rate,
     }
     if complete_reactants:
         transition["reactants"] = [{"state": "S[group]", "order": 1}]
@@ -1649,8 +1651,11 @@ def test_negative_tau_proposal_fails_instead_of_clipping() -> None:
 
 
 def test_adaptive_tau_requires_authoritative_reactant_metadata() -> None:
-    """Legacy source inference cannot be mistaken for a complete network."""
-    system = _single_reaction_system()
+    """Legacy source inference cannot be mistaken for a complete network.
+
+    The rate reads ``I``, so the synthesized source alone is incomplete.
+    """
+    system = _single_reaction_system(rate="beta * I[group]")
     engine = OpEngineFlepimop2Engine(
         state_change=StateChangeEnum.FLOW,
         config=OpEngineEngineConfig(
