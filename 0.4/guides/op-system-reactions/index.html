@@ -1251,26 +1251,43 @@ trajectory = core.state_array[:, :, 0]  # (time, state)
 <p><code>TauLeapingSolver(core, network.stoichiometry)</code> runs the same network with a
 <code>NumpyPoissonSampler</code>.</p>
 <h2 id="adaptive-tau-leaping">Adaptive tau-leaping<a class="headerlink" href="#adaptive-tau-leaping" title="Permanent link">&para;</a></h2>
-<p><code>AdaptiveTauLeapingSolver</code> also needs each channel's molecular reactants, which
-<code>network.reactant_stoichiometry</code> holds. They must be complete:
-<code>network.reactants_complete</code> is false, and <code>network.incomplete_reactions</code>
-names the culprits, when a reaction might read a state op_system has not
-declared as a reactant. In op_system 0.7.0 and later:</p>
+<p><code>AdaptiveTauLeapingSolver</code> chooses each leap so that no propensity changes
+by more than <code>leap_tolerance</code> relative to itself. It therefore needs to know
+which states each propensity depends on, and how strongly. The network must
+describe every reaction: <code>network.reactants_complete</code> is false, and
+<code>network.incomplete_reactions</code> names the culprits, when a reaction might read
+a state op_system has not declared. In op_system 0.7.0 and later:</p>
 <ul>
 <li>a reaction whose rate reads no state (<code>recover</code> above) is complete as is;</li>
-<li><code>reactants: auto</code> infers the reactants of a rate that is a single product
-  of states (<code>infect</code> above: <code>S</code> consumed, <code>I</code> catalytic);</li>
+<li><code>reactants: auto</code> infers the molecular reactants of a rate that is a single
+  product of states (<code>infect</code> above: <code>S</code> consumed, <code>I</code> catalytic);</li>
+<li>for any other <code>reactants: auto</code> rate, such as a frequency-dependent force
+  of infection <code>beta * S * sum(I) / N</code>, op_system publishes the states the
+  propensity reads and a bound <code>E</code> on its elasticity
+  <code>sum_i |d log a / d log x_i|</code> (3 for that example). The network turns them
+  into <code>dependency_incidence</code> and <code>propensity_orders</code>;</li>
 <li>an explicit <code>reactants:</code> list is always authoritative.</li>
 </ul>
+<p>Pass all four arrays; the dependency arrays are <code>None</code> when every reaction is
+mass action:</p>
 <pre><code class="language-python">from op_engine import AdaptiveTauLeapingSolver, NumpyPoissonSampler
 
 assert network.reactants_complete
 core = ModelCore(network.n_state, 1, times)
 core.set_initial_state(np.asarray([[95.0], [90.0], [5.0], [10.0], [0.0], [0.0]]))
 AdaptiveTauLeapingSolver(
-    core, network.stoichiometry, network.reactant_stoichiometry
+    core,
+    network.stoichiometry,
+    network.reactant_stoichiometry,
+    dependency_incidence=network.dependency_incidence,
+    propensity_orders=network.propensity_orders,
 ).run(network.propensity, NumpyPoissonSampler(seed=2), NumpySSASampler(seed=3))
 </code></pre>
+<p>For a reaction described by dependencies, every species it reads gets a
+Cao-Gillespie-Petzold scaling of at least <code>E</code>, so its propensity's relative
+change stays within the tolerance. Orders above three are allowed. Its
+<code>reactant_stoichiometry</code> column lists only the consumed source, which is what
+can be exhausted for the critical-reaction check.</p>
 <h2 id="partitions-and-lower-level-use">Partitions and lower-level use<a class="headerlink" href="#partitions-and-lower-level-use" title="Permanent link">&para;</a></h2>
 <p><code>from_compiled_rhs(compiled, params, reaction_names=[...])</code> compiles only the
 named reactions, for a hybrid jump partition. <code>compile_reaction_network</code>

@@ -1412,7 +1412,7 @@ nor <code>flepimop2</code>.</p>
 
 
 <h3 id="op_engine.reactions.CompiledReactionNetwork" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">CompiledReactionNetwork</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">reactant_stoichiometry</span><span class="p">,</span> <span class="n">channel_reactions</span><span class="p">,</span> <span class="n">channel_names</span><span class="p">,</span> <span class="n">_blocks</span><span class="p">,</span> <span class="n">_reactions</span><span class="p">,</span> <span class="n">_event_shapes</span><span class="p">,</span> <span class="n">_params</span><span class="p">,</span> <span class="n">reactants_complete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">incomplete_reactions</span><span class="o">=</span><span class="p">())</span></code>
+              <code class="highlight language-python"><span class="n">CompiledReactionNetwork</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">reactant_stoichiometry</span><span class="p">,</span> <span class="n">channel_reactions</span><span class="p">,</span> <span class="n">channel_names</span><span class="p">,</span> <span class="n">_blocks</span><span class="p">,</span> <span class="n">_reactions</span><span class="p">,</span> <span class="n">_event_shapes</span><span class="p">,</span> <span class="n">_params</span><span class="p">,</span> <span class="n">reactants_complete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">incomplete_reactions</span><span class="o">=</span><span class="p">(),</span> <span class="n">dependency_incidence</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">propensity_orders</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -1534,19 +1534,19 @@ intended for diagnostics only.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">167</span>
-<span class="normal">168</span>
-<span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
-<span class="normal">178</span>
-<span class="normal">179</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">mean_drift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">mean_drift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return deterministic mean drift from the compiled channels.</span>
 
 <span class="sd">    Returns:</span>
@@ -1607,19 +1607,7 @@ mean drift. Returned shape mirrors the input convention.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span>
-<span class="normal">114</span>
-<span class="normal">115</span>
-<span class="normal">116</span>
-<span class="normal">117</span>
-<span class="normal">118</span>
-<span class="normal">119</span>
-<span class="normal">120</span>
-<span class="normal">121</span>
-<span class="normal">122</span>
-<span class="normal">123</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">123</span>
 <span class="normal">124</span>
 <span class="normal">125</span>
 <span class="normal">126</span>
@@ -1661,7 +1649,19 @@ mean drift. Returned shape mirrors the input convention.</p>
 <span class="normal">162</span>
 <span class="normal">163</span>
 <span class="normal">164</span>
-<span class="normal">165</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Evaluate every reaction and concatenate its source-cell rates.</span>
 
 <span class="sd">    The stochastic core stores the state as ``(n_state, 1)``. A flat</span>
@@ -2021,7 +2021,7 @@ jump partition. <code>None</code> selects every artifact.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="CompiledReactionNetwork(stoichiometry, reactant_stoichiometry, channel_reactions, channel_names, _blocks, _reactions, _event_shapes, _params, reactants_complete=False, incomplete_reactions=())
+                  <code><a class="autorefs autorefs-internal" title="CompiledReactionNetwork(stoichiometry, reactant_stoichiometry, channel_reactions, channel_names, _blocks, _reactions, _event_shapes, _params, reactants_complete=False, incomplete_reactions=(), dependency_incidence=None, propensity_orders=None)
 
   
       dataclass
@@ -2073,79 +2073,7 @@ with the state layout.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span>
-<span class="normal">610</span>
-<span class="normal">611</span>
-<span class="normal">612</span>
-<span class="normal">613</span>
-<span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span>
-<span class="normal">617</span>
-<span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span>
-<span class="normal">625</span>
-<span class="normal">626</span>
-<span class="normal">627</span>
-<span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
-<span class="normal">631</span>
-<span class="normal">632</span>
-<span class="normal">633</span>
-<span class="normal">634</span>
-<span class="normal">635</span>
-<span class="normal">636</span>
-<span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span>
-<span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">659</span>
 <span class="normal">660</span>
 <span class="normal">661</span>
 <span class="normal">662</span>
@@ -2256,7 +2184,108 @@ with the state layout.</p>
 <span class="normal">767</span>
 <span class="normal">768</span>
 <span class="normal">769</span>
-<span class="normal">770</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile_reaction_network</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span>
+<span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span>
+<span class="normal">783</span>
+<span class="normal">784</span>
+<span class="normal">785</span>
+<span class="normal">786</span>
+<span class="normal">787</span>
+<span class="normal">788</span>
+<span class="normal">789</span>
+<span class="normal">790</span>
+<span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span>
+<span class="normal">794</span>
+<span class="normal">795</span>
+<span class="normal">796</span>
+<span class="normal">797</span>
+<span class="normal">798</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span>
+<span class="normal">816</span>
+<span class="normal">817</span>
+<span class="normal">818</span>
+<span class="normal">819</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span>
+<span class="normal">823</span>
+<span class="normal">824</span>
+<span class="normal">825</span>
+<span class="normal">826</span>
+<span class="normal">827</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
+<span class="normal">831</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span>
+<span class="normal">835</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span>
+<span class="normal">839</span>
+<span class="normal">840</span>
+<span class="normal">841</span>
+<span class="normal">842</span>
+<span class="normal">843</span>
+<span class="normal">844</span>
+<span class="normal">845</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span>
+<span class="normal">849</span>
+<span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span>
+<span class="normal">854</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span>
+<span class="normal">859</span>
+<span class="normal">860</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
+<span class="normal">865</span>
+<span class="normal">866</span>
+<span class="normal">867</span>
+<span class="normal">868</span>
+<span class="normal">869</span>
+<span class="normal">870</span>
+<span class="normal">871</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile_reaction_network</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="n">reactions</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ReactionArtifact</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">template_shapes</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
@@ -2348,6 +2377,8 @@ with the state layout.</p>
 
     <span class="n">columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">reactant_columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">dependency_columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">channel_orders</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">channel_reactions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">channel_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">event_shapes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
@@ -2365,8 +2396,12 @@ with the state layout.</p>
                 <span class="s2">"publishing reactant metadata."</span>
             <span class="p">)</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-        <span class="n">reactants_complete</span> <span class="o">=</span> <span class="n">reactants_complete</span> <span class="ow">and</span> <span class="n">complete</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">complete</span><span class="p">:</span>
+        <span class="c1"># Complete reactants take precedence; otherwise dependencies and a</span>
+        <span class="c1"># propensity order can describe the reaction instead.</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">complete</span> <span class="k">else</span> <span class="n">_dependency_order</span><span class="p">(</span><span class="n">reaction</span><span class="p">)</span>
+        <span class="n">covered</span> <span class="o">=</span> <span class="n">complete</span> <span class="ow">or</span> <span class="n">order</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">reactants_complete</span> <span class="o">=</span> <span class="n">reactants_complete</span> <span class="ow">and</span> <span class="n">covered</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">covered</span><span class="p">:</span>
             <span class="n">incomplete</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="n">from_axes</span> <span class="o">=</span> <span class="n">_require_string_tuple</span><span class="p">(</span><span class="n">reaction</span><span class="o">.</span><span class="n">from_axes</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="s2">"from_axes"</span><span class="p">)</span>
         <span class="n">target_axes</span> <span class="o">=</span> <span class="n">base_axes</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">to_base</span><span class="p">]</span>
@@ -2407,6 +2442,21 @@ with the state layout.</p>
                 <span class="n">n_state</span><span class="o">=</span><span class="n">n_state</span><span class="p">,</span>
             <span class="p">)</span>
 
+            <span class="n">read</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">order</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">read</span> <span class="o">=</span> <span class="n">_expanded_entries</span><span class="p">(</span>
+                    <span class="n">reaction</span><span class="p">,</span>
+                    <span class="nb">getattr</span><span class="p">(</span><span class="n">reaction</span><span class="p">,</span> <span class="s2">"dependencies"</span><span class="p">,</span> <span class="p">()),</span>
+                    <span class="n">label</span><span class="o">=</span><span class="s2">"dependency"</span><span class="p">,</span>
+                    <span class="n">varying</span><span class="o">=</span><span class="n">varying</span><span class="p">,</span>
+                    <span class="n">from_axes</span><span class="o">=</span><span class="n">from_axes</span><span class="p">,</span>
+                    <span class="n">base_axes</span><span class="o">=</span><span class="n">base_axes</span><span class="p">,</span>
+                    <span class="n">blocks</span><span class="o">=</span><span class="n">blocks</span><span class="p">,</span>
+                    <span class="n">n_state</span><span class="o">=</span><span class="n">n_state</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># A consumed species is read too, whether or not listed.</span>
+                <span class="n">read</span> <span class="o">=</span> <span class="p">((</span><span class="n">read</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">reactants</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
             <span class="n">destination</span> <span class="o">=</span> <span class="n">_destination_cell</span><span class="p">(</span>
                 <span class="n">blocks</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">to_base</span><span class="p">],</span>
                 <span class="n">base_axes</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">to_base</span><span class="p">],</span>
@@ -2417,6 +2467,8 @@ with the state layout.</p>
                 <span class="n">column</span><span class="p">[</span><span class="n">destination</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="n">columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
             <span class="n">reactant_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reactants</span><span class="p">)</span>
+            <span class="n">dependency_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">read</span><span class="p">)</span>
+            <span class="n">channel_orders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
             <span class="n">channel_reactions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="n">coordinate_text</span> <span class="o">=</span> <span class="s2">","</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
                 <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">axis</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">varying</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
@@ -2439,6 +2491,12 @@ with the state layout.</p>
         <span class="n">_params</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">params</span><span class="p">),</span>
         <span class="n">reactants_complete</span><span class="o">=</span><span class="n">reactants_complete</span><span class="p">,</span>
         <span class="n">incomplete_reactions</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">incomplete</span><span class="p">),</span>
+        <span class="n">dependency_incidence</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">dependency_columns</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">channel_orders</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">),</span>
+        <span class="n">propensity_orders</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">channel_orders</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">channel_orders</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">),</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2508,24 +2566,24 @@ with the state layout.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span>
-<span class="normal">779</span>
-<span class="normal">780</span>
-<span class="normal">781</span>
-<span class="normal">782</span>
-<span class="normal">783</span>
-<span class="normal">784</span>
-<span class="normal">785</span>
-<span class="normal">786</span>
-<span class="normal">787</span>
-<span class="normal">788</span>
-<span class="normal">789</span>
-<span class="normal">790</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compiled_rhs_axis_sizes</span><span class="p">(</span><span class="n">compiled</span><span class="p">:</span> <span class="n">CompiledRhsLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">874</span>
+<span class="normal">875</span>
+<span class="normal">876</span>
+<span class="normal">877</span>
+<span class="normal">878</span>
+<span class="normal">879</span>
+<span class="normal">880</span>
+<span class="normal">881</span>
+<span class="normal">882</span>
+<span class="normal">883</span>
+<span class="normal">884</span>
+<span class="normal">885</span>
+<span class="normal">886</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span>
+<span class="normal">890</span>
+<span class="normal">891</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compiled_rhs_axis_sizes</span><span class="p">(</span><span class="n">compiled</span><span class="p">:</span> <span class="n">CompiledRhsLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">"""Return each axis's coordinate count from a compiled RHS's metadata.</span>
 
 <span class="sd">    Returns:</span>
@@ -2663,7 +2721,7 @@ skips the check, since a partition is partial by design.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="CompiledReactionNetwork(stoichiometry, reactant_stoichiometry, channel_reactions, channel_names, _blocks, _reactions, _event_shapes, _params, reactants_complete=False, incomplete_reactions=())
+                  <code><a class="autorefs autorefs-internal" title="CompiledReactionNetwork(stoichiometry, reactant_stoichiometry, channel_reactions, channel_names, _blocks, _reactions, _event_shapes, _params, reactants_complete=False, incomplete_reactions=(), dependency_incidence=None, propensity_orders=None)
 
   
       dataclass
@@ -2715,67 +2773,67 @@ nor <code>reaction_names</code> is given.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">793</span>
-<span class="normal">794</span>
-<span class="normal">795</span>
-<span class="normal">796</span>
-<span class="normal">797</span>
-<span class="normal">798</span>
-<span class="normal">799</span>
-<span class="normal">800</span>
-<span class="normal">801</span>
-<span class="normal">802</span>
-<span class="normal">803</span>
-<span class="normal">804</span>
-<span class="normal">805</span>
-<span class="normal">806</span>
-<span class="normal">807</span>
-<span class="normal">808</span>
-<span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
-<span class="normal">812</span>
-<span class="normal">813</span>
-<span class="normal">814</span>
-<span class="normal">815</span>
-<span class="normal">816</span>
-<span class="normal">817</span>
-<span class="normal">818</span>
-<span class="normal">819</span>
-<span class="normal">820</span>
-<span class="normal">821</span>
-<span class="normal">822</span>
-<span class="normal">823</span>
-<span class="normal">824</span>
-<span class="normal">825</span>
-<span class="normal">826</span>
-<span class="normal">827</span>
-<span class="normal">828</span>
-<span class="normal">829</span>
-<span class="normal">830</span>
-<span class="normal">831</span>
-<span class="normal">832</span>
-<span class="normal">833</span>
-<span class="normal">834</span>
-<span class="normal">835</span>
-<span class="normal">836</span>
-<span class="normal">837</span>
-<span class="normal">838</span>
-<span class="normal">839</span>
-<span class="normal">840</span>
-<span class="normal">841</span>
-<span class="normal">842</span>
-<span class="normal">843</span>
-<span class="normal">844</span>
-<span class="normal">845</span>
-<span class="normal">846</span>
-<span class="normal">847</span>
-<span class="normal">848</span>
-<span class="normal">849</span>
-<span class="normal">850</span>
-<span class="normal">851</span>
-<span class="normal">852</span>
-<span class="normal">853</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_compiled_rhs</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">894</span>
+<span class="normal">895</span>
+<span class="normal">896</span>
+<span class="normal">897</span>
+<span class="normal">898</span>
+<span class="normal">899</span>
+<span class="normal">900</span>
+<span class="normal">901</span>
+<span class="normal">902</span>
+<span class="normal">903</span>
+<span class="normal">904</span>
+<span class="normal">905</span>
+<span class="normal">906</span>
+<span class="normal">907</span>
+<span class="normal">908</span>
+<span class="normal">909</span>
+<span class="normal">910</span>
+<span class="normal">911</span>
+<span class="normal">912</span>
+<span class="normal">913</span>
+<span class="normal">914</span>
+<span class="normal">915</span>
+<span class="normal">916</span>
+<span class="normal">917</span>
+<span class="normal">918</span>
+<span class="normal">919</span>
+<span class="normal">920</span>
+<span class="normal">921</span>
+<span class="normal">922</span>
+<span class="normal">923</span>
+<span class="normal">924</span>
+<span class="normal">925</span>
+<span class="normal">926</span>
+<span class="normal">927</span>
+<span class="normal">928</span>
+<span class="normal">929</span>
+<span class="normal">930</span>
+<span class="normal">931</span>
+<span class="normal">932</span>
+<span class="normal">933</span>
+<span class="normal">934</span>
+<span class="normal">935</span>
+<span class="normal">936</span>
+<span class="normal">937</span>
+<span class="normal">938</span>
+<span class="normal">939</span>
+<span class="normal">940</span>
+<span class="normal">941</span>
+<span class="normal">942</span>
+<span class="normal">943</span>
+<span class="normal">944</span>
+<span class="normal">945</span>
+<span class="normal">946</span>
+<span class="normal">947</span>
+<span class="normal">948</span>
+<span class="normal">949</span>
+<span class="normal">950</span>
+<span class="normal">951</span>
+<span class="normal">952</span>
+<span class="normal">953</span>
+<span class="normal">954</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_compiled_rhs</span><span class="p">(</span>
     <span class="n">compiled</span><span class="p">:</span> <span class="n">CompiledRhsLike</span><span class="p">,</span>
     <span class="n">params</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
