@@ -279,7 +279,9 @@ def _free_mask(fixed: object, n: int) -> np.ndarray:
     if mask.all():
         msg = "fixed must leave at least one unknown"
         raise ValueError(msg)
-    return np.logical_not(mask)
+    # Annotated so NumPy < 2.5 stubs, where logical_not returns Any, type-check.
+    free: np.ndarray = np.logical_not(mask)
+    return free
 
 
 def _invariant_matrix(invariants: object, n: int, xp: Any, dtype: object) -> Any:  # noqa: ANN401
