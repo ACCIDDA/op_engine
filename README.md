@@ -15,7 +15,7 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
 - `CoreSolver`: portable explicit methods through Dormand--Prince 5(4), plus dense IMEX and linearly implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
 - `DirectSSASolver`: exact Gillespie direct-method trajectories with injected, backend-specific exponential and categorical sampling.
-- `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection.
+- `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection. Non-mass-action propensities (frequency-dependent infection) are supported through per-reaction dependency incidence and elasticity orders.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `from_compiled_rhs` / `compile_reaction_network`: build the flat stochastic network (stoichiometry, reactant orders, propensity) from an op_system spec's reaction artifacts, with no flepimop2 dependency.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
