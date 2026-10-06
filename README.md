@@ -18,12 +18,14 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 - `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection. Non-mass-action propensities (frequency-dependent infection) are supported through per-reaction dependency incidence and elasticity orders.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `from_compiled_rhs` / `compile_reaction_network`: build the flat stochastic network (stoichiometry, reactant orders, propensity) from an op_system spec's reaction artifacts, with no flepimop2 dependency.
+- `steady_state`: equilibria by pseudo-transient continuation, with absorbing states held fixed, conserved totals enforced exactly, and a Newton-correction convergence test; runs under `jax.jit`/`vmap`.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
 See the documentation guides for [solver selection](docs/guides/solver-methods.md),
 [the biogeochemical splitting tutorial](docs/guides/biogeochemical-network.md),
 [stochastic simulation from an op_system spec](docs/guides/op-system-reactions.md),
+[steady states](docs/guides/steady-states.md),
 and [backend boundaries](docs/guides/backends.md).
 
 ## Installation
