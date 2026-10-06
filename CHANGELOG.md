@@ -7,6 +7,16 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- `op_engine.steady_state(rhs, y0, ...)` finds equilibria by pseudo-transient
+  continuation, without a long burn-in. `fixed` holds absorbing states
+  (cumulative counters) at their starting values; `invariants` enforces
+  conserved totals exactly through a bordered step, so `dt` can grow without
+  the total drifting; and convergence requires a small Newton correction as
+  well as a small residual, which catches slowly decaying modes.
+  `conserved_quantities`, `linear_invariants` (including rate-balanced totals
+  such as births `mu * N`), and `sink_states` find what to pass.
+  Diagnostics stay arrays, and `loop=jax.lax.fori_loop` runs the solve under
+  `jax.jit` and `jax.vmap`. See the new steady-states guide (#192).
 - `op_engine.from_compiled_rhs(compiled, params)` and
   `op_engine.compile_reaction_network(reactions, template_shapes=...,
   axis_sizes=..., params=...)` build the flat stochastic reaction network from
