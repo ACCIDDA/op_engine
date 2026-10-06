@@ -1,0 +1,2908 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://accidda.github.io/op_engine/0.4/api-reference/reactions/">
+      
+      
+        <link rel="prev" href="../nonlinear_solver/">
+      
+      
+        <link rel="next" href="../spatial_grid/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Reactions - op_engine Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#reactions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest version.
+  <a href="../../..">
+    <strong>Click here to go to latest.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="op_engine Documentation" class="md-header__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            op_engine Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Reactions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="op_engine Documentation" class="md-nav__button md-logo" aria-label="op_engine Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    op_engine Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ACCIDDA/op_engine" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ACCIDDA/op_engine
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/creating-a-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating A Release
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/fem-assembly-boundary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finite-Element Assembly Boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/solver-methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing a Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/bounded-thinning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Thinning SSA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/op-system-reactions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Simulation From op_system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/linear-multistep-methods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Multistep Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/nonlinear-solvers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solvers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/biogeochemical-network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biogeochemical Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/chemostat-pde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trait-Structured Chemostat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adaptive_tau/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adaptive Tau
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../matrix_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Matrix Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model_core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nonlinear_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reactions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reactions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#op_engine.reactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reactions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="reactions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompiledReactionNetwork
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CompiledReactionNetwork">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.n_channels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        n_channels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.n_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        n_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.mean_drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mean_drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.propensity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        propensity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledRhsLike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompiledRhsLike
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.ReactionArtifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReactionArtifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.ReactionReactantArtifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReactionReactantArtifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.compile_reaction_network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_reaction_network
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.compiled_rhs_axis_sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compiled_rhs_axis_sizes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.from_compiled_rhs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_compiled_rhs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spatial_grid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Grid
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stochastic_solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stochastic Solver
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../thinning_ssa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thinning Ssa
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#op_engine.reactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reactions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="reactions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompiledReactionNetwork
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CompiledReactionNetwork">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.n_channels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        n_channels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.n_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        n_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.mean_drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mean_drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledReactionNetwork.propensity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        propensity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.CompiledRhsLike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompiledRhsLike
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.ReactionArtifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReactionArtifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.ReactionReactantArtifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReactionReactantArtifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.compile_reaction_network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compile_reaction_network
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.compiled_rhs_axis_sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compiled_rhs_axis_sizes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.reactions.from_compiled_rhs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_compiled_rhs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="reactions">Reactions<a class="headerlink" href="#reactions" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="op_engine.reactions" class="doc doc-heading">
+            <code>reactions</code>
+
+
+<a href="#op_engine.reactions" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Compile op_system reaction artifacts into a flat stochastic network.</p>
+<p><code>op_system</code> publishes one typed :class:<code>ReactionArtifact</code> per named
+transition (<code>CompiledRhs.reactions</code>). :func:<code>compile_reaction_network</code>
+expands each artifact into one channel per source cell and builds the
+stoichiometry, reactant orders, and propensity callback that
+:class:<code>~op_engine.DirectSSASolver</code>, :class:<code>~op_engine.TauLeapingSolver</code>,
+and :class:<code>~op_engine.AdaptiveTauLeapingSolver</code> consume.
+:func:<code>from_compiled_rhs</code> does the same from a compiled <code>op_system</code> RHS.</p>
+<p>The module reads artifacts structurally and imports neither <code>op_system</code>
+nor <code>flepimop2</code>.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.reactions.CompiledReactionNetwork" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">CompiledReactionNetwork</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">reactant_stoichiometry</span><span class="p">,</span> <span class="n">channel_reactions</span><span class="p">,</span> <span class="n">channel_names</span><span class="p">,</span> <span class="n">_blocks</span><span class="p">,</span> <span class="n">_reactions</span><span class="p">,</span> <span class="n">_event_shapes</span><span class="p">,</span> <span class="n">_params</span><span class="p">,</span> <span class="n">reactants_complete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">incomplete_reactions</span><span class="o">=</span><span class="p">())</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.reactions.CompiledReactionNetwork" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Flat stochastic network compiled from typed reaction artifacts.</p>
+<p><code>channel_reactions</code> retains the parent reaction name for every expanded
+source-cell channel. <code>channel_names</code> adds integer coordinates and is
+intended for diagnostics only.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="op_engine.reactions.CompiledReactionNetwork.n_channels" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">n_channels</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#op_engine.reactions.CompiledReactionNetwork.n_channels" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the number of expanded reaction channels.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="op_engine.reactions.CompiledReactionNetwork.n_state" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">n_state</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#op_engine.reactions.CompiledReactionNetwork.n_state" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the number of flattened state cells.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.reactions.CompiledReactionNetwork.mean_drift" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mean_drift</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></code>
+
+<a href="#op_engine.reactions.CompiledReactionNetwork.mean_drift" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return deterministic mean drift from the compiled channels.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>stoichiometry @ propensity</code> in the state's namespace.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">mean_drift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return deterministic mean drift from the compiled channels.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``stoichiometry @ propensity`` in the state's namespace.</span>
+<span class="sd">    """</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">_namespace_of</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="n">propensity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propensity</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+        <span class="s2">"Array"</span><span class="p">,</span>
+        <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">propensity</span><span class="p">))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="op_engine.reactions.CompiledReactionNetwork.propensity" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">propensity</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></code>
+
+<a href="#op_engine.reactions.CompiledReactionNetwork.propensity" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Evaluate every reaction and concatenate its source-cell rates.</p>
+<p>The stochastic core stores the state as <code>(n_state, 1)</code>. A flat
+state is accepted as well so the same callback can construct hybrid
+mean drift. Returned shape mirrors the input convention.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Propensities in the evolving state's array namespace.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Evaluate every reaction and concatenate its source-cell rates.</span>
+
+<span class="sd">    The stochastic core stores the state as ``(n_state, 1)``. A flat</span>
+<span class="sd">    state is accepted as well so the same callback can construct hybrid</span>
+<span class="sd">    mean drift. Returned shape mirrors the input convention.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Propensities in the evolving state's array namespace.</span>
+<span class="sd">    """</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">_namespace_of</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="n">batched</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_state</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">batched</span> <span class="ow">and</span> <span class="n">state</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_state</span><span class="p">,):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Reaction propensity received state shape </span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">; expected "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_state</span><span class="p">,)</span><span class="si">}</span><span class="s2"> or </span><span class="si">{</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_state</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">flat_state</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_state</span><span class="p">,)))</span>
+    <span class="n">indexable_state</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"_IndexableArray"</span><span class="p">,</span> <span class="n">flat_state</span><span class="p">)</span>
+    <span class="n">state_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">block</span><span class="o">.</span><span class="n">base</span><span class="p">:</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="s2">"Array"</span><span class="p">,</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+                <span class="n">indexable_state</span><span class="p">[</span><span class="n">block</span><span class="o">.</span><span class="n">offset</span> <span class="p">:</span> <span class="n">block</span><span class="o">.</span><span class="n">offset</span> <span class="o">+</span> <span class="n">block</span><span class="o">.</span><span class="n">size</span><span class="p">],</span>
+                <span class="n">block</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_blocks</span>
+    <span class="p">}</span>
+
+    <span class="n">values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Array</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">reaction</span><span class="p">,</span> <span class="n">expected_shape</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reactions</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_shapes</span><span class="p">,</span>
+        <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">reaction</span><span class="o">.</span><span class="n">propensity_fn</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="p">)</span>
+        <span class="n">raw_namespace</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="s2">"__array_namespace__"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">raw_namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">raw_namespace</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">xp</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Reaction </span><span class="si">{</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> changed the state array namespace."</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected_shape</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Reaction </span><span class="si">{</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> returned propensity shape "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">; expected </span><span class="si">{</span><span class="n">expected_shape</span><span class="si">}</span><span class="s2">."</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,))))</span>
+
+    <span class="n">combined</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">batched</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"Array"</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">combined</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">combined</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.reactions.CompiledRhsLike" class="doc doc-heading">
+            <code>CompiledRhsLike</code>
+
+
+<a href="#op_engine.reactions.CompiledRhsLike" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Structural surface of <code>op_system.CompiledRhs</code> read here.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.reactions.ReactionArtifact" class="doc doc-heading">
+            <code>ReactionArtifact</code>
+
+
+<a href="#op_engine.reactions.ReactionArtifact" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Structural surface published by <code>op_system.CompiledReaction</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.reactions.ReactionReactantArtifact" class="doc doc-heading">
+            <code>ReactionReactantArtifact</code>
+
+
+<a href="#op_engine.reactions.ReactionReactantArtifact" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Structural molecular-reactant surface published by op_system.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.reactions.compile_reaction_network" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">compile_reaction_network</span><span class="p">(</span><span class="n">reactions</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">template_shapes</span><span class="p">,</span> <span class="n">axis_sizes</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">n_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reaction_names</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#op_engine.reactions.compile_reaction_network" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Compile op_system reaction artifacts into flat channels.</p>
+<p>Each source-cell propensity becomes one channel. Consequently, a collapsed
+axis is represented by distinct columns that share one destination row;
+summing simultaneous firings is then exactly the stoichiometric matrix
+multiplication performed by the core stochastic solvers. An offset axis
+moves each channel to its shifted coordinate; when that leaves the axis,
+the column only removes the donor.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>reactions</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<a class="autorefs autorefs-internal" title="ReactionArtifact (op_engine.reactions.ReactionArtifact)" href="#op_engine.reactions.ReactionArtifact">ReactionArtifact</a>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Typed reaction artifacts, such as <code>CompiledRhs.reactions</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>template_shapes</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="collections.abc.Sequence">Sequence</span>[<span title="int">int</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Shape of each state template, in the flat state's
+order, such as <code>CompiledRhs.template_shapes</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>axis_sizes</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of coordinates on each axis.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>params</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="object">object</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameter values passed to every propensity.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_state</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of cells in the flat state. Defaults to the total
+that <code>template_shapes</code> describes; when given, the two must
+agree.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>reaction_names</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional parent reaction names to select for a hybrid
+jump partition. <code>None</code> selects every artifact.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="CompiledReactionNetwork(stoichiometry, reactant_stoichiometry, channel_reactions, channel_names, _blocks, _reactions, _event_shapes, _params, reactants_complete=False, incomplete_reactions=())
+
+  
+      dataclass
+   (op_engine.reactions.CompiledReactionNetwork)" href="#op_engine.reactions.CompiledReactionNetwork">CompiledReactionNetwork</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Validated flat reaction network.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If an argument or artifact field has the wrong type.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the artifacts are inconsistent with each other or
+with the state layout.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span>
+<span class="normal">692</span>
+<span class="normal">693</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
+<span class="normal">697</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
+<span class="normal">739</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span>
+<span class="normal">764</span>
+<span class="normal">765</span>
+<span class="normal">766</span>
+<span class="normal">767</span>
+<span class="normal">768</span>
+<span class="normal">769</span>
+<span class="normal">770</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile_reaction_network</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+    <span class="n">reactions</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ReactionArtifact</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">template_shapes</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">axis_sizes</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">params</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+    <span class="n">n_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">reaction_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CompiledReactionNetwork</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Compile op_system reaction artifacts into flat channels.</span>
+
+<span class="sd">    Each source-cell propensity becomes one channel. Consequently, a collapsed</span>
+<span class="sd">    axis is represented by distinct columns that share one destination row;</span>
+<span class="sd">    summing simultaneous firings is then exactly the stoichiometric matrix</span>
+<span class="sd">    multiplication performed by the core stochastic solvers. An offset axis</span>
+<span class="sd">    moves each channel to its shifted coordinate; when that leaves the axis,</span>
+<span class="sd">    the column only removes the donor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        reactions: Typed reaction artifacts, such as ``CompiledRhs.reactions``.</span>
+<span class="sd">        template_shapes: Shape of each state template, in the flat state's</span>
+<span class="sd">            order, such as ``CompiledRhs.template_shapes``.</span>
+<span class="sd">        axis_sizes: Number of coordinates on each axis.</span>
+<span class="sd">        params: Parameter values passed to every propensity.</span>
+<span class="sd">        n_state: Number of cells in the flat state. Defaults to the total</span>
+<span class="sd">            that ``template_shapes`` describes; when given, the two must</span>
+<span class="sd">            agree.</span>
+<span class="sd">        reaction_names: Optional parent reaction names to select for a hybrid</span>
+<span class="sd">            jump partition. ``None`` selects every artifact.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Validated flat reaction network.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If an argument or artifact field has the wrong type.</span>
+<span class="sd">        ValueError: If the artifacts are inconsistent with each other or</span>
+<span class="sd">            with the state layout.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">reactions</span><span class="p">,</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'reactions' must be a sequence of reaction artifacts."</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"ReactionArtifact"</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">reactions</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">reaction_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">requested</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">reaction_names</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">requested</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">requested</span><span class="p">)):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"stochastic_reactions must not contain duplicates."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">available</span> <span class="o">=</span> <span class="p">{</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">reaction</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">}</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">requested</span><span class="p">)</span> <span class="o">-</span> <span class="n">available</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Unknown stochastic reaction names: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">wanted</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">requested</span><span class="p">)</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">reaction</span> <span class="k">for</span> <span class="n">reaction</span> <span class="ow">in</span> <span class="n">selected</span> <span class="k">if</span> <span class="n">reaction</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">wanted</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">selected</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"No typed reactions are available for stochastic execution."</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">reactions</span> <span class="o">=</span> <span class="n">selected</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">template_shapes</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'template_shapes' must map state template names to shapes."</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_state</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span> <span class="k">if</span> <span class="n">shape</span> <span class="k">else</span> <span class="mi">1</span>
+            <span class="k">for</span> <span class="n">shape</span> <span class="ow">in</span> <span class="n">template_shapes</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="nb">list</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">blocks_tuple</span> <span class="o">=</span> <span class="n">_state_blocks</span><span class="p">(</span>
+        <span class="n">cast</span><span class="p">(</span><span class="s2">"Mapping[object, object]"</span><span class="p">,</span> <span class="n">template_shapes</span><span class="p">),</span> <span class="n">n_state</span><span class="o">=</span><span class="n">n_state</span>
+    <span class="p">)</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="p">{</span><span class="n">block</span><span class="o">.</span><span class="n">base</span><span class="p">:</span> <span class="n">block</span> <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">blocks_tuple</span><span class="p">}</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis_sizes</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'axis_sizes' must be a mapping."</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">raw_axis_sizes</span> <span class="o">=</span> <span class="n">axis_sizes</span>
+    <span class="n">axis_sizes</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">raw_axis_sizes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">size</span> <span class="o">&lt;</span> <span class="mi">1</span>
+        <span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"'axis_sizes' contains an invalid entry."</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">axis_sizes</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="n">size</span>
+    <span class="n">base_axes</span> <span class="o">=</span> <span class="n">_reaction_axes</span><span class="p">(</span><span class="n">reactions</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">axis_sizes</span><span class="p">)</span>
+
+    <span class="n">columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">reactant_columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">channel_reactions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">channel_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">event_shapes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">reactants_complete</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">incomplete</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">reaction</span> <span class="ow">in</span> <span class="n">reactions</span><span class="p">:</span>
+        <span class="n">complete</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">reaction</span><span class="p">,</span> <span class="s2">"reactants_complete"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">complete</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Reaction </span><span class="si">{</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> reactants_complete must be boolean."</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">complete</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">reaction</span><span class="p">,</span> <span class="s2">"reactants"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Reaction </span><span class="si">{</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> claims complete reactants without "</span>
+                <span class="s2">"publishing reactant metadata."</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">reactants_complete</span> <span class="o">=</span> <span class="n">reactants_complete</span> <span class="ow">and</span> <span class="n">complete</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">complete</span><span class="p">:</span>
+            <span class="n">incomplete</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">from_axes</span> <span class="o">=</span> <span class="n">_require_string_tuple</span><span class="p">(</span><span class="n">reaction</span><span class="o">.</span><span class="n">from_axes</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="s2">"from_axes"</span><span class="p">)</span>
+        <span class="n">target_axes</span> <span class="o">=</span> <span class="n">base_axes</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">to_base</span><span class="p">]</span>
+        <span class="n">pinned</span><span class="p">,</span> <span class="n">from_pinned</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">routed</span> <span class="o">=</span> <span class="n">_reaction_axis_metadata</span><span class="p">(</span>
+            <span class="n">reaction</span><span class="p">,</span>
+            <span class="n">from_axes</span><span class="o">=</span><span class="n">from_axes</span><span class="p">,</span>
+            <span class="n">source_axes</span><span class="o">=</span><span class="p">(</span>
+                <span class="n">target_axes</span>
+                <span class="k">if</span> <span class="n">reaction</span><span class="o">.</span><span class="n">from_base</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="n">base_axes</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">from_base</span><span class="p">]</span>
+            <span class="p">),</span>
+            <span class="n">target_axes</span><span class="o">=</span><span class="n">target_axes</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># A routed target coordinate is a trailing channel dimension.</span>
+        <span class="n">event_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">axis_sizes</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">from_axes</span> <span class="o">+</span> <span class="n">routed</span><span class="p">)</span>
+        <span class="n">event_shapes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event_shape</span><span class="p">)</span>
+        <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndindex</span><span class="p">(</span><span class="n">event_shape</span><span class="p">)</span> <span class="k">if</span> <span class="n">event_shape</span> <span class="k">else</span> <span class="nb">iter</span><span class="p">(((),))</span>
+        <span class="k">for</span> <span class="n">coordinate</span> <span class="ow">in</span> <span class="n">coordinates</span><span class="p">:</span>
+            <span class="n">varying</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">from_axes</span><span class="p">,</span> <span class="n">coordinate</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">from_axes</span><span class="p">)],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="n">routed_to</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">routed</span><span class="p">,</span> <span class="n">coordinate</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">from_axes</span><span class="p">)</span> <span class="p">:],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="n">column</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">reaction</span><span class="o">.</span><span class="n">from_base</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">source_coordinates</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">varying</span><span class="p">,</span> <span class="o">**</span><span class="n">from_pinned</span><span class="p">}</span>
+                <span class="n">source</span> <span class="o">=</span> <span class="n">_flat_cell</span><span class="p">(</span>
+                    <span class="n">blocks</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">from_base</span><span class="p">],</span>
+                    <span class="n">base_axes</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">from_base</span><span class="p">],</span>
+                    <span class="n">source_coordinates</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">column</span><span class="p">[</span><span class="n">source</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+
+            <span class="n">reactants</span> <span class="o">=</span> <span class="n">_expanded_reactants</span><span class="p">(</span>
+                <span class="n">reaction</span><span class="p">,</span>
+                <span class="n">varying</span><span class="o">=</span><span class="n">varying</span><span class="p">,</span>
+                <span class="n">from_axes</span><span class="o">=</span><span class="n">from_axes</span><span class="p">,</span>
+                <span class="n">base_axes</span><span class="o">=</span><span class="n">base_axes</span><span class="p">,</span>
+                <span class="n">blocks</span><span class="o">=</span><span class="n">blocks</span><span class="p">,</span>
+                <span class="n">n_state</span><span class="o">=</span><span class="n">n_state</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">destination</span> <span class="o">=</span> <span class="n">_destination_cell</span><span class="p">(</span>
+                <span class="n">blocks</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">to_base</span><span class="p">],</span>
+                <span class="n">base_axes</span><span class="p">[</span><span class="n">reaction</span><span class="o">.</span><span class="n">to_base</span><span class="p">],</span>
+                <span class="p">{</span><span class="o">**</span><span class="n">varying</span><span class="p">,</span> <span class="o">**</span><span class="n">pinned</span><span class="p">,</span> <span class="o">**</span><span class="n">routed_to</span><span class="p">},</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">destination</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">column</span><span class="p">[</span><span class="n">destination</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
+            <span class="n">reactant_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reactants</span><span class="p">)</span>
+            <span class="n">channel_reactions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">coordinate_text</span> <span class="o">=</span> <span class="s2">","</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">axis</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">varying</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+                <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"to:</span><span class="si">{</span><span class="n">axis</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">routed_to</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+            <span class="p">)</span>
+            <span class="n">channel_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">reaction</span><span class="o">.</span><span class="n">name</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">coordinate_text</span>
+                <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">reaction</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[</span><span class="si">{</span><span class="n">coordinate_text</span><span class="si">}</span><span class="s2">]"</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">CompiledReactionNetwork</span><span class="p">(</span>
+        <span class="n">stoichiometry</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">reactant_stoichiometry</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">reactant_columns</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">channel_reactions</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">channel_reactions</span><span class="p">),</span>
+        <span class="n">channel_names</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">channel_names</span><span class="p">),</span>
+        <span class="n">_blocks</span><span class="o">=</span><span class="n">blocks_tuple</span><span class="p">,</span>
+        <span class="n">_reactions</span><span class="o">=</span><span class="n">reactions</span><span class="p">,</span>
+        <span class="n">_event_shapes</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">event_shapes</span><span class="p">),</span>
+        <span class="n">_params</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">params</span><span class="p">),</span>
+        <span class="n">reactants_complete</span><span class="o">=</span><span class="n">reactants_complete</span><span class="p">,</span>
+        <span class="n">incomplete_reactions</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">incomplete</span><span class="p">),</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.reactions.compiled_rhs_axis_sizes" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">compiled_rhs_axis_sizes</span><span class="p">(</span><span class="n">compiled</span><span class="p">)</span></code>
+
+<a href="#op_engine.reactions.compiled_rhs_axis_sizes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return each axis's coordinate count from a compiled RHS's metadata.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mapping from axis name to size, from <code>compiled.meta["axes"]</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If an axis entry has no name.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span>
+<span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span>
+<span class="normal">783</span>
+<span class="normal">784</span>
+<span class="normal">785</span>
+<span class="normal">786</span>
+<span class="normal">787</span>
+<span class="normal">788</span>
+<span class="normal">789</span>
+<span class="normal">790</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compiled_rhs_axis_sizes</span><span class="p">(</span><span class="n">compiled</span><span class="p">:</span> <span class="n">CompiledRhsLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return each axis's coordinate count from a compiled RHS's metadata.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Mapping from axis name to size, from ``compiled.meta["axes"]``.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If an axis entry has no name.</span>
+<span class="sd">    """</span>
+    <span class="n">sizes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">compiled</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"axes"</span><span class="p">,</span> <span class="p">())</span> <span class="ow">or</span> <span class="p">():</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">axis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"compiled.meta['axes'] entries must name their axis."</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">axis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"size"</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"coords"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">())</span>
+        <span class="n">sizes</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sizes</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="op_engine.reactions.from_compiled_rhs" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">from_compiled_rhs</span><span class="p">(</span><span class="n">compiled</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reaction_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">allow_gaps</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#op_engine.reactions.from_compiled_rhs" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Compile the reaction network of a compiled <code>op_system</code> RHS.</p>
+<p>The flat state follows <code>compiled.template_shapes</code>: each template's
+cells in C order, templates in declaration order. That is also the
+layout of <code>compiled.eval_fn</code>'s state vector when the RHS is
+vectorized, so <code>network.mean_drift(t, y)</code> should equal
+<code>compiled.eval_fn(t, y, **params)</code> for every <code>y</code>. Check that
+identity once for a new model: a mismatch means some dynamics have no
+reaction.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>compiled</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="CompiledRhsLike (op_engine.reactions.CompiledRhsLike)" href="#op_engine.reactions.CompiledRhsLike">CompiledRhsLike</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A compiled RHS, such as <code>op_system.compile_spec(spec)</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>params</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="object">object</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameter values passed to every propensity.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>reaction_names</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional reaction names to compile, for a hybrid
+jump partition. <code>None</code> compiles every reaction.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>allow_gaps</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Compile even when <code>compiled.reaction_gaps</code> lists
+dynamics without a reaction. Selecting <code>reaction_names</code> also
+skips the check, since a partition is partial by design.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="CompiledReactionNetwork(stoichiometry, reactant_stoichiometry, channel_reactions, channel_names, _blocks, _reactions, _event_shapes, _params, reactants_complete=False, incomplete_reactions=())
+
+  
+      dataclass
+   (op_engine.reactions.CompiledReactionNetwork)" href="#op_engine.reactions.CompiledReactionNetwork">CompiledReactionNetwork</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Validated flat reaction network.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the RHS has no vectorized state layout.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the RHS has reaction gaps and neither <code>allow_gaps</code>
+nor <code>reaction_names</code> is given.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/op_engine/reactions.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">793</span>
+<span class="normal">794</span>
+<span class="normal">795</span>
+<span class="normal">796</span>
+<span class="normal">797</span>
+<span class="normal">798</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span>
+<span class="normal">816</span>
+<span class="normal">817</span>
+<span class="normal">818</span>
+<span class="normal">819</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span>
+<span class="normal">823</span>
+<span class="normal">824</span>
+<span class="normal">825</span>
+<span class="normal">826</span>
+<span class="normal">827</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
+<span class="normal">831</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span>
+<span class="normal">835</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span>
+<span class="normal">839</span>
+<span class="normal">840</span>
+<span class="normal">841</span>
+<span class="normal">842</span>
+<span class="normal">843</span>
+<span class="normal">844</span>
+<span class="normal">845</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span>
+<span class="normal">849</span>
+<span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_compiled_rhs</span><span class="p">(</span>
+    <span class="n">compiled</span><span class="p">:</span> <span class="n">CompiledRhsLike</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">reaction_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">allow_gaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CompiledReactionNetwork</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Compile the reaction network of a compiled ``op_system`` RHS.</span>
+
+<span class="sd">    The flat state follows ``compiled.template_shapes``: each template's</span>
+<span class="sd">    cells in C order, templates in declaration order. That is also the</span>
+<span class="sd">    layout of ``compiled.eval_fn``'s state vector when the RHS is</span>
+<span class="sd">    vectorized, so ``network.mean_drift(t, y)`` should equal</span>
+<span class="sd">    ``compiled.eval_fn(t, y, **params)`` for every ``y``. Check that</span>
+<span class="sd">    identity once for a new model: a mismatch means some dynamics have no</span>
+<span class="sd">    reaction.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        compiled: A compiled RHS, such as ``op_system.compile_spec(spec)``.</span>
+<span class="sd">        params: Parameter values passed to every propensity.</span>
+<span class="sd">        reaction_names: Optional reaction names to compile, for a hybrid</span>
+<span class="sd">            jump partition. ``None`` compiles every reaction.</span>
+<span class="sd">        allow_gaps: Compile even when ``compiled.reaction_gaps`` lists</span>
+<span class="sd">            dynamics without a reaction. Selecting ``reaction_names`` also</span>
+<span class="sd">            skips the check, since a partition is partial by design.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Validated flat reaction network.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If the RHS has no vectorized state layout.</span>
+<span class="sd">        ValueError: If the RHS has reaction gaps and neither ``allow_gaps``</span>
+<span class="sd">            nor ``reaction_names`` is given.</span>
+<span class="sd">    """</span>
+    <span class="n">template_shapes</span> <span class="o">=</span> <span class="n">compiled</span><span class="o">.</span><span class="n">template_shapes</span>
+    <span class="k">if</span> <span class="n">template_shapes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">"The compiled RHS has no vectorized state layout "</span>
+            <span class="s2">"(template_shapes is None), so its reactions cannot be indexed."</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">gaps</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">compiled</span><span class="o">.</span><span class="n">reaction_gaps</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">gaps</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">allow_gaps</span> <span class="ow">and</span> <span class="n">reaction_names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">described</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">getattr</span><span class="p">(</span><span class="n">gap</span><span class="p">,</span><span class="w"> </span><span class="s1">'name'</span><span class="p">,</span><span class="w"> </span><span class="kc">None</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">getattr</span><span class="p">(</span><span class="n">gap</span><span class="p">,</span><span class="w"> </span><span class="s1">'origin'</span><span class="p">,</span><span class="w"> </span><span class="s1">'?'</span><span class="p">)</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">getattr</span><span class="p">(</span><span class="n">gap</span><span class="p">,</span><span class="w"> </span><span class="s1">'reason'</span><span class="p">,</span><span class="w"> </span><span class="s1">'unknown'</span><span class="p">)</span><span class="si">}</span><span class="s2">)"</span>
+            <span class="k">for</span> <span class="n">gap</span> <span class="ow">in</span> <span class="n">gaps</span>
+        <span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">"The compiled RHS has dynamics without a reaction artifact: "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">described</span><span class="si">}</span><span class="s2">. A network of its reactions alone would drop them; "</span>
+            <span class="s2">"pass allow_gaps=True to compile it anyway."</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">compile_reaction_network</span><span class="p">(</span>
+        <span class="nb">tuple</span><span class="p">(</span><span class="n">compiled</span><span class="o">.</span><span class="n">reactions</span><span class="p">),</span>
+        <span class="n">template_shapes</span><span class="o">=</span><span class="n">template_shapes</span><span class="p">,</span>
+        <span class="n">axis_sizes</span><span class="o">=</span><span class="n">compiled_rhs_axis_sizes</span><span class="p">(</span><span class="n">compiled</span><span class="p">),</span>
+        <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+        <span class="n">reaction_names</span><span class="o">=</span><span class="n">reaction_names</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
