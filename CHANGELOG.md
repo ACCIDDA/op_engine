@@ -15,6 +15,16 @@ versioning while the project remains pre-1.0.
   `allow_gaps=True` or a `reaction_names` partition is given. The new guide
   covers the `mean_drift` consistency check against the deterministic RHS
   (#191).
+- `AdaptiveTauLeapingSolver` accepts `dependency_incidence` and
+  `propensity_orders` for reactions that are not mass action, such as
+  frequency-dependent infection. Each species a reaction reads gets a
+  Cao-Gillespie-Petzold scaling of at least the reaction's elasticity order,
+  so its propensity's relative change stays within the leap tolerance; orders
+  above three are allowed. `CompiledReactionNetwork` builds both arrays from
+  the `dependencies`, `propensity_order`, and `dependencies_complete` fields
+  op_system 0.7.0 publishes for `reactants: auto`, counts such reactions as
+  complete, and the provider passes them to the solver, so adaptive
+  tau-leaping runs frequency-dependent op_system models (#193).
 
 ### Changed
 

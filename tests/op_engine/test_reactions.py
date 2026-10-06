@@ -52,6 +52,9 @@ class Reaction:
     from_pinned: tuple[tuple[str, int], ...] = ()
     reactants: tuple[Reactant, ...] = field(default_factory=tuple)
     reactants_complete: bool = True
+    dependencies: tuple[Reactant, ...] = field(default_factory=tuple)
+    propensity_order: int | None = None
+    dependencies_complete: bool = False
 
 
 def _infect(_t: float, y: dict[str, Any], *, beta: float, **_: object) -> object:
@@ -222,3 +225,88 @@ def test_from_compiled_rhs_rejects_reaction_gaps_unless_allowed() -> None:
     assert from_compiled_rhs(compiled, PARAMS, allow_gaps=True).n_channels == 4
     partition = from_compiled_rhs(compiled, PARAMS, reaction_names=("infect",))
     assert partition.channel_reactions == ("infect", "infect")
+
+
+def _frequency_dependent(**overrides: Any) -> Reaction:  # noqa: ANN401
+    """Infection ``beta S sum(I) / N``, described by dependencies (#193).
+
+    Returns:
+        A reaction reading every S, I, and R cell, with order 3.
+    """
+    pinned = tuple(
+        Reactant(base, (), AGE, (("age", k),)) for base in "SIR" for k in range(2)
+    )
+    fields: dict[str, Any] = {
+        "reactants": (Reactant("S", AGE, AGE),),
+        "reactants_complete": False,
+        "dependencies": (Reactant("S", AGE, AGE), *pinned),
+        "propensity_order": 3,
+        "dependencies_complete": True,
+    }
+    fields.update(overrides)
+    return replace(REACTIONS[0], **fields)
+
+
+def test_dependencies_describe_a_reaction_for_adaptive_tau() -> None:
+    """Each channel reads every cell; mass-action channels keep order 0."""
+    network = _network(reactions=(_frequency_dependent(), REACTIONS[1]))
+    assert network.reactants_complete is True
+    assert network.incomplete_reactions == ()
+    np.testing.assert_array_equal(network.propensity_orders, [3, 3, 0, 0])
+    assert network.dependency_incidence is not None
+    np.testing.assert_array_equal(
+        network.dependency_incidence[:, :2], np.ones((6, 2), dtype=np.int64)
+    )
+    np.testing.assert_array_equal(
+        network.dependency_incidence[:, 2:], np.zeros((6, 2), dtype=np.int64)
+    )
+    # Only the consumed source bounds critical firings.
+    np.testing.assert_array_equal(
+        network.reactant_stoichiometry[:, :2],
+        [[1, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0]],
+    )
+
+
+def test_reactant_networks_publish_no_dependency_arrays() -> None:
+    """Without dependency-described reactions the arrays are ``None``."""
+    network = _network()
+    assert network.dependency_incidence is None
+    assert network.propensity_orders is None
+
+
+def test_complete_reactants_take_precedence_over_dependencies() -> None:
+    """A reaction with complete reactants uses them, not its dependencies."""
+    reaction = _frequency_dependent(reactants_complete=True)
+    network = _network(reactions=(reaction,))
+    assert network.propensity_orders is None
+    assert network.reactants_complete is True
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        pytest.param(
+            {"propensity_order": None}, "positive propensity_order", id="order"
+        ),
+        pytest.param(
+            {"propensity_order": True}, "positive propensity_order", id="bool"
+        ),
+        pytest.param(
+            {"dependencies": None}, "dependencies must be a sequence", id="missing"
+        ),
+    ],
+)
+def test_malformed_dependency_claims_fail_visibly(
+    overrides: dict[str, object], match: str
+) -> None:
+    """Complete dependencies need an order and the dependencies themselves."""
+    with pytest.raises(TypeError, match=match):
+        _network(reactions=(_frequency_dependent(**overrides),))
+
+
+def test_incomplete_dependencies_leave_the_reaction_incomplete() -> None:
+    """Without ``dependencies_complete`` the reaction is named as incomplete."""
+    reaction = _frequency_dependent(dependencies_complete=False)
+    network = _network(reactions=(reaction,))
+    assert network.reactants_complete is False
+    assert network.incomplete_reactions == ("infect",)

@@ -83,16 +83,25 @@ trajectory = core.state_array[:, :, 0]  # (time, state)
 
 ## Adaptive tau-leaping
 
-`AdaptiveTauLeapingSolver` also needs each channel's molecular reactants, which
-`network.reactant_stoichiometry` holds. They must be complete:
-`network.reactants_complete` is false, and `network.incomplete_reactions`
-names the culprits, when a reaction might read a state op_system has not
-declared as a reactant. In op_system 0.7.0 and later:
+`AdaptiveTauLeapingSolver` chooses each leap so that no propensity changes
+by more than `leap_tolerance` relative to itself. It therefore needs to know
+which states each propensity depends on, and how strongly. The network must
+describe every reaction: `network.reactants_complete` is false, and
+`network.incomplete_reactions` names the culprits, when a reaction might read
+a state op_system has not declared. In op_system 0.7.0 and later:
 
 - a reaction whose rate reads no state (`recover` above) is complete as is;
-- `reactants: auto` infers the reactants of a rate that is a single product
-  of states (`infect` above: `S` consumed, `I` catalytic);
+- `reactants: auto` infers the molecular reactants of a rate that is a single
+  product of states (`infect` above: `S` consumed, `I` catalytic);
+- for any other `reactants: auto` rate, such as a frequency-dependent force
+  of infection `beta * S * sum(I) / N`, op_system publishes the states the
+  propensity reads and a bound `E` on its elasticity
+  `sum_i |d log a / d log x_i|` (3 for that example). The network turns them
+  into `dependency_incidence` and `propensity_orders`;
 - an explicit `reactants:` list is always authoritative.
+
+Pass all four arrays; the dependency arrays are `None` when every reaction is
+mass action:
 
 ```python
 from op_engine import AdaptiveTauLeapingSolver, NumpyPoissonSampler
@@ -101,9 +110,19 @@ assert network.reactants_complete
 core = ModelCore(network.n_state, 1, times)
 core.set_initial_state(np.asarray([[95.0], [90.0], [5.0], [10.0], [0.0], [0.0]]))
 AdaptiveTauLeapingSolver(
-    core, network.stoichiometry, network.reactant_stoichiometry
+    core,
+    network.stoichiometry,
+    network.reactant_stoichiometry,
+    dependency_incidence=network.dependency_incidence,
+    propensity_orders=network.propensity_orders,
 ).run(network.propensity, NumpyPoissonSampler(seed=2), NumpySSASampler(seed=3))
 ```
+
+For a reaction described by dependencies, every species it reads gets a
+Cao-Gillespie-Petzold scaling of at least `E`, so its propensity's relative
+change stays within the tolerance. Orders above three are allowed. Its
+`reactant_stoichiometry` column lists only the consumed source, which is what
+can be exhausted for the critical-reaction check.
 
 ## Partitions and lower-level use
 

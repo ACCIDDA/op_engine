@@ -777,3 +777,157 @@ def test_adaptive_tau_preserves_jax_namespace_with_explicit_keys() -> None:
     assert core.state_array.__array_namespace__() is jnp
     assert bool(jnp.all(state >= 0.0))
     assert draw_indices == [0, 1]
+
+
+def _frequency_dependent_mean(**dependencies: NDArray[np.number]) -> float:
+    """Return the first Poisson mean for one ``S -> I`` channel.
+
+    The propensity is ``S * I / (S + I)`` at ``S = I = 100``, so it is 50 and
+    reads both species.
+
+    Returns:
+        The mean number of firings in the first leap.
+    """
+    core = _make_core(2, 1, np.asarray([0.0, 1.0]))
+    core.set_initial_state(np.asarray([[100.0], [100.0]]))
+    poisson = _RecordingPoissonSampler()
+
+    def propensity(_time: float, state: Array) -> Array:
+        values = np.asarray(state)
+        return cast("Array", values[0:1] * values[1:2] / (values[0:1] + values[1:2]))
+
+    AdaptiveTauLeapingSolver(
+        core,
+        np.asarray([[-1], [1]]),
+        np.asarray([[1], [0]]),
+        **dependencies,  # type: ignore[arg-type]
+    ).run(
+        propensity,
+        poisson,
+        NumpySSASampler(7),
+        config=AdaptiveTauLeapingConfig(
+            leap_tolerance=0.1,
+            critical_threshold=0,
+            exact_fallback_multiplier=0.0,
+        ),
+    )
+    return float(poisson.means[0][0, 0])
+
+
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [
+        pytest.param(None, 10.0, id="reactants-only"),
+        pytest.param(3, 10.0 / 3.0, id="order-three"),
+        pytest.param(5, 2.0, id="order-above-three"),
+    ],
+)
+def test_dependency_order_bounds_every_species_the_propensity_reads(
+    order: int | None, expected: float
+) -> None:
+    """A propensity order sets ``g_i`` for every species the reaction reads.
+
+    With reactants alone only the consumed ``S`` is bounded, with ``g = 1``:
+    the leap bound is ``0.1 * 100 = 10`` firings. With dependencies on
+    ``S`` and ``I`` and order ``E``, each species' bound is ``10 / E``.
+    """
+    dependencies = (
+        {}
+        if order is None
+        else {
+            "dependency_incidence": np.asarray([[1], [1]]),
+            "propensity_orders": np.asarray([order]),
+        }
+    )
+    assert _frequency_dependent_mean(**dependencies) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    ("dependencies", "message"),
+    [
+        pytest.param(
+            {"dependency_incidence": np.ones((2, 1))}, "together", id="incidence-only"
+        ),
+        pytest.param(
+            {"propensity_orders": np.asarray([3])}, "together", id="orders-only"
+        ),
+        pytest.param(
+            {
+                "dependency_incidence": np.ones((1, 1)),
+                "propensity_orders": np.asarray([3]),
+            },
+            "dependency_incidence shape",
+            id="incidence-shape",
+        ),
+        pytest.param(
+            {
+                "dependency_incidence": np.ones((2, 1)),
+                "propensity_orders": np.asarray([1.5]),
+            },
+            "propensity_orders must contain finite non-negative integers",
+            id="fractional-order",
+        ),
+        pytest.param(
+            {
+                "dependency_incidence": np.ones((2, 1)),
+                "propensity_orders": np.asarray([0]),
+            },
+            "propensity order is zero",
+            id="reads-without-order",
+        ),
+    ],
+)
+def test_adaptive_tau_validates_dependency_metadata(
+    dependencies: dict[str, NDArray[np.number]], message: str
+) -> None:
+    """Dependency incidence and orders come together and are consistent."""
+    core = _make_core(2, 1, np.asarray([0.0, 1.0]))
+    with pytest.raises(ValueError, match=message):
+        AdaptiveTauLeapingSolver(
+            core,
+            np.asarray([[-1], [1]]),
+            np.asarray([[1], [0]]),
+            **dependencies,  # type: ignore[arg-type]
+        )
+
+
+def test_frequency_dependent_ensemble_matches_direct_ssa() -> None:
+    """Adaptive leaps on ``beta S I / N`` reproduce direct-SSA statistics.
+
+    Infection reads S, I, and R through N, so it is described by
+    dependencies with order 3; recovery is first-order mass action.
+    """
+    n_replicates = 600
+    times = np.asarray([0.0, 2.0, 4.0])
+    stoichiometry = np.asarray([[-1, 0], [1, -1], [0, 1]])
+
+    def propensity(_time: float, state: Array) -> Array:
+        s, i, r = (np.asarray(state)[k] for k in range(3))
+        return cast("Array", np.stack([s * i / (s + i + r), 0.5 * i]))
+
+    def ensemble(*, adaptive: bool) -> NDArray[np.floating]:
+        core = _make_core(3, n_replicates, times)
+        core.set_initial_state(np.tile([[95.0], [5.0], [0.0]], (1, n_replicates)))
+        if adaptive:
+            AdaptiveTauLeapingSolver(
+                core,
+                stoichiometry,
+                np.asarray([[1, 0], [0, 1], [0, 0]]),
+                dependency_incidence=np.asarray([[1, 0], [1, 0], [1, 0]]),
+                propensity_orders=np.asarray([3, 0]),
+            ).run(propensity, NumpyPoissonSampler(12), NumpySSASampler(13))
+        else:
+            DirectSSASolver(core, stoichiometry).run(propensity, NumpySSASampler(11))
+        assert core.state_array is not None
+        return np.asarray(core.state_array)
+
+    direct = ensemble(adaptive=False)
+    leaped = ensemble(adaptive=True)
+    for step in (1, 2):
+        for species in (1, 2):
+            exact, approximate = direct[step, species], leaped[step, species]
+            standard_error = np.sqrt(
+                (np.var(exact) + np.var(approximate)) / n_replicates
+            )
+            assert abs(np.mean(approximate) - np.mean(exact)) < 4 * standard_error
+            assert 0.75 < np.var(approximate) / np.var(exact) < 1.33
