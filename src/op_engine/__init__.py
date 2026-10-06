@@ -56,6 +56,16 @@ from .reactions import (
     from_compiled_rhs,
 )
 from .spatial_grid import generate_adaptive_grid, generate_adaptive_grid_from_data
+from .steady_state import (
+    SteadyStateConfig,
+    SteadyStateConvergenceError,
+    SteadyStateResult,
+    conserved_quantities,
+    linear_invariants,
+    require_steady_state,
+    sink_states,
+    steady_state,
+)
 from .stochastic_solver import (
     DirectSSAConfig,
     DirectSSASolver,
@@ -110,6 +120,9 @@ __all__ = [
     "SSASample",
     "SSASampler",
     "Scalar",
+    "SteadyStateConfig",
+    "SteadyStateConvergenceError",
+    "SteadyStateResult",
     "TauLeapingConfig",
     "TauLeapingSolver",
     "ThinningSSAConfig",
@@ -125,6 +138,7 @@ __all__ = [
     "build_predictor_corrector",
     "clear_implicit_solver_cache",
     "compile_reaction_network",
+    "conserved_quantities",
     "encode_groups",
     "from_compiled_rhs",
     "generate_adaptive_grid",
@@ -135,11 +149,15 @@ __all__ = [
     "implicit_solve",
     "kron_prod",
     "kron_sum",
+    "linear_invariants",
     "matrix_grouped_count",
     "matrix_grouped_sum",
     "matrix_masked_sum",
     "require_converged",
+    "require_steady_state",
+    "sink_states",
     "smooth",
+    "steady_state",
 ]
 
 __version__ = _metadata_version("op_engine")
