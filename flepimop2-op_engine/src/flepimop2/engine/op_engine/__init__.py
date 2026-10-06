@@ -2767,10 +2767,28 @@ def _run_stochastic_core(
             "Array",
             xp.asarray(network.reactant_stoichiometry, dtype=state.dtype),
         )
+        dependencies = (
+            None
+            if network.dependency_incidence is None
+            else cast(
+                "Array",
+                xp.asarray(network.dependency_incidence, dtype=state.dtype),
+            )
+        )
+        orders = (
+            None
+            if network.propensity_orders is None
+            else cast(
+                "Array",
+                xp.asarray(network.propensity_orders, dtype=state.dtype),
+            )
+        )
         adaptive_solver = AdaptiveTauLeapingSolver(
             core,
             stoichiometry,
             reactants,
+            dependency_incidence=dependencies,
+            propensity_orders=orders,
         )
         adaptive_solver.run(
             network.propensity,
@@ -2858,9 +2876,12 @@ def _adaptive_tau_reactant_issues(
 ) -> list[ValidationIssue]:
     """Report selected reactions that adaptive tau-leaping cannot use.
 
+    A reaction is usable when its reactants are complete, or when op_system
+    describes it by complete dependencies and a positive propensity order.
+
     Returns:
-        One issue naming every selected reaction without complete reactant
-        metadata, or an empty list.
+        One issue naming every selected reaction without either, or an empty
+        list.
     """
     if config.stochastic_method is not StochasticMethod.ADAPTIVE_TAU_LEAPING or (
         not isinstance(reactions, tuple | list)
@@ -2875,7 +2896,7 @@ def _adaptive_tau_reactant_issues(
         str(getattr(reaction, "name", "?"))
         for reaction in reactions
         if (selected is None or getattr(reaction, "name", None) in selected)
-        and getattr(reaction, "reactants_complete", False) is not True
+        and not _adaptive_tau_describes(reaction)
     ]
     if not names:
         return []
@@ -2884,6 +2905,24 @@ def _adaptive_tau_reactant_issues(
             msg=incomplete_reactants_message(names), kind="incomplete_reactants"
         )
     ]
+
+
+def _adaptive_tau_describes(reaction: object) -> bool:
+    """Report whether adaptive tau-leaping can bound a reaction's changes.
+
+    Returns:
+        ``True`` for complete reactants, or for complete dependencies with a
+        positive ``propensity_order``.
+    """
+    if getattr(reaction, "reactants_complete", False) is True:
+        return True
+    order = getattr(reaction, "propensity_order", None)
+    return (
+        getattr(reaction, "dependencies_complete", False) is True
+        and isinstance(order, int)
+        and not isinstance(order, bool)
+        and order > 0
+    )
 
 
 def _describe_reaction_gap(gap: object) -> str:

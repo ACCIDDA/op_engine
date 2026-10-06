@@ -94,9 +94,21 @@ class CompiledReactionNetwork:
     _reactions: tuple[ReactionArtifact, ...]
     _event_shapes: tuple[tuple[int, ...], ...]
     _params: Mapping[str, object]
+    #: True when every selected reaction's state dependence is fully
+    #: described: by complete molecular reactants, or by dependencies and a
+    #: propensity order. Adaptive tau-leaping requires it.
     reactants_complete: bool = False
-    #: Names of selected reactions without complete reactant metadata.
+    #: Names of selected reactions whose state dependence is not fully
+    #: described.
     incomplete_reactions: tuple[str, ...] = ()
+    #: ``(n_state, n_channels)`` 0/1 incidence of the cells each channel's
+    #: propensity reads, for channels described by dependencies; ``None``
+    #: when no channel is. Pass to ``AdaptiveTauLeapingSolver``.
+    dependency_incidence: np.ndarray | None = None
+    #: ``(n_channels,)`` elasticity bound of each dependency-described
+    #: channel, zero for reactant-described ones; ``None`` when no channel
+    #: is described by dependencies.
+    propensity_orders: np.ndarray | None = None
 
     @property
     def n_state(self) -> int:
@@ -342,20 +354,23 @@ def _reaction_axes(
             _target_axes(reaction),
             reaction_name=reaction.name,
         )
-        raw_reactants = getattr(reaction, "reactants", ())
-        if not isinstance(raw_reactants, tuple | list):
-            msg = f"Reaction {reaction.name!r} reactants must be a sequence."
-            raise TypeError(msg)
-        for reactant in raw_reactants:
-            base = getattr(reactant, "state_base", None)
-            if not isinstance(base, str) or not base:
-                msg = f"Reaction {reaction.name!r} has an invalid reactant state base."
+        for label, field in (("reactant", "reactants"), ("dependency", "dependencies")):
+            raw_entries = getattr(reaction, field, ())
+            if not isinstance(raw_entries, tuple | list):
+                msg = f"Reaction {reaction.name!r} {field} must be a sequence."
                 raise TypeError(msg)
-            register(
-                base,
-                getattr(reactant, "full_axes", None),
-                reaction_name=reaction.name,
-            )
+            for entry in raw_entries:
+                base = getattr(entry, "state_base", None)
+                if not isinstance(base, str) or not base:
+                    msg = (
+                        f"Reaction {reaction.name!r} has an invalid {label} state base."
+                    )
+                    raise TypeError(msg)
+                register(
+                    base,
+                    getattr(entry, "full_axes", None),
+                    reaction_name=reaction.name,
+                )
     return result
 
 
@@ -392,53 +407,83 @@ def _expanded_reactants(  # noqa: PLR0913
     if not isinstance(raw_reactants, tuple | list):
         msg = f"Reaction {reaction.name!r} reactants must be a sequence."
         raise TypeError(msg)
+    return _expanded_entries(
+        reaction,
+        raw_reactants,
+        label="reactant",
+        varying=varying,
+        from_axes=from_axes,
+        base_axes=base_axes,
+        blocks=blocks,
+        n_state=n_state,
+    )
 
+
+def _expanded_entries(  # noqa: PLR0913
+    reaction: ReactionArtifact,
+    entries: Sequence[object],
+    *,
+    label: str,
+    varying: Mapping[str, int],
+    from_axes: tuple[str, ...],
+    base_axes: Mapping[str, tuple[str, ...]],
+    blocks: Mapping[str, _StateBlock],
+    n_state: int,
+) -> np.ndarray:
+    """Expand reactant-shaped entries into one channel's flat-state column.
+
+    ``reactants`` and ``dependencies`` share this layout: each entry varies
+    along some channel axes and pins the rest of its state's axes.
+
+    Returns:
+        Each entry's ``order`` summed into its cell.
+    """
     result = np.zeros(n_state, dtype=np.int64)
-    for reactant in raw_reactants:
-        base = getattr(reactant, "state_base", None)
+    for entry in entries:
+        base = getattr(entry, "state_base", None)
         if not isinstance(base, str) or base not in blocks:
-            msg = f"Reaction {reaction.name!r} has an unknown reactant state."
+            msg = f"Reaction {reaction.name!r} has an unknown {label} state."
             raise ValueError(msg)
         state_axes = _require_string_tuple(
-            getattr(reactant, "state_axes", None),
-            field="reactant.state_axes",
+            getattr(entry, "state_axes", None),
+            field=f"{label}.state_axes",
         )
         full_axes = _require_string_tuple(
-            getattr(reactant, "full_axes", None),
-            field="reactant.full_axes",
+            getattr(entry, "full_axes", None),
+            field=f"{label}.full_axes",
         )
         if full_axes != base_axes[base]:
             msg = (
-                f"Reaction {reaction.name!r} reactant {base!r} has inconsistent "
+                f"Reaction {reaction.name!r} {label} {base!r} has inconsistent "
                 "full_axes metadata."
             )
             raise ValueError(msg)
         if not set(state_axes).issubset(from_axes):
             msg = (
-                f"Reaction {reaction.name!r} reactant {base!r} has axes outside "
+                f"Reaction {reaction.name!r} {label} {base!r} has axes outside "
                 "the expanded reaction channels."
             )
             raise ValueError(msg)
         pins = _require_pins(
-            getattr(reactant, "pinned", None),
-            field="reactant.pinned",
+            getattr(entry, "pinned", None),
+            field=f"{label}.pinned",
         )
         if set(state_axes) | set(pins) != set(full_axes):
             msg = (
-                f"Reaction {reaction.name!r} reactant {base!r} has incomplete "
+                f"Reaction {reaction.name!r} {label} {base!r} has incomplete "
                 "axis metadata."
             )
             raise ValueError(msg)
         if set(state_axes) & set(pins):
             msg = (
-                f"Reaction {reaction.name!r} reactant {base!r} both varies and "
+                f"Reaction {reaction.name!r} {label} {base!r} both varies and "
                 "pins an axis."
             )
             raise ValueError(msg)
-        order = getattr(reactant, "order", None)
+        order = getattr(entry, "order", None)
         if not isinstance(order, int) or isinstance(order, bool) or order < 1:
             msg = (
-                f"Reaction {reaction.name!r} reactant {base!r} order must be a "
+                f"Reaction {reaction.name!r} {label} {base!r} order must be a "
                 "positive integer."
             )
             raise TypeError(msg)
@@ -446,6 +491,33 @@ def _expanded_reactants(  # noqa: PLR0913
         cell = _flat_cell(blocks[base], full_axes, coordinates)
         result[cell] += order
     return result
+
+
+def _dependency_order(reaction: ReactionArtifact) -> int:
+    """Return the elasticity order of a reaction described by dependencies.
+
+    op_system 0.7.0+ publishes ``dependencies``, ``propensity_order``, and
+    ``dependencies_complete`` for ``reactants: auto`` rates that are not
+    mass action. Older artifacts publish none of them.
+
+    Returns:
+        The positive ``propensity_order`` when ``dependencies_complete`` is
+        true, otherwise zero.
+    """
+    complete = getattr(reaction, "dependencies_complete", False)
+    if not isinstance(complete, bool):
+        msg = f"Reaction {reaction.name!r} dependencies_complete must be boolean."
+        raise TypeError(msg)
+    if not complete:
+        return 0
+    order = getattr(reaction, "propensity_order", None)
+    if not isinstance(order, int) or isinstance(order, bool) or order < 1:
+        msg = (
+            f"Reaction {reaction.name!r} claims complete dependencies without a "
+            "positive propensity_order."
+        )
+        raise TypeError(msg)
+    return order
 
 
 def _flat_cell(
@@ -676,6 +748,8 @@ def compile_reaction_network(  # noqa: PLR0913
 
     columns: list[np.ndarray] = []
     reactant_columns: list[np.ndarray] = []
+    dependency_columns: list[np.ndarray] = []
+    channel_orders: list[int] = []
     channel_reactions: list[str] = []
     channel_names: list[str] = []
     event_shapes: list[tuple[int, ...]] = []
@@ -693,8 +767,12 @@ def compile_reaction_network(  # noqa: PLR0913
                 "publishing reactant metadata."
             )
             raise ValueError(msg)
-        reactants_complete = reactants_complete and complete
-        if not complete:
+        # Complete reactants take precedence; otherwise dependencies and a
+        # propensity order can describe the reaction instead.
+        order = 0 if complete else _dependency_order(reaction)
+        covered = complete or order > 0
+        reactants_complete = reactants_complete and covered
+        if not covered:
             incomplete.append(reaction.name)
         from_axes = _require_string_tuple(reaction.from_axes, field="from_axes")
         target_axes = base_axes[reaction.to_base]
@@ -735,6 +813,21 @@ def compile_reaction_network(  # noqa: PLR0913
                 n_state=n_state,
             )
 
+            read = np.zeros(n_state, dtype=np.int64)
+            if order > 0:
+                read = _expanded_entries(
+                    reaction,
+                    getattr(reaction, "dependencies", ()),
+                    label="dependency",
+                    varying=varying,
+                    from_axes=from_axes,
+                    base_axes=base_axes,
+                    blocks=blocks,
+                    n_state=n_state,
+                )
+                # A consumed species is read too, whether or not listed.
+                read = ((read > 0) | (reactants > 0)).astype(np.int64)
+
             destination = _destination_cell(
                 blocks[reaction.to_base],
                 base_axes[reaction.to_base],
@@ -745,6 +838,8 @@ def compile_reaction_network(  # noqa: PLR0913
                 column[destination] += 1
             columns.append(column)
             reactant_columns.append(reactants)
+            dependency_columns.append(read)
+            channel_orders.append(order)
             channel_reactions.append(reaction.name)
             coordinate_text = ",".join(
                 [f"{axis}={index}" for axis, index in varying.items()]
@@ -767,6 +862,12 @@ def compile_reaction_network(  # noqa: PLR0913
         _params=dict(params),
         reactants_complete=reactants_complete,
         incomplete_reactions=tuple(incomplete),
+        dependency_incidence=(
+            np.stack(dependency_columns, axis=1) if any(channel_orders) else None
+        ),
+        propensity_orders=(
+            np.asarray(channel_orders, dtype=np.int64) if any(channel_orders) else None
+        ),
     )
 
 
