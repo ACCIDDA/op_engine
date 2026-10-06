@@ -111,9 +111,24 @@ class AdaptiveTauLeapingConfig:
 
 
 class _ReactantStructure:
-    """Validated reactant stoichiometry and leap-selection metadata."""
+    """Validated reactant stoichiometry and leap-selection metadata.
 
-    def __init__(self, reactants: Array, network: _ReactionNetwork) -> None:
+    A reaction is described either by its molecular reactants (mass action)
+    or, when ``propensity_orders`` gives it a positive order, by the species
+    its propensity depends on and a bound ``E_j`` on its total elasticity
+    ``sum_i |d log a_j / d log x_i|``. For a species read by such a reaction
+    the scaling ``g_i`` is at least ``E_j``, so each propensity changes by at
+    most ``leap_tolerance`` relative to itself over a leap.
+    """
+
+    def __init__(
+        self,
+        reactants: Array,
+        network: _ReactionNetwork,
+        *,
+        dependencies: Array | None = None,
+        propensity_orders: Array | None = None,
+    ) -> None:
         if reactants.shape != (network.n_species, network.n_reactions):
             msg = (
                 f"reactant_stoichiometry shape {reactants.shape} does not match "
@@ -162,6 +177,10 @@ class _ReactantStructure:
             )
             raise ValueError(msg)
 
+        dependency_values, orders = self._dependency_metadata(
+            dependencies, propensity_orders, network
+        )
+
         highest_orders: list[int] = []
         highest_multiplicities: list[int] = []
         for species in range(network.n_species):
@@ -188,10 +207,92 @@ class _ReactantStructure:
         self.reactants = reactants
         self.values = values
         self.incidence = tuple(
-            tuple(float(value > 0) for value in row) for row in values
+            tuple(
+                float(value > 0 or read > 0)
+                for value, read in zip(row, read_row, strict=True)
+            )
+            for row, read_row in zip(values, dependency_values, strict=True)
         )
         self.highest_orders = tuple(highest_orders)
         self.highest_multiplicities = tuple(highest_multiplicities)
+        self.dependency_orders = tuple(
+            max(
+                (
+                    orders[reaction]
+                    for reaction in range(network.n_reactions)
+                    if read_row[reaction] > 0
+                ),
+                default=0,
+            )
+            for read_row in dependency_values
+        )
+
+    @staticmethod
+    def _dependency_metadata(
+        dependencies: Array | None,
+        propensity_orders: Array | None,
+        network: _ReactionNetwork,
+    ) -> tuple[tuple[tuple[int, ...], ...], tuple[int, ...]]:
+        """Validate dependency incidence and per-reaction order bounds.
+
+        Returns:
+            ``(dependency_values, orders)`` as nested integer tuples, all
+            zero when no dependencies are given.
+
+        Raises:
+            ValueError: If only one of the two is given, a shape is wrong,
+                an entry is not a non-negative integer, or a reaction reads
+                species without a positive order.
+        """
+        zeros = tuple((0,) * network.n_reactions for _ in range(network.n_species))
+        if dependencies is None and propensity_orders is None:
+            return zeros, (0,) * network.n_reactions
+        if dependencies is None or propensity_orders is None:
+            msg = "dependency_incidence and propensity_orders must be given together"
+            raise ValueError(msg)
+        expected = {
+            "dependency_incidence": (network.n_species, network.n_reactions),
+            "propensity_orders": (network.n_reactions,),
+        }
+        for label, array in (
+            ("dependency_incidence", dependencies),
+            ("propensity_orders", propensity_orders),
+        ):
+            if tuple(array.shape) != expected[label]:
+                msg = f"{label} shape {array.shape} does not match {expected[label]}"
+                raise ValueError(msg)
+            xp = _namespace_of(array)
+            invalid = xp.logical_or(
+                xp.logical_not(xp.isfinite(array)),
+                xp.logical_or(xp.less(array, 0), xp.not_equal(array, xp.round(array))),
+            )
+            if _array_any(cast("Array", invalid)):
+                msg = f"{label} must contain finite non-negative integers"
+                raise ValueError(msg)
+        read = cast("Any", dependencies)
+        dependency_values = tuple(
+            tuple(
+                int(read[species, reaction].item())
+                for reaction in range(network.n_reactions)
+            )
+            for species in range(network.n_species)
+        )
+        order_values = cast("Any", propensity_orders)
+        orders = tuple(
+            int(order_values[reaction].item())
+            for reaction in range(network.n_reactions)
+        )
+        if any(
+            orders[reaction] == 0 and dependency_values[species][reaction] > 0
+            for species in range(network.n_species)
+            for reaction in range(network.n_reactions)
+        ):
+            msg = (
+                "dependency_incidence lists species for a reaction whose "
+                "propensity order is zero"
+            )
+            raise ValueError(msg)
+        return dependency_values, orders
 
     @staticmethod
     def _axis_order(axis: int, rank: int) -> tuple[int, ...]:
@@ -294,6 +395,16 @@ class _ReactantStructure:
                 )
             else:
                 scaling = xp.full(population.shape, 3.0, dtype=state_front.dtype)
+            dependency_order = self.dependency_orders[species]
+            if dependency_order > 0:
+                scaling = xp.maximum(
+                    scaling,
+                    xp.full(
+                        population.shape,
+                        float(dependency_order),
+                        dtype=state_front.dtype,
+                    ),
+                )
             rows.append(cast("Array", scaling))
         return cast("Array", xp.stack(rows, axis=0))
 
@@ -405,13 +516,15 @@ class AdaptiveTauLeapingSolver:
     clipped.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         core: ModelCore,
         stoichiometry: Array,
         reactant_stoichiometry: Array,
         *,
         reaction_axis: str | int = "state",
+        dependency_incidence: Array | None = None,
+        propensity_orders: Array | None = None,
     ) -> None:
         """Initialize the reaction and reactant structures.
 
@@ -420,14 +533,27 @@ class AdaptiveTauLeapingSolver:
             stoichiometry: Net integer state changes by reaction.
             reactant_stoichiometry: Non-negative integer reactant counts by
                 species and reaction. This cannot be inferred safely from net
-                stoichiometry for catalytic reactions.
+                stoichiometry for catalytic reactions. For a reaction with a
+                positive ``propensity_orders`` entry, list only the species it
+                consumes; they bound its critical firings.
             reaction_axis: State axis changed by reaction firings.
+            dependency_incidence: Optional ``(n_species, n_reactions)``
+                non-negative integers; a positive entry means the reaction's
+                propensity reads that species. Use it for propensities that
+                are not mass action, such as frequency-dependent infection.
+            propensity_orders: Optional ``(n_reactions,)`` non-negative
+                integers. A positive entry ``E_j`` bounds the reaction's
+                total elasticity ``sum_i |d log a_j / d log x_i|`` and
+                declares it through ``dependency_incidence``; zero keeps the
+                reactant-order rules. Orders above three are allowed.
         """
         self.core = core
         self._network = _ReactionNetwork(core, stoichiometry, reaction_axis)
         self._reactants = _ReactantStructure(
             reactant_stoichiometry,
             self._network,
+            dependencies=dependency_incidence,
+            propensity_orders=propensity_orders,
         )
 
     @property
