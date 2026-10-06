@@ -72,6 +72,15 @@ flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "d1b
 op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "d1b46b4741c74ad4307c8bd2ba135d49e471605d" }
 
 
+[tool.mypy]
+# flepimop2/ and flepimop2/engine/ are namespace packages. Without explicit
+# bases, mypy names src/flepimop2/engine/op_engine/reactions.py
+# "op_engine.reactions", shadowing the core module it imports.
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true
+
+
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = 72
@@ -92,7 +101,6 @@ ignore = [
 "src/flepimop2/engine/op_engine/__init__.py" = ["C901", "DOC201", "DOC501", "PLR0912", "PLR0913", "PLR0914", "PLR0915", "RUF067"]
 "src/flepimop2/engine/op_engine/explicit_operators.py" = ["C901", "DOC201", "DOC501", "PLR0913"]
 "src/flepimop2/engine/op_engine/operators.py" = ["C901", "DOC201", "DOC501"]
-"src/flepimop2/engine/op_engine/reactions.py" = ["C901", "DOC501", "PLR0912", "PLR0914", "PLR0915"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
