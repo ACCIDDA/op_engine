@@ -17,11 +17,13 @@ Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver cor
 - `DirectSSASolver`: exact Gillespie direct-method trajectories with injected, backend-specific exponential and categorical sampling.
 - `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
+- `from_compiled_rhs` / `compile_reaction_network`: build the flat stochastic network (stoichiometry, reactant orders, propensity) from an op_system spec's reaction artifacts, with no flepimop2 dependency.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
 See the documentation guides for [solver selection](docs/guides/solver-methods.md),
 [the biogeochemical splitting tutorial](docs/guides/biogeochemical-network.md),
+[stochastic simulation from an op_system spec](docs/guides/op-system-reactions.md),
 and [backend boundaries](docs/guides/backends.md).
 
 ## Installation
@@ -137,6 +139,7 @@ nontrivial implicit term, construct timestep-aware operator factories as in the
 - `DirectSSASolver`: exact event-by-event stochastic reaction trajectories with NumPy, JAX, or another Array-API namespace supplying random draws.
 - `AdaptiveTauLeapingSolver`: adaptive non-negative stochastic leaps using explicit reactant stoichiometry and injected Poisson plus exact-event sampling.
 - `TauLeapingSolver`: portable stoichiometric updates with NumPy, JAX, or another Array-API namespace supplying Poisson samples.
+- `op_engine.reactions`: `from_compiled_rhs(compiled, params)` and `compile_reaction_network(reactions, template_shapes=..., axis_sizes=..., params=...)` return a `CompiledReactionNetwork` whose `stoichiometry`, `reactant_stoichiometry`, and `propensity` feed the stochastic solvers; `mean_drift` checks the network against the deterministic RHS.
 - Operator utilities (`matrix_ops`): portable upwind advection, Laplacian, Crank–Nicolson/implicit Euler/trapezoidal operators, predictor-corrector builders, implicit solve cache, Kronecker helpers, and grouped aggregation utilities.
 - Configuration helpers: `RunConfig`, `OperatorSpecs`, `AdaptiveConfig`, and
   `DtControllerConfig` from `op_engine.core_solver` for method, IMEX, and

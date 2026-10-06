@@ -5,6 +5,28 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `op_engine.from_compiled_rhs(compiled, params)` and
+  `op_engine.compile_reaction_network(reactions, template_shapes=...,
+  axis_sizes=..., params=...)` build the flat stochastic reaction network from
+  op_system reaction artifacts in the core package, with no flepimop2
+  dependency. `from_compiled_rhs` refuses a RHS with reaction gaps unless
+  `allow_gaps=True` or a `reaction_names` partition is given. The new guide
+  covers the `mean_drift` consistency check against the deterministic RHS
+  (#191).
+
+### Changed
+
+- The flepimop2 provider's `compile_reaction_network(system, params, ...)` is
+  now a thin adapter over the core function, with unchanged behavior and
+  error messages. `CompiledReactionNetwork` moved to `op_engine.reactions`
+  (still re-exported by the provider) (#191).
+- The provider requires op_system 0.7.0. With it, a reaction whose rate reads
+  no state is complete without declarations, so constant-rate flows no longer
+  block adaptive tau-leaping, and the incomplete-reactants message suggests
+  `reactants: auto` / `catalysts: auto`.
+
 ## [0.4.0] - 2026-10-02
 
 ### Added
