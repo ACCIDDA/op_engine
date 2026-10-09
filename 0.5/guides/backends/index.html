@@ -907,6 +907,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/loop_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loop Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/matrix_ops/" class="md-nav__link">
         
   
@@ -1264,11 +1292,75 @@ the discrete accept/reject decision. Refresh the schedule as optimization
 parameters move, and always refresh it after a material model or tolerance
 change. A schedule is validated against the output grid, while matching the
 method and other configuration is the caller's responsibility.</p>
-<p>Direct <code>CoreSolver</code> schedule replay statically unrolls accepted steps when JAX
-traces it. The optional flepimop2 provider consumes the same functional kernels
-but defaults explicit JAX replay to one compact <code>lax.scan</code>. Its forced compact
-mode can also checkpoint/rematerialize each step for long reverse-mode solves;
-non-JAX and nonlinear-diagnostic paths retain portable core replay.</p>
+<p>Core schedule replay retains the eager Python loop by default. Select
+<code>RunConfig(replay_loop="auto")</code> to use a namespace's registered scan driver,
+or <code>replay_loop="scan"</code> to require one. JAX supplies <code>lax.scan</code>; NumPy,
+PyTorch, and CuPy retain their original eager paths under <code>"auto"</code>. Set
+<code>replay_checkpoint=True</code> to rematerialize the scan body during reverse mode.
+The default <code>replay_loop="unroll"</code> preserves existing behavior for every
+namespace. These options affect frozen-mesh replay, not live adaptive runs
+or fixed-step <code>run</code>.</p>
+<p>The rolled driver invokes the same accepted-step kernels, including the two
+half steps used by adaptive Euler and RK4. It preserves Dormand--Prince FSAL
+reuse and selects stored output states from the internal mesh. Explicit
+methods, dense IMEX methods (including ARK3), implicit Euler, trapezoidal, and
+ROS2 support this path. BDF2 still requires fixed stepping. SDIRK2's nonlinear
+diagnostics retain eager replay under <code>"auto"</code>; forced <code>"scan"</code> raises an
+error. Dense operator factories and Jacobian callbacks must handle traced
+scalar times and step sizes using array operations.</p>
+<p>For example, record a nominal mesh eagerly, then freeze it during
+differentiation:</p>
+<pre><code class="language-python">from dataclasses import replace
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+from op_engine import CoreSolver, ModelCore
+from op_engine.core_solver import RunConfig
+from op_engine.model_core import ModelCoreOptions
+
+output_times = np.asarray([0.0, 1.0])
+nominal_solver = CoreSolver(ModelCore(1, 1, output_times))
+nominal_solver.core.set_initial_state(np.ones((1, 1)))
+adaptive_config = RunConfig(method=&quot;dopri5&quot;, adaptive=True)
+nominal_solver.run(lambda t, y: -0.3 * y, config=adaptive_config)
+schedule = nominal_solver.last_adaptive_schedule
+replay_config = replace(
+    adaptive_config, replay_loop=&quot;scan&quot;, replay_checkpoint=True
+)
+
+
+def loss(rate):
+    core = ModelCore(
+        1, 1, output_times, options=ModelCoreOptions(dtype=np.float32)
+    )
+    core.set_initial_state(jnp.ones((1, 1), dtype=jnp.float32))
+    CoreSolver(core).replay_adaptive_schedule(
+        lambda t, y: rate * y, schedule, config=replay_config
+    )
+    return jnp.sum(core.get_current_state() ** 2)
+
+
+hessian = jax.jit(jax.hessian(loss))(jnp.asarray(-0.3))
+</code></pre>
+<p><code>op_engine.loop_ops.LoopAdapter</code> separates iteration from numerical stages.
+<code>register_loop_adapter(namespace_name, adapter)</code> accepts an optional backend's
+<code>scan(body, initial, inputs)</code> and checkpoint operations. The namespace name is
+the module's <code>__name__</code>, as returned by <code>op_engine.array_namespace(state)</code>.
+JAX is imported lazily only for its own namespace; namespaces without an
+adapter fall back to eager replay under <code>"auto"</code>. A forced scan or checkpoint
+request fails clearly when the selected adapter cannot provide it.</p>
+<p>The optional flepimop2 provider also consumes the functional kernels and
+defaults explicit JAX replay to its compact scan driver.</p>
+<p>Run <code>uv run python scripts/benchmark_replay.py</code> to measure gradients,
+Hessians, and reverse-over-reverse at 8, 64, and 160 steps for Dormand--Prince
+and ROS2. Each case runs in a fresh CPU process and reports tracing,
+compilation, execution, process peak RSS, and XLA buffer requirements as JSON.
+RSS includes backend startup; XLA temporary buffers still scale with the
+saved step states, even though the traced graph stays fixed in size. Add
+<code>--loops scan unroll --steps 8 16</code> for a bounded comparison with eager replay;
+<code>--no-checkpoint</code> compares storage strategies and <code>--timeout</code> limits each case.</p>
 <h2 id="public-functional-steps-and-external-loops">Public functional steps and external loops<a class="headerlink" href="#public-functional-steps-and-external-loops" title="Permanent link">&para;</a></h2>
 <p><code>CoreSolver.fixed_explicit_step(rhs_func, *, method, t, dt, y,
 first_stage=None)</code> is the supported public boundary for an external loop
