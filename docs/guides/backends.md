@@ -122,6 +122,15 @@ request fails clearly when the selected adapter cannot provide it.
 The optional flepimop2 provider also consumes the functional kernels and
 defaults explicit JAX replay to its compact scan driver.
 
+Run `uv run python scripts/benchmark_replay.py` to measure gradients,
+Hessians, and reverse-over-reverse at 8, 64, and 160 steps for Dormand--Prince
+and ROS2. Each case runs in a fresh CPU process and reports tracing,
+compilation, execution, process peak RSS, and XLA buffer requirements as JSON.
+RSS includes backend startup; XLA temporary buffers still scale with the
+saved step states, even though the traced graph stays fixed in size. Add
+`--loops scan unroll --steps 8 16` for a bounded comparison with eager replay;
+`--no-checkpoint` compares storage strategies and `--timeout` limits each case.
+
 ## Public functional steps and external loops
 
 `CoreSolver.fixed_explicit_step(rhs_func, *, method, t, dt, y,
