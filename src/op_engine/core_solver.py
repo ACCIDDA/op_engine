@@ -3026,7 +3026,11 @@ class CoreSolver:
 
         This boundary does not mutate :class:`ModelCore` history, so callers
         can compose it with backend-native loop primitives and apply the
-        completed trajectory once.
+        completed trajectory once. It is the supported public step kernel
+        for external drivers such as ``jax.lax.scan``; the method and state
+        shape are static, while ``t``, ``dt``, ``y``, and RHS parameters may
+        be traced. RHS results must preserve the configured state shape and
+        the namespace of ``y``.
 
         Args:
             rhs_func: Function computing the explicit RHS F(t, y).
@@ -3034,10 +3038,14 @@ class CoreSolver:
             t: Step start time as a Python float or backend-native scalar.
             dt: Step size as a Python float or backend-native scalar.
             y: State at the step start.
-            first_stage: Optional cached FSAL stage.
+            first_stage: Optional derivative at ``(t, y)``. Dormand--Prince
+                returns this cache for the next step; reuse it only when
+                time, state, and RHS parameters are unchanged at that start.
 
         Returns:
-            Next state and an optional FSAL stage for the following step.
+            Next state and an FSAL derivative for Dormand--Prince, or
+            ``None`` for other explicit methods. Seed a scan's FSAL carry
+            with one step outside the scan so its structure stays fixed.
 
         Raises:
             ValueError: If ``method`` is not an explicit method.
