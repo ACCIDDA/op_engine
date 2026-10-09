@@ -3329,7 +3329,11 @@ it with backend-native adaptive controller loops.</p>
         <p>Take one functional fixed step with an explicit method.</p>
 <p>This boundary does not mutate :class:<code>ModelCore</code> history, so callers
 can compose it with backend-native loop primitives and apply the
-completed trajectory once.</p>
+completed trajectory once. It is the supported public step kernel
+for external drivers such as <code>jax.lax.scan</code>; the method and state
+shape are static, while <code>t</code>, <code>dt</code>, <code>y</code>, and RHS parameters may
+be traced. RHS results must preserve the configured state shape and
+the namespace of <code>y</code>.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3432,7 +3436,9 @@ completed trajectory once.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional cached FSAL stage.</p>
+                <p>Optional derivative at <code>(t, y)</code>. Dormand--Prince
+returns this cache for the next step; reuse it only when
+time, state, and RHS parameters are unchanged at that start.</p>
               </div>
             </td>
             <td>
@@ -3454,11 +3460,31 @@ completed trajectory once.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
+                  <code><span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Next state and an FSAL derivative for Dormand--Prince, or</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="op_engine._typing.Array">Array</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>None</code> for other explicit methods. Seed a scan's FSAL carry</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                   <code><span title="tuple">tuple</span>[<span title="op_engine._typing.Array">Array</span>, <span title="op_engine._typing.Array">Array</span> | None]</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Next state and an optional FSAL stage for the following step.</p>
+                <p>with one step outside the scan so its structure stays fixed.</p>
               </div>
             </td>
           </tr>
@@ -3532,7 +3558,15 @@ completed trajectory once.</p>
 <span class="normal">3053</span>
 <span class="normal">3054</span>
 <span class="normal">3055</span>
-<span class="normal">3056</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">3056</span>
+<span class="normal">3057</span>
+<span class="normal">3058</span>
+<span class="normal">3059</span>
+<span class="normal">3060</span>
+<span class="normal">3061</span>
+<span class="normal">3062</span>
+<span class="normal">3063</span>
+<span class="normal">3064</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -3546,7 +3580,11 @@ completed trajectory once.</p>
 
 <span class="sd">    This boundary does not mutate :class:`ModelCore` history, so callers</span>
 <span class="sd">    can compose it with backend-native loop primitives and apply the</span>
-<span class="sd">    completed trajectory once.</span>
+<span class="sd">    completed trajectory once. It is the supported public step kernel</span>
+<span class="sd">    for external drivers such as ``jax.lax.scan``; the method and state</span>
+<span class="sd">    shape are static, while ``t``, ``dt``, ``y``, and RHS parameters may</span>
+<span class="sd">    be traced. RHS results must preserve the configured state shape and</span>
+<span class="sd">    the namespace of ``y``.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        rhs_func: Function computing the explicit RHS F(t, y).</span>
@@ -3554,10 +3592,14 @@ completed trajectory once.</p>
 <span class="sd">        t: Step start time as a Python float or backend-native scalar.</span>
 <span class="sd">        dt: Step size as a Python float or backend-native scalar.</span>
 <span class="sd">        y: State at the step start.</span>
-<span class="sd">        first_stage: Optional cached FSAL stage.</span>
+<span class="sd">        first_stage: Optional derivative at ``(t, y)``. Dormand--Prince</span>
+<span class="sd">            returns this cache for the next step; reuse it only when</span>
+<span class="sd">            time, state, and RHS parameters are unchanged at that start.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Next state and an optional FSAL stage for the following step.</span>
+<span class="sd">        Next state and an FSAL derivative for Dormand--Prince, or</span>
+<span class="sd">        ``None`` for other explicit methods. Seed a scan's FSAL carry</span>
+<span class="sd">        with one step outside the scan so its structure stays fixed.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError: If ``method`` is not an explicit method.</span>
@@ -3728,15 +3770,7 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4506</span>
-<span class="normal">4507</span>
-<span class="normal">4508</span>
-<span class="normal">4509</span>
-<span class="normal">4510</span>
-<span class="normal">4511</span>
-<span class="normal">4512</span>
-<span class="normal">4513</span>
-<span class="normal">4514</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4514</span>
 <span class="normal">4515</span>
 <span class="normal">4516</span>
 <span class="normal">4517</span>
@@ -3793,7 +3827,15 @@ ecosystems during replay.</p>
 <span class="normal">4568</span>
 <span class="normal">4569</span>
 <span class="normal">4570</span>
-<span class="normal">4571</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
+<span class="normal">4571</span>
+<span class="normal">4572</span>
+<span class="normal">4573</span>
+<span class="normal">4574</span>
+<span class="normal">4575</span>
+<span class="normal">4576</span>
+<span class="normal">4577</span>
+<span class="normal">4578</span>
+<span class="normal">4579</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="n">schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span><span class="p">,</span>
@@ -3988,15 +4030,7 @@ ecosystems during replay.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4573</span>
-<span class="normal">4574</span>
-<span class="normal">4575</span>
-<span class="normal">4576</span>
-<span class="normal">4577</span>
-<span class="normal">4578</span>
-<span class="normal">4579</span>
-<span class="normal">4580</span>
-<span class="normal">4581</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4581</span>
 <span class="normal">4582</span>
 <span class="normal">4583</span>
 <span class="normal">4584</span>
@@ -4080,7 +4114,15 @@ ecosystems during replay.</p>
 <span class="normal">4662</span>
 <span class="normal">4663</span>
 <span class="normal">4664</span>
-<span class="normal">4665</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">4665</span>
+<span class="normal">4666</span>
+<span class="normal">4667</span>
+<span class="normal">4668</span>
+<span class="normal">4669</span>
+<span class="normal">4670</span>
+<span class="normal">4671</span>
+<span class="normal">4672</span>
+<span class="normal">4673</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
