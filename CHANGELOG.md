@@ -5,6 +5,14 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Documented the existing public `CoreSolver.fixed_explicit_step` boundary
+  for external JAX loops, including FSAL reuse and frozen adaptive meshes.
+  Qualification tests cover Hessians for all four explicit methods,
+  checkpointed reverse-over-reverse at 160 steps, and a gradient of a
+  Hessian log-determinant (#199).
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

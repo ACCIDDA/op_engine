@@ -60,6 +60,74 @@ but defaults explicit JAX replay to one compact `lax.scan`. Its forced compact
 mode can also checkpoint/rematerialize each step for long reverse-mode solves;
 non-JAX and nonlinear-diagnostic paths retain portable core replay.
 
+## Public functional steps and external loops
+
+`CoreSolver.fixed_explicit_step(rhs_func, *, method, t, dt, y,
+first_stage=None)` is the supported public boundary for an external loop
+driver. It returns `(y_next, fsal)` for `euler`, `heun`, `rk4`, or `dopri5`,
+using the same numerical kernels as fixed-step `CoreSolver.run`. It reads the
+solver's configured state shape for validation but does not update its
+`ModelCore` state or history. Supply arrays with that shape and an RHS that
+preserves their shape and namespace. `t` and `dt` can be traced backend
+scalars; the method and state shape remain static.
+
+For example, a non-provider JAX caller can compile a 160-step solve and
+differentiate it twice using only public APIs:
+
+```python
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+from op_engine import CoreSolver, ModelCore
+
+solver = CoreSolver(ModelCore(1, 1, np.asarray([0.0, 1.0])))
+times = jnp.linspace(0.0, 1.0, 161)
+
+
+def loss(rate):
+    def rhs(t, y):
+        return rate * y
+
+    def advance(y, step):
+        t, dt = step
+        y_next, fsal = solver.fixed_explicit_step(
+            rhs, method="dopri5", t=t, dt=dt, y=y
+        )
+        return y_next, None
+
+    final, _ = jax.lax.scan(
+        jax.checkpoint(advance),
+        jnp.ones((1, 1)),
+        (times[:-1], jnp.diff(times)),
+    )
+    return 0.5 * jnp.sum(final**2)
+
+
+hessian = jax.jit(jax.hessian(loss))(jnp.asarray(-0.3))
+reverse_over_reverse = jax.jit(
+    jax.grad(lambda rate: jnp.sum(jax.grad(loss)(rate) ** 2))
+)(jnp.asarray(-0.3))
+```
+
+`lax.scan` traces the step body once. `jax.checkpoint` lets reverse mode
+recompute intermediate stage values rather than retaining all of them.
+The example discards the optional FSAL derivative for a simple carry.
+For Dormand--Prince, reuse that derivative as `first_stage` on the next step
+to save one RHS evaluation. Take the first step outside the scan to obtain
+an array-valued derivative, then scan the remaining steps with
+`(y_next, fsal)` as the carry. A scan carry must retain its shape and structure;
+starting with `None` and returning an array changes that structure. Other
+explicit methods return `None`. Reuse is valid only while the next RHS
+evaluation starts at the same time and state with the same model parameters.
+
+An external driver can also flatten a recorded `AdaptiveStepSchedule` into
+step start times and sizes. Heun and Dormand--Prince's fixed steps reproduce
+their accepted adaptive updates. Euler and RK4's adaptive updates use two
+half steps; an external fixed-step replay must split each recorded step in
+two to reproduce those updates. In all cases, freeze the mesh during
+differentiation and refresh it when the nominal solve changes.
+
 Projects that require a compiled adaptive controller or other solver-specific
 capabilities can provide those at an external plugin or provider boundary. A
 specialized integration may return a complete trajectory and adopt it through
