@@ -104,6 +104,7 @@ from ._sdirk import (
     evaluate_sdirk_step,
 )
 from ._typing import Array, Scalar
+from .loop_ops import LoopAdapter, get_loop_adapter
 from .matrix_ops import (
     StageOperatorContext,
     build_implicit_euler_operators,
@@ -734,6 +735,11 @@ class RunConfig:
         gamma: Optional TR-BDF2 gamma (if None, uses default).
         fixed_max_step: Maximum explicit fixed-step size between output times.
             ``None`` retains one step per output interval.
+        replay_loop: Iteration strategy for frozen adaptive replay. ``unroll``
+            retains eager loops; ``auto`` uses an available namespace adapter;
+            ``scan`` requires one. SDIRK2 diagnostics retain eager replay.
+        replay_checkpoint: Rematerialize the scan body during reverse mode.
+            Used only when replay selects an adapter.
     """
 
     method: str = "heun"
@@ -746,6 +752,8 @@ class RunConfig:
     nonlinear: NonlinearMethodConfig | None = None
     gamma: float | None = None
     fixed_max_step: float | None = None
+    replay_loop: Literal["auto", "scan", "unroll"] = "unroll"
+    replay_checkpoint: bool = False
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -756,6 +764,8 @@ class RunConfig:
         """
         method = _normalize_method(self.method)
         object.__setattr__(self, "method", method)
+
+        self._validate_replay_options()
 
         if self.fixed_max_step is not None:
             fixed_max_step = float(self.fixed_max_step)
@@ -784,6 +794,20 @@ class RunConfig:
             gamma = float(self.gamma)
             if not np.isfinite(gamma) or not (0.0 < gamma < 1.0):
                 raise ValueError(_GAMMA_RANGE_ERROR_MSG)
+
+    def _validate_replay_options(self) -> None:
+        """Validate namespace-loop options independently of the chosen method.
+
+        Raises:
+            TypeError: If the checkpoint flag is not boolean.
+            ValueError: If the loop strategy is unknown.
+        """
+        if self.replay_loop not in {"auto", "scan", "unroll"}:
+            msg = "replay_loop must be 'auto', 'scan', or 'unroll'"
+            raise ValueError(msg)
+        if not isinstance(self.replay_checkpoint, bool):
+            msg = "replay_checkpoint must be boolean"
+            raise TypeError(msg)
 
 
 @dataclass(slots=True, frozen=True)
@@ -1583,7 +1607,7 @@ class CoreSolver:
         if spec is None:
             return x
 
-        ctx = StageOperatorContext(t=float(t_stage), y=y_stage, stage=stage)
+        ctx = StageOperatorContext(t=t_stage, y=y_stage, stage=stage)
         predictor, left_op, right_op = self._resolve_stage_operators(
             spec,
             dt=dt,
@@ -1618,7 +1642,7 @@ class CoreSolver:
         if spec is None:
             return cast("Array", xp.add(base, addition))
 
-        ctx = StageOperatorContext(t=float(t_stage), y=y_stage, stage=stage)
+        ctx = StageOperatorContext(t=t_stage, y=y_stage, stage=stage)
         predictor, left_op, right_op = self._resolve_stage_operators(
             spec,
             dt=dt,
@@ -1697,7 +1721,7 @@ class CoreSolver:
         """
         xp = _namespace_of(y)
         rhs = self._rhs_array(rhs_func, t, y)
-        jac = jacobian(float(t), y)
+        jac = jacobian(t, y)
         jac_y = self._apply_operator_matmul_array(jac, y)
         residual = cast("Array", xp.subtract(rhs, jac_y))
         return jac, residual
@@ -1853,7 +1877,7 @@ class CoreSolver:
             stage_base: Array,
         ) -> Array:
             ctx = StageOperatorContext(
-                t=float(stage_time),
+                t=stage_time,
                 y=stage_base,
                 stage=f"ark3-{stage_index}",
                 extra={
@@ -1926,7 +1950,7 @@ class CoreSolver:
         Returns:
             Accepted and embedded states.
         """
-        jac = jacobian(float(t), y)
+        jac = jacobian(t, y)
         left_op, right_op = self._build_dense_stage_operators(
             jac,
             y,
@@ -4511,6 +4535,83 @@ class CoreSolver:
                 t += dt
             self.core.advance_timestep(self._y_curr)
 
+    def _replay_scan_schedule(  # noqa: PLR0914
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        schedule: AdaptiveStepSchedule,
+        adapter: LoopAdapter,
+        checkpoint: bool,
+    ) -> None:
+        """Replay a whole mesh with one namespace-native scan.
+
+        Seed the carry with one accepted step so Dormand--Prince's FSAL cache
+        has an array structure throughout the scan. Euler and RK4 retain their
+        accepted two-half-step updates by using the adaptive attempt kernels.
+
+        Raises:
+            ValueError: If the adapter cannot checkpoint when requested.
+        """
+        if checkpoint and adapter.checkpoint is None:
+            msg = "The selected loop adapter does not support checkpointing"
+            raise ValueError(msg)
+        initial = self.core.get_current_state()
+        xp = _namespace_of(initial)
+        starts: list[float] = []
+        sizes: list[float] = []
+        output_indices: list[int] = []
+        for start, steps in zip(
+            schedule.output_times[:-1], schedule.step_sizes, strict=True
+        ):
+            time = start
+            for dt in steps:
+                starts.append(time)
+                sizes.append(dt)
+                time += dt
+            output_indices.append(len(sizes) - 1)
+        if not sizes:
+            return
+        times = xp.asarray(starts, dtype=initial.dtype)
+        steps = xp.asarray(sizes, dtype=initial.dtype)
+
+        def advance(
+            carry: tuple[Array, Array | None],
+            step: tuple[float, float],
+        ) -> tuple[tuple[Array, Array | None], Array]:
+            state, cached = carry
+            time, dt = step
+            if plan.method in _EXPLICIT_METHODS:
+                result = self._attempt_explicit_step(
+                    rhs_func,
+                    method=plan.method,
+                    t=time,
+                    dt=dt,
+                    y=state,
+                    first_stage=cached,
+                )
+                return (result.state, result.last_stage), result.state
+            state, _error, _order = self._attempt_array_implicit_step(
+                rhs_func,
+                plan=plan,
+                t=time,
+                dt=dt,
+                y=state,
+            )
+            return (state, None), state
+
+        body = (
+            adapter.checkpoint(advance)
+            if checkpoint and adapter.checkpoint
+            else advance
+        )
+        carry, first = body((initial, None), (times[0], steps[0]))
+        _final, remaining = adapter.scan(body, carry, (times[1:], steps[1:]))
+        tail = xp.concat((xp.expand_dims(first, axis=0), remaining), axis=0)
+        outputs = tail[xp.asarray(output_indices, dtype=xp.int32)]
+        trajectory = xp.concat((xp.expand_dims(initial, axis=0), outputs), axis=0)
+        self.core.apply_trajectory(cast("Array", trajectory))
+
     def replay_adaptive_schedule(
         self,
         rhs_func: RHSFunction,
@@ -4549,6 +4650,27 @@ class CoreSolver:
         self._last_nonlinear_diagnostics = None
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
+
+        adapter = None
+        if config.replay_loop != "unroll":
+            adapter = get_loop_adapter(_namespace_of(self.core.get_current_state()))
+            if plan.method == "sdirk2":
+                adapter = None
+            if config.replay_loop == "scan" and adapter is None:
+                msg = (
+                    "Scan replay requires a loop adapter and a method other than SDIRK2"
+                )
+                raise ValueError(msg)
+        if adapter is not None:
+            self._replay_scan_schedule(
+                rhs_func,
+                plan=plan,
+                schedule=schedule,
+                adapter=adapter,
+                checkpoint=config.replay_checkpoint,
+            )
+            self._last_adaptive_schedule = schedule
+            return None
 
         if plan.method == "sdirk2":
             diagnostics = self._replay_sdirk_schedule(

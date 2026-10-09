@@ -54,11 +54,82 @@ parameters move, and always refresh it after a material model or tolerance
 change. A schedule is validated against the output grid, while matching the
 method and other configuration is the caller's responsibility.
 
-Direct `CoreSolver` schedule replay statically unrolls accepted steps when JAX
-traces it. The optional flepimop2 provider consumes the same functional kernels
-but defaults explicit JAX replay to one compact `lax.scan`. Its forced compact
-mode can also checkpoint/rematerialize each step for long reverse-mode solves;
-non-JAX and nonlinear-diagnostic paths retain portable core replay.
+Core schedule replay retains the eager Python loop by default. Select
+`RunConfig(replay_loop="auto")` to use a namespace's registered scan driver,
+or `replay_loop="scan"` to require one. JAX supplies `lax.scan`; NumPy,
+PyTorch, and CuPy retain their original eager paths under `"auto"`. Set
+`replay_checkpoint=True` to rematerialize the scan body during reverse mode.
+The default `replay_loop="unroll"` preserves existing behavior for every
+namespace. These options affect frozen-mesh replay, not live adaptive runs
+or fixed-step `run`.
+
+The rolled driver invokes the same accepted-step kernels, including the two
+half steps used by adaptive Euler and RK4. It preserves Dormand--Prince FSAL
+reuse and selects stored output states from the internal mesh. Explicit
+methods, dense IMEX methods (including ARK3), implicit Euler, trapezoidal, and
+ROS2 support this path. BDF2 still requires fixed stepping. SDIRK2's nonlinear
+diagnostics retain eager replay under `"auto"`; forced `"scan"` raises an
+error. Dense operator factories and Jacobian callbacks must handle traced
+scalar times and step sizes using array operations.
+
+For example, record a nominal mesh eagerly, then freeze it during
+differentiation:
+
+```python
+from dataclasses import replace
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+from op_engine import CoreSolver, ModelCore
+from op_engine.core_solver import RunConfig
+from op_engine.model_core import ModelCoreOptions
+
+output_times = np.asarray([0.0, 1.0])
+nominal_solver = CoreSolver(ModelCore(1, 1, output_times))
+nominal_solver.core.set_initial_state(np.ones((1, 1)))
+adaptive_config = RunConfig(method="dopri5", adaptive=True)
+nominal_solver.run(lambda t, y: -0.3 * y, config=adaptive_config)
+schedule = nominal_solver.last_adaptive_schedule
+replay_config = replace(
+    adaptive_config, replay_loop="scan", replay_checkpoint=True
+)
+
+
+def loss(rate):
+    core = ModelCore(
+        1, 1, output_times, options=ModelCoreOptions(dtype=np.float32)
+    )
+    core.set_initial_state(jnp.ones((1, 1), dtype=jnp.float32))
+    CoreSolver(core).replay_adaptive_schedule(
+        lambda t, y: rate * y, schedule, config=replay_config
+    )
+    return jnp.sum(core.get_current_state() ** 2)
+
+
+hessian = jax.jit(jax.hessian(loss))(jnp.asarray(-0.3))
+```
+
+`op_engine.loop_ops.LoopAdapter` separates iteration from numerical stages.
+`register_loop_adapter(namespace_name, adapter)` accepts an optional backend's
+`scan(body, initial, inputs)` and checkpoint operations. The namespace name is
+the module's `__name__`, as returned by `op_engine.array_namespace(state)`.
+JAX is imported lazily only for its own namespace; namespaces without an
+adapter fall back to eager replay under `"auto"`. A forced scan or checkpoint
+request fails clearly when the selected adapter cannot provide it.
+
+The optional flepimop2 provider also consumes the functional kernels and
+defaults explicit JAX replay to its compact scan driver.
+
+Run `uv run python scripts/benchmark_replay.py` to measure gradients,
+Hessians, and reverse-over-reverse at 8, 64, and 160 steps for Dormand--Prince
+and ROS2. Each case runs in a fresh CPU process and reports tracing,
+compilation, execution, process peak RSS, and XLA buffer requirements as JSON.
+RSS includes backend startup; XLA temporary buffers still scale with the
+saved step states, even though the traced graph stays fixed in size. Add
+`--loops scan unroll --steps 8 16` for a bounded comparison with eager replay;
+`--no-checkpoint` compares storage strategies and `--timeout` limits each case.
 
 ## Public functional steps and external loops
 
