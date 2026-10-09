@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Frozen adaptive replay accepts `RunConfig(replay_loop="auto" | "scan",
+  replay_checkpoint=True)` for namespace-dispatched iteration. The lazy JAX
+  loop adapter uses one `lax.scan` with optional rematerialization, including
+  dense implicit/IMEX methods and ROS2. The default remains `"unroll"`, and
+  other packaged backends retain their eager paths under `"auto"`. Tests
+  qualify higher-order AD on long accepted meshes and pin graph size across
+  step counts (#198, #200).
 - Documented the existing public `CoreSolver.fixed_explicit_step` boundary
   for external JAX loops, including FSAL reuse and frozen adaptive meshes.
   Qualification tests cover Hessians for all four explicit methods,

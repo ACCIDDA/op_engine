@@ -8,7 +8,14 @@ import numpy as np
 import pytest
 
 from op_engine import Array, CoreSolver, ModelCore, Scalar, array_namespace, loop_ops
-from op_engine.core_solver import AdaptiveStepSchedule, OperatorSpecs, RunConfig
+from op_engine.core_solver import (
+    AdaptiveConfig,
+    AdaptiveStepSchedule,
+    DtControllerConfig,
+    NonlinearMethodConfig,
+    OperatorSpecs,
+    RunConfig,
+)
 from op_engine.loop_ops import LoopAdapter, get_loop_adapter, register_loop_adapter
 from op_engine.model_core import ModelCoreOptions
 
@@ -248,3 +255,154 @@ def test_scan_handles_zero_or_one_step(schedule: AdaptiveStepSchedule) -> None:
     expected, expected_history = _solve(parameters, schedule, replay_loop="unroll")
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(history, expected_history, rtol=1e-12, atol=1e-12)
+
+
+def test_cupy_auto_keeps_eager_replay_when_available() -> None:
+    """CuPy auto replay retains byte-identical trajectories on an available GPU."""
+    cupy = pytest.importorskip("cupy")
+    try:
+        if cupy.cuda.runtime.getDeviceCount() < 1:
+            pytest.skip("No CUDA device is available")
+    except cupy.cuda.runtime.CUDARuntimeError:
+        pytest.skip("The CUDA runtime is unavailable")
+    parameters = cupy.asarray([-0.3, 0.2])
+    schedule = AdaptiveStepSchedule((0.0, 0.2), ((0.05, 0.15),))
+    eager = _solve(parameters, schedule, replay_loop="unroll")
+    automatic = _solve(parameters, schedule, replay_loop="auto")
+    for actual, expected in zip(automatic, eager, strict=True):
+        assert cupy.asnumpy(actual).tobytes() == cupy.asnumpy(expected).tobytes()
+
+
+@pytest.mark.usefixtures("jax_x64")
+@pytest.mark.parametrize("replay_loop", ["auto", "scan"])
+def test_sdirk2_retains_eager_diagnostics(replay_loop: str) -> None:
+    """Auto preserves nonlinear diagnostics; a forced scan is rejected explicitly."""
+    jnp = pytest.importorskip("jax.numpy")
+    core = ModelCore(1, 1, np.asarray([0.0, 0.2]))
+    core.set_initial_state(jnp.ones((1, 1), dtype=jnp.float64))
+    solver = CoreSolver(core)
+    config = RunConfig(
+        method="sdirk2",
+        adaptive=True,
+        replay_loop=replay_loop,
+        nonlinear=NonlinearMethodConfig(
+            rhs_jacobian=lambda _t, _y: jnp.asarray([[-0.3]]),
+        ),
+    )
+    schedule = AdaptiveStepSchedule((0.0, 0.2), ((0.05, 0.15),))
+    if replay_loop == "scan":
+        with pytest.raises(ValueError, match="other than SDIRK2"):
+            solver.replay_adaptive_schedule(
+                lambda _t, y: -0.3 * y, schedule, config=config
+            )
+        assert core.current_step == 0
+    else:
+        diagnostics = solver.replay_adaptive_schedule(
+            lambda _t, y: -0.3 * y,
+            schedule,
+            config=config,
+        )
+        assert diagnostics is not None
+        assert solver.last_nonlinear_diagnostics is diagnostics
+        assert core.current_step == 1
+
+
+def _long_schedule(method: str) -> AdaptiveStepSchedule:
+    """Record an actual nominal adaptive solve with at least 100 accepted steps.
+
+    Returns:
+        Frozen accepted mesh for higher-order differentiation.
+    """
+    core = ModelCore(2, 1, np.asarray([0.0, 0.6]))
+    core.set_initial_state(np.asarray([[1.2], [0.7]]))
+    solver = CoreSolver(core)
+    solver.run(
+        lambda t, y: -0.3 * (1.0 + t) * y + 0.2 * t,
+        config=RunConfig(
+            method=method,
+            adaptive=True,
+            adaptive_cfg=AdaptiveConfig(rtol=1e-2, atol=1e-6, dt_init=0.6 / 160),
+            dt_controller=DtControllerConfig(dt_max=0.6 / 160),
+            jacobian=lambda t, _y: -0.3 * (1.0 + t) * np.eye(2),
+        ),
+    )
+    assert solver.last_adaptive_schedule is not None
+    return solver.last_adaptive_schedule
+
+
+@pytest.mark.usefixtures("jax_x64")
+@pytest.mark.parametrize("method", ["euler", "heun", "rk4", "dopri5", "ros2"])
+def test_core_scan_higher_order_ad_on_long_adaptive_mesh(method: str) -> None:
+    """Core replay supports forward, reverse, and checkpointed second-order AD."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    schedule = _long_schedule(method)
+    assert sum(map(len, schedule.step_sizes)) >= 100
+    parameters = jnp.asarray([-0.3, 0.2], dtype=jnp.float64)
+
+    def loss(values: Array) -> Array:
+        final, _history = _solve(
+            values, schedule, method=method, checkpoint=True, store_history=False
+        )
+        return cast("Array", 0.5 * jnp.sum(final**2) + 2.0 * jnp.sum(values**2))
+
+    gradient = jax.jit(jax.grad(loss))
+    reverse = gradient(parameters)
+    forward = jax.jit(jax.jacfwd(loss))(parameters)
+    hessian = np.asarray(jax.jit(jax.hessian(loss))(parameters))
+    finite_difference = np.column_stack([
+        (gradient(parameters + shift) - gradient(parameters - shift)) / 2e-4
+        for shift in 1e-4 * np.eye(2)
+    ])
+
+    def squared_gradient(values: Array) -> Array:
+        return cast("Array", jnp.sum(jax.grad(loss)(values) ** 2))
+
+    reverse_over_reverse = jax.jit(jax.grad(squared_gradient))(parameters)
+    assert np.all(np.isfinite(hessian))
+    np.testing.assert_allclose(forward, reverse, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(hessian, hessian.T, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(hessian, finite_difference, rtol=2e-6, atol=2e-7)
+    np.testing.assert_allclose(
+        reverse_over_reverse, 2.0 * hessian.T @ reverse, rtol=1e-11, atol=1e-11
+    )
+
+
+def _graph_size(node: Any) -> int:  # noqa: ANN401
+    """Count equations including nested scan, checkpoint, and solve graphs.
+
+    Returns:
+        Number of equations in the complete traced graph.
+    """
+    if hasattr(node, "eqns"):
+        return len(node.eqns) + sum(
+            _graph_size(equation.params) for equation in node.eqns
+        )
+    if hasattr(node, "jaxpr"):
+        return _graph_size(node.jaxpr)
+    if isinstance(node, dict):
+        return sum(map(_graph_size, node.values()))
+    if isinstance(node, (tuple, list)):
+        return sum(map(_graph_size, node))
+    return 0
+
+
+@pytest.mark.usefixtures("jax_x64")
+@pytest.mark.parametrize("method", ["dopri5", "ros2"])
+def test_replay_graph_size_is_independent_of_step_count(method: str) -> None:
+    """The complete trace contains one scan and a fixed number of equations."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    sizes = []
+    for step_count in (8, 160):
+        schedule = AdaptiveStepSchedule((0.0, 0.6), ((0.6 / step_count,) * step_count,))
+        graph = jax.make_jaxpr(
+            lambda values, mesh=schedule: _solve(
+                values, mesh, method=method, checkpoint=True
+            )[0],
+        )(jnp.asarray([-0.3, 0.2], dtype=jnp.float64))
+        assert (
+            sum(equation.primitive.name == "scan" for equation in graph.jaxpr.eqns) == 1
+        )
+        sizes.append(_graph_size(graph))
+    assert sizes[0] == sizes[1]
