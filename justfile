@@ -102,6 +102,7 @@ build-test-core:
 	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
 	cp pyproject.toml "${CLEANROOM}/pyproject.toml"
 	cp -R tests "${CLEANROOM}/tests"
+	cp -R examples "${CLEANROOM}/examples"
 	cd "${CLEANROOM}"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
 
