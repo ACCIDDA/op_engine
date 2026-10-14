@@ -27,6 +27,13 @@ by it. `just qualify` includes these compiler checks after the core CPU matrix.
 `just qualify-observations` assumes those namespaces are already installed.
 The pinned compiler is a development/CI contract, not a core runtime dependency.
 
+Required qualification also includes [per-run random streams](random-streams.md).
+NumPy checks all four stochastic run interfaces against replay, stream-ownership,
+indexed launch-order and analytic constant-birth contracts. JAX/CPU Torch check
+that the NumPy convenience path rejects native states before consuming randomness.
+Existing functional-key sampler tests remain in the baseline stochastic suite;
+these additions do not qualify new native PRNGs or stochastic derivatives.
+
 ## Method and execution matrix
 
 The table describes the small required structured workload, not all possible

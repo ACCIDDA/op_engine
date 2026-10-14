@@ -10,7 +10,10 @@ import numpy as np
 
 from ._array import array_namespace as _namespace_of
 from ._forcing import _ForcingSchedule
+from ._random_stream import _generator, _require_numpy_state
 from .stochastic_solver import (
+    NumpyPoissonSampler,
+    NumpySSASampler,
     PoissonSampler,
     PropensityFunction,
     SSASampler,
@@ -20,6 +23,7 @@ from .stochastic_solver import (
 )
 
 if TYPE_CHECKING:
+    from ._random_stream import RandomStream
     from ._typing import Array
     from .model_core import ModelCore
 
@@ -702,10 +706,11 @@ class AdaptiveTauLeapingSolver:
     def run(  # noqa: C901, PLR0912, PLR0914, PLR0915
         self,
         propensity_func: PropensityFunction,
-        poisson_sampler: PoissonSampler,
-        ssa_sampler: SSASampler,
+        poisson_sampler: PoissonSampler | None = None,
+        ssa_sampler: SSASampler | None = None,
         *,
         config: AdaptiveTauLeapingConfig | None = None,
+        rng: RandomStream | None = None,
     ) -> None:
         """Advance a bounded adaptive trajectory through the output grid.
 
@@ -714,11 +719,26 @@ class AdaptiveTauLeapingSolver:
             poisson_sampler: Backend-specific noncritical Poisson sampler.
             ssa_sampler: Backend-specific exact-event sampler.
             config: Optional adaptive, retry, and forcing controls.
+            rng: One NumPy stream shared by call-local Poisson/exact samplers;
+                supply instead of both explicit samplers.
 
         Raises:
+            ValueError: If either sampler is absent or rng conflicts with a sampler.
+            TypeError: If rng is unsupported or used with non-NumPy state.
             RuntimeError: If a step guard, retry guard, or non-negativity
                 invariant fails.
-        """
+        """  # noqa: DOC502 - stream type validation delegates to the shared helper
+        if rng is not None:
+            if poisson_sampler is not None or ssa_sampler is not None:
+                msg = "rng and explicit adaptive tau samplers are mutually exclusive"
+                raise ValueError(msg)
+            _require_numpy_state(self.core.get_current_state())
+            generator = _generator(rng)
+            poisson_sampler = NumpyPoissonSampler(rng=generator)
+            ssa_sampler = NumpySSASampler(rng=generator)
+        if poisson_sampler is None or ssa_sampler is None:
+            msg = "provide both adaptive tau samplers or rng"
+            raise ValueError(msg)
         cfg = config or AdaptiveTauLeapingConfig()
         forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self.core.get_current_state()

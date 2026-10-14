@@ -50,6 +50,11 @@ zero and increase globally, including rejected and expired candidates.
 `NumpyThinningSampler(seed)` supplies the NumPy implementation; other backends
 inject their own sampler.
 
+For a NumPy state, `run(..., rng=generator_or_seed_sequence, rate_bound=...)`
+creates a call-local convenience sampler. Supply this instead of an explicit
+`thinning_sampler`; see [per-run random streams](random-streams.md) for replay,
+indexed replicates and ownership rules.
+
 At a candidate time, the solver evaluates the actual channel rates. If
 `uniform * bound_rate` is at least the actual total rate, it rejects the
 candidate. Otherwise it selects the flattened channel/batch event whose

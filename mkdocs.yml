@@ -53,6 +53,7 @@ nav:
       - Choosing a Solver: guides/solver-methods.md
       - Bounded Thinning SSA: guides/bounded-thinning.md
       - Stochastic Simulation From op_system: guides/op-system-reactions.md
+      - Per-run Random Streams: guides/random-streams.md
       - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Steady States: guides/steady-states.md

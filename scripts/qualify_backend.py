@@ -49,6 +49,7 @@ def main() -> int:
                 "tests/op_engine/test_operator_precision.py",
                 "tests/op_engine/test_hierarchical_ode.py",
                 "tests/op_engine/test_observations.py",
+                "tests/op_engine/test_random_streams.py",
                 *(
                     ["tests/op_engine/test_array_namespace.py"]
                     if args.backend == "torch"

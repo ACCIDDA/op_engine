@@ -5,6 +5,7 @@ from __future__ import annotations
 from importlib.metadata import version as _metadata_version
 
 from ._array import array_namespace as array_namespace
+from ._random_stream import RandomStream as RandomStream
 from ._typing import Array as Array
 from ._typing import Scalar as Scalar
 from .adaptive_tau import AdaptiveTauLeapingConfig, AdaptiveTauLeapingSolver
@@ -139,6 +140,7 @@ __all__ = [
     "ObservationSpec",
     "Operator",
     "PoissonSampler",
+    "RandomStream",
     "RateBoundFunction",
     "SSASample",
     "SSASampler",
