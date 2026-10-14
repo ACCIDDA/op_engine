@@ -234,3 +234,212 @@ def record_schedule(
         raise RuntimeError(msg)
     return schedule, config
 
+
+def replay_trajectory(
+    problem: HierarchicalProblem,
+    parameters: Array,
+    schedule: AdaptiveStepSchedule,
+    config: RunConfig,
+    *,
+    external: bool = False,
+) -> Array:
+    """Differentiate a frozen mesh through built-in or public external steps.
+
+    Returns:
+        Native output trajectory, including the initial state.
+    """
+    import jax  # noqa: PLC0415
+
+    xp = array_namespace(parameters)
+    initial = initial_state(problem, parameters)
+    core = ModelCore(
+        2,
+        problem.groups,
+        np.asarray(schedule.output_times),
+        options=ModelCoreOptions(
+            other_axes=(problem.local_dimension,),
+            axis_names=("pool", "group", "local"),
+        ),
+    )
+    solver = CoreSolver(core)
+    function = rhs(problem, parameters)
+    if not external:
+        from dataclasses import replace  # noqa: PLC0415
+
+        core.set_initial_state(initial)
+        solver.replay_adaptive_schedule(
+            function,
+            schedule,
+            config=replace(config, replay_loop="scan", replay_checkpoint=True),
+        )
+        return cast("Array", core.state_array)
+    starts, sizes, selections = _flatten_mesh(schedule)
+    first, fsal = solver.fixed_explicit_step(
+        function, method="dopri5", t=starts[0], dt=sizes[0], y=initial
+    )
+
+    def advance(
+        carry: tuple[Array, Array | None], step: tuple[object, object]
+    ) -> tuple[tuple[Array, Array | None], Array]:
+        state, cached = carry
+        time, dt = step
+        result, stage = solver.fixed_explicit_step(
+            function, method="dopri5", t=time, dt=dt, y=state, first_stage=cached
+        )
+        return (result, stage), result
+
+    _, tail = jax.lax.scan(
+        jax.checkpoint(advance),
+        (first, fsal),
+        (xp.asarray(starts[1:]), xp.asarray(sizes[1:])),
+    )
+    complete = xp.concat((initial[None], first[None], tail), axis=0)
+    return cast("Array", complete[xp.asarray(selections)])
+
+
+def numpy_replay_trajectory(
+    problem: HierarchicalProblem,
+    parameters: np.ndarray,
+    schedule: AdaptiveStepSchedule,
+    config: RunConfig,
+) -> np.ndarray:
+    """Replay the identical mesh eagerly with NumPy for value parity.
+
+    Returns:
+        Output trajectory in NumPy.
+    """
+    core = ModelCore(
+        2,
+        problem.groups,
+        np.asarray(schedule.output_times),
+        options=ModelCoreOptions(
+            other_axes=(problem.local_dimension,),
+            axis_names=("pool", "group", "local"),
+        ),
+    )
+    core.set_initial_state(initial_state(problem, parameters))
+    CoreSolver(core).replay_adaptive_schedule(
+        rhs(problem, parameters), schedule, config=config
+    )
+    return np.asarray(core.state_array)
+
+
+def _flatten_mesh(
+    schedule: AdaptiveStepSchedule,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    starts: list[float] = []
+    sizes: list[float] = []
+    selections = [0]
+    for start, interval in zip(
+        schedule.output_times[:-1], schedule.step_sizes, strict=True
+    ):
+        time = start
+        for size in interval:
+            starts.append(time)
+            sizes.append(size)
+            time += size
+        selections.append(len(sizes))
+    return np.asarray(starts), np.asarray(sizes), np.asarray(selections)
+
+
+def refined_schedule(schedule: AdaptiveStepSchedule) -> AdaptiveStepSchedule:
+    """Halve every accepted step while retaining the verified structural record.
+
+    Returns:
+        Valid refined mesh with the same output times and provenance.
+    """
+    return AdaptiveStepSchedule(
+        schedule.output_times,
+        tuple(
+            tuple(value for size in interval for value in (size / 2, size / 2))
+            for interval in schedule.step_sizes
+        ),
+        provenance=schedule.provenance,
+    )
+
+
+def observations(problem: HierarchicalProblem, times: np.ndarray) -> np.ndarray:
+    """Deterministic reference observations with a nonzero residual pattern.
+
+    Returns:
+        First-pool observations at noninitial output times.
+    """
+    trajectory = reference_trajectory(problem, nominal_parameters(problem), times)
+    signal = trajectory[1:, 0]
+    return signal + 0.025 * 0.2 * np.sin(
+        np.arange(signal.size).reshape(signal.shape) + 0.5
+    )
+
+
+def objective(
+    problem: HierarchicalProblem, parameters: Array, trajectory: Array, data: Array
+) -> Array:
+    """Combine group likelihoods and shared/local hierarchical prior regularization.
+
+    Returns:
+        Scalar negative log objective up to parameter-independent constants.
+    """
+    xp = array_namespace(parameters)
+    residual = (trajectory[1:, 0] - data) / 0.025
+    global_center = xp.asarray(nominal_parameters(problem)[:2], dtype=parameters.dtype)
+    shared = xp.sum((parameters[:2] - global_center) ** 2)
+    local_rate = parameters[2 : 2 + problem.cells]
+    local_initial = parameters[2 + problem.cells :]
+    # Local log-rate offsets shrink toward a shared, fitted log-gain mean.
+    prior = (
+        shared
+        + xp.sum(((local_rate - 0.1 * parameters[0]) / 0.5) ** 2)
+        + xp.sum((local_initial / 0.8) ** 2)
+    )
+    return cast("Array", 0.5 * (xp.sum(residual**2) + prior))
+
+
+def reference_objective(
+    problem: HierarchicalProblem,
+    parameters: np.ndarray,
+    times: np.ndarray,
+    data: np.ndarray,
+) -> float:
+    """Evaluate the same public statistical problem with independent scalar priors.
+
+    Returns:
+        Concrete reference negative log objective.
+    """
+    trajectory = reference_trajectory(problem, parameters, times)
+    likelihood = sum(
+        ((float(value) - float(observed)) / 0.025) ** 2
+        for value, observed in zip(trajectory[1:, 0].ravel(), data.ravel(), strict=True)
+    )
+    center = nominal_parameters(problem)
+    shared = sum((float(parameters[i]) - float(center[i])) ** 2 for i in range(2))
+    local = sum(
+        ((float(value) - 0.1 * float(parameters[0])) / 0.5) ** 2
+        for value in parameters[2 : 2 + problem.cells]
+    )
+    initial = sum(
+        (float(value) / 0.8) ** 2 for value in parameters[2 + problem.cells :]
+    )
+    return 0.5 * (likelihood + shared + local + initial)
+
+
+def loss_function(
+    problem: HierarchicalProblem,
+    schedule: AdaptiveStepSchedule,
+    config: RunConfig,
+    data: Array,
+    *,
+    external: bool = False,
+) -> Callable[[Array], Array]:
+    """Bind the fixed-mesh objective while retaining all dynamic parameters.
+
+    Returns:
+        Scalar objective callable for JAX transforms.
+    """
+
+    def evaluate(parameters: Array) -> Array:
+        trajectory = replay_trajectory(
+            problem, parameters, schedule, config, external=external
+        )
+        return objective(problem, parameters, trajectory, data)
+
+    return evaluate
