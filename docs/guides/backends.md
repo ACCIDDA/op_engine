@@ -26,6 +26,11 @@ when JAX x64 is enabled. Integer references select a floating result so physical
 coefficients are not truncated. Geometry remains static; coefficients can remain
 dynamic for JAX JIT/AD and CPU Torch AD.
 
+See the [required CPU qualification matrix](backend-qualification.md) for
+method, precision, AD, replay and hardware evidence, and the exact local/CI
+commands. Optional availability-gated baseline cases do not establish required
+qualification.
+
 ## Portable fixed-step methods
 
 With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX

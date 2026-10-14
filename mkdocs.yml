@@ -56,6 +56,7 @@ nav:
       - Steady States: guides/steady-states.md
       - Biogeochemical Network: guides/biogeochemical-network.md
       - Trait-Structured Chemostat: guides/chemostat-pde.md
+      - Backend Qualification: guides/backend-qualification.md
       - Backend Strategies: guides/backends.md
   - API Reference:
       - Adaptive Tau: api-reference/adaptive_tau.md

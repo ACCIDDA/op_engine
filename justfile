@@ -175,3 +175,20 @@ docs: api-reference
 # Serve the documentation locally using `mkdocs`
 serve: api-reference
 	uv run mkdocs serve
+
+
+# Required CPU solver qualification, separate from provider integration checks.
+qualify: qualify-numpy qualify-jax qualify-torch
+
+qualify-numpy:
+    uv sync --dev
+    uv run --no-sync python scripts/qualify_backend.py numpy
+
+qualify-jax:
+    uv sync --dev --extra jax
+    uv run --no-sync python scripts/qualify_backend.py jax
+
+qualify-torch:
+    uv sync --dev
+    uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu
+    uv run --no-sync python scripts/qualify_backend.py torch

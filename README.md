@@ -158,3 +158,9 @@ just ci
 ## License
 
 MIT License
+
+Required CPU method qualification is documented in the
+[capability matrix](docs/guides/backend-qualification.md). Run `just qualify`
+alongside `just ci`, `just docs`, and `just build-all` before submitting a change.
+NumPy/JAX/CPU Torch jobs reject missing/skipped selected contracts; GPU checks
+and large benchmark timings remain explicit opt-in work.

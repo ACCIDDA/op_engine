@@ -15,9 +15,12 @@ permissions:
   contents: 'read'
 
 jobs:
-  torch-cpu:
-    name: 'PyTorch CPU (3.12)'
+  backend:
+    name: 'Solver qualification (${{ matrix.backend }}, 3.12)'
     runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        backend: ['numpy', 'jax', 'torch']
     steps:
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
@@ -29,12 +32,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: 'pyproject.toml'
           python-version: '3.12'
-      - name: 'Install test dependencies and CPU PyTorch'
-        run: |
-          uv sync --dev
-          uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu
-      - name: 'Run PyTorch contracts'
-        run: 'uv run --no-sync pytest tests/op_engine/test_array_namespace.py tests/op_engine/test_operator_precision.py -k torch'
+      - name: 'Install qualification dependencies'
+        run: 'uv sync --dev'
+      - name: 'Install required CPU Torch'
+        if: "matrix.backend == 'torch'"
+        run: "uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu"
+      - name: 'Run selected backend without skipped qualification'
+        run: 'uv run --no-sync python scripts/qualify_backend.py ${{ matrix.backend }}'
   build-check:
     name: 'Build Check (${{ matrix.python-version }})'
     runs-on: 'ubuntu-latest'
