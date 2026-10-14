@@ -103,6 +103,8 @@ build-test-core:
 	cp pyproject.toml "${CLEANROOM}/pyproject.toml"
 	cp -R tests "${CLEANROOM}/tests"
 	cp -R examples "${CLEANROOM}/examples"
+
+	cp -R benchmarks "${CLEANROOM}/benchmarks"
 	cd "${CLEANROOM}"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
 
