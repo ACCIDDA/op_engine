@@ -592,6 +592,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/random-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Per-run Random Streams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/linear-multistep-methods/" class="md-nav__link">
         
   
@@ -1753,11 +1781,7 @@ between boundaries for exact fallback.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/adaptive_tau.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 66</span>
-<span class="normal"> 67</span>
-<span class="normal"> 68</span>
-<span class="normal"> 69</span>
-<span class="normal"> 70</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 70</span>
 <span class="normal"> 71</span>
 <span class="normal"> 72</span>
 <span class="normal"> 73</span>
@@ -1797,7 +1821,11 @@ between boundaries for exact fallback.</p>
 <span class="normal">107</span>
 <span class="normal">108</span>
 <span class="normal">109</span>
-<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate adaptive controls.</span>
 
 <span class="sd">    Raises:</span>
@@ -2010,11 +2038,7 @@ reactant-order rules. Orders above three are allowed.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/adaptive_tau.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span>
-<span class="normal">522</span>
-<span class="normal">523</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">523</span>
 <span class="normal">524</span>
 <span class="normal">525</span>
 <span class="normal">526</span>
@@ -2048,7 +2072,11 @@ reactant-order rules. Orders above three are allowed.</p>
 <span class="normal">554</span>
 <span class="normal">555</span>
 <span class="normal">556</span>
-<span class="normal">557</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -2129,7 +2157,7 @@ reactant-order rules. Orders above three are allowed.</p>
 
 
 <h4 id="op_engine.adaptive_tau.AdaptiveTauLeapingSolver.run" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">poisson_sampler</span><span class="p">,</span> <span class="n">ssa_sampler</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">poisson_sampler</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ssa_sampler</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.adaptive_tau.AdaptiveTauLeapingSolver.run" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -2171,7 +2199,7 @@ reactant-order rules. Orders above three are allowed.</p>
                 <code>poisson_sampler</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="PoissonSampler (op_engine.stochastic_solver.PoissonSampler)" href="../stochastic_solver/#op_engine.stochastic_solver.PoissonSampler">PoissonSampler</a></code>
+                  <code><a class="autorefs autorefs-internal" title="PoissonSampler (op_engine.stochastic_solver.PoissonSampler)" href="../stochastic_solver/#op_engine.stochastic_solver.PoissonSampler">PoissonSampler</a> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2179,7 +2207,7 @@ reactant-order rules. Orders above three are allowed.</p>
               </div>
             </td>
             <td>
-                <em>required</em>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -2187,7 +2215,7 @@ reactant-order rules. Orders above three are allowed.</p>
                 <code>ssa_sampler</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="SSASampler (op_engine.stochastic_solver.SSASampler)" href="../stochastic_solver/#op_engine.stochastic_solver.SSASampler">SSASampler</a></code>
+                  <code><a class="autorefs autorefs-internal" title="SSASampler (op_engine.stochastic_solver.SSASampler)" href="../stochastic_solver/#op_engine.stochastic_solver.SSASampler">SSASampler</a> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2195,7 +2223,7 @@ reactant-order rules. Orders above three are allowed.</p>
               </div>
             </td>
             <td>
-                <em>required</em>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -2218,6 +2246,23 @@ reactant-order rules. Orders above three are allowed.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>One NumPy stream shared by call-local Poisson/exact samplers;
+supply instead of both explicit samplers.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2231,6 +2276,26 @@ reactant-order rules. Orders above three are allowed.</p>
         </tr>
       </thead>
       <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If either sampler is absent or rng conflicts with a sampler.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng is unsupported or used with non-NumPy state.</p>
+              </div>
+            </td>
+          </tr>
           <tr class="doc-section-item">
             <td>
                   <code><span title="RuntimeError">RuntimeError</span></code>
@@ -2248,11 +2313,7 @@ invariant fails.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/adaptive_tau.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">702</span>
-<span class="normal">703</span>
-<span class="normal">704</span>
-<span class="normal">705</span>
-<span class="normal">706</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">706</span>
 <span class="normal">707</span>
 <span class="normal">708</span>
 <span class="normal">709</span>
@@ -2391,13 +2452,34 @@ invariant fails.</p>
 <span class="normal">842</span>
 <span class="normal">843</span>
 <span class="normal">844</span>
-<span class="normal">845</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: C901, PLR0912, PLR0914, PLR0915</span>
+<span class="normal">845</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span>
+<span class="normal">849</span>
+<span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span>
+<span class="normal">854</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span>
+<span class="normal">859</span>
+<span class="normal">860</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
+<span class="normal">865</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: C901, PLR0912, PLR0914, PLR0915</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
-    <span class="n">poisson_sampler</span><span class="p">:</span> <span class="n">PoissonSampler</span><span class="p">,</span>
-    <span class="n">ssa_sampler</span><span class="p">:</span> <span class="n">SSASampler</span><span class="p">,</span>
+    <span class="n">poisson_sampler</span><span class="p">:</span> <span class="n">PoissonSampler</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">ssa_sampler</span><span class="p">:</span> <span class="n">SSASampler</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">AdaptiveTauLeapingConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Advance a bounded adaptive trajectory through the output grid.</span>
 
@@ -2406,11 +2488,26 @@ invariant fails.</p>
 <span class="sd">        poisson_sampler: Backend-specific noncritical Poisson sampler.</span>
 <span class="sd">        ssa_sampler: Backend-specific exact-event sampler.</span>
 <span class="sd">        config: Optional adaptive, retry, and forcing controls.</span>
+<span class="sd">        rng: One NumPy stream shared by call-local Poisson/exact samplers;</span>
+<span class="sd">            supply instead of both explicit samplers.</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If either sampler is absent or rng conflicts with a sampler.</span>
+<span class="sd">        TypeError: If rng is unsupported or used with non-NumPy state.</span>
 <span class="sd">        RuntimeError: If a step guard, retry guard, or non-negativity</span>
 <span class="sd">            invariant fails.</span>
-<span class="sd">    """</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - stream type validation delegates to the shared helper</span>
+    <span class="k">if</span> <span class="n">rng</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">poisson_sampler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">ssa_sampler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"rng and explicit adaptive tau samplers are mutually exclusive"</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">_require_numpy_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">())</span>
+        <span class="n">generator</span> <span class="o">=</span> <span class="n">_generator</span><span class="p">(</span><span class="n">rng</span><span class="p">)</span>
+        <span class="n">poisson_sampler</span> <span class="o">=</span> <span class="n">NumpyPoissonSampler</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">generator</span><span class="p">)</span>
+        <span class="n">ssa_sampler</span> <span class="o">=</span> <span class="n">NumpySSASampler</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">generator</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">poisson_sampler</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">ssa_sampler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"provide both adaptive tau samplers or rng"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">AdaptiveTauLeapingConfig</span><span class="p">()</span>
     <span class="n">forcing</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>

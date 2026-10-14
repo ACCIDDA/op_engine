@@ -674,6 +674,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../random-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Per-run Random Streams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear-multistep-methods/" class="md-nav__link">
         
   
@@ -1491,6 +1519,10 @@ namespace. The wait is finite and strictly positive, sampled exponentially at
 zero and increase globally, including rejected and expired candidates.
 <code>NumpyThinningSampler(seed)</code> supplies the NumPy implementation; other backends
 inject their own sampler.</p>
+<p>For a NumPy state, <code>run(..., rng=generator_or_seed_sequence, rate_bound=...)</code>
+creates a call-local convenience sampler. Supply this instead of an explicit
+<code>thinning_sampler</code>; see <a href="../random-streams/">per-run random streams</a> for replay,
+indexed replicates and ownership rules.</p>
 <p>At a candidate time, the solver evaluates the actual channel rates. If
 <code>uniform * bound_rate</code> is at least the actual total rate, it rejects the
 candidate. Otherwise it selects the flattened channel/batch event whose

@@ -594,6 +594,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../random-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Per-run Random Streams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear-multistep-methods/" class="md-nav__link">
         
   
@@ -1473,6 +1501,12 @@ adaptive gradients, mesh derivatives and arbitrary callbacks are not qualified
 by it. <code>just qualify</code> includes these compiler checks after the core CPU matrix.
 <code>just qualify-observations</code> assumes those namespaces are already installed.
 The pinned compiler is a development/CI contract, not a core runtime dependency.</p>
+<p>Required qualification also includes <a href="../random-streams/">per-run random streams</a>.
+NumPy checks all four stochastic run interfaces against replay, stream-ownership,
+indexed launch-order and analytic constant-birth contracts. JAX/CPU Torch check
+that the NumPy convenience path rejects native states before consuming randomness.
+Existing functional-key sampler tests remain in the baseline stochastic suite;
+these additions do not qualify new native PRNGs or stochastic derivatives.</p>
 <h2 id="method-and-execution-matrix">Method and execution matrix<a class="headerlink" href="#method-and-execution-matrix" title="Permanent link">&para;</a></h2>
 <p>The table describes the small required structured workload, not all possible
 models, versions, devices, or differentiation transforms. Each qualified fixed

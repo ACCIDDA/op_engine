@@ -14,7 +14,7 @@
         <link rel="prev" href="../bounded-thinning/">
       
       
-        <link rel="next" href="../linear-multistep-methods/">
+        <link rel="next" href="../random-streams/">
       
       
         
@@ -684,6 +684,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../random-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Per-run Random Streams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1493,6 +1521,9 @@
 
 
 <h1 id="stochastic-simulation-from-an-op_system-spec">Stochastic Simulation From An op_system Spec<a class="headerlink" href="#stochastic-simulation-from-an-op_system-spec" title="Permanent link">&para;</a></h1>
+<p>NumPy runs can use an explicit <code>Generator</code> or <code>SeedSequence</code> instead of an
+injected sampler. <a href="../random-streams/">Per-run random streams</a> documents reusable
+solvers, indexed replicates, stream ownership and native sampler compatibility.</p>
 <p>An <a href="https://github.com/ACCIDDA/op_system">op_system</a> spec compiles to typed
 reaction artifacts, one per named transition (<code>CompiledRhs.reactions</code>).
 <code>op_engine.from_compiled_rhs</code> turns them into the flat network that

@@ -590,6 +590,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/random-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Per-run Random Streams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/linear-multistep-methods/" class="md-nav__link">
         
   
@@ -1835,7 +1863,7 @@
 
 
 <h3 id="op_engine.thinning_ssa.NumpyThinningSampler" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">NumpyThinningSampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">NumpyThinningSampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.thinning_ssa.NumpyThinningSampler" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -1846,7 +1874,87 @@
 
         <p>Seeded stateful thinning sampler for NumPy reaction networks.</p>
 
-        <p>Create a NumPy random generator with an optional seed.</p>
+        <p>Create or reuse a NumPy generator.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional legacy integer seed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Advancing generator or replayable SeedSequence; excludes seed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If both seed and rng are supplied.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng has an unsupported type.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
 
@@ -1857,11 +1965,33 @@
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Create a NumPy random generator with an optional seed."""</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Create or reuse a NumPy generator.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        seed: Optional legacy integer seed.</span>
+<span class="sd">        rng: Advancing generator or replayable SeedSequence; excludes seed.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If both seed and rng are supplied.</span>
+<span class="sd">        TypeError: If rng has an unsupported type.</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - documented errors originate in the shared helper</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">_generator</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -1940,25 +2070,25 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">151</span>
-<span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span>
-<span class="normal">163</span>
-<span class="normal">164</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">164</span>
 <span class="normal">165</span>
 <span class="normal">166</span>
 <span class="normal">167</span>
 <span class="normal">168</span>
-<span class="normal">169</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bound_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">draw_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ThinningSample</span><span class="p">:</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bound_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">draw_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ThinningSample</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Draw a candidate wait and uniform in the input dtype.</span>
 
 <span class="sd">    Returns:</span>
@@ -2049,8 +2179,8 @@ next forcing change or solve endpoint, independent of observation times.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">91</span>
-<span class="normal">92</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TotalRateBound</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">93</span>
+<span class="normal">94</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TotalRateBound</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return a certified bound and its exclusive expiry time."""</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2184,9 +2314,7 @@ Forcing and bound expiry take precedence over tied candidates.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
@@ -2198,7 +2326,9 @@ Forcing and bound expiry take precedence over tied candidates.</p>
 <span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
-<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate the candidate guard and snapshot the forcing schedule.</span>
 
 <span class="sd">    Raises:</span>
@@ -2321,22 +2451,22 @@ the trajectory and never refresh bounds or discard candidates.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">284</span>
 <span class="normal">285</span>
-<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -2394,7 +2524,7 @@ the trajectory and never refresh bounds or discard candidates.</p>
 
 
 <h4 id="op_engine.thinning_ssa.ThinningSSASolver.run" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">thinning_sampler</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rate_bound</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">thinning_sampler</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rate_bound</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.thinning_ssa.ThinningSSASolver.run" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -2436,7 +2566,7 @@ the trajectory and never refresh bounds or discard candidates.</p>
                 <code>thinning_sampler</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="ThinningSampler (op_engine.thinning_ssa.ThinningSampler)" href="#op_engine.thinning_ssa.ThinningSampler">ThinningSampler</a></code>
+                  <code><a class="autorefs autorefs-internal" title="ThinningSampler (op_engine.thinning_ssa.ThinningSampler)" href="#op_engine.thinning_ssa.ThinningSampler">ThinningSampler</a> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2444,7 +2574,7 @@ the trajectory and never refresh bounds or discard candidates.</p>
               </div>
             </td>
             <td>
-                <em>required</em>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -2484,6 +2614,22 @@ on <code>[t, valid_until)</code> at the supplied unchanged state.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit NumPy stream; supply instead of thinning_sampler.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2497,6 +2643,26 @@ on <code>[t, valid_until)</code> at the supplied unchanged state.</p>
         </tr>
       </thead>
       <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a sampler/stream is absent or both are supplied.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng is unsupported or used with non-NumPy state.</p>
+              </div>
+            </td>
+          </tr>
           <tr class="doc-section-item">
             <td>
                   <code><span title="RuntimeError">RuntimeError</span></code>
@@ -2514,20 +2680,7 @@ advance, or a reaction produces invalid populations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
-<span class="normal">392</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
 <span class="normal">395</span>
@@ -2578,13 +2731,37 @@ advance, or a reaction produces invalid populations.</p>
 <span class="normal">440</span>
 <span class="normal">441</span>
 <span class="normal">442</span>
-<span class="normal">443</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
-    <span class="n">thinning_sampler</span><span class="p">:</span> <span class="n">ThinningSampler</span><span class="p">,</span>
+    <span class="n">thinning_sampler</span><span class="p">:</span> <span class="n">ThinningSampler</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">rate_bound</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">RateBoundFunction</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">ThinningSSAConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Advance an exact trajectory with bounded candidate thinning.</span>
 
@@ -2594,11 +2771,20 @@ advance, or a reaction produces invalid populations.</p>
 <span class="sd">        rate_bound: Constant bound or callback returning a certified bound</span>
 <span class="sd">            on ``[t, valid_until)`` at the supplied unchanged state.</span>
 <span class="sd">        config: Candidate guard and forcing schedule.</span>
+<span class="sd">        rng: Explicit NumPy stream; supply instead of thinning_sampler.</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a sampler/stream is absent or both are supplied.</span>
+<span class="sd">        TypeError: If rng is unsupported or used with non-NumPy state.</span>
 <span class="sd">        RuntimeError: If the candidate limit is exceeded, time cannot</span>
 <span class="sd">            advance, or a reaction produces invalid populations.</span>
-<span class="sd">    """</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - random-source validation is shared</span>
+    <span class="n">thinning_sampler</span> <span class="o">=</span> <span class="n">_select_sampler</span><span class="p">(</span>
+        <span class="n">thinning_sampler</span><span class="p">,</span>
+        <span class="n">rng</span><span class="p">,</span>
+        <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">(),</span>
+        <span class="n">make_sampler</span><span class="o">=</span><span class="k">lambda</span> <span class="n">generator</span><span class="p">:</span> <span class="n">NumpyThinningSampler</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">generator</span><span class="p">),</span>
+    <span class="p">)</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">ThinningSSAConfig</span><span class="p">()</span>
     <span class="n">forcing</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span><span class="p">(</span><span class="n">rate_bound</span><span class="p">)</span>
@@ -2763,8 +2949,8 @@ and positive; <code>uniform</code> is finite and belongs to <code>[0, 1)</code>.
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">109</span>
-<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bound_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">draw_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ThinningSample</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">111</span>
+<span class="normal">112</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bound_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">draw_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ThinningSample</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Draw a wait at ``bound_rate`` and an independent uniform."""</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2897,9 +3083,7 @@ time and forcing/solve limit when the callback returns it.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/thinning_ssa.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
 <span class="normal">66</span>
@@ -2917,7 +3101,9 @@ time and forcing/solve limit when the callback returns it.</p>
 <span class="normal">78</span>
 <span class="normal">79</span>
 <span class="normal">80</span>
-<span class="normal">81</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize and validate the scalar controls.</span>
 
 <span class="sd">    Raises:</span>

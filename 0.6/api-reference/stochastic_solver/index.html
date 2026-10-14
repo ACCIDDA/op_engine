@@ -592,6 +592,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/random-streams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Per-run Random Streams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/linear-multistep-methods/" class="md-nav__link">
         
   
@@ -2092,9 +2120,7 @@ right-continuous; an event at a boundary is discarded and redrawn.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
 <span class="normal">159</span>
@@ -2106,7 +2132,9 @@ right-continuous; an event at a boundary is discarded and redrawn.</p>
 <span class="normal">165</span>
 <span class="normal">166</span>
 <span class="normal">167</span>
-<span class="normal">168</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate the event-count guard and snapshot forcing boundaries.</span>
 
 <span class="sd">    Raises:</span>
@@ -2231,24 +2259,24 @@ output times only observe the path and never cause an event to be resampled.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -2308,7 +2336,7 @@ output times only observe the path and never cause an event to be resampled.</p>
 
 
 <h4 id="op_engine.stochastic_solver.DirectSSASolver.run" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">ssa_sampler</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">ssa_sampler</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.stochastic_solver.DirectSSASolver.run" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -2355,7 +2383,7 @@ between events and configured forcing boundaries.</p>
                 <code>ssa_sampler</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="SSASampler (op_engine.stochastic_solver.SSASampler)" href="#op_engine.stochastic_solver.SSASampler">SSASampler</a></code>
+                  <code><a class="autorefs autorefs-internal" title="SSASampler (op_engine.stochastic_solver.SSASampler)" href="#op_engine.stochastic_solver.SSASampler">SSASampler</a> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2363,7 +2391,7 @@ between events and configured forcing boundaries.</p>
               </div>
             </td>
             <td>
-                <em>required</em>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -2386,6 +2414,22 @@ between events and configured forcing boundaries.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit NumPy stream; supply instead of ssa_sampler.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2399,6 +2443,26 @@ between events and configured forcing boundaries.</p>
         </tr>
       </thead>
       <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a sampler/stream is absent or both are supplied.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng is unsupported or used with non-NumPy state.</p>
+              </div>
+            </td>
+          </tr>
           <tr class="doc-section-item">
             <td>
                   <code><span title="RuntimeError">RuntimeError</span></code>
@@ -2416,33 +2480,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">687</span>
-<span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span>
-<span class="normal">694</span>
-<span class="normal">695</span>
-<span class="normal">696</span>
-<span class="normal">697</span>
-<span class="normal">698</span>
-<span class="normal">699</span>
-<span class="normal">700</span>
-<span class="normal">701</span>
-<span class="normal">702</span>
-<span class="normal">703</span>
-<span class="normal">704</span>
-<span class="normal">705</span>
-<span class="normal">706</span>
-<span class="normal">707</span>
-<span class="normal">708</span>
-<span class="normal">709</span>
-<span class="normal">710</span>
-<span class="normal">711</span>
-<span class="normal">712</span>
-<span class="normal">713</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">713</span>
 <span class="normal">714</span>
 <span class="normal">715</span>
 <span class="normal">716</span>
@@ -2501,12 +2539,48 @@ produces a negative population.</p>
 <span class="normal">769</span>
 <span class="normal">770</span>
 <span class="normal">771</span>
-<span class="normal">772</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span>
+<span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span>
+<span class="normal">783</span>
+<span class="normal">784</span>
+<span class="normal">785</span>
+<span class="normal">786</span>
+<span class="normal">787</span>
+<span class="normal">788</span>
+<span class="normal">789</span>
+<span class="normal">790</span>
+<span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span>
+<span class="normal">794</span>
+<span class="normal">795</span>
+<span class="normal">796</span>
+<span class="normal">797</span>
+<span class="normal">798</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
-    <span class="n">ssa_sampler</span><span class="p">:</span> <span class="n">SSASampler</span><span class="p">,</span>
+    <span class="n">ssa_sampler</span><span class="p">:</span> <span class="n">SSASampler</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">DirectSSAConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Advance an exact reaction trajectory through the core output grid.</span>
 
@@ -2520,11 +2594,20 @@ produces a negative population.</p>
 <span class="sd">            between events and configured forcing boundaries.</span>
 <span class="sd">        ssa_sampler: Backend-specific exponential/categorical sampler.</span>
 <span class="sd">        config: Optional event-count guard and forcing schedule.</span>
+<span class="sd">        rng: Explicit NumPy stream; supply instead of ssa_sampler.</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a sampler/stream is absent or both are supplied.</span>
+<span class="sd">        TypeError: If rng is unsupported or used with non-NumPy state.</span>
 <span class="sd">        RuntimeError: If an interval exceeds its event limit or a reaction</span>
 <span class="sd">            produces a negative population.</span>
-<span class="sd">    """</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - random-source validation is shared</span>
+    <span class="n">ssa_sampler</span> <span class="o">=</span> <span class="n">_select_sampler</span><span class="p">(</span>
+        <span class="n">ssa_sampler</span><span class="p">,</span>
+        <span class="n">rng</span><span class="p">,</span>
+        <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">(),</span>
+        <span class="n">make_sampler</span><span class="o">=</span><span class="k">lambda</span> <span class="n">generator</span><span class="p">:</span> <span class="n">NumpySSASampler</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">generator</span><span class="p">),</span>
+    <span class="p">)</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">DirectSSAConfig</span><span class="p">()</span>
     <span class="n">forcing</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>
@@ -2533,15 +2616,14 @@ produces a negative population.</p>
         <span class="n">message</span><span class="o">=</span><span class="s2">"Initial state is invalid"</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">time_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">time_grid</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-    <span class="n">t</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_grid</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_time_at</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">draw_index</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">pending_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">pending_event_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">absorbing</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">for</span> <span class="n">output_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">n_timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">target</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_grid</span><span class="p">[</span><span class="n">output_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_time_at</span><span class="p">(</span><span class="n">output_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">interval_events</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">while</span> <span class="ow">not</span> <span class="n">absorbing</span> <span class="ow">and</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">target</span><span class="p">:</span>
             <span class="n">boundary</span> <span class="o">=</span> <span class="n">forcing</span><span class="o">.</span><span class="n">next_after</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
@@ -2606,7 +2688,7 @@ produces a negative population.</p>
 
 
 <h3 id="op_engine.stochastic_solver.NumpyPoissonSampler" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">NumpyPoissonSampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">NumpyPoissonSampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.stochastic_solver.NumpyPoissonSampler" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -2647,6 +2729,55 @@ produces a negative population.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Advancing generator or replayable SeedSequence; excludes seed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If both seed and rng are supplied.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng has an unsupported type.</p>
+              </div>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2659,19 +2790,33 @@ produces a negative population.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">176</span>
 <span class="normal">177</span>
 <span class="normal">178</span>
 <span class="normal">179</span>
-<span class="normal">180</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Create a NumPy generator.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        seed: Optional seed passed to :func:`numpy.random.default_rng`.</span>
-<span class="sd">    """</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+<span class="sd">        rng: Advancing generator or replayable SeedSequence; excludes seed.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If both seed and rng are supplied.</span>
+<span class="sd">        TypeError: If rng has an unsupported type.</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - documented errors originate in the shared helper</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">_generator</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -2797,16 +2942,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">191</span>
 <span class="normal">192</span>
 <span class="normal">193</span>
 <span class="normal">194</span>
@@ -2814,7 +2950,16 @@ produces a negative population.</p>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
-<span class="normal">199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Draw Poisson firing counts in the NumPy namespace.</span>
 
 <span class="sd">    Args:</span>
@@ -2851,7 +2996,7 @@ produces a negative population.</p>
 
 
 <h3 id="op_engine.stochastic_solver.NumpySSASampler" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">NumpySSASampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">NumpySSASampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.stochastic_solver.NumpySSASampler" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -2892,6 +3037,55 @@ produces a negative population.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Advancing generator or replayable SeedSequence; excludes seed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If both seed and rng are supplied.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng has an unsupported type.</p>
+              </div>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2904,19 +3098,33 @@ produces a negative population.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Create a NumPy generator.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        seed: Optional seed passed to :func:`numpy.random.default_rng`.</span>
-<span class="sd">    """</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+<span class="sd">        rng: Advancing generator or replayable SeedSequence; excludes seed.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If both seed and rng are supplied.</span>
+<span class="sd">        TypeError: If rng has an unsupported type.</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - documented errors originate in the shared helper</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">_generator</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -3058,23 +3266,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">229</span>
 <span class="normal">230</span>
 <span class="normal">231</span>
 <span class="normal">232</span>
@@ -3097,7 +3289,23 @@ produces a negative population.</p>
 <span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span>
-<span class="normal">252</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">total_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">probabilities</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -3209,8 +3417,8 @@ PRNG ecosystems can derive a distinct key from it without mutable state.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">61</span>
-<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">63</span>
+<span class="normal">64</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">step_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Draw independent Poisson counts with the shape of ``mean``."""</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -3371,14 +3579,14 @@ addresses their flattened representation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">87</span>
-<span class="normal">88</span>
-<span class="normal">89</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">89</span>
 <span class="normal">90</span>
 <span class="normal">91</span>
 <span class="normal">92</span>
 <span class="normal">93</span>
-<span class="normal">94</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">94</span>
+<span class="normal">95</span>
+<span class="normal">96</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">total_rate</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">probabilities</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -3529,9 +3737,7 @@ Leaps end at these boundaries and reevaluate right-continuous rates.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">116</span>
-<span class="normal">117</span>
-<span class="normal">118</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">118</span>
 <span class="normal">119</span>
 <span class="normal">120</span>
 <span class="normal">121</span>
@@ -3548,7 +3754,9 @@ Leaps end at these boundaries and reevaluate right-continuous rates.</p>
 <span class="normal">132</span>
 <span class="normal">133</span>
 <span class="normal">134</span>
-<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate fixed tau controls.</span>
 
 <span class="sd">    Raises:</span>
@@ -3678,24 +3886,24 @@ function returns the same batched shape with <code>n_reactions</code> replacing
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">502</span>
-<span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">stoichiometry</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -3755,7 +3963,7 @@ function returns the same batched shape with <code>n_reactions</code> replacing
 
 
 <h4 id="op_engine.stochastic_solver.TauLeapingSolver.run" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">poisson_sampler</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">run</span><span class="p">(</span><span class="n">propensity_func</span><span class="p">,</span> <span class="n">poisson_sampler</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.stochastic_solver.TauLeapingSolver.run" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -3797,7 +4005,7 @@ function returns the same batched shape with <code>n_reactions</code> replacing
                 <code>poisson_sampler</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="PoissonSampler (op_engine.stochastic_solver.PoissonSampler)" href="#op_engine.stochastic_solver.PoissonSampler">PoissonSampler</a></code>
+                  <code><a class="autorefs autorefs-internal" title="PoissonSampler (op_engine.stochastic_solver.PoissonSampler)" href="#op_engine.stochastic_solver.PoissonSampler">PoissonSampler</a> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3805,7 +4013,7 @@ function returns the same batched shape with <code>n_reactions</code> replacing
               </div>
             </td>
             <td>
-                <em>required</em>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -3828,6 +4036,22 @@ function returns the same batched shape with <code>n_reactions</code> replacing
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rng</code>
+            </td>
+            <td>
+                  <code><span title="op_engine._random_stream.RandomStream">RandomStream</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit NumPy stream; supply instead of poisson_sampler.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -3841,6 +4065,26 @@ function returns the same batched shape with <code>n_reactions</code> replacing
         </tr>
       </thead>
       <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a sampler/stream is absent or both are supplied.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If rng is unsupported or used with non-NumPy state.</p>
+              </div>
+            </td>
+          </tr>
           <tr class="doc-section-item">
             <td>
                   <code><span title="RuntimeError">RuntimeError</span></code>
@@ -3858,23 +4102,7 @@ produces a negative population.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/stochastic_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">594</span>
 <span class="normal">595</span>
 <span class="normal">596</span>
 <span class="normal">597</span>
@@ -3911,12 +4139,39 @@ produces a negative population.</p>
 <span class="normal">628</span>
 <span class="normal">629</span>
 <span class="normal">630</span>
-<span class="normal">631</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">propensity_func</span><span class="p">:</span> <span class="n">PropensityFunction</span><span class="p">,</span>
-    <span class="n">poisson_sampler</span><span class="p">:</span> <span class="n">PoissonSampler</span><span class="p">,</span>
+    <span class="n">poisson_sampler</span><span class="p">:</span> <span class="n">PoissonSampler</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">TauLeapingConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">rng</span><span class="p">:</span> <span class="n">RandomStream</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Advance the reaction network through the core output grid.</span>
 
@@ -3924,11 +4179,20 @@ produces a negative population.</p>
 <span class="sd">        propensity_func: Reaction-channel propensity function.</span>
 <span class="sd">        poisson_sampler: Backend-specific Poisson sampler.</span>
 <span class="sd">        config: Optional fixed-tau controls and forcing schedule.</span>
+<span class="sd">        rng: Explicit NumPy stream; supply instead of poisson_sampler.</span>
 
 <span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If a sampler/stream is absent or both are supplied.</span>
+<span class="sd">        TypeError: If rng is unsupported or used with non-NumPy state.</span>
 <span class="sd">        RuntimeError: If an interval exceeds its step limit or a leap</span>
 <span class="sd">            produces a negative population.</span>
-<span class="sd">    """</span>
+<span class="sd">    """</span>  <span class="c1"># noqa: DOC502 - random-source validation is shared</span>
+    <span class="n">poisson_sampler</span> <span class="o">=</span> <span class="n">_select_sampler</span><span class="p">(</span>
+        <span class="n">poisson_sampler</span><span class="p">,</span>
+        <span class="n">rng</span><span class="p">,</span>
+        <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">(),</span>
+        <span class="n">make_sampler</span><span class="o">=</span><span class="k">lambda</span> <span class="n">generator</span><span class="p">:</span> <span class="n">NumpyPoissonSampler</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">generator</span><span class="p">),</span>
+    <span class="p">)</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">TauLeapingConfig</span><span class="p">()</span>
     <span class="n">forcing</span> <span class="o">=</span> <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">get_current_state</span><span class="p">()</span>
