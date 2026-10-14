@@ -1258,10 +1258,13 @@ the array namespace changes.</p>
 The Array API does not define <code>grad</code>, <code>jit</code>, or traced control flow. A namespace
 such as JAX can nevertheless differentiate the ordinary <code>op_engine</code> methods
 because their fixed-step numerical operations remain in that namespace.
-The optional <code>torch</code> dependency group qualifies representative eager
-fixed-step kernels with PyTorch autograd. Compiler integration and complete
-method qualification remain provider/backend capabilities rather than
-consequences of namespace selection.</p>
+CPU PyTorch tests qualify <code>ModelCore</code> initialization and complete fixed and
+adaptive explicit runs with float32/float64 and optional history, plus a
+representative fixed-step kernel with PyTorch autograd. Configure the dtype
+using NumPy-compatible values such as <code>ModelCoreOptions(dtype=np.float32)</code>;
+<code>ModelCore</code> resolves that dtype in the initial state's namespace. Compiler
+integration and complete method qualification remain provider/backend
+capabilities rather than consequences of namespace selection.</p>
 <h2 id="portable-fixed-step-methods">Portable fixed-step methods<a class="headerlink" href="#portable-fixed-step-methods" title="Permanent link">&para;</a></h2>
 <p>With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX
 (including paired ARK3), and dense linearly implicit methods can be used inside
