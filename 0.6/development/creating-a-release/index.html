@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://accidda.github.io/op_engine/0.6/development/creating-a-release/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../citation-and-archiving/">
       
       
         <link rel="next" href="../fem-assembly-boundary/">
@@ -308,6 +308,62 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citation-and-archiving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation and Archiving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1515,7 +1571,9 @@
 <li>The release version has already been updated everywhere it is declared:</li>
 <li><code>pyproject.toml</code></li>
 <li><code>flepimop2-op_engine/pyproject.toml</code></li>
-<li>Your local environment is synced with a supported Python version.</li>
+<li>Your local environment is synced with a supported complete Python version.</li>
+<li><code>CITATION.cff</code> version, release date and artifact URL match the shared release;
+  attribution and applicable grants have been reviewed.</li>
 <li>You have <a href="https://cli.github.com/">GitHub's <code>gh</code> CLI</a> installed and authenticated if you plan to dispatch workflows from the command line.</li>
 </ul>
 <h2 id="1-confirm-the-shared-version">1. Confirm The Shared Version<a class="headerlink" href="#1-confirm-the-shared-version" title="Permanent link">&para;</a></h2>
@@ -1531,7 +1589,7 @@
 <p>Use the local pre-release target before dispatching the release workflow:</p>
 <pre><code class="language-shell">just release-validate
 </code></pre>
-<p>That command does two things:</p>
+<p>That command validates citation syntax and shared metadata, then:</p>
 <ul>
 <li>Validates that the release version matches in:</li>
 <li><code>pyproject.toml</code></li>
@@ -1600,6 +1658,9 @@
 retain the NumPy/JAX/CPU Torch logs alongside baseline checks. Document GPU
 execution as unqualified unless explicit hardware checks have executed without
 skips. See the <a href="../../guides/backend-qualification/">capability matrix</a>.</p>
+<p>The <a href="../citation-and-archiving/">citation/archive guide</a> records the ACCIDDA
+Zenodo follow-up. Complete readiness evidence before freezing a software-paper
+release, then record its verified version DOI after the deposit resolves.</p>
 
 
 
