@@ -17,7 +17,7 @@ NumPy does not select a different numerical method.
 | `rk4` | 4 | None | Accurate fixed-step non-stiff integration |
 | `dopri5` | 5 (embedded 4) | None | Efficient adaptive non-stiff integration |
 | `imex-euler` | 1 | One implicit-Euler operator factory | Robust first-order split systems |
-| `imex-heun-tr` | 2 | One trapezoidal operator factory | Second-order explicit/implicit splitting |
+| `imex-heun-tr` | 2 | One trapezoidal operator factory | Split-step doubling covers explicit and implicit error |
 | `imex-trbdf2` | 2 | Trapezoidal and BDF2-stage factories | Split systems needing stronger damping |
 | `imex-ark3` | 3 (embedded 2) | One implicit-Euler stage factory | Higher-order adaptive split systems |
 | `implicit-euler` | 1 | Jacobian callable | One-linearization approximation with first-order damping |
@@ -423,6 +423,47 @@ config = RunConfig(
 )
 CoreSolver(core, operator_axis="state").run(reaction, config=config)
 ```
+
+### Adaptive Heun--trapezoidal error control
+
+Set `adaptive=True` and supply a timestep-dependent trapezoidal factory for
+`imex-heun-tr`. Its estimator compares one complete split step `full` with two
+complete half steps `refined`, including their explicit and implicit stages.
+Each factory call receives the actual timestep, stage time and candidate state.
+
+The accepted state remains `full`, with local error estimated by
+`(4/3) * (refined - full)`. For a smooth second-order problem the refinement
+difference has cubic leading order; the timestep controller uses exponent
+`-1/3`. The factor `4/3` estimates the full-step error. A factor `1/3` would
+estimate the error of the two-half-step state instead.
+
+This replaces the old explicit-only low/high difference, which could vanish
+when the explicit RHS was zero even though the implicit time-discretization
+error was nonzero. Adaptive meshes and results can therefore change, including
+for mixed systems. Fixed stepping and replay keep the original full-step
+formula and perform two RHS evaluations and two implicit solves per step.
+Live adaptive estimation performs six of each per attempted step, including
+rejected attempts. Static operator pairs remain supported for uniform fixed
+steps; adaptive runs require a factory so half-step operators are rebuilt.
+
+The required CPU qualification checks pure implicit and mixed scalar decay
+against exact exponentials, cubic estimator scaling, tolerance refinement,
+factory stage contexts and replay equivalence. Structured transport checks
+provide independent matrix-exponential references. These are local truncation
+error estimates, rather than global accuracy bounds. Trapezoidal integration
+also retains its usual lack of L-stability. State-dependent or nonsmooth
+assembly requires an independent convergence check for the actual problem;
+metadata or a successful controller decision does not qualify it.
+
+Step doubling also supplies implicit error estimates in
+[GSL](https://www.gnu.org/software/gsl/doc/html/ode-initval.html).
+An embedded additive pair can reduce estimation cost, as described by
+[ARKODE](https://sundials.readthedocs.io/en/v7.7.0/arkode/Mathematics_link.html),
+but replacing the Heun--trapezoidal stages would change this method's fixed
+and replay behavior. The existing `imex-ark3` provides a separately qualified
+additive-tableau method. Mesh discovery provenance records the Heun--trapezoidal
+estimator and the partitions it covers; see
+[replay provenance](replay-provenance.md).
 
 For a non-uniform axis, pass strictly increasing cell-center coordinates and
 set `dx=None`:

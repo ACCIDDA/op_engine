@@ -34,6 +34,16 @@ control even if the supplied configuration requests tighter tolerances. A
 provider may impose stronger configuration/context checks on its own artifact;
 these core rules do not remove those provider checks.
 
+For `imex-heun-tr`, `provenance.discovery_settings` also records
+`error_estimator="step-doubling: full-step error"`,
+`error_estimator_partitions="explicit,implicit"`, and
+`error_estimator_order="3"`. These describe the producing controller's cubic
+local estimate. They are descriptive fields, rather than replay compatibility
+constraints or accuracy certificates. Older meshes discovered using the
+explicit-only estimator remain replayable with the same accepted full-step
+formula, but should be rediscovered and checked independently before reuse
+where implicit error matters. Replay skips the additional half-step solves.
+
 A practical reuse policy is:
 
 1. Discover a live mesh at a documented nominal parameter regime.

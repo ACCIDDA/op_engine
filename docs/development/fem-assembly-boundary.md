@@ -81,11 +81,15 @@ the result with fixed-step `imex-heun-tr`. Assembly uses SciPy only because the
 example is demonstrating the external sparse boundary; it is not a required
 FEM representation.
 
-The example intentionally uses fixed steps. For pure implicit diffusion,
-Heun--trapezoidal's embedded low/high pair differs only in its explicit term
-and therefore cannot estimate the implicit truncation error. Adaptive FEM runs
-should currently use a method with a suitable estimator, such as TR-BDF2 step
-doubling, or supply and validate a fixed/replayed mesh at a higher layer.
+The example uses fixed steps to demonstrate external assembly. Adaptive
+`imex-heun-tr` now estimates the full split-step error by comparing a complete
+step with two complete half steps, covering pure implicit diffusion as well as
+mixed systems. Supply a timestep-dependent factory that assembles both full-
+and half-step operators. The estimator adds four implicit solves per attempt
+to the original two-stage formula; fixed stepping and replay retain two solves.
+See [solver methods](../guides/solver-methods.md) for the estimator, validation
+and accuracy boundary. Independent refinement remains necessary for the actual
+FEM discretization and for any changed parameter regime used with a frozen mesh.
 
 ## When to reconsider a provider
 
