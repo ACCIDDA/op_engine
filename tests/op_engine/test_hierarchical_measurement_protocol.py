@@ -89,3 +89,19 @@ def test_invalid_case_dimension_is_rejected_before_work() -> None:
     """Malformed fixture dimensions cannot produce meaningless benchmark rows."""
     with pytest.raises(SystemExit):
         main(["--groups", "0"])
+
+
+def test_workers_override_inherited_persistent_compilation_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Inherited disk caches cannot turn cold compilation into cached loading."""
+    monkeypatch.setenv("JAX_ENABLE_COMPILATION_CACHE", "true")
+
+    def worker(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        assert environment["JAX_ENABLE_COMPILATION_CACHE"] == "false"
+        return subprocess.CompletedProcess("worker", 0, '{"status":"success"}', "")
+
+    monkeypatch.setattr(subprocess, "run", worker)
+    assert _isolated(next(_cases(_arguments())), _arguments())["status"] == "success"

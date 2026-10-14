@@ -88,6 +88,7 @@ def _isolated(case: dict[str, object], args: argparse.Namespace) -> dict[str, ob
     environment = os.environ.copy()
     environment.update({
         "JAX_PLATFORMS": "cpu",
+        "JAX_ENABLE_COMPILATION_CACHE": "false",
         "OMP_NUM_THREADS": "1",
         "OPENBLAS_NUM_THREADS": "1",
         "MKL_NUM_THREADS": "1",

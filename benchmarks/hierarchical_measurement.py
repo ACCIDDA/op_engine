@@ -335,6 +335,10 @@ def run_case(args: Namespace) -> dict[str, object]:  # noqa: C901, PLR0912, PLR0
         import jax.numpy as jnp  # noqa: PLC0415
 
         jax.config.update("jax_enable_x64", True)  # noqa: FBT003
+        jax.config.update("jax_enable_compilation_cache", False)  # noqa: FBT003
+        base["persistent_compilation_cache_enabled"] = (
+            jax.config.jax_enable_compilation_cache
+        )
         backend_start = time.perf_counter()
         parameters = jnp.asarray(nominal)
         data = jnp.asarray(data_np)

@@ -93,7 +93,11 @@ reverse agreement and refinement. Failed agreement produces an error row.
 | `versions`, `python`, `hardware`, `provenance`, `numerical_configuration` | Exact packages, CPU/thread settings, commit/dirty flag/content hashes, adjoint/stage/controller/step bounds |
 
 A fresh worker prevents previous cases' compilation/memory caches from becoming
-an advantage. First compiled-transform timing occurs before the postmeasurement
+an advantage. Workers also disable JAX's persistent compilation cache, even if
+the parent configured a cache directory, and report
+`persistent_compilation_cache_enabled: false`. See JAX's
+[cache setting](https://docs.jax.dev/en/latest/config_options.html#enable-compilation-cache).
+First compiled-transform timing occurs before the postmeasurement
 accuracy checks; every result is validated before emission. Warm calls block
 until completed. RSS includes the full worker lifecycle, while XLA buffer
 analysis describes only the selected compiled transform. Concrete reference
