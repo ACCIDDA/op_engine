@@ -678,6 +678,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="IMEX methods and operator factories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-heun-trapezoidal-error-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive Heun--trapezoidal error control
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1551,6 +1568,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="IMEX methods and operator factories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-heun-trapezoidal-error-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive Heun--trapezoidal error control
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1645,7 +1679,7 @@ NumPy does not select a different numerical method.</p>
 <td><code>imex-heun-tr</code></td>
 <td style="text-align: right;">2</td>
 <td>One trapezoidal operator factory</td>
-<td>Second-order explicit/implicit splitting</td>
+<td>Split-step doubling covers explicit and implicit error</td>
 </tr>
 <tr>
 <td><code>imex-trbdf2</code></td>
@@ -2029,6 +2063,41 @@ config = RunConfig(
 )
 CoreSolver(core, operator_axis=&quot;state&quot;).run(reaction, config=config)
 </code></pre>
+<h3 id="adaptive-heun-trapezoidal-error-control">Adaptive Heun--trapezoidal error control<a class="headerlink" href="#adaptive-heun-trapezoidal-error-control" title="Permanent link">&para;</a></h3>
+<p>Set <code>adaptive=True</code> and supply a timestep-dependent trapezoidal factory for
+<code>imex-heun-tr</code>. Its estimator compares one complete split step <code>full</code> with two
+complete half steps <code>refined</code>, including their explicit and implicit stages.
+Each factory call receives the actual timestep, stage time and candidate state.</p>
+<p>The accepted state remains <code>full</code>, with local error estimated by
+<code>(4/3) * (refined - full)</code>. For a smooth second-order problem the refinement
+difference has cubic leading order; the timestep controller uses exponent
+<code>-1/3</code>. The factor <code>4/3</code> estimates the full-step error. A factor <code>1/3</code> would
+estimate the error of the two-half-step state instead.</p>
+<p>This replaces the old explicit-only low/high difference, which could vanish
+when the explicit RHS was zero even though the implicit time-discretization
+error was nonzero. Adaptive meshes and results can therefore change, including
+for mixed systems. Fixed stepping and replay keep the original full-step
+formula and perform two RHS evaluations and two implicit solves per step.
+Live adaptive estimation performs six of each per attempted step, including
+rejected attempts. Static operator pairs remain supported for uniform fixed
+steps; adaptive runs require a factory so half-step operators are rebuilt.</p>
+<p>The required CPU qualification checks pure implicit and mixed scalar decay
+against exact exponentials, cubic estimator scaling, tolerance refinement,
+factory stage contexts and replay equivalence. Structured transport checks
+provide independent matrix-exponential references. These are local truncation
+error estimates, rather than global accuracy bounds. Trapezoidal integration
+also retains its usual lack of L-stability. State-dependent or nonsmooth
+assembly requires an independent convergence check for the actual problem;
+metadata or a successful controller decision does not qualify it.</p>
+<p>Step doubling also supplies implicit error estimates in
+<a href="https://www.gnu.org/software/gsl/doc/html/ode-initval.html">GSL</a>.
+An embedded additive pair can reduce estimation cost, as described by
+<a href="https://sundials.readthedocs.io/en/v7.7.0/arkode/Mathematics_link.html">ARKODE</a>,
+but replacing the Heun--trapezoidal stages would change this method's fixed
+and replay behavior. The existing <code>imex-ark3</code> provides a separately qualified
+additive-tableau method. Mesh discovery provenance records the Heun--trapezoidal
+estimator and the partitions it covers; see
+<a href="../replay-provenance/">replay provenance</a>.</p>
 <p>For a non-uniform axis, pass strictly increasing cell-center coordinates and
 set <code>dx=None</code>:</p>
 <pre><code class="language-python">centers = np.asarray([0.0, 0.08, 0.21, 0.5, 1.0])
