@@ -127,14 +127,43 @@ to the returned state.
 
 Pseudo-transient continuation converges to *a* steady state: started next to
 an unstable one, such as the disease-free state, it can stop there. The `dt`
-schedule holds the step while the residual grows moderately, as it does while
-an epidemic takes off, so a small `dt0` (the default is 1 time unit) lets the
-iterates follow the epidemic to the endemic state. Warm starts from a nearby
+schedule holds the step through bounded residual growth, as it does while
+an epidemic takes off. A small `dt0` (the default is 1 time unit) lets the
+iterates follow the dynamics toward a stable equilibrium. Candidates with
+non-finite states or residuals, or with scaled or unscaled residual growth
+above `max_growth`, are rejected: the previous state and residual are retained,
+and `dt` is halved for the next attempt. Rejections count toward
+`max_iterations`; a smaller `dt0` or a short time integration can provide a
+better starting point if the budget is insufficient. Warm starts from a nearby
 solution converge fastest; raise `dt0` for those.
+
+For compartment populations or concentrations, pass `nonnegative=True` to
+reject negative candidates, including the final Newton correction. A boolean
+mask constrains selected states when the model also contains signed variables:
+
+```python
+result = steady_state(rhs, y0, invariants=totals, nonnegative=True)
+```
+
+This guard is especially useful for fast take-off from a seeded disease-free
+state, where a large pseudo-time step can overshoot into negative populations
+or select the unstable equilibrium. Rejected steps preserve the invariant
+totals; the solver does not clip states. Signs remain unrestricted by default.
+The guard helps follow a physical trajectory but cannot guarantee convergence
+to a particular equilibrium or avoid an iteration limit.
 
 `SteadyStateConfig` collects the controls: `dt0`, `dt_max`, `min_growth`,
 `max_growth`, `max_iterations`, `residual_tol`, `step_tol`, and `atol`. The
 default tolerances assume double precision.
+
+The safeguard retains pseudo-transient continuation for the coupled system.
+[Brent's method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html)
+and [bisection](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.bisect.html)
+need a scalar sign-changing bracket, which a general RHS does not provide.
+The existing curvature-weighted grid utilities are spatial preprocessing tools.
+For background on constraints and step control, see
+[projected pseudo-transient continuation](https://ira.lib.polyu.edu.hk/bitstream/10397/6101/1/Kelley_Projected_Pseudotransient_Continuation.pdf)
+and PETSc's [pseudo-time step verification](https://petsc.org/release/manualpages/TS/TSPseudoSetVerifyTimeStep/).
 
 ## JAX: jit and vmap
 

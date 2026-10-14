@@ -64,13 +64,15 @@ class SteadyStateConfig:
         dt_max: Largest pseudo-time step.
         min_growth: Smallest factor by which ``dt`` grows when the unscaled
             residual did not increase. Without it, a slowly decaying mode
-            barely shrinks the residual and ``dt`` stalls. ``dt`` is held
-            while the residual grows by less than this factor per step, as
-            it does while an epidemic takes off, and shrinks beyond that.
-        max_growth: Largest factor by which ``dt`` grows, or shrinks, in one
-            iteration. Between the two bounds ``dt`` follows the ratio of
-            successive unscaled residual norms (switched evolution
-            relaxation).
+            barely shrinks the residual and ``dt`` stalls.
+        max_growth: Largest factor by which ``dt`` grows in one iteration.
+            While the unscaled residual decreases, ``dt`` follows its ratio
+            between the growth bounds (switched evolution relaxation).
+            Residual growth is allowed through a transient: ``dt`` is held
+            on accepted steps. Candidates whose scaled or unscaled residual
+            exceeds the current one by this factor are rejected, as are
+            non-finite or infeasible candidates. Rejection holds the state
+            and halves ``dt`` for the next attempt.
         max_iterations: Iteration budget; the loop is unrolled this many times
             when ``early_exit`` is false.
         residual_tol: Bound on the RMS of ``rhs / (atol + |y|)`` over the
@@ -149,7 +151,8 @@ class SteadyStateResult:
         residual: ``rhs(t, state)``, zero at fixed states.
         converged: Whether both the residual and the Newton correction met
             their tolerances.
-        iterations: PTC iterations performed before convergence.
+        iterations: PTC attempts performed before convergence, including
+            rejected steps.
         residual_norm: Scaled residual RMS at ``state``.
         step_norm: Scaled RMS of the last Newton correction.
         dt: Final pseudo-time step.
@@ -304,6 +307,21 @@ def _invariant_matrix(invariants: object, n: int, xp: Any, dtype: object) -> Any
     return xp.asarray(rows, dtype=dtype)
 
 
+def _nonnegative_mask(nonnegative: object, n: int) -> np.ndarray:
+    """Return a host boolean mask of states constrained to be non-negative.
+
+    Raises:
+        ValueError: If the input is not a boolean or a length-``n`` boolean mask.
+    """
+    if isinstance(nonnegative, (bool, np.bool_)):
+        return np.full(n, nonnegative, dtype=np.bool_)
+    mask = np.asarray(nonnegative)
+    if mask.dtype != np.bool_ or mask.shape != (n,):
+        msg = f"nonnegative must be a boolean or a boolean mask of shape ({n},)"
+        raise ValueError(msg)
+    return mask
+
+
 def _scaled_rms(values: Any, scale: Any, free: Any, n_free: int, xp: Any) -> Any:  # noqa: ANN401
     """Return the RMS of ``values / scale`` over the unknowns.
 
@@ -315,6 +333,16 @@ def _scaled_rms(values: Any, scale: Any, free: Any, n_free: int, xp: Any) -> Any
     return xp.sqrt(xp.divide(xp.sum(squared), n_free))
 
 
+def _solve_or_nan(matrix: Any, target: Any, xp: Any) -> Any:  # noqa: ANN401
+    """Return a dense solve, or a non-finite step for an eager singular system."""
+    try:
+        return xp.linalg.solve(matrix, target)
+    except np.linalg.LinAlgError:
+        # NumPy raises for singular systems; traced namespaces generally
+        # return non-finite steps. Both paths use the same rejection test.
+        return xp.full_like(target, np.nan)
+
+
 def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
     rhs: SteadyStateRhs,
     y0: Array,
@@ -323,10 +351,18 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
     jacobian: SteadyStateJacobian | None = None,
     fixed: Sequence[int] | Array | None = None,
     invariants: Array | Sequence[Sequence[float]] | None = None,
+    nonnegative: bool | Sequence[bool] | Array = False,
     config: SteadyStateConfig | None = None,
     loop: SteadyStateLoop | None = None,
 ) -> SteadyStateResult:
     """Find a steady state of ``rhs`` near ``y0`` by pseudo-transient continuation.
+
+    Non-finite candidates and excessive residual growth are rejected;
+    the state is held and the pseudo-time step is halved. Use
+    ``nonnegative=True`` for compartment or concentration states, especially
+    during fast take-off from a seeded unstable equilibrium. Rejection
+    preserves invariant totals without clipping. A short time integration
+    can supply a warm start if the iteration budget is insufficient.
 
     Args:
         rhs: ``rhs(t, y) -> dy/dt`` for a one-dimensional state ``y``, such as
@@ -342,6 +378,10 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
             ``W @ y`` the dynamics conserve; held at ``W @ y0``. They are
             setup data, checked on the host, so they must be concrete values
             (not traced inside ``jax.jit``).
+        nonnegative: ``True`` constrains every state to be non-negative;
+            a boolean mask constrains selected states. ``False`` leaves
+            signs unrestricted. Like ``fixed``, this is concrete setup data.
+            The final Newton correction is also checked against the bounds.
         config: Iteration controls.
         loop: Optional ``loop(lower, upper, body, carry)`` driver for the
             iterations, such as ``jax.lax.fori_loop``. Under ``jax.jit`` it
@@ -370,6 +410,7 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
     free_host = _free_mask(fixed, n)
     n_free = int(free_host.sum())
     free = xp.asarray(free_host)
+    bounded = xp.asarray(_nonnegative_mask(nonnegative, n))
     w = _invariant_matrix(invariants, n, xp, dtype)
     k = 0 if w is None else int(w.shape[0])
     totals = None if w is None else xp.matmul(w, y0)
@@ -377,6 +418,7 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
     eye = xp.eye(n, dtype=dtype)
     free_pair = xp.logical_and(xp.reshape(free, (n, 1)), xp.reshape(free, (1, n)))
     inv_dt_max = xp.asarray(1.0 / config.dt_max, dtype=dtype)
+    dt_min = xp.asarray(xp.finfo(dtype).tiny, dtype=dtype)
 
     def masked_rhs(y: Any) -> Any:  # noqa: ANN401
         return xp.where(free, rhs(t, y), xp.zeros_like(y))
@@ -388,17 +430,17 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
             The step ``delta`` for the state.
         """
         matrix = xp.where(free_pair, xp.subtract(xp.multiply(eye, inv_dt), jac), eye)
-        if w is None:
-            return xp.linalg.solve(matrix, value)
-        bordered = xp.concat(
-            (
-                xp.concat((matrix, xp.matrix_transpose(w)), axis=1),
-                xp.concat((w, xp.zeros((k, k), dtype=dtype)), axis=1),
-            ),
-            axis=0,
-        )
-        target = xp.concat((value, xp.subtract(totals, xp.matmul(w, y))))
-        return xp.linalg.solve(bordered, target)[:n]
+        target = value
+        if w is not None:
+            matrix = xp.concat(
+                (
+                    xp.concat((matrix, xp.matrix_transpose(w)), axis=1),
+                    xp.concat((w, xp.zeros((k, k), dtype=dtype)), axis=1),
+                ),
+                axis=0,
+            )
+            target = xp.concat((value, xp.subtract(totals, xp.matmul(w, y))))
+        return _solve_or_nan(matrix, target, xp)[:n]
 
     value0 = masked_rhs(y0)
     scale0 = xp.add(config.atol, xp.abs(y0))
@@ -439,9 +481,33 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
         )
         # A converged iterate takes its Newton correction as a final polish.
         candidate = xp.add(y, xp.where(done_now, newton, ptc))
-        candidate_value = masked_rhs(candidate)
+        feasible = xp.all(xp.logical_or(xp.logical_not(bounded), candidate >= 0))
+        admissible = xp.logical_and(xp.all(xp.isfinite(candidate)), feasible)
+        # RHS callbacks can have a restricted domain. An inadmissible state
+        # is rejected without evaluating the callback outside that domain.
+        candidate_value = masked_rhs(xp.where(admissible, candidate, y))
         candidate_scale = xp.add(config.atol, xp.abs(candidate))
+        candidate_norm = _scaled_rms(candidate_value, candidate_scale, free, n_free, xp)
+        finite = xp.logical_and(
+            xp.all(xp.isfinite(candidate)),
+            xp.logical_and(
+                xp.all(xp.isfinite(candidate_value)), xp.isfinite(candidate_norm)
+            ),
+        )
         candidate_raw = xp.sqrt(xp.mean(xp.multiply(candidate_value, candidate_value)))
+        bounded_growth = xp.logical_and(
+            xp.less_equal(
+                candidate_norm,
+                xp.maximum(
+                    xp.multiply(config.max_growth, residual_norm), config.residual_tol
+                ),
+            ),
+            xp.less_equal(candidate_raw, xp.multiply(config.max_growth, raw_norm)),
+        )
+        accepted = xp.logical_and(
+            xp.logical_and(finite, xp.isfinite(candidate_raw)),
+            xp.logical_and(feasible, bounded_growth),
+        )
         positive = xp.greater(candidate_raw, 0)
         ratio = xp.where(
             positive,
@@ -449,26 +515,29 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
             xp.divide(raw_norm, xp.where(positive, candidate_raw, 1.0)),
             xp.asarray(config.max_growth, dtype=dtype),
         )
-        # Grow while the residual falls; hold through moderate rises, which
-        # ordinary dynamics produce (an epidemic taking off); shrink only when
-        # the residual jumps by more than min_growth in one step.
+        # Grow while the residual falls; hold during transient growth.
+        # An unacceptable candidate never becomes the next state.
         factor = xp.where(
             xp.greater_equal(ratio, 1.0),
             xp.clip(ratio, config.min_growth, config.max_growth),
-            xp.where(
-                xp.greater_equal(ratio, 1.0 / config.min_growth),
-                xp.ones_like(ratio),
-                xp.maximum(ratio, 1.0 / config.max_growth),
-            ),
+            xp.ones_like(ratio),
+        )
+        done_now = xp.logical_and(
+            xp.logical_and(done_now, accepted),
+            xp.less_equal(candidate_norm, config.residual_tol),
         )
         updated: _Carry = (
-            candidate,
-            candidate_value,
-            candidate_scale,
-            _scaled_rms(candidate_value, candidate_scale, free, n_free, xp),
-            candidate_raw,
+            xp.where(accepted, candidate, y),
+            xp.where(accepted, candidate_value, value),
+            xp.where(accepted, candidate_scale, scale),
+            xp.where(accepted, candidate_norm, residual_norm),
+            xp.where(accepted, candidate_raw, raw_norm),
             newton_norm,
-            xp.minimum(xp.multiply(dt, factor), config.dt_max),
+            xp.where(
+                accepted,
+                xp.minimum(xp.multiply(dt, factor), config.dt_max),
+                xp.maximum(xp.multiply(dt, 0.5), dt_min),
+            ),
             xp.logical_or(converged, done_now),
             xp.add(iterations, xp.ones_like(iterations)),
         )
