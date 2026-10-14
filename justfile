@@ -102,8 +102,8 @@ build-test-core:
 	uv pip install --python "${CLEANROOM}/venv/bin/python" -r "${CLEANROOM}/dev-requirements.txt"
 	cp pyproject.toml "${CLEANROOM}/pyproject.toml"
 	cp -R tests "${CLEANROOM}/tests"
+	cp -R scripts "${CLEANROOM}/scripts"
 	cp -R examples "${CLEANROOM}/examples"
-
 	cp -R benchmarks "${CLEANROOM}/benchmarks"
 	cd "${CLEANROOM}"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
@@ -195,3 +195,8 @@ qualify-torch:
     uv sync --dev
     uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu
     uv run --no-sync python scripts/qualify_backend.py torch
+
+
+# Larger serial measurements are opt-in; install the benchmark extra first.
+benchmark-hierarchical *args:
+    uv run --no-sync python -m scripts.benchmark_hierarchical {{args}}
