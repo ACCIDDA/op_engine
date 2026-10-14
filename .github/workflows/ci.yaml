@@ -15,6 +15,26 @@ permissions:
   contents: 'read'
 
 jobs:
+  torch-cpu:
+    name: 'PyTorch CPU (3.12)'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - name: 'Setup uv'
+        uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'pyproject.toml'
+          python-version: '3.12'
+      - name: 'Install test dependencies and CPU PyTorch'
+        run: |
+          uv sync --dev
+          uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu
+      - name: 'Run PyTorch contracts'
+        run: 'uv run --no-sync pytest tests/op_engine/test_array_namespace.py -k torch'
   build-check:
     name: 'Build Check (${{ matrix.python-version }})'
     runs-on: 'ubuntu-latest'

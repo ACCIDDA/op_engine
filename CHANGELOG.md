@@ -5,6 +5,13 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- `ModelCore.set_initial_state` resolves its configured NumPy-compatible dtype
+  in the initial state's array namespace, so native PyTorch tensors work with
+  `CoreSolver.run`. CPU Torch CI covers fixed and adaptive explicit runs,
+  float32/float64, and optional history (#208).
+
 ## [0.6.0] - 2026-10-09
 
 ### Added
