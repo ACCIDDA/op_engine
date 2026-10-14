@@ -43,6 +43,7 @@ def main() -> int:
                 "pytest",
                 "tests/op_engine/test_backend_qualification.py",
                 "tests/op_engine/test_operator_precision.py",
+                "tests/op_engine/test_hierarchical_ode.py",
                 *(
                     ["tests/op_engine/test_array_namespace.py"]
                     if args.backend == "torch"

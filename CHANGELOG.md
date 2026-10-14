@@ -20,6 +20,14 @@ versioning while the project remains pre-1.0.
   parameter/state reuse and compatible manual meshes. A structured analytic
   example demonstrates accuracy-driven refresh outside differentiation (#205).
 
+- A public synthetic hierarchical nonlinear ODE fixture defines shared/local
+  rates and local initial conditions, independent/coupled and nonstiff/stiff
+  regimes, deterministic observations and a hierarchical objective. Independent
+  cell equations and SciPy trajectories qualify NumPy/JAX frozen replay, external
+  public-step scans, forward/reverse gradients, Hessians and a regularized
+  Hessian log-determinant gradient. Small correctness evidence is mandatory;
+  larger comparison measurements remain a separate follow-up (#204).
+
 ### Fixed
 
 - Namespace-aware advection and diffusion builders honor a floating reference
