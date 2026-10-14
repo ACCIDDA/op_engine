@@ -37,6 +37,9 @@ Documentation = "https://accidda.github.io/op_engine/"
 Issues = "https://github.com/ACCIDDA/op_engine/issues"
 
 [project.optional-dependencies]
+benchmark = [
+    "diffrax>=0.7.2",
+]
 cupy = [
     "cupy>=13",
 ]

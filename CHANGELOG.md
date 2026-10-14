@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Opt-in serial hierarchical measurements emit correctness-gated JSON with
+  dimensions, accepted steps, cold tracing/compilation, warm execution, memory
+  and provenance. Matched-mesh comparisons use public native/external loops
+  and supported Diffrax AD; adaptive Tsit5/Kvaerno5 and concrete SciPy/NumPy
+  references are identified separately. Tiny CI comparisons reject failures;
+  timeout records remain censored without fabricated speedups (#204).
+
 - Required NumPy/JAX/CPU Torch solver jobs reject missing or skipped selected
   qualification. A structured trait-coupled model verifies every deterministic
   fixed method against independent matrix-exponential solutions in both

@@ -15,6 +15,38 @@ permissions:
   contents: 'read'
 
 jobs:
+  benchmark-smoke:
+    name: 'Hierarchical comparison correctness (3.12)'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - name: 'Setup uv'
+        uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install optional comparison dependencies explicitly'
+        run: 'uv sync --dev --extra benchmark'
+      - name: 'Check tiny trajectory and reverse-mode comparisons'
+        run: >-
+          uv run --no-sync python -m scripts.benchmark_hierarchical
+          --groups 1 --local-dimensions 1 --steps 4 --solvers core external
+          diffrax-fixed diffrax-adaptive numpy scipy --derivatives trajectory grad-rev
+          --repeats 1 --timeout 180 --require-success --output /tmp/hierarchical-smoke.jsonl
+      - name: 'Check supported Diffrax higher-order configuration'
+        run: >-
+          uv run --no-sync python -m scripts.benchmark_hierarchical
+          --groups 1 --local-dimensions 1 --steps 4 --solvers diffrax-fixed
+          --derivatives hessian logdet-grad --repeats 1 --timeout 180
+          --require-success --output /tmp/hierarchical-higher-order.jsonl
+      - name: 'Retain correctness/protocol evidence'
+        if: 'always()'
+        uses: 'actions/upload-artifact@v7'
+        with:
+          name: 'hierarchical-comparison-correctness'
+          path: '/tmp/hierarchical-*.jsonl'
   backend:
     name: 'Solver qualification (${{ matrix.backend }}, 3.12)'
     runs-on: 'ubuntu-latest'
