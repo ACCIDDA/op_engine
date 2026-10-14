@@ -20,6 +20,12 @@ using NumPy-compatible values such as `ModelCoreOptions(dtype=np.float32)`;
 integration and complete method qualification remain provider/backend
 capabilities rather than consequences of namespace selection.
 
+The namespace-aware `build_advection_matrix` and `build_diffusion_matrix`
+builders use a floating `reference` array's dtype directly, including float32
+when JAX x64 is enabled. Integer references select a floating result so physical
+coefficients are not truncated. Geometry remains static; coefficients can remain
+dynamic for JAX JIT/AD and CPU Torch AD.
+
 ## Portable fixed-step methods
 
 With JAX state, fixed-step Euler, Heun, RK4, Dormand--Prince, dense IMEX

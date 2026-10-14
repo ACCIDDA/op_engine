@@ -7,6 +7,11 @@ versioning while the project remains pre-1.0.
 
 ### Fixed
 
+- Namespace-aware advection and diffusion builders honor a floating reference
+  dtype, avoiding float32 promotion on NumPy and JAX with x64 enabled. Integer
+  references retain floating coefficient construction; stencil and native
+  coefficient derivatives are checked across CPU namespaces (#212).
+
 - `ModelCore.set_initial_state` resolves its configured NumPy-compatible dtype
   in the initial state's array namespace, so native PyTorch tensors work with
   `CoreSolver.run`. CPU Torch CI covers fixed and adaptive explicit runs,
