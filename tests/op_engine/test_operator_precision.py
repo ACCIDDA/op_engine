@@ -2,13 +2,30 @@
 
 from __future__ import annotations
 
-from contextlib import nullcontext
-from typing import Any
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
 
 from op_engine import array_namespace, build_advection_matrix, build_diffusion_matrix
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+
+@contextmanager
+def _precision(backend: str) -> Iterator[None]:
+    if backend == "jax":
+        jax = pytest.importorskip("jax")
+        enable = getattr(jax, "enable_x64", None)
+        if enable is None:
+            enable = jax.experimental.enable_x64
+        with enable():
+            yield
+    else:
+        yield
+
 
 BACKENDS = ("numpy", "jax", "torch")
 STENCILS = {
@@ -39,10 +56,7 @@ def test_floating_reference_selects_operator_precision(
         if backend == "numpy"
         else pytest.importorskip("jax.numpy" if backend == "jax" else "torch")
     )
-    precision = (
-        pytest.importorskip("jax").enable_x64() if backend == "jax" else nullcontext()
-    )
-    with precision:
+    with _precision(backend):
         reference = module.asarray(np.ones((2, 3, 3), dtype=dtype))
         result = BUILDERS[kind](3, 1.0, 0.4, bc="reflecting", reference=reference)
         assert result.dtype == reference.dtype
@@ -59,10 +73,7 @@ def test_reference_precision_preserves_dynamic_coefficient_derivatives(
 ) -> None:
     """Coefficient derivatives match the known stencil's quadratic objective."""
     module = pytest.importorskip("jax.numpy" if backend == "jax" else "torch")
-    precision = (
-        pytest.importorskip("jax").enable_x64() if backend == "jax" else nullcontext()
-    )
-    with precision:
+    with _precision(backend):
         reference = module.asarray(np.ones(3, dtype=dtype))
         coefficient = module.asarray(np.asarray(0.4, dtype=dtype))
 
