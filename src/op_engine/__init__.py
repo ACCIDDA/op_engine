@@ -9,6 +9,7 @@ from ._typing import Array as Array
 from ._typing import Scalar as Scalar
 from .adaptive_tau import AdaptiveTauLeapingConfig, AdaptiveTauLeapingSolver
 from .core_solver import (
+    AdaptiveScheduleProvenance,
     CoreSolver,
     NonlinearIntegrationConvergenceError,
     NonlinearIntegrationDiagnostics,
@@ -88,6 +89,7 @@ from .thinning_ssa import (
 )
 
 __all__ = [
+    "AdaptiveScheduleProvenance",
     "AdaptiveTauLeapingConfig",
     "AdaptiveTauLeapingSolver",
     "Array",

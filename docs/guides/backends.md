@@ -65,8 +65,11 @@ The resulting derivative is conditional on the recorded mesh. This is also the
 branchwise meaning of an eager live-adaptive gradient: neither mode differentiates
 the discrete accept/reject decision. Refresh the schedule as optimization
 parameters move, and always refresh it after a material model or tolerance
-change. A schedule is validated against the output grid, while matching the
-method and other configuration is the caller's responsibility.
+change. A recorded schedule checks producing method, state layout, relevant kernel
+configuration, and optional structural model identity before replay. Backend,
+dtype and fitted values can change; manually constructed meshes remain
+unverified unless provenance is required. See the
+[replay contract and refresh example](replay-provenance.md).
 
 Core schedule replay retains the eager Python loop by default. Select
 `RunConfig(replay_loop="auto")` to use a namespace's registered scan driver,

@@ -14,6 +14,12 @@ versioning while the project remains pre-1.0.
   The capability matrix separates method, loop, sparse, and hardware evidence
   and documents matching `just qualify` commands (#206).
 
+- Live adaptive schedules carry lightweight method/layout/kernel provenance and
+  descriptive discovery controls, namespace, precision and caller regime labels.
+  Replay rejects known structural mismatches while retaining portable dynamic
+  parameter/state reuse and compatible manual meshes. A structured analytic
+  example demonstrates accuracy-driven refresh outside differentiation (#205).
+
 ### Fixed
 
 - Namespace-aware advection and diffusion builders honor a floating reference
