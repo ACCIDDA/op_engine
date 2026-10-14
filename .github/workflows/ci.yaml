@@ -89,6 +89,34 @@ jobs:
         run: "uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu"
       - name: 'Run selected backend without skipped qualification'
         run: 'uv run --no-sync python scripts/qualify_backend.py ${{ matrix.backend }}'
+  compiler-observations:
+    name: 'Compiler observations (${{ matrix.backend }}, 3.12)'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        backend: ['numpy', 'jax', 'torch']
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - name: 'Setup uv'
+        uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install core development dependencies'
+        run: 'uv sync --dev'
+      - name: 'Install required CPU Torch'
+        if: "matrix.backend == 'torch'"
+        run: "uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu"
+      - name: 'Install immutable merged compiler contract'
+        run: >-
+          uv pip install
+          'op-system @ git+https://github.com/ACCIDDA/op_system.git@0becde52474b48fef6b6f3c42a344498a17552a8'
+      - name: 'Check two-mesh values and native derivatives without selected skips'
+        run: >-
+          uv run --no-sync python scripts/qualify_backend.py
+          ${{ matrix.backend }} --compiler-contract
   build-check:
     name: 'Build Check (${{ matrix.python-version }})'
     runs-on: 'ubuntu-latest'

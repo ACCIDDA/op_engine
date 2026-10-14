@@ -7,6 +7,26 @@ failure. Ordinary optional skips in baseline tests are separate evidence.
 Provider integration tests run separately; provider success cannot substitute
 for these core contracts.
 
+The same required backend runner includes native [stored-time observations](observations.md).
+Independent scalar/field values and error contracts run with NumPy; JAX JIT/vmap
+and initial-state/observation-parameter gradients run in float64; CPU Torch
+gradients run in float64 and float32. Each callback must preserve state namespace,
+dtype and its declared output shape.
+
+Separate required `Compiler observations (numpy|jax|torch, 3.12)` jobs install
+op_system's merged observation contract at immutable commit
+`0becde52474b48fef6b6f3c42a344498a17552a8`, then run
+`scripts/qualify_backend.py BACKEND --compiler-contract`. These reject absent
+backends, selected skips and empty selection as well. A cell-average linear
+density on two meshes gives the same physical integral and sample at a shared
+declared coordinate after fixed RK4 integration. JAX JIT/AD and CPU Torch AD
+check state, dynamic-rate and observation-only gain derivatives against analytic
+exponentials. The fixture uses float64 and fixed output/substep grids; live
+adaptive gradients, mesh derivatives and arbitrary callbacks are not qualified
+by it. `just qualify` includes these compiler checks after the core CPU matrix.
+`just qualify-observations` assumes those namespaces are already installed.
+The pinned compiler is a development/CI contract, not a core runtime dependency.
+
 ## Method and execution matrix
 
 The table describes the small required structured workload, not all possible
