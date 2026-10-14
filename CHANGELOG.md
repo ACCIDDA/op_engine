@@ -42,6 +42,14 @@ versioning while the project remains pre-1.0.
 
 ### Fixed
 
+- Adaptive `imex-heun-tr` uses complete split-step doubling to estimate explicit
+  and implicit local error, including pure implicit decay. It retains the
+  accepted full step, scales its cubic estimate by `4/3`, and records estimator
+  coverage in discovery provenance. Adaptive trajectories can change and pay
+  for six stage solves per attempt; fixed stepping and replay keep their
+  original two-stage formula and cost. Legacy meshes remain replayable but need
+  independent accuracy validation or rediscovery (#227).
+
 - Namespace-aware advection and diffusion builders honor a floating reference
   dtype, avoiding float32 promotion on NumPy and JAX with x64 enabled. Integer
   references retain floating coefficient construction; stencil and native

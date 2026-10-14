@@ -18,8 +18,7 @@ Supported methods (keyword `method=`):
     - "imex-euler":   IMEX Euler: explicit Euler on F(t,y), implicit Euler on A.
                       Adaptive via step-doubling (IMEX step-doubling).
     - "imex-heun-tr": IMEX Heun-Trapezoidal: Heun on F, trapezoidal/CN on A.
-                      Adaptive via embedded low/high (Euler vs Heun) mapped by the
-                      same implicit operator solve.
+                      Adaptive via step-doubling of the complete split step.
     - "imex-trbdf2":  IMEX TR-BDF2 (order 2), adaptive via step-doubling.
     - "imex-ark3":    ARS(4,4,3) additive Runge--Kutta with embedded order 2.
     - "implicit-euler": One-linearization Euler approximation (order 1).
@@ -1220,6 +1219,12 @@ class CoreSolver:
                 )
             ),
         )
+        if plan.method == "imex-heun-tr":
+            settings += (
+                ("error_estimator", "step-doubling: full-step error"),
+                ("error_estimator_partitions", "explicit,implicit"),
+                ("error_estimator_order", "3"),
+            )
         nonlinear: tuple[str, ...] = ()
         if plan.method == "sdirk2" and plan.nonlinear is not None:
             solver = plan.nonlinear.solver
@@ -2127,7 +2132,80 @@ class CoreSolver:
             weighted_sum=self._weighted_array_state,
         )
 
-    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914, PLR0915
+    def _imex_heun_tr_array_once(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        op_spec: CoreOperators | StageOperatorFactory | None,
+        t: float,
+        dt: float,
+        y: Array,
+    ) -> Array:
+        """Take one complete Heun--trapezoidal step without estimating error.
+
+        Returns:
+            Full-step state in the input namespace.
+        """
+        xp = _namespace_of(y)
+        f_n = self._rhs_array(rhs_func, t, y)
+        low_increment = cast("Array", xp.multiply(f_n, dt))
+        state_pred = cast("Array", xp.add(y, low_increment))
+        y_low = self._apply_additive_implicit_array(
+            op_spec,
+            dt=dt,
+            scale=1.0,
+            t_stage=t + dt,
+            y_stage=state_pred,
+            stage="tr-predictor",
+            base=y,
+            addition=low_increment,
+        )
+        f_pred = self._rhs_array(rhs_func, t + dt, y_low)
+        high_increment = cast("Array", xp.multiply(xp.add(f_n, f_pred), 0.5 * dt))
+        return self._apply_additive_implicit_array(
+            op_spec,
+            dt=dt,
+            scale=1.0,
+            t_stage=t + dt,
+            y_stage=y_low,
+            stage="tr",
+            base=y,
+            addition=high_increment,
+        )
+
+    def _attempt_imex_heun_tr_array_step(  # noqa: PLR0913
+        self,
+        rhs_func: RHSFunction,
+        *,
+        op_spec: CoreOperators | StageOperatorFactory | None,
+        t: float,
+        dt: float,
+        y: Array,
+        estimate_error: bool,
+    ) -> tuple[Array, Array]:
+        """Estimate the full-step error from complete split-step refinement.
+
+        Returns:
+            Full-step state and cubic local error estimate (zero when unused).
+        """
+        xp = _namespace_of(y)
+        y_high = self._imex_heun_tr_array_once(
+            rhs_func, op_spec=op_spec, t=t, dt=dt, y=y
+        )
+        if not estimate_error:
+            return y_high, cast("Array", xp.zeros_like(y_high))
+        y_half = self._imex_heun_tr_array_once(
+            rhs_func, op_spec=op_spec, t=t, dt=0.5 * dt, y=y
+        )
+        y_two_half = self._imex_heun_tr_array_once(
+            rhs_func, op_spec=op_spec, t=t + 0.5 * dt, dt=0.5 * dt, y=y_half
+        )
+        # The accepted state is the full step: its leading local error is
+        # 4/3 of the refinement difference, rather than the fine-step 1/3.
+        error = cast("Array", xp.multiply(xp.subtract(y_two_half, y_high), 4.0 / 3.0))
+        return y_high, error
+
+    def _attempt_array_implicit_step(  # noqa: C901, PLR0911, PLR0913, PLR0914
         self,
         rhs_func: RHSFunction,
         *,
@@ -2136,6 +2214,7 @@ class CoreSolver:
         dt: float,
         y: Array,
         history: tuple[Array, ...] = (),
+        estimate_error: bool = True,
     ) -> tuple[Array, Array, int]:
         """Attempt any implicit/IMEX method with functional array operations.
 
@@ -2192,35 +2271,15 @@ class CoreSolver:
             return y_two_half, error, 1
 
         if plan.method == "imex-heun-tr":
-            f_n = self._rhs_array(rhs_func, t, y)
-            low_increment = cast("Array", xp.multiply(f_n, dt))
-            state_pred = cast("Array", xp.add(y, low_increment))
-            y_low = self._apply_additive_implicit_array(
-                plan.op_default,
+            y_high, error = self._attempt_imex_heun_tr_array_step(
+                rhs_func,
+                op_spec=plan.op_default,
+                t=t,
                 dt=dt,
-                scale=1.0,
-                t_stage=t + dt,
-                y_stage=state_pred,
-                stage="tr-predictor",
-                base=y,
-                addition=low_increment,
+                y=y,
+                estimate_error=estimate_error,
             )
-            f_pred = self._rhs_array(rhs_func, t + dt, y_low)
-            high_increment = cast(
-                "Array",
-                xp.multiply(xp.add(f_n, f_pred), 0.5 * dt),
-            )
-            y_high = self._apply_additive_implicit_array(
-                plan.op_default,
-                dt=dt,
-                scale=1.0,
-                t_stage=t + dt,
-                y_stage=y_low,
-                stage="tr",
-                base=y,
-                addition=high_increment,
-            )
-            return y_high, cast("Array", xp.subtract(y_high, y_low)), 2
+            return y_high, error, 2
 
         if plan.method == "imex-trbdf2":
             if plan.gamma is None:
@@ -3337,26 +3396,21 @@ class CoreSolver:
         np.copyto(step.out, self._y_two_half)
         return 1
 
-    def _step_imex_heun_tr(
+    def _imex_heun_tr_step_once(
         self,
         rhs_func: RHSFunction,
         *,
         step: StepIO,
         op_spec: CoreOperators | StageOperatorFactory | None,
-    ) -> int:
-        """
-        IMEX Heun-Trapezoidal step with embedded low/high estimate.
+    ) -> None:
+        """One complete Heun--trapezoidal step without estimating error.
 
         Args:
             rhs_func: RHS function.
             step: Step bundle.
             op_spec: Implicit stage operator spec.
 
-        Returns:
-            Method order (2).
         """
-        err_out = self._require_err_out(step)
-
         self._rhs_into(self._f_n, rhs_func, step.t, step.y)
 
         np.multiply(self._f_n, step.dt, out=self._state_pred)
@@ -3389,7 +3443,38 @@ class CoreSolver:
             out=step.out,
         )
 
-        np.subtract(step.out, self._y_low, out=err_out)
+    def _step_imex_heun_tr(
+        self,
+        rhs_func: RHSFunction,
+        *,
+        step: StepIO,
+        op_spec: CoreOperators | StageOperatorFactory | None,
+        estimate_error: bool = True,
+    ) -> int:
+        """Estimate full-step error by doubling the complete split formula.
+
+        Fixed stepping and replay retain the full step and skip refinement.
+
+        Returns:
+            Controller order (2) for the cubic local error estimate.
+        """
+        self._imex_heun_tr_step_once(rhs_func, step=step, op_spec=op_spec)
+        if not estimate_error:
+            return 2
+        err_out = self._require_err_out(step)
+        dt2 = 0.5 * step.dt
+        self._imex_heun_tr_step_once(
+            rhs_func,
+            step=StepIO(t=step.t, dt=dt2, y=step.y, out=self._y_half),
+            op_spec=op_spec,
+        )
+        self._imex_heun_tr_step_once(
+            rhs_func,
+            step=StepIO(t=step.t + dt2, dt=dt2, y=self._y_half, out=self._y_two_half),
+            op_spec=op_spec,
+        )
+        np.subtract(self._y_two_half, step.out, out=err_out)
+        err_out *= 4.0 / 3.0
         return 2
 
     def _trbdf2_step_once(
@@ -3793,6 +3878,7 @@ class CoreSolver:
         *,
         plan: RunPlan,
         step: StepIO,
+        estimate_error: bool = True,
     ) -> int:
         """
         Dispatch a single attempted step and return the method order.
@@ -3801,6 +3887,8 @@ class CoreSolver:
             rhs_func: RHS function.
             plan: Run plan.
             step: Step bundle.
+            estimate_error: Whether to refine Heun--trapezoidal for error control.
+                Other methods retain their existing attempt kernels.
 
         Returns:
             Method order.
@@ -3819,6 +3907,7 @@ class CoreSolver:
                 rhs_func,
                 step=step,
                 op_spec=plan.op_default,
+                estimate_error=estimate_error,
             )
         linearized_step = self._LINEARIZED_STEP_FUNCTIONS.get(plan.method)
         if linearized_step is not None:
@@ -4132,6 +4221,7 @@ class CoreSolver:
                     dt=t1 - t0,
                     y=current_state,
                     history=history.states,
+                    estimate_error=False,
                 )
 
             history = history.push(current_state)
@@ -4176,7 +4266,7 @@ class CoreSolver:
             err_out=self._err,
             history=history,
         )
-        _ = self._attempt_step(rhs_func, plan=plan, step=step)
+        _ = self._attempt_step(rhs_func, plan=plan, step=step, estimate_error=False)
         return self._y_try
 
     def _advance_adaptive_to_time(
@@ -4644,6 +4734,7 @@ class CoreSolver:
                     t=t,
                     dt=dt,
                     y=state,
+                    estimate_error=False,
                 )
                 t += dt
             self.core.advance_timestep(state)
@@ -4680,7 +4771,7 @@ class CoreSolver:
                     out=self._y_try,
                     err_out=self._err,
                 )
-                self._attempt_step(rhs_func, plan=plan, step=step)
+                self._attempt_step(rhs_func, plan=plan, step=step, estimate_error=False)
                 self._y_curr, self._y_try = self._y_try, self._y_curr
                 t += dt
             self.core.advance_timestep(self._y_curr)
@@ -4747,6 +4838,7 @@ class CoreSolver:
                 t=time,
                 dt=dt,
                 y=state,
+                estimate_error=False,
             )
             return (state, None), state
 

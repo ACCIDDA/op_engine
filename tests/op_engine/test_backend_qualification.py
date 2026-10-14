@@ -28,11 +28,14 @@ from op_engine.core_solver import (
     OperatorSpecs,
     RHSFunction,
     RunConfig,
+    StepIO,
 )
 from op_engine.model_core import ModelCoreOptions
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from op_engine.matrix_ops import StageOperatorContext
 
 BACKENDS = ("numpy", "jax", "torch")
 METHODS = (
@@ -250,6 +253,179 @@ def test_structured_live_and_portable_replay(
             rtol=3e-6,
             atol=2e-6,
         )
+
+
+def _heun_tr_decay_case(
+    module: Any,  # noqa: ANN401
+    explicit_rate: float,
+    *,
+    tolerance: float,
+) -> tuple[CoreSolver, RHSFunction, RunConfig, list[tuple[float, float, str]]]:
+    """Build y' = (-2 + explicit_rate)*y with an independent exponential solution.
+
+    Returns:
+        Solver, RHS, configuration and eager operator factory observations.
+    """
+    core = ModelCore(1, 1, np.asarray([0.0, 1.0]))
+    core.set_initial_state(module.asarray([[1.0]], dtype=module.float64))
+    state = core.get_current_state()
+    xp = array_namespace(state)
+    events: list[tuple[float, float, str]] = []
+
+    def rhs(_time: object, value: Array) -> Array:
+        return cast("Array", xp.multiply(value, explicit_rate))
+
+    def factory(
+        dt: float, scale: float, context: StageOperatorContext
+    ) -> tuple[Array, Array]:
+        events.append((dt, context.t, context.stage))
+        identity = xp.eye(1, dtype=state.dtype)
+        # A=-2, so L=I-h*A/2 and R=I+h*A/2.
+        return (
+            cast("Array", xp.multiply(identity, 1.0 + dt * scale)),
+            cast("Array", xp.multiply(identity, 1.0 - dt * scale)),
+        )
+
+    config = RunConfig(
+        method="imex-heun-tr",
+        adaptive=True,
+        operators=OperatorSpecs(default=factory),
+        adaptive_cfg=AdaptiveConfig(rtol=tolerance, atol=tolerance * 1e-3, dt_init=1.0),
+    )
+    return CoreSolver(core), rhs, config, events
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("explicit_rate", [0.0, -0.3])
+def test_heun_tr_estimator_covers_both_partitions(
+    backend: str, explicit_rate: float
+) -> None:
+    """The cubic estimate approaches the full-step error, including when F=0."""
+    with _precision(backend):
+        solver, rhs, config, events = _heun_tr_decay_case(
+            _module(backend), explicit_rate, tolerance=1e-3
+        )
+        state = solver.core.get_current_state()
+        plan = solver._resolve_run_plan(config)  # noqa: SLF001
+        errors = []
+        for dt in (0.05, 0.025):
+            events.clear()
+            if backend == "numpy":
+                high = np.empty_like(state)
+                error = np.empty_like(state)
+                controller_order = solver._attempt_step(  # noqa: SLF001
+                    rhs,
+                    plan=plan,
+                    step=StepIO(t=0.0, dt=dt, y=state, out=high, err_out=error),
+                )
+            else:
+                high, error, controller_order = solver._attempt_array_implicit_step(  # noqa: SLF001
+                    rhs, plan=plan, t=0.0, dt=dt, y=state
+                )
+            actual_error = abs(
+                float(_host(high)[0, 0]) - np.exp((-2 + explicit_rate) * dt)
+            )
+            estimated_error = abs(float(_host(error)[0, 0]))
+            assert estimated_error > 0
+            assert estimated_error / actual_error == pytest.approx(1.0, rel=0.06)
+            assert controller_order == 2
+            assert high.dtype == state.dtype
+            assert array_namespace(high) is array_namespace(state)
+            assert error.dtype == state.dtype
+            assert array_namespace(error) is array_namespace(state)
+            assert events == [
+                (dt, dt, "tr-predictor"),
+                (dt, dt, "tr"),
+                (dt / 2, dt / 2, "tr-predictor"),
+                (dt / 2, dt / 2, "tr"),
+                (dt / 2, dt, "tr-predictor"),
+                (dt / 2, dt, "tr"),
+            ]
+            if explicit_rate == 0:
+                assert float(_host(high)[0, 0]) == pytest.approx((1 - dt) / (1 + dt))
+            errors.append(estimated_error)
+        assert errors[0] / errors[1] == pytest.approx(8.0, rel=0.1)
+        np.testing.assert_array_equal(_host(state), [[1.0]])
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("explicit_rate", [0.0, -0.3])
+def test_heun_tr_tolerance_refinement_and_replay(
+    backend: str, explicit_rate: float
+) -> None:
+    """Tighter tolerance improves independent accuracy; replay skips refinement."""
+    with _precision(backend):
+        module = _module(backend)
+        errors = []
+        counts = []
+        for tolerance in (1e-3, 1e-6):
+            solver, rhs, config, _events = _heun_tr_decay_case(
+                module, explicit_rate, tolerance=tolerance
+            )
+            solver.run(rhs, config=config)
+            schedule = solver.last_adaptive_schedule
+            assert schedule is not None
+            assert schedule.provenance is not None
+            discovery = dict(schedule.provenance.discovery_settings)
+            assert discovery["error_estimator"] == "step-doubling: full-step error"
+            assert discovery["error_estimator_partitions"] == "explicit,implicit"
+            assert discovery["error_estimator_order"] == "3"
+            counts.append(sum(map(len, schedule.step_sizes)))
+            errors.append(
+                abs(
+                    float(_host(solver.core.get_current_state())[0, 0])
+                    - np.exp(-2 + explicit_rate)
+                )
+            )
+            replay, replay_rhs, replay_config, events = _heun_tr_decay_case(
+                module, explicit_rate, tolerance=tolerance
+            )
+            replay.replay_adaptive_schedule(
+                replay_rhs,
+                schedule,
+                config=replace(replay_config, replay_loop="unroll"),
+            )
+            assert len(events) == 2 * counts[-1]
+            np.testing.assert_array_equal(
+                _host(replay.core.get_current_state()),
+                _host(solver.core.get_current_state()),
+            )
+        assert counts[1] > counts[0]
+        assert errors[1] < 0.04 * errors[0]
+        assert errors[1] < 5e-5
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_heun_tr_fixed_static_operator_retains_original_step(backend: str) -> None:
+    """Fixed static pairs retain one trapezoidal step, without half-step solves."""
+    with _precision(backend):
+        fixed, fixed_rhs, fixed_config, fixed_events = _heun_tr_decay_case(
+            _module(backend), 0.0, tolerance=1e-3
+        )
+        fixed.run(fixed_rhs, config=replace(fixed_config, adaptive=False))
+        assert fixed_events == [(1.0, 1.0, "tr-predictor"), (1.0, 1.0, "tr")]
+        np.testing.assert_array_equal(_host(fixed.core.get_current_state()), [[0.0]])
+        solver, rhs, config, events = _heun_tr_decay_case(
+            _module(backend), 0.0, tolerance=1e-3
+        )
+        state = solver.core.get_current_state()
+        xp = array_namespace(state)
+        # One h=1 step for y'=-2y yields zero, whereas two half steps yield 1/9.
+        solver.run(
+            rhs,
+            config=replace(
+                config,
+                adaptive=False,
+                operators=OperatorSpecs(
+                    default=(
+                        cast("Array", 2 * xp.eye(1, dtype=state.dtype)),
+                        cast("Array", xp.zeros((1, 1), dtype=state.dtype)),
+                    )
+                ),
+            ),
+        )
+        np.testing.assert_array_equal(_host(solver.core.get_current_state()), [[0.0]])
+        assert events == []
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
