@@ -55,7 +55,9 @@ jobs:
           python-version: '3.12'
       - name: 'Validate shared package version'
         id: validate-version
-        run: 'uv run python scripts/release_validate.py --github-output "${GITHUB_OUTPUT}"'
+        run: |
+          uv run python scripts/release_validate.py --github-output "${GITHUB_OUTPUT}"
+          just citation
       - name: 'Run release build validation'
         run: 'just build-all'
         env:

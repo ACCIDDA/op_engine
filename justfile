@@ -72,6 +72,7 @@ ci:
 	just provider-sync
 	just pytest
 	just mypy
+	just citation
 
 
 # -------------------------------------------------
@@ -151,7 +152,7 @@ build-all: build-all-core build-all-provider
 release-check:
 	uv run python scripts/release_validate.py
 
-release-validate: release-check build-all
+release-validate: citation release-check build-all
 
 
 # -------------------------------------------------
@@ -200,3 +201,8 @@ qualify-torch:
 # Larger serial measurements are opt-in; install the benchmark extra first.
 benchmark-hierarchical *args:
     uv run --no-sync python -m scripts.benchmark_hierarchical {{args}}
+
+# CFF tools remain isolated from the core/provider runtime environments.
+citation:
+    uvx --python 3.12 --from cffconvert==2.0.0 cffconvert --validate
+    uv run scripts/citation_metadata.py

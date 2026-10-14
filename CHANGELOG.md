@@ -14,6 +14,11 @@ versioning while the project remains pre-1.0.
   references are identified separately. Tiny CI comparisons reject failures;
   timeout records remain censored without fabricated speedups (#204).
 
+- Contributor and citation guidance documents clean core/provider setup, focused
+  submissions, required CPU qualification and optional measurements/hardware,
+  shared releases and support. CFF syntax and release attribution/version/grant
+  alignment are validated locally, in CI and before releases (#207).
+
 - Required NumPy/JAX/CPU Torch solver jobs reject missing or skipped selected
   qualification. A structured trait-coupled model verifies every deterministic
   fixed method against independent matrix-exponential solutions in both
