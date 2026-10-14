@@ -129,3 +129,8 @@ Because this repository publishes two distributions from one workflow, the same 
 ## 6. Package Metadata
 
 Published package metadata must use registry-compatible dependencies. The provider package must not declare direct URL dependencies, because PyPI rejects distributions that require them.
+
+Required CPU qualification is a separate release gate: run `just qualify` and
+retain the NumPy/JAX/CPU Torch logs alongside baseline checks. Document GPU
+execution as unqualified unless explicit hardware checks have executed without
+skips. See the [capability matrix](../guides/backend-qualification.md).

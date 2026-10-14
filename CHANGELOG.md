@@ -5,6 +5,15 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Required NumPy/JAX/CPU Torch solver jobs reject missing or skipped selected
+  qualification. A structured trait-coupled model verifies every deterministic
+  fixed method against independent matrix-exponential solutions in both
+  precisions, with representative adaptive/replay and native AD contracts.
+  The capability matrix separates method, loop, sparse, and hardware evidence
+  and documents matching `just qualify` commands (#206).
+
 ### Fixed
 
 - Namespace-aware advection and diffusion builders honor a floating reference
