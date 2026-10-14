@@ -11,6 +11,12 @@ versioning while the project remains pre-1.0.
   in the initial state's array namespace, so native PyTorch tensors work with
   `CoreSolver.run`. CPU Torch CI covers fixed and adaptive explicit runs,
   float32/float64, and optional history (#208).
+- `steady_state` rejects non-finite steps and excessive residual growth,
+  retaining the previous state and halving the pseudo-time step. Accepted
+  transient growth holds the step instead of repeatedly shrinking it.
+  Optional `nonnegative=True` or a boolean mask rejects negative candidates,
+  including the final Newton correction, without clipping conserved totals.
+  Seeded fast take-off is covered in eager and JAX jit/vmap solves (#209).
 
 ## [0.6.0] - 2026-10-09
 
