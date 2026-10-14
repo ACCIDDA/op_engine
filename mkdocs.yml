@@ -61,6 +61,8 @@ nav:
       - Replay Provenance: guides/replay-provenance.md
 
       - Hierarchical ODE Evidence: guides/hierarchical-ode.md
+
+      - Hierarchical Measurements: guides/hierarchical-measurements.md
       - Backend Strategies: guides/backends.md
   - API Reference:
       - Adaptive Tau: api-reference/adaptive_tau.md
