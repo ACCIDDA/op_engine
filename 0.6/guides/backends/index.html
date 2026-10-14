@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://accidda.github.io/op_engine/0.6/guides/backends/">
       
       
-        <link rel="prev" href="../backend-qualification/">
+        <link rel="prev" href="../replay-provenance/">
       
       
         <link rel="next" href="../../api-reference/adaptive_tau/">
@@ -703,6 +703,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../replay-provenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replay Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1330,8 +1358,11 @@ initial state, dense operators, and Jacobians remain dynamic.</p>
 branchwise meaning of an eager live-adaptive gradient: neither mode differentiates
 the discrete accept/reject decision. Refresh the schedule as optimization
 parameters move, and always refresh it after a material model or tolerance
-change. A schedule is validated against the output grid, while matching the
-method and other configuration is the caller's responsibility.</p>
+change. A recorded schedule checks producing method, state layout, relevant kernel
+configuration, and optional structural model identity before replay. Backend,
+dtype and fitted values can change; manually constructed meshes remain
+unverified unless provenance is required. See the
+<a href="../replay-provenance/">replay contract and refresh example</a>.</p>
 <p>Core schedule replay retains the eager Python loop by default. Select
 <code>RunConfig(replay_loop="auto")</code> to use a namespace's registered scan driver,
 or <code>replay_loop="scan"</code> to require one. JAX supplies <code>lax.scan</code>; NumPy,
