@@ -12,10 +12,13 @@ Namespace portability and automatic differentiation are related but distinct.
 The Array API does not define `grad`, `jit`, or traced control flow. A namespace
 such as JAX can nevertheless differentiate the ordinary `op_engine` methods
 because their fixed-step numerical operations remain in that namespace.
-The optional `torch` dependency group qualifies representative eager
-fixed-step kernels with PyTorch autograd. Compiler integration and complete
-method qualification remain provider/backend capabilities rather than
-consequences of namespace selection.
+CPU PyTorch tests qualify `ModelCore` initialization and complete fixed and
+adaptive explicit runs with float32/float64 and optional history, plus a
+representative fixed-step kernel with PyTorch autograd. Configure the dtype
+using NumPy-compatible values such as `ModelCoreOptions(dtype=np.float32)`;
+`ModelCore` resolves that dtype in the initial state's namespace. Compiler
+integration and complete method qualification remain provider/backend
+capabilities rather than consequences of namespace selection.
 
 ## Portable fixed-step methods
 

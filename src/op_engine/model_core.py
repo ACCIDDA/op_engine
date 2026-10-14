@@ -87,7 +87,8 @@ class ModelCoreOptions:
             This is metadata only and enables non-uniform grids and
             FV/FDM operator builders.
         store_history: Whether to store the full time history.
-        dtype: Floating-point dtype for internal arrays.
+        dtype: NumPy-compatible dtype for internal arrays, resolved to the
+            initial state's namespace when that state is supplied.
     """
 
     other_axes: tuple[int, ...] = ()
@@ -425,7 +426,7 @@ class ModelCore:
         xp = _namespace_of(initial_state)
         initial_state_arr = cast(
             "Array",
-            xp.asarray(initial_state, dtype=self.dtype),
+            xp.asarray(initial_state, dtype=getattr(xp, self.dtype.name)),
         )
         if initial_state_arr.shape != self.state_shape:
             raise ValueError(

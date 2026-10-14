@@ -152,6 +152,59 @@ def test_model_core_options_no_longer_store_backend_module() -> None:
     assert "xp" not in {field.name for field in fields(ModelCoreOptions)}
 
 
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("store_history", [False, True])
+@pytest.mark.parametrize(
+    ("method", "adaptive"),
+    [("rk4", False), ("dopri5", False), ("dopri5", True), ("heun", True)],
+)
+def test_core_solver_run_preserves_torch_state_and_matches_numpy(
+    dtype: type[np.float32 | np.float64],
+    method: str,
+    *,
+    adaptive: bool,
+    store_history: bool,
+) -> None:
+    """The complete run resolves NumPy dtype options into native Torch dtypes."""
+    torch = pytest.importorskip("torch")
+    times = np.asarray([0.0, 0.2, 0.7, 1.0])
+    initial = np.arange(1.0, 7.0).reshape(2, 3)
+    options = ModelCoreOptions(dtype=dtype, store_history=store_history)
+    numpy_core = ModelCore(2, 3, times, options=options)
+    torch_core = ModelCore(2, 3, times, options=options)
+    numpy_core.set_initial_state(initial)
+    torch_core.set_initial_state(torch.tensor(initial, dtype=torch.float64))
+
+    def rhs(_time: Scalar, state: Array) -> Array:
+        return cast("Array", array_namespace(state).multiply(state, -0.3))
+
+    config = RunConfig(
+        method=method,
+        adaptive=adaptive,
+        adaptive_cfg=AdaptiveConfig(rtol=1e-5, atol=1e-7, dt_init=0.1),
+    )
+    CoreSolver(numpy_core).run(rhs, config=config)
+    CoreSolver(torch_core).run(rhs, config=config)
+
+    result = torch_core.get_current_state()
+    assert isinstance(result, torch.Tensor)
+    assert result.dtype == getattr(torch, np.dtype(dtype).name)
+    assert result.device.type == "cpu"
+    tolerance = 10 * np.finfo(dtype).eps
+    np.testing.assert_allclose(
+        result.numpy(), numpy_core.get_current_state(), rtol=tolerance
+    )
+    np.testing.assert_allclose(result.numpy(), initial * np.exp(-0.3), rtol=3e-6)
+    if store_history:
+        assert isinstance(torch_core.state_array, torch.Tensor)
+        assert torch_core.state_array.dtype == result.dtype
+        np.testing.assert_allclose(
+            torch_core.state_array.numpy(), numpy_core.state_array, rtol=tolerance
+        )
+    else:
+        assert torch_core.state_array is None
+
+
 def test_model_core_preserves_jax_namespace_for_updates_and_history() -> None:
     """Immutable JAX state/history updates never fall back to NumPy."""
     jnp = pytest.importorskip("jax.numpy")
