@@ -841,6 +841,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/backend-qualification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Qualification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/backends/" class="md-nav__link">
         
   
@@ -1484,6 +1512,10 @@
 <p>Because this repository publishes two distributions from one workflow, the same trusted publisher setup must be allowed to publish both package names on the selected index.</p>
 <h2 id="6-package-metadata">6. Package Metadata<a class="headerlink" href="#6-package-metadata" title="Permanent link">&para;</a></h2>
 <p>Published package metadata must use registry-compatible dependencies. The provider package must not declare direct URL dependencies, because PyPI rejects distributions that require them.</p>
+<p>Required CPU qualification is a separate release gate: run <code>just qualify</code> and
+retain the NumPy/JAX/CPU Torch logs alongside baseline checks. Document GPU
+execution as unqualified unless explicit hardware checks have executed without
+skips. See the <a href="../../guides/backend-qualification/">capability matrix</a>.</p>
 
 
 
