@@ -1531,9 +1531,7 @@ than unrolled.</p>
               <div class="doc-md-description">
                 <p>Smallest factor by which <code>dt</code> grows when the unscaled
 residual did not increase. Without it, a slowly decaying mode
-barely shrinks the residual and <code>dt</code> stalls. <code>dt</code> is held
-while the residual grows by less than this factor per step, as
-it does while an epidemic takes off, and shrinks beyond that.</p>
+barely shrinks the residual and <code>dt</code> stalls.</p>
               </div>
             </td>
           </tr>
@@ -1544,10 +1542,14 @@ it does while an epidemic takes off, and shrinks beyond that.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Largest factor by which <code>dt</code> grows, or shrinks, in one
-iteration. Between the two bounds <code>dt</code> follows the ratio of
-successive unscaled residual norms (switched evolution
-relaxation).</p>
+                <p>Largest factor by which <code>dt</code> grows in one iteration.
+While the unscaled residual decreases, <code>dt</code> follows its ratio
+between the growth bounds (switched evolution relaxation).
+Residual growth is allowed through a transient: <code>dt</code> is held
+on accepted steps. Candidates whose scaled or unscaled residual
+exceeds the current one by this factor are rejected, as are
+non-finite or infeasible candidates. Rejection holds the state
+and halves <code>dt</code> for the next attempt.</p>
               </div>
             </td>
           </tr>
@@ -1676,9 +1678,7 @@ better, pass <code>loop=jax.lax.fori_loop</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">100</span>
 <span class="normal">101</span>
 <span class="normal">102</span>
 <span class="normal">103</span>
@@ -1714,7 +1714,9 @@ better, pass <code>loop=jax.lax.fori_loop</code>.</p>
 <span class="normal">133</span>
 <span class="normal">134</span>
 <span class="normal">135</span>
-<span class="normal">136</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate the controls.</span>
 
 <span class="sd">    Raises:</span>
@@ -1796,15 +1798,15 @@ better, pass <code>loop=jax.lax.fori_loop</code>.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">176</span>
 <span class="normal">177</span>
 <span class="normal">178</span>
 <span class="normal">179</span>
 <span class="normal">180</span>
-<span class="normal">181</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">SteadyStateResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">SteadyStateResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Store the failed result."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
     <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
@@ -1912,7 +1914,8 @@ their tolerances.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>PTC iterations performed before convergence.</p>
+                <p>PTC attempts performed before convergence, including
+rejected steps.</p>
               </div>
             </td>
           </tr>
@@ -2085,23 +2088,23 @@ balance (births <code>mu * N</code> against deaths) are not structural; use
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">conserved_quantities</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">conserved_quantities</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return the structural conservation laws of a reaction network.</span>
 
 <span class="sd">    Rows ``w`` satisfy ``w @ stoichiometry = 0``, so ``w @ y`` is unchanged by</span>
@@ -2311,68 +2314,68 @@ rows have zeros there.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span>
-<span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span>
-<span class="normal">610</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">linear_invariants</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">linear_invariants</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="n">rhs</span><span class="p">:</span> <span class="n">SteadyStateRhs</span><span class="p">,</span>
     <span class="n">states</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Array</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
@@ -2543,10 +2546,7 @@ inside <code>jax.jit</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">187</span>
 <span class="normal">188</span>
 <span class="normal">189</span>
 <span class="normal">190</span>
@@ -2560,7 +2560,10 @@ inside <code>jax.jit</code>.</p>
 <span class="normal">198</span>
 <span class="normal">199</span>
 <span class="normal">200</span>
-<span class="normal">201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_steady_state</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">SteadyStateResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SteadyStateResult</span><span class="p">:</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_steady_state</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">SteadyStateResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SteadyStateResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return a converged result or raise.</span>
 
 <span class="sd">    This converts the convergence flag to a Python boolean; do not call it</span>
@@ -2722,37 +2725,37 @@ still treated as zero.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">613</span>
-<span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span>
-<span class="normal">617</span>
-<span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span>
-<span class="normal">625</span>
-<span class="normal">626</span>
-<span class="normal">627</span>
-<span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
-<span class="normal">631</span>
-<span class="normal">632</span>
-<span class="normal">633</span>
-<span class="normal">634</span>
-<span class="normal">635</span>
-<span class="normal">636</span>
-<span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">sink_states</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span>
+<span class="normal">692</span>
+<span class="normal">693</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
+<span class="normal">697</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">sink_states</span><span class="p">(</span>
     <span class="n">rhs</span><span class="p">:</span> <span class="n">SteadyStateRhs</span><span class="p">,</span>
     <span class="n">states</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Array</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
@@ -2793,7 +2796,7 @@ still treated as zero.</p>
 
 
 <h3 id="op_engine.steady_state.steady_state" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">steady_state</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invariants</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loop</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">steady_state</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invariants</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nonnegative</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loop</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#op_engine.steady_state.steady_state" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -2801,6 +2804,12 @@ still treated as zero.</p>
     <div class="doc doc-contents ">
 
         <p>Find a steady state of <code>rhs</code> near <code>y0</code> by pseudo-transient continuation.</p>
+<p>Non-finite candidates and excessive residual growth are rejected;
+the state is held and the pseudo-time step is halved. Use
+<code>nonnegative=True</code> for compartment or concentration states, especially
+during fast take-off from a seeded unstable equilibrium. Rejection
+preserves invariant totals without clipping. A short time integration
+can supply a warm start if the iteration budget is insufficient.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -2919,6 +2928,25 @@ setup data, checked on the host, so they must be concrete values
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>nonnegative</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span> | <span title="collections.abc.Sequence">Sequence</span>[<span title="bool">bool</span>] | <span title="op_engine._typing.Array">Array</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>True</code> constrains every state to be non-negative;
+a boolean mask constrains selected states. <code>False</code> leaves
+signs unrestricted. Like <code>fixed</code>, this is concrete setup data.
+The final Newton correction is also checked against the bounds.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>config</code>
             </td>
             <td>
@@ -3023,35 +3051,7 @@ compiles the iteration once instead of unrolling
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/steady_state.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span>
-<span class="normal">325</span>
-<span class="normal">326</span>
-<span class="normal">327</span>
-<span class="normal">328</span>
-<span class="normal">329</span>
-<span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span>
-<span class="normal">336</span>
-<span class="normal">337</span>
-<span class="normal">338</span>
-<span class="normal">339</span>
-<span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
-<span class="normal">346</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">346</span>
 <span class="normal">347</span>
 <span class="normal">348</span>
 <span class="normal">349</span>
@@ -3218,7 +3218,76 @@ compiles the iteration once instead of unrolling
 <span class="normal">510</span>
 <span class="normal">511</span>
 <span class="normal">512</span>
-<span class="normal">513</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">steady_state</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913, PLR0914, PLR0915</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">steady_state</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913, PLR0914, PLR0915</span>
     <span class="n">rhs</span><span class="p">:</span> <span class="n">SteadyStateRhs</span><span class="p">,</span>
     <span class="n">y0</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -3226,10 +3295,18 @@ compiles the iteration once instead of unrolling
     <span class="n">jacobian</span><span class="p">:</span> <span class="n">SteadyStateJacobian</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">fixed</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">invariants</span><span class="p">:</span> <span class="n">Array</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">nonnegative</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="n">Array</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">SteadyStateConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">loop</span><span class="p">:</span> <span class="n">SteadyStateLoop</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SteadyStateResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Find a steady state of ``rhs`` near ``y0`` by pseudo-transient continuation.</span>
+
+<span class="sd">    Non-finite candidates and excessive residual growth are rejected;</span>
+<span class="sd">    the state is held and the pseudo-time step is halved. Use</span>
+<span class="sd">    ``nonnegative=True`` for compartment or concentration states, especially</span>
+<span class="sd">    during fast take-off from a seeded unstable equilibrium. Rejection</span>
+<span class="sd">    preserves invariant totals without clipping. A short time integration</span>
+<span class="sd">    can supply a warm start if the iteration budget is insufficient.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        rhs: ``rhs(t, y) -&gt; dy/dt`` for a one-dimensional state ``y``, such as</span>
@@ -3245,6 +3322,10 @@ compiles the iteration once instead of unrolling
 <span class="sd">            ``W @ y`` the dynamics conserve; held at ``W @ y0``. They are</span>
 <span class="sd">            setup data, checked on the host, so they must be concrete values</span>
 <span class="sd">            (not traced inside ``jax.jit``).</span>
+<span class="sd">        nonnegative: ``True`` constrains every state to be non-negative;</span>
+<span class="sd">            a boolean mask constrains selected states. ``False`` leaves</span>
+<span class="sd">            signs unrestricted. Like ``fixed``, this is concrete setup data.</span>
+<span class="sd">            The final Newton correction is also checked against the bounds.</span>
 <span class="sd">        config: Iteration controls.</span>
 <span class="sd">        loop: Optional ``loop(lower, upper, body, carry)`` driver for the</span>
 <span class="sd">            iterations, such as ``jax.lax.fori_loop``. Under ``jax.jit`` it</span>
@@ -3273,6 +3354,7 @@ compiles the iteration once instead of unrolling
     <span class="n">free_host</span> <span class="o">=</span> <span class="n">_free_mask</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
     <span class="n">n_free</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">free_host</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
     <span class="n">free</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">free_host</span><span class="p">)</span>
+    <span class="n">bounded</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">_nonnegative_mask</span><span class="p">(</span><span class="n">nonnegative</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
     <span class="n">w</span> <span class="o">=</span> <span class="n">_invariant_matrix</span><span class="p">(</span><span class="n">invariants</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">xp</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
     <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
     <span class="n">totals</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">y0</span><span class="p">)</span>
@@ -3280,6 +3362,7 @@ compiles the iteration once instead of unrolling
     <span class="n">eye</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">free_pair</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">xp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">)))</span>
     <span class="n">inv_dt_max</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">dt_max</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">dt_min</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">tiny</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">masked_rhs</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>  <span class="c1"># noqa: ANN401</span>
         <span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">free</span><span class="p">,</span> <span class="n">rhs</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
@@ -3291,17 +3374,17 @@ compiles the iteration once instead of unrolling
 <span class="sd">            The step ``delta`` for the state.</span>
 <span class="sd">        """</span>
         <span class="n">matrix</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">free_pair</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">eye</span><span class="p">,</span> <span class="n">inv_dt</span><span class="p">),</span> <span class="n">jac</span><span class="p">),</span> <span class="n">eye</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-        <span class="n">bordered</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
-            <span class="p">(</span>
-                <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">matrix</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matrix_transpose</span><span class="p">(</span><span class="n">w</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
-                <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">w</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
-            <span class="p">),</span>
-            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">target</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">value</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">totals</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">y</span><span class="p">))))</span>
-        <span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">bordered</span><span class="p">,</span> <span class="n">target</span><span class="p">)[:</span><span class="n">n</span><span class="p">]</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">if</span> <span class="n">w</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">matrix</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">matrix</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matrix_transpose</span><span class="p">(</span><span class="n">w</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                    <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">w</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="p">),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">value</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">totals</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">y</span><span class="p">))))</span>
+        <span class="k">return</span> <span class="n">_solve_or_nan</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">xp</span><span class="p">)[:</span><span class="n">n</span><span class="p">]</span>
 
     <span class="n">value0</span> <span class="o">=</span> <span class="n">masked_rhs</span><span class="p">(</span><span class="n">y0</span><span class="p">)</span>
     <span class="n">scale0</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">atol</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">y0</span><span class="p">))</span>
@@ -3342,9 +3425,33 @@ compiles the iteration once instead of unrolling
         <span class="p">)</span>
         <span class="c1"># A converged iterate takes its Newton correction as a final polish.</span>
         <span class="n">candidate</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">done_now</span><span class="p">,</span> <span class="n">newton</span><span class="p">,</span> <span class="n">ptc</span><span class="p">))</span>
-        <span class="n">candidate_value</span> <span class="o">=</span> <span class="n">masked_rhs</span><span class="p">(</span><span class="n">candidate</span><span class="p">)</span>
+        <span class="n">feasible</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">bounded</span><span class="p">),</span> <span class="n">candidate</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">admissible</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">candidate</span><span class="p">)),</span> <span class="n">feasible</span><span class="p">)</span>
+        <span class="c1"># RHS callbacks can have a restricted domain. An inadmissible state</span>
+        <span class="c1"># is rejected without evaluating the callback outside that domain.</span>
+        <span class="n">candidate_value</span> <span class="o">=</span> <span class="n">masked_rhs</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">admissible</span><span class="p">,</span> <span class="n">candidate</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
         <span class="n">candidate_scale</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">atol</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">candidate</span><span class="p">))</span>
+        <span class="n">candidate_norm</span> <span class="o">=</span> <span class="n">_scaled_rms</span><span class="p">(</span><span class="n">candidate_value</span><span class="p">,</span> <span class="n">candidate_scale</span><span class="p">,</span> <span class="n">free</span><span class="p">,</span> <span class="n">n_free</span><span class="p">,</span> <span class="n">xp</span><span class="p">)</span>
+        <span class="n">finite</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">candidate</span><span class="p">)),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">candidate_value</span><span class="p">)),</span> <span class="n">xp</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">candidate_norm</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
         <span class="n">candidate_raw</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">candidate_value</span><span class="p">,</span> <span class="n">candidate_value</span><span class="p">)))</span>
+        <span class="n">bounded_growth</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span>
+                <span class="n">candidate_norm</span><span class="p">,</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                    <span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">),</span> <span class="n">config</span><span class="o">.</span><span class="n">residual_tol</span>
+                <span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span><span class="n">candidate_raw</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">,</span> <span class="n">raw_norm</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="n">accepted</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">finite</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">candidate_raw</span><span class="p">)),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">feasible</span><span class="p">,</span> <span class="n">bounded_growth</span><span class="p">),</span>
+        <span class="p">)</span>
         <span class="n">positive</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">greater</span><span class="p">(</span><span class="n">candidate_raw</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="n">ratio</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
             <span class="n">positive</span><span class="p">,</span>
@@ -3352,26 +3459,29 @@ compiles the iteration once instead of unrolling
             <span class="n">xp</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">raw_norm</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">positive</span><span class="p">,</span> <span class="n">candidate_raw</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)),</span>
             <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span>
         <span class="p">)</span>
-        <span class="c1"># Grow while the residual falls; hold through moderate rises, which</span>
-        <span class="c1"># ordinary dynamics produce (an epidemic taking off); shrink only when</span>
-        <span class="c1"># the residual jumps by more than min_growth in one step.</span>
+        <span class="c1"># Grow while the residual falls; hold during transient growth.</span>
+        <span class="c1"># An unacceptable candidate never becomes the next state.</span>
         <span class="n">factor</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
             <span class="n">xp</span><span class="o">.</span><span class="n">greater_equal</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
             <span class="n">xp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">min_growth</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">),</span>
-            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-                <span class="n">xp</span><span class="o">.</span><span class="n">greater_equal</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">min_growth</span><span class="p">),</span>
-                <span class="n">xp</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">ratio</span><span class="p">),</span>
-                <span class="n">xp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">max_growth</span><span class="p">),</span>
-            <span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">ratio</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">done_now</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">done_now</span><span class="p">,</span> <span class="n">accepted</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span><span class="n">candidate_norm</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">residual_tol</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">updated</span><span class="p">:</span> <span class="n">_Carry</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">candidate</span><span class="p">,</span>
-            <span class="n">candidate_value</span><span class="p">,</span>
-            <span class="n">candidate_scale</span><span class="p">,</span>
-            <span class="n">_scaled_rms</span><span class="p">(</span><span class="n">candidate_value</span><span class="p">,</span> <span class="n">candidate_scale</span><span class="p">,</span> <span class="n">free</span><span class="p">,</span> <span class="n">n_free</span><span class="p">,</span> <span class="n">xp</span><span class="p">),</span>
-            <span class="n">candidate_raw</span><span class="p">,</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">candidate</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">candidate_value</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">candidate_scale</span><span class="p">,</span> <span class="n">scale</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">candidate_norm</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">candidate_raw</span><span class="p">,</span> <span class="n">raw_norm</span><span class="p">),</span>
             <span class="n">newton_norm</span><span class="p">,</span>
-            <span class="n">xp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">factor</span><span class="p">),</span> <span class="n">config</span><span class="o">.</span><span class="n">dt_max</span><span class="p">),</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">accepted</span><span class="p">,</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">factor</span><span class="p">),</span> <span class="n">config</span><span class="o">.</span><span class="n">dt_max</span><span class="p">),</span>
+                <span class="n">xp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="n">dt_min</span><span class="p">),</span>
+            <span class="p">),</span>
             <span class="n">xp</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">done_now</span><span class="p">),</span>
             <span class="n">xp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">iterations</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">iterations</span><span class="p">)),</span>
         <span class="p">)</span>

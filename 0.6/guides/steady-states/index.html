@@ -1360,13 +1360,37 @@ correction measures that error directly, and the final correction is applied
 to the returned state.</p>
 <p>Pseudo-transient continuation converges to <em>a</em> steady state: started next to
 an unstable one, such as the disease-free state, it can stop there. The <code>dt</code>
-schedule holds the step while the residual grows moderately, as it does while
-an epidemic takes off, so a small <code>dt0</code> (the default is 1 time unit) lets the
-iterates follow the epidemic to the endemic state. Warm starts from a nearby
+schedule holds the step through bounded residual growth, as it does while
+an epidemic takes off. A small <code>dt0</code> (the default is 1 time unit) lets the
+iterates follow the dynamics toward a stable equilibrium. Candidates with
+non-finite states or residuals, or with scaled or unscaled residual growth
+above <code>max_growth</code>, are rejected: the previous state and residual are retained,
+and <code>dt</code> is halved for the next attempt. Rejections count toward
+<code>max_iterations</code>; a smaller <code>dt0</code> or a short time integration can provide a
+better starting point if the budget is insufficient. Warm starts from a nearby
 solution converge fastest; raise <code>dt0</code> for those.</p>
+<p>For compartment populations or concentrations, pass <code>nonnegative=True</code> to
+reject negative candidates, including the final Newton correction. A boolean
+mask constrains selected states when the model also contains signed variables:</p>
+<pre><code class="language-python">result = steady_state(rhs, y0, invariants=totals, nonnegative=True)
+</code></pre>
+<p>This guard is especially useful for fast take-off from a seeded disease-free
+state, where a large pseudo-time step can overshoot into negative populations
+or select the unstable equilibrium. Rejected steps preserve the invariant
+totals; the solver does not clip states. Signs remain unrestricted by default.
+The guard helps follow a physical trajectory but cannot guarantee convergence
+to a particular equilibrium or avoid an iteration limit.</p>
 <p><code>SteadyStateConfig</code> collects the controls: <code>dt0</code>, <code>dt_max</code>, <code>min_growth</code>,
 <code>max_growth</code>, <code>max_iterations</code>, <code>residual_tol</code>, <code>step_tol</code>, and <code>atol</code>. The
 default tolerances assume double precision.</p>
+<p>The safeguard retains pseudo-transient continuation for the coupled system.
+<a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html">Brent's method</a>
+and <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.bisect.html">bisection</a>
+need a scalar sign-changing bracket, which a general RHS does not provide.
+The existing curvature-weighted grid utilities are spatial preprocessing tools.
+For background on constraints and step control, see
+<a href="https://ira.lib.polyu.edu.hk/bitstream/10397/6101/1/Kelley_Projected_Pseudotransient_Continuation.pdf">projected pseudo-transient continuation</a>
+and PETSc's <a href="https://petsc.org/release/manualpages/TS/TSPseudoSetVerifyTimeStep/">pseudo-time step verification</a>.</p>
 <h2 id="jax-jit-and-vmap">JAX: jit and vmap<a class="headerlink" href="#jax-jit-and-vmap" title="Permanent link">&para;</a></h2>
 <p>Pass an automatic-differentiation Jacobian and <code>loop=jax.lax.fori_loop</code>. The
 loop compiles the iteration once, where the default Python loop would unroll
