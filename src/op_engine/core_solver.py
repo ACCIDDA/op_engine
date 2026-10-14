@@ -378,6 +378,27 @@ class AdaptiveConfig:
             raise ValueError(msg)
 
 
+class AdaptiveScheduleProvenance(NamedTuple):
+    """Static compatibility fields and descriptive adaptive-discovery metadata.
+
+    Backend, dtype, discovery controls, and reference regime are descriptive.
+    Replay checks method, state layout, relevant operator/kernel settings, and
+    the caller's structural model identity. Callback semantics are not inferred.
+    """
+
+    method: str
+    state_shape: tuple[int, ...]
+    axis_names: tuple[str, ...]
+    operator_axis: int | None
+    gamma: float | None
+    nonlinear_signature: tuple[str, ...]
+    discovery_settings: tuple[tuple[str, str], ...]
+    array_namespace: str
+    dtype: str
+    model_id: str | None
+    reference_regime: str | None
+
+
 @dataclass(slots=True, frozen=True)
 class AdaptiveStepSchedule:
     """Accepted step sizes for replaying one adaptive solve.
@@ -389,17 +410,26 @@ class AdaptiveStepSchedule:
     Attributes:
         output_times: Output grid used to create the schedule.
         step_sizes: Accepted internal step sizes for each output interval.
+        provenance: Optional producing method/layout/configuration metadata.
+            None retains manually constructed/legacy mesh compatibility.
     """
 
     output_times: tuple[float, ...]
     step_sizes: tuple[tuple[float, ...], ...]
+    provenance: AdaptiveScheduleProvenance | None = None
 
     def __post_init__(self) -> None:
         """Normalize and validate the recorded mesh.
 
         Raises:
+            TypeError: If provenance has the wrong record type.
             ValueError: If times or step sizes do not define a valid mesh.
         """
+        if self.provenance is not None and not isinstance(
+            self.provenance, AdaptiveScheduleProvenance
+        ):
+            msg = "schedule provenance must be an AdaptiveScheduleProvenance or None"
+            raise TypeError(msg)
         output_times = tuple(float(value) for value in self.output_times)
         step_sizes = tuple(
             tuple(float(step_size) for step_size in interval)
@@ -740,6 +770,12 @@ class RunConfig:
             ``scan`` requires one. SDIRK2 diagnostics retain eager replay.
         replay_checkpoint: Rematerialize the scan body during reverse mode.
             Used only when replay selects an adapter.
+        replay_model_id: Optional static structural model label, checked during
+            replay. Keep fitted parameter values out of this identity.
+        replay_reference_regime: Optional descriptive label for the nominal
+            parameter/initial-state regime used to discover a mesh.
+        replay_require_provenance: Reject manually constructed/legacy meshes
+            without provenance when True. False preserves compatibility.
     """
 
     method: str = "heun"
@@ -754,6 +790,9 @@ class RunConfig:
     fixed_max_step: float | None = None
     replay_loop: Literal["auto", "scan", "unroll"] = "unroll"
     replay_checkpoint: bool = False
+    replay_model_id: str | None = None
+    replay_reference_regime: str | None = None
+    replay_require_provenance: bool = False
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -799,7 +838,7 @@ class RunConfig:
         """Validate namespace-loop options independently of the chosen method.
 
         Raises:
-            TypeError: If the checkpoint flag is not boolean.
+            TypeError: If a replay flag or static label has the wrong type.
             ValueError: If the loop strategy is unknown.
         """
         if self.replay_loop not in {"auto", "scan", "unroll"}:
@@ -808,6 +847,16 @@ class RunConfig:
         if not isinstance(self.replay_checkpoint, bool):
             msg = "replay_checkpoint must be boolean"
             raise TypeError(msg)
+        if not isinstance(self.replay_require_provenance, bool):
+            msg = "replay_require_provenance must be boolean"
+            raise TypeError(msg)
+        for name in ("replay_model_id", "replay_reference_regime"):
+            label = getattr(self, name)
+            if label is not None:
+                if not isinstance(label, str) or not label.strip():
+                    msg = f"{name} must be a non-empty static string or None"
+                    raise TypeError(msg)
+                object.__setattr__(self, name, label.strip())  # noqa: PLC2801
 
 
 @dataclass(slots=True, frozen=True)
@@ -1137,6 +1186,104 @@ class CoreSolver:
     ) -> NonlinearIntegrationDiagnostics | None:
         """Return nonlinear diagnostics from the latest SDIRK run or replay."""
         return self._last_nonlinear_diagnostics
+
+    def _schedule_provenance(
+        self, config: RunConfig, plan: RunPlan
+    ) -> AdaptiveScheduleProvenance:
+        """Capture static metadata without inspecting fitted array values.
+
+        Returns:
+            Producing compatibility fields and descriptive discovery settings.
+        """
+        state = self.core.get_current_state()
+        adaptive = config.adaptive_cfg
+        atol = adaptive.atol
+        atol_description = (
+            str(atol)
+            if isinstance(atol, (float, int, np.floating, np.integer))
+            else f"array shape={atol.shape}, dtype={atol.dtype}"
+        )
+        settings = (
+            ("rtol", str(adaptive.rtol)),
+            ("atol", atol_description),
+            ("dt_init", str(adaptive.dt_init)),
+            ("max_reject", str(adaptive.max_reject)),
+            ("max_steps", str(adaptive.max_steps)),
+            *(
+                (name, str(getattr(config.dt_controller, name)))
+                for name in (
+                    "dt_min",
+                    "dt_max",
+                    "safety",
+                    "fac_min",
+                    "fac_max",
+                )
+            ),
+        )
+        nonlinear: tuple[str, ...] = ()
+        if plan.method == "sdirk2" and plan.nonlinear is not None:
+            solver = plan.nonlinear.solver
+            nonlinear = (f"{type(solver).__module__}.{type(solver).__qualname__}",)
+            if isinstance(solver, DenseNewtonSolver):
+                nonlinear += tuple(
+                    str(getattr(solver.config, name))
+                    for name in (
+                        "max_iterations",
+                        "rtol",
+                        "atol",
+                        "damping",
+                    )
+                )
+        operator_axis = (
+            None
+            if plan.method in _EXPLICIT_METHODS or plan.method == "sdirk2"
+            else self.core.axis_index(self._op_axis)
+        )
+        return AdaptiveScheduleProvenance(
+            plan.method,
+            self.state_shape,
+            self.core.axis_names,
+            operator_axis,
+            plan.gamma,
+            nonlinear,
+            settings,
+            _namespace_of(state).__name__,
+            str(state.dtype),
+            config.replay_model_id,
+            config.replay_reference_regime,
+        )
+
+    def _validate_schedule_provenance(
+        self, schedule: AdaptiveStepSchedule, config: RunConfig, plan: RunPlan
+    ) -> None:
+        """Reject known structural incompatibility before any replay step.
+
+        Raises:
+            ValueError: If required provenance is absent or a checked field differs.
+        """
+        recorded = schedule.provenance
+        if recorded is None:
+            if config.replay_require_provenance:
+                msg = "Adaptive schedule has no provenance; discover a verified mesh"
+                raise ValueError(msg)
+            return
+        active = self._schedule_provenance(config, plan)
+        for name in (
+            "method",
+            "state_shape",
+            "axis_names",
+            "operator_axis",
+            "gamma",
+            "nonlinear_signature",
+            "model_id",
+        ):
+            if getattr(recorded, name) != getattr(active, name):
+                msg = (
+                    f"Adaptive schedule provenance {name} mismatch: "
+                    f"recorded {getattr(recorded, name)!r}, "
+                    f"configured {getattr(active, name)!r}; discover a fresh mesh"
+                )
+                raise ValueError(msg)
 
     # ------------------------------------------------------------------
     # Axis / operator helpers
@@ -3853,6 +4000,7 @@ class CoreSolver:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
                 output_times=tuple(float(value) for value in time_grid),
                 step_sizes=tuple(schedule_steps),
+                provenance=self._schedule_provenance(config, plan),
             )
 
     def _advance_array_implicit_adaptive_to_time(  # noqa: PLR0913
@@ -3993,6 +4141,7 @@ class CoreSolver:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
                 output_times=tuple(float(value) for value in time_grid),
                 step_sizes=tuple(schedule_steps),
+                provenance=self._schedule_provenance(config, plan),
             )
 
     def _advance_nonadaptive_to_time(  # noqa: PLR0913
@@ -4366,6 +4515,7 @@ class CoreSolver:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
                 output_times=tuple(float(value) for value in time_grid),
                 step_sizes=tuple(schedule_steps),
+                provenance=self._schedule_provenance(config, plan),
             )
         return self._update_nonlinear_diagnostics(
             reference,
@@ -4637,7 +4787,8 @@ class CoreSolver:
         Raises:
             TypeError: If schedule has the wrong type or the state changes array
                 ecosystems during replay.
-            ValueError: If config is not adaptive or the output grid differs.
+            ValueError: If config is not adaptive, the output grid differs,
+                required provenance is absent, or structural provenance differs.
         """
         if not isinstance(schedule, AdaptiveStepSchedule):
             msg = "schedule must be an AdaptiveStepSchedule"
@@ -4650,6 +4801,7 @@ class CoreSolver:
         self._last_nonlinear_diagnostics = None
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
+        self._validate_schedule_provenance(schedule, config, plan)
 
         adapter = None
         if config.replay_loop != "unroll":
@@ -4791,5 +4943,6 @@ class CoreSolver:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
                 output_times=tuple(float(value) for value in time_grid),
                 step_sizes=tuple(schedule_steps),
+                provenance=self._schedule_provenance(cfg, plan),
             )
         return None
