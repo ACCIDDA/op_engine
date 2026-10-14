@@ -19,8 +19,10 @@ import numpy as np
 
 from ._array import array_namespace as _namespace_of
 from ._forcing import _ForcingSchedule
+from ._random_stream import _generator, _select_sampler
 
 if TYPE_CHECKING:
+    from ._random_stream import RandomStream
     from ._typing import Array
     from .model_core import ModelCore
 
@@ -171,13 +173,20 @@ class DirectSSAConfig:
 class NumpyPoissonSampler:
     """Seeded stateful Poisson sampler for NumPy tau-leaping runs."""
 
-    def __init__(self, seed: int | None = None) -> None:
+    def __init__(
+        self, seed: int | None = None, *, rng: RandomStream | None = None
+    ) -> None:
         """Create a NumPy generator.
 
         Args:
             seed: Optional seed passed to :func:`numpy.random.default_rng`.
-        """
-        self._rng = np.random.default_rng(seed)
+            rng: Advancing generator or replayable SeedSequence; excludes seed.
+
+        Raises:
+            ValueError: If both seed and rng are supplied.
+            TypeError: If rng has an unsupported type.
+        """  # noqa: DOC502 - documented errors originate in the shared helper
+        self._rng = _generator(rng, seed=seed)
 
     def __call__(self, mean: Array, step_index: int, /) -> Array:
         """Draw Poisson firing counts in the NumPy namespace.
@@ -202,13 +211,20 @@ class NumpyPoissonSampler:
 class NumpySSASampler:
     """Seeded stateful direct-SSA sampler for NumPy runs."""
 
-    def __init__(self, seed: int | None = None) -> None:
+    def __init__(
+        self, seed: int | None = None, *, rng: RandomStream | None = None
+    ) -> None:
         """Create a NumPy generator.
 
         Args:
             seed: Optional seed passed to :func:`numpy.random.default_rng`.
-        """
-        self._rng = np.random.default_rng(seed)
+            rng: Advancing generator or replayable SeedSequence; excludes seed.
+
+        Raises:
+            ValueError: If both seed and rng are supplied.
+            TypeError: If rng has an unsupported type.
+        """  # noqa: DOC502 - documented errors originate in the shared helper
+        self._rng = _generator(rng, seed=seed)
 
     def __call__(
         self,
@@ -578,9 +594,10 @@ class TauLeapingSolver:
     def run(
         self,
         propensity_func: PropensityFunction,
-        poisson_sampler: PoissonSampler,
+        poisson_sampler: PoissonSampler | None = None,
         *,
         config: TauLeapingConfig | None = None,
+        rng: RandomStream | None = None,
     ) -> None:
         """Advance the reaction network through the core output grid.
 
@@ -588,11 +605,20 @@ class TauLeapingSolver:
             propensity_func: Reaction-channel propensity function.
             poisson_sampler: Backend-specific Poisson sampler.
             config: Optional fixed-tau controls and forcing schedule.
+            rng: Explicit NumPy stream; supply instead of poisson_sampler.
 
         Raises:
+            ValueError: If a sampler/stream is absent or both are supplied.
+            TypeError: If rng is unsupported or used with non-NumPy state.
             RuntimeError: If an interval exceeds its step limit or a leap
                 produces a negative population.
-        """
+        """  # noqa: DOC502 - random-source validation is shared
+        poisson_sampler = _select_sampler(
+            poisson_sampler,
+            rng,
+            state=self.core.get_current_state(),
+            make_sampler=lambda generator: NumpyPoissonSampler(rng=generator),
+        )
         cfg = config or TauLeapingConfig()
         forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self.core.get_current_state()
@@ -687,9 +713,10 @@ class DirectSSASolver:
     def run(
         self,
         propensity_func: PropensityFunction,
-        ssa_sampler: SSASampler,
+        ssa_sampler: SSASampler | None = None,
         *,
         config: DirectSSAConfig | None = None,
+        rng: RandomStream | None = None,
     ) -> None:
         """Advance an exact reaction trajectory through the core output grid.
 
@@ -703,11 +730,20 @@ class DirectSSASolver:
                 between events and configured forcing boundaries.
             ssa_sampler: Backend-specific exponential/categorical sampler.
             config: Optional event-count guard and forcing schedule.
+            rng: Explicit NumPy stream; supply instead of ssa_sampler.
 
         Raises:
+            ValueError: If a sampler/stream is absent or both are supplied.
+            TypeError: If rng is unsupported or used with non-NumPy state.
             RuntimeError: If an interval exceeds its event limit or a reaction
                 produces a negative population.
-        """
+        """  # noqa: DOC502 - random-source validation is shared
+        ssa_sampler = _select_sampler(
+            ssa_sampler,
+            rng,
+            state=self.core.get_current_state(),
+            make_sampler=lambda generator: NumpySSASampler(rng=generator),
+        )
         cfg = config or DirectSSAConfig()
         forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self.core.get_current_state()
@@ -716,15 +752,14 @@ class DirectSSASolver:
             message="Initial state is invalid",
         )
 
-        time_grid = np.asarray(self.core.time_grid, dtype=float)
-        t = float(time_grid[0])
+        t = self.core.get_time_at(0)
         draw_index = 0
         pending_time: float | None = None
         pending_event_index: int | None = None
         absorbing = False
 
         for output_index in range(int(self.core.n_timesteps) - 1):
-            target = float(time_grid[output_index + 1])
+            target = self.core.get_time_at(output_index + 1)
             interval_events = 0
             while not absorbing and t < target:
                 boundary = forcing.next_after(t)

@@ -16,6 +16,13 @@ versioning while the project remains pre-1.0.
   Dense output, off-grid sampling and streaming/time windows remain follow-up
   increments of #225.
 
+- Stochastic `run` methods accept an explicit NumPy `Generator` or `SeedSequence`
+  via `rng`, using call-local convenience samplers. Generators advance in place;
+  seed sequences initialize fresh replayable runs. Existing explicit sampler
+  injection and integer-seed constructors remain supported; conflicting sources
+  and non-NumPy convenience states fail explicitly. Documentation covers indexed
+  replicate/unit/stage streams, state reset and reproducibility boundaries (#220).
+
 - Opt-in serial hierarchical measurements emit correctness-gated JSON with
   dimensions, accepted steps, cold tracing/compilation, warm execution, memory
   and provenance. Matched-mesh comparisons use public native/external loops

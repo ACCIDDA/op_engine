@@ -11,11 +11,13 @@ import numpy as np
 
 from ._array import array_namespace as _namespace_of
 from ._forcing import _ForcingSchedule
+from ._random_stream import _generator, _select_sampler
 from .stochastic_solver import _ReactionNetwork
 
 if TYPE_CHECKING:
     from typing import Any
 
+    from ._random_stream import RandomStream
     from ._typing import Array
     from .model_core import ModelCore
     from .stochastic_solver import PropensityFunction
@@ -144,9 +146,20 @@ class ThinningSSAConfig:
 class NumpyThinningSampler:
     """Seeded stateful thinning sampler for NumPy reaction networks."""
 
-    def __init__(self, seed: int | None = None) -> None:
-        """Create a NumPy random generator with an optional seed."""
-        self._rng = np.random.default_rng(seed)
+    def __init__(
+        self, seed: int | None = None, *, rng: RandomStream | None = None
+    ) -> None:
+        """Create or reuse a NumPy generator.
+
+        Args:
+            seed: Optional legacy integer seed.
+            rng: Advancing generator or replayable SeedSequence; excludes seed.
+
+        Raises:
+            ValueError: If both seed and rng are supplied.
+            TypeError: If rng has an unsupported type.
+        """  # noqa: DOC502 - documented errors originate in the shared helper
+        self._rng = _generator(rng, seed=seed)
 
     def __call__(self, bound_rate: Array, draw_index: int, /) -> ThinningSample:
         """Draw a candidate wait and uniform in the input dtype.
@@ -379,10 +392,11 @@ class ThinningSSASolver:
     def run(
         self,
         propensity_func: PropensityFunction,
-        thinning_sampler: ThinningSampler,
+        thinning_sampler: ThinningSampler | None = None,
         *,
         rate_bound: float | RateBoundFunction,
         config: ThinningSSAConfig | None = None,
+        rng: RandomStream | None = None,
     ) -> None:
         """Advance an exact trajectory with bounded candidate thinning.
 
@@ -392,11 +406,20 @@ class ThinningSSASolver:
             rate_bound: Constant bound or callback returning a certified bound
                 on ``[t, valid_until)`` at the supplied unchanged state.
             config: Candidate guard and forcing schedule.
+            rng: Explicit NumPy stream; supply instead of thinning_sampler.
 
         Raises:
+            ValueError: If a sampler/stream is absent or both are supplied.
+            TypeError: If rng is unsupported or used with non-NumPy state.
             RuntimeError: If the candidate limit is exceeded, time cannot
                 advance, or a reaction produces invalid populations.
-        """
+        """  # noqa: DOC502 - random-source validation is shared
+        thinning_sampler = _select_sampler(
+            thinning_sampler,
+            rng,
+            state=self.core.get_current_state(),
+            make_sampler=lambda generator: NumpyThinningSampler(rng=generator),
+        )
         cfg = config or ThinningSSAConfig()
         forcing = _ForcingSchedule(cfg.forcing_breakpoints)
         state = self._initial_state(rate_bound)

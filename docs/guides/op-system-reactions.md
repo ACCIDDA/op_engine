@@ -1,5 +1,9 @@
 # Stochastic Simulation From An op_system Spec
 
+NumPy runs can use an explicit `Generator` or `SeedSequence` instead of an
+injected sampler. [Per-run random streams](random-streams.md) documents reusable
+solvers, indexed replicates, stream ownership and native sampler compatibility.
+
 An [op_system](https://github.com/ACCIDDA/op_system) spec compiles to typed
 reaction artifacts, one per named transition (`CompiledRhs.reactions`).
 `op_engine.from_compiled_rhs` turns them into the flat network that
