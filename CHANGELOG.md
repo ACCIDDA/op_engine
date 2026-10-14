@@ -7,6 +7,15 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Native named observations at stored output times export separate scientific
+  shapes, coordinates, units, applied measures and evaluation diagnostics.
+  `observe_solution` accepts existing trajectories; `observe_model` requires
+  completed stored history. The structural op_system adapter applies no extra
+  weights and adds no compiler runtime dependency. Required CPU contracts check
+  two-mesh physical totals/node samples and fixed-grid state/rate/gain derivatives.
+  Dense output, off-grid sampling and streaming/time windows remain follow-up
+  increments of #225.
+
 - Opt-in serial hierarchical measurements emit correctness-gated JSON with
   dimensions, accepted steps, cold tracing/compilation, warm execution, memory
   and provenance. Matched-mesh comparisons use public native/external loops

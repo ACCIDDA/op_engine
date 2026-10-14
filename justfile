@@ -182,7 +182,7 @@ serve: api-reference
 
 
 # Required CPU solver qualification, separate from provider integration checks.
-qualify: qualify-numpy qualify-jax qualify-torch
+qualify: qualify-numpy qualify-jax qualify-torch qualify-observations
 
 qualify-numpy:
     uv sync --dev
@@ -196,6 +196,13 @@ qualify-torch:
     uv sync --dev
     uv pip install 'torch>=2.6' --index-url https://download.pytorch.org/whl/cpu
     uv run --no-sync python scripts/qualify_backend.py torch
+
+# Run after the CPU namespaces above; no compiler runtime dependency is introduced.
+qualify-observations:
+    uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@0becde52474b48fef6b6f3c42a344498a17552a8'
+    uv run --no-sync python scripts/qualify_backend.py numpy --compiler-contract
+    uv run --no-sync python scripts/qualify_backend.py jax --compiler-contract
+    uv run --no-sync python scripts/qualify_backend.py torch --compiler-contract
 
 
 # Larger serial measurements are opt-in; install the benchmark extra first.

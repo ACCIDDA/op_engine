@@ -59,6 +59,7 @@ nav:
       - Biogeochemical Network: guides/biogeochemical-network.md
       - Trait-Structured Chemostat: guides/chemostat-pde.md
       - Backend Qualification: guides/backend-qualification.md
+      - Named Observations: guides/observations.md
 
       - Replay Provenance: guides/replay-provenance.md
 
@@ -73,6 +74,7 @@ nav:
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
       - Nonlinear Solver: api-reference/nonlinear_solver.md
+      - Observations: api-reference/observations.md
       - Reactions: api-reference/reactions.md
       - Spatial Grid: api-reference/spatial_grid.md
       - Steady State: api-reference/steady_state.md

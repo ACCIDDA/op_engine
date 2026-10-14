@@ -19,6 +19,11 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("backend", choices=["numpy", "jax", "torch"])
+    parser.add_argument(
+        "--compiler-contract",
+        action="store_true",
+        help="Qualify the separately installed pinned compiler observation contract",
+    )
     args = parser.parse_args()
     try:
         module = importlib.import_module(args.backend)
@@ -36,19 +41,27 @@ def main() -> int:
     )
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
-        process = subprocess.run(  # noqa: S603
-            [
-                sys.executable,
-                "-m",
-                "pytest",
+        files = (
+            ["tests/op_engine/test_compiled_observations.py"]
+            if args.compiler_contract
+            else [
                 "tests/op_engine/test_backend_qualification.py",
                 "tests/op_engine/test_operator_precision.py",
                 "tests/op_engine/test_hierarchical_ode.py",
+                "tests/op_engine/test_observations.py",
                 *(
                     ["tests/op_engine/test_array_namespace.py"]
                     if args.backend == "torch"
                     else []
                 ),
+            ]
+        )
+        process = subprocess.run(  # noqa: S603
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                *files,
                 "-k",
                 args.backend,
                 "-q",
