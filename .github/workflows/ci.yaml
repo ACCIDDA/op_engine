@@ -15,6 +15,24 @@ permissions:
   contents: 'read'
 
 jobs:
+  citation:
+    name: 'Citation (3.12)'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - name: 'Install just'
+        uses: 'taiki-e/install-action@v2'
+        with:
+          tool: 'just'
+      - name: 'Setup uv'
+        uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Validate citation schema and shared metadata'
+        run: 'just citation'
   benchmark-smoke:
     name: 'Hierarchical comparison correctness (3.12)'
     runs-on: 'ubuntu-latest'
