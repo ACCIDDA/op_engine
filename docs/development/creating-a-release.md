@@ -13,7 +13,9 @@ The release workflow treats them as a single release unit. Both package versions
 - The release version has already been updated everywhere it is declared:
   - `pyproject.toml`
   - `flepimop2-op_engine/pyproject.toml`
-- Your local environment is synced with a supported Python version.
+- Your local environment is synced with a supported complete Python version.
+- `CITATION.cff` version, release date and artifact URL match the shared release;
+  attribution and applicable grants have been reviewed.
 - You have [GitHub's `gh` CLI](https://cli.github.com/) installed and authenticated if you plan to dispatch workflows from the command line.
 
 ## 1. Confirm The Shared Version
@@ -37,7 +39,7 @@ Use the local pre-release target before dispatching the release workflow:
 just release-validate
 ```
 
-That command does two things:
+That command validates citation syntax and shared metadata, then:
 
 - Validates that the release version matches in:
   - `pyproject.toml`
@@ -134,3 +136,7 @@ Required CPU qualification is a separate release gate: run `just qualify` and
 retain the NumPy/JAX/CPU Torch logs alongside baseline checks. Document GPU
 execution as unqualified unless explicit hardware checks have executed without
 skips. See the [capability matrix](../guides/backend-qualification.md).
+
+The [citation/archive guide](citation-and-archiving.md) records the ACCIDDA
+Zenodo follow-up. Complete readiness evidence before freezing a software-paper
+release, then record its verified version DOI after the deposit resolves.

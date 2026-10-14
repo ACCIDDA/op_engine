@@ -44,6 +44,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Development:
+      - Contributing: development/contributing.md
+      - Citation and Archiving: development/citation-and-archiving.md
       - Creating A Release: development/creating-a-release.md
       - Finite-Element Assembly Boundary: development/fem-assembly-boundary.md
   - Guides:

@@ -164,3 +164,8 @@ Required CPU method qualification is documented in the
 alongside `just ci`, `just docs`, and `just build-all` before submitting a change.
 NumPy/JAX/CPU Torch jobs reject missing/skipped selected contracts; GPU checks
 and large benchmark timings remain explicit opt-in work.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for clean setup, focused submissions,
+required checks and support. Use [CITATION.cff](CITATION.cff) for attribution and
+[citation/archiving guidance](docs/development/citation-and-archiving.md) for the
+shared core/provider release unit and version-specific identifiers.

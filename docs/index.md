@@ -15,3 +15,7 @@ coupling, and structured trait observables.
 The [backend guide](guides/backends.md) explains portability, JAX
 differentiability, sparse acceleration, and the external-provider boundary for
 specialized adaptive solvers.
+
+The [contributor guide](development/contributing.md) documents setup, required
+checks and support. [Citation and archiving](development/citation-and-archiving.md)
+explains attribution, shared releases and the software-paper archive plan.

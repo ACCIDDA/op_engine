@@ -743,3 +743,10 @@ differentiation path. A trajectory containing sampled Poisson or categorical
 events is eager and discrete, however, and does not have ordinary pathwise
 gradients. Gradient estimators for stochastic expectations belong above this
 engine boundary rather than being implied by a JAX array result.
+
+The [contributor guide](https://github.com/ACCIDDA/op_engine/blob/main/CONTRIBUTING.md)
+covers core/provider setup and submission checks. Both distributions share one
+release version; this provider depends on the exact matching `op-engine`
+version. Its source grant is GPL version 3 or any later version, while the core
+is MIT. See the [shared citation](https://github.com/ACCIDDA/op_engine/blob/main/CITATION.cff)
+and [archive plan](https://github.com/ACCIDDA/op_engine/blob/main/docs/development/citation-and-archiving.md).
