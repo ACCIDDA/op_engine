@@ -291,7 +291,11 @@ def build_advection_matrix(
         namespace_source = np.asarray(namespace_source)
     xp = _namespace_of(namespace_source)
     source_dtype = cast("Any", namespace_source).dtype
-    dtype = xp.result_type(xp.asarray(0.0).dtype, source_dtype)
+    dtype = (
+        source_dtype
+        if xp.isdtype(source_dtype, "real floating")
+        else xp.result_type(xp.asarray(0.0).dtype, source_dtype)
+    )
     velocity_array = cast("Array", xp.asarray(velocity, dtype=dtype))
     if velocity_array.shape != ():
         msg = f"advection velocity must be scalar; got shape {velocity_array.shape}."
@@ -474,7 +478,11 @@ def build_diffusion_matrix(  # noqa: PLR0913
         namespace_source = np.asarray(namespace_source)
     xp = _namespace_of(namespace_source)
     source_dtype = cast("Any", namespace_source).dtype
-    dtype = xp.result_type(xp.asarray(0.0).dtype, source_dtype)
+    dtype = (
+        source_dtype
+        if xp.isdtype(source_dtype, "real floating")
+        else xp.result_type(xp.asarray(0.0).dtype, source_dtype)
+    )
     coefficient_array = cast("Array", xp.asarray(coefficient, dtype=dtype))
     if coefficient_array.shape != ():
         msg = (
