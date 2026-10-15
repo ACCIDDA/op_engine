@@ -7,13 +7,21 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- `reduce_observations` consumes native time/state samples once, retaining
+  bounded-size initial/final values, endpoint counter changes and sampled
+  trapezoid integrals. It preserves scientific metadata and native gradients,
+  snapshots reused producer buffers and records the exact supplied window.
+  Required CPU qualification covers NumPy storage/refinement and JAX/Torch AD;
+  quadrature, reverse-mode memory and restart/checkpoint limits are explicit
+  (#225, streaming increment).
+
 - Native named observations at stored output times export separate scientific
   shapes, coordinates, units, applied measures and evaluation diagnostics.
   `observe_solution` accepts existing trajectories; `observe_model` requires
   completed stored history. The structural op_system adapter applies no extra
   weights and adds no compiler runtime dependency. Required CPU contracts check
   two-mesh physical totals/node samples and fixed-grid state/rate/gain derivatives.
-  Dense output, off-grid sampling and streaming/time windows remain follow-up
+  Method-specific dense output and off-grid sampling remain follow-up
   increments of #225.
 
 - Stochastic `run` methods accept an explicit NumPy `Generator` or `SeedSequence`

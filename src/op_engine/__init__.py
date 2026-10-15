@@ -52,6 +52,11 @@ from .nonlinear_solver import (
     NonlinearSolveResult,
     require_converged,
 )
+from .observation_reductions import (
+    ObservationSummary,
+    ObservationSummaryValue,
+    reduce_observations,
+)
 from .observations import (
     CompiledObservableLike,
     ObservationDiagnostics,
@@ -138,6 +143,8 @@ __all__ = [
     "ObservationResult",
     "ObservationSeries",
     "ObservationSpec",
+    "ObservationSummary",
+    "ObservationSummaryValue",
     "Operator",
     "PoissonSampler",
     "RandomStream",
@@ -181,6 +188,7 @@ __all__ = [
     "observation_from_compiled",
     "observe_model",
     "observe_solution",
+    "reduce_observations",
     "require_converged",
     "require_steady_state",
     "sink_states",

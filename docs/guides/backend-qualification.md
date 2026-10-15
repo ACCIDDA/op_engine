@@ -13,6 +13,14 @@ and initial-state/observation-parameter gradients run in float64; CPU Torch
 gradients run in float64 and float32. Each callback must preserve state namespace,
 dtype and its declared output shape.
 
+The runner also requires sampled-window `reduce_observations` contracts.
+NumPy checks independent nonuniform linear integrals/counter changes, released
+generator states, reused producer buffers and separate RK4/quadrature refinement
+with history disabled. JAX JIT/vmap and state/parameter gradients and CPU Torch
+float32/float64 gradients use independent weighted-linear references. These
+qualify supplied static sample windows, not method-specific dense output,
+off-grid boundaries or constant-memory reverse-mode differentiation.
+
 Separate required `Compiler observations (numpy|jax|torch, 3.12)` jobs install
 op_system's merged observation contract at immutable commit
 `0becde52474b48fef6b6f3c42a344498a17552a8`, then run
