@@ -1535,13 +1535,26 @@ exponentials. The fixture uses float64 and fixed output/substep grids; live
 adaptive gradients, mesh derivatives and arbitrary callbacks are not qualified
 by it. <code>just qualify</code> includes these compiler checks after the core CPU matrix.
 <code>just qualify-observations</code> assumes those namespaces are already installed.
-The pinned compiler is a development/CI contract, not a core runtime dependency.</p>
+The pinned compiler is a development/CI contract, not a core runtime dependency.
+Those jobs also exercise an actual <code>previous</code> rate table through deterministic
+forcing boundaries on all three namespaces in float32 and float64. JAX x64 is
+enabled even for the float32 state, so the time table can retain float64
+coordinates; both incoming and outgoing one-sided evaluation must stay correct.</p>
 <p>Required qualification also includes <a href="../random-streams/">per-run random streams</a>.
 NumPy checks all four stochastic run interfaces against replay, stream-ownership,
 indexed launch-order and analytic constant-birth contracts. JAX/CPU Torch check
 that the NumPy convenience path rejects native states before consuming randomness.
 Existing functional-key sampler tests remain in the baseline stochastic suite;
 these additions do not qualify new native PRNGs or stochastic derivatives.</p>
+<p>Required <a href="../solver-methods/#known-deterministic-forcing-jumps">explicit forcing</a>
+contracts cover float32/float64 NumPy/JAX/CPU Torch fixed, adaptive and frozen
+eager replay against independent piecewise additive solutions. NumPy RK4 and
+Dormand–Prince refinement checks recover their smooth-segment orders across a
+held-table boundary. JAX scan/checkpoint/JIT/vmap parameter gradients and CPU
+Torch eager gradients use piecewise exponential references on a fixed mesh.
+Real op_system tables, provider preparation and structured layouts are checked
+separately in provider integration tests. These do not qualify implicit/hybrid
+forcing or derivatives of jump locations.</p>
 <h2 id="method-and-execution-matrix">Method and execution matrix<a class="headerlink" href="#method-and-execution-matrix" title="Permanent link">&para;</a></h2>
 <p>The table describes the small required structured workload, not all possible
 models, versions, devices, or differentiation transforms. Each qualified fixed
