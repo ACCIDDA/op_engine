@@ -1,4 +1,4 @@
-# Named observations at stored output times
+# Named observations and sampled-window summaries
 
 `observe_solution` evaluates named instantaneous quantities from an existing
 native state trajectory. `observe_model` uses a completed `ModelCore` with
@@ -98,8 +98,135 @@ values while stacking. There is no checkpoint/rematerialization policy in this
 postprocessing path. A model without history or an incomplete model fails
 explicitly. Treat native input/output arrays as immutable.
 
-Off-grid observation times, interpolated physical-coordinate samples,
-method-specific dense output, streaming reductions, time integrals and counter
-windows remain later focused increments of
-[op_engine #225](https://github.com/ACCIDDA/op_engine/issues/225). Statistical
-noise, censoring and missingness belong to consuming observation models.
+## Streaming endpoint changes and time integrals
+
+`reduce_observations` consumes a finite iterable of `(time, native_state)` pairs
+once. It returns an `ObservationSummary` containing the first/last supplied
+times as `window`, a sample count, diagnostics and a read-only named mapping of
+`ObservationSummaryValue` records. Each record keeps the original specification
+and native `initial`, `final`, `change` (`final-initial`) and `integral` arrays.
+Every array has the instantaneous output shape; there is no output-time axis.
+
+```python
+import numpy as np
+from op_engine import ObservationSpec, reduce_observations
+
+def total(t, y, **params):
+    return np.sum(y)
+
+times = [0.0, 0.1, 0.7, 2.0]
+samples = ((t, np.array([2 + 3*t, 5 - t])) for t in times)
+summary = reduce_observations(samples, [ObservationSpec("total", total)])
+assert summary.window == (0.0, 2.0)
+assert np.allclose(summary.values["total"].change, 4.0)
+assert np.allclose(summary.values["total"].integral, 18.0)
+```
+
+An endpoint change is appropriate when the observable is a cumulative counter
+whose value already contains the relevant accumulation. A rate is a different
+quantity: integrate it over time instead. This API does not reconstruct event
+times or infer which state is a cumulative counter. The `initial`, `final` and
+`change` units remain those of the instantaneous observable; `integral` units
+are those units multiplied by the producer's time unit. No unit conversion is
+inferred.
+
+The first/last supplied samples define the exact window. Times are static real
+finite scalars and must increase strictly with finite intervals. A single sample
+defines a zero-duration window with zero change and integral; an empty stream
+fails. State shape, namespace and real floating dtype must stay fixed. Output
+validation and observation-only parameters follow `observe_solution`. Empty
+observation selections still validate the sample stream. Non-finite output
+values propagate rather than being silently removed.
+
+### Quadrature and accuracy
+
+`quadrature="trapezoid"` identifies the
+[composite trapezoidal rule](https://numpy.org/doc/stable/reference/generated/numpy.trapezoid.html)
+over the supplied sample times, including nonuniform grids. It integrates the
+piecewise linear **sampled output**. It does not evaluate an intermediate state
+or provide a solver's continuous extension; diagnostics retain
+`temporal_interpolation="none"`, `dense_output_order=None` and
+`error_estimate=None`. Refinement of sufficiently smooth sampled data gives the
+usual second-order quadrature behavior; a fourth-order solver does not turn
+this sampled integral into a fourth-order integral. Discontinuities and coarse
+sampling can dominate its error. The reducer does not estimate or control it.
+
+The qualification fixture drives public RK4 steps for `y'=-0.7*y`, `y(0)=3`
+on refined nonuniform time grids. Independent exponential references separate
+fourth-order endpoint convergence from second-order integral convergence.
+Linear field/counter fixtures verify exact integrals and endpoint changes on
+irregular grids. Simpson rules or adaptive quadrature have different sample
+requirements; no general higher-order option is inferred from the solver name.
+
+### Driving a solver without stored history
+
+The producer owns integration. Existing public functional step kernels can
+yield each completed sample without storing a trajectory:
+
+```python
+from op_engine import CoreSolver, ModelCore
+from op_engine.model_core import ModelCoreOptions
+
+times = np.linspace(0.0, 1.0, 33)
+core = ModelCore(1, 1, times, options=ModelCoreOptions(store_history=False))
+core.set_initial_state(np.array([[3.0]]))
+solver = CoreSolver(core)
+
+def rhs(t, y):
+    return -0.7 * y
+
+def samples():
+    yield float(times[0]), core.get_current_state()
+    for start, end in zip(times[:-1], times[1:]):
+        state, _ = solver.fixed_explicit_step(
+            rhs, method="rk4", t=float(start), dt=float(end-start),
+            y=core.get_current_state(),
+        )
+        core.advance_timestep(state)
+        yield float(end), state
+
+summary = reduce_observations(samples(), [ObservationSpec("total", total)])
+assert core.state_array is None
+assert summary.sample_count == len(times)
+```
+
+This example steps once per supplied interval; it does not apply an adaptive
+controller. Custom adaptive producers yield accepted samples and retain their
+own controller/replay contract. The reducer does not alter `CoreSolver.run`,
+`observe_model` or any raw trajectory API, and requires no provider dependency.
+Compiled op_system observations can be adapted with `observation_from_compiled`
+and supplied to this reducer using the same state order and measures.
+
+### Memory, differentiation and interruptions
+
+The reducer retains a constant number of arrays per selected output, plus one
+current state reference: its numerical storage is
+`O(n_state + sum(output_sizes))`, independent of the sample count. Producer
+storage is additional. A forward NumPy test verifies that old generator-owned
+state arrays become collectible. Native per-sample outputs are snapshotted
+before requesting the next sample, so a producer can reuse its state buffer.
+Forward NumPy buffer reuse is qualified; backend AD/in-place mutation rules
+still apply to differentiated producers.
+Treat returned arrays as immutable, and use pure evaluators and a fixed
+parameter meaning for the entire window.
+
+JAX JIT/vmap and state/observation-parameter gradients, and CPU Torch gradients
+in float32/float64, are independently qualified. Native arithmetic retains
+computation graphs: reverse-mode AD may retain work from every sample, so its
+memory is **not** bounded by the forward numerical storage claim. There is no
+automatic adjoint, checkpointing or rematerialization policy. Extract native
+summary arrays inside transformed functions; the static mapping is not a
+registered JAX pytree. Times, sample count and specifications stay static in
+the qualified transforms.
+
+There is no persistent or resumable reducer checkpoint. If a producer/callback
+raises, the consuming call returns no summary and may have advanced the
+producer. Recovery requires a fresh producer replay or its own compatible
+checkpoint; an incomplete prefix is not silently reported as a full-window
+result.
+
+Off-grid times/window boundaries, interpolated physical-coordinate samples,
+method-specific dense output and event-specific reconstruction remain later
+focused increments of [op_engine #225](https://github.com/ACCIDDA/op_engine/issues/225).
+Statistical noise, censoring and missingness belong to consuming observation
+models.

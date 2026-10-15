@@ -75,6 +75,7 @@ nav:
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
       - Nonlinear Solver: api-reference/nonlinear_solver.md
+      - Observation Reductions: api-reference/observation_reductions.md
       - Observations: api-reference/observations.md
       - Reactions: api-reference/reactions.md
       - Spatial Grid: api-reference/spatial_grid.md
