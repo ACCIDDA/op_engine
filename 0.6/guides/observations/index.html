@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#named-observations-at-stored-output-times" class="md-skip">
+        <a href="#named-observations-and-sampled-window-summaries" class="md-skip">
           Skip to content
         </a>
       
@@ -871,6 +871,56 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#streaming-endpoint-changes-and-time-integrals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming endpoint changes and time integrals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Streaming endpoint changes and time integrals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quadrature-and-accuracy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quadrature and accuracy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#driving-a-solver-without-stored-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Driving a solver without stored history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-differentiation-and-interruptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory, differentiation and interruptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1221,6 +1271,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/observation_reductions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observation Reductions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/observations/" class="md-nav__link">
         
   
@@ -1437,6 +1515,56 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#streaming-endpoint-changes-and-time-integrals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming endpoint changes and time integrals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Streaming endpoint changes and time integrals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quadrature-and-accuracy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quadrature and accuracy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#driving-a-solver-without-stored-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Driving a solver without stored history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-differentiation-and-interruptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory, differentiation and interruptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1454,7 +1582,7 @@
 
 
 
-<h1 id="named-observations-at-stored-output-times">Named observations at stored output times<a class="headerlink" href="#named-observations-at-stored-output-times" title="Permanent link">&para;</a></h1>
+<h1 id="named-observations-and-sampled-window-summaries">Named observations and sampled-window summaries<a class="headerlink" href="#named-observations-and-sampled-window-summaries" title="Permanent link">&para;</a></h1>
 <p><code>observe_solution</code> evaluates named instantaneous quantities from an existing
 native state trajectory. <code>observe_model</code> uses a completed <code>ModelCore</code> with
 <code>store_history=True</code>. Both preserve the raw trajectory API and return a separate
@@ -1538,11 +1666,120 @@ storage is <code>O(n_times*n_state)</code> and named output storage is
 values while stacking. There is no checkpoint/rematerialization policy in this
 postprocessing path. A model without history or an incomplete model fails
 explicitly. Treat native input/output arrays as immutable.</p>
-<p>Off-grid observation times, interpolated physical-coordinate samples,
-method-specific dense output, streaming reductions, time integrals and counter
-windows remain later focused increments of
-<a href="https://github.com/ACCIDDA/op_engine/issues/225">op_engine #225</a>. Statistical
-noise, censoring and missingness belong to consuming observation models.</p>
+<h2 id="streaming-endpoint-changes-and-time-integrals">Streaming endpoint changes and time integrals<a class="headerlink" href="#streaming-endpoint-changes-and-time-integrals" title="Permanent link">&para;</a></h2>
+<p><code>reduce_observations</code> consumes a finite iterable of <code>(time, native_state)</code> pairs
+once. It returns an <code>ObservationSummary</code> containing the first/last supplied
+times as <code>window</code>, a sample count, diagnostics and a read-only named mapping of
+<code>ObservationSummaryValue</code> records. Each record keeps the original specification
+and native <code>initial</code>, <code>final</code>, <code>change</code> (<code>final-initial</code>) and <code>integral</code> arrays.
+Every array has the instantaneous output shape; there is no output-time axis.</p>
+<pre><code class="language-python">import numpy as np
+from op_engine import ObservationSpec, reduce_observations
+
+def total(t, y, **params):
+    return np.sum(y)
+
+times = [0.0, 0.1, 0.7, 2.0]
+samples = ((t, np.array([2 + 3*t, 5 - t])) for t in times)
+summary = reduce_observations(samples, [ObservationSpec(&quot;total&quot;, total)])
+assert summary.window == (0.0, 2.0)
+assert np.allclose(summary.values[&quot;total&quot;].change, 4.0)
+assert np.allclose(summary.values[&quot;total&quot;].integral, 18.0)
+</code></pre>
+<p>An endpoint change is appropriate when the observable is a cumulative counter
+whose value already contains the relevant accumulation. A rate is a different
+quantity: integrate it over time instead. This API does not reconstruct event
+times or infer which state is a cumulative counter. The <code>initial</code>, <code>final</code> and
+<code>change</code> units remain those of the instantaneous observable; <code>integral</code> units
+are those units multiplied by the producer's time unit. No unit conversion is
+inferred.</p>
+<p>The first/last supplied samples define the exact window. Times are static real
+finite scalars and must increase strictly with finite intervals. A single sample
+defines a zero-duration window with zero change and integral; an empty stream
+fails. State shape, namespace and real floating dtype must stay fixed. Output
+validation and observation-only parameters follow <code>observe_solution</code>. Empty
+observation selections still validate the sample stream. Non-finite output
+values propagate rather than being silently removed.</p>
+<h3 id="quadrature-and-accuracy">Quadrature and accuracy<a class="headerlink" href="#quadrature-and-accuracy" title="Permanent link">&para;</a></h3>
+<p><code>quadrature="trapezoid"</code> identifies the
+<a href="https://numpy.org/doc/stable/reference/generated/numpy.trapezoid.html">composite trapezoidal rule</a>
+over the supplied sample times, including nonuniform grids. It integrates the
+piecewise linear <strong>sampled output</strong>. It does not evaluate an intermediate state
+or provide a solver's continuous extension; diagnostics retain
+<code>temporal_interpolation="none"</code>, <code>dense_output_order=None</code> and
+<code>error_estimate=None</code>. Refinement of sufficiently smooth sampled data gives the
+usual second-order quadrature behavior; a fourth-order solver does not turn
+this sampled integral into a fourth-order integral. Discontinuities and coarse
+sampling can dominate its error. The reducer does not estimate or control it.</p>
+<p>The qualification fixture drives public RK4 steps for <code>y'=-0.7*y</code>, <code>y(0)=3</code>
+on refined nonuniform time grids. Independent exponential references separate
+fourth-order endpoint convergence from second-order integral convergence.
+Linear field/counter fixtures verify exact integrals and endpoint changes on
+irregular grids. Simpson rules or adaptive quadrature have different sample
+requirements; no general higher-order option is inferred from the solver name.</p>
+<h3 id="driving-a-solver-without-stored-history">Driving a solver without stored history<a class="headerlink" href="#driving-a-solver-without-stored-history" title="Permanent link">&para;</a></h3>
+<p>The producer owns integration. Existing public functional step kernels can
+yield each completed sample without storing a trajectory:</p>
+<pre><code class="language-python">from op_engine import CoreSolver, ModelCore
+from op_engine.model_core import ModelCoreOptions
+
+times = np.linspace(0.0, 1.0, 33)
+core = ModelCore(1, 1, times, options=ModelCoreOptions(store_history=False))
+core.set_initial_state(np.array([[3.0]]))
+solver = CoreSolver(core)
+
+def rhs(t, y):
+    return -0.7 * y
+
+def samples():
+    yield float(times[0]), core.get_current_state()
+    for start, end in zip(times[:-1], times[1:]):
+        state, _ = solver.fixed_explicit_step(
+            rhs, method=&quot;rk4&quot;, t=float(start), dt=float(end-start),
+            y=core.get_current_state(),
+        )
+        core.advance_timestep(state)
+        yield float(end), state
+
+summary = reduce_observations(samples(), [ObservationSpec(&quot;total&quot;, total)])
+assert core.state_array is None
+assert summary.sample_count == len(times)
+</code></pre>
+<p>This example steps once per supplied interval; it does not apply an adaptive
+controller. Custom adaptive producers yield accepted samples and retain their
+own controller/replay contract. The reducer does not alter <code>CoreSolver.run</code>,
+<code>observe_model</code> or any raw trajectory API, and requires no provider dependency.
+Compiled op_system observations can be adapted with <code>observation_from_compiled</code>
+and supplied to this reducer using the same state order and measures.</p>
+<h3 id="memory-differentiation-and-interruptions">Memory, differentiation and interruptions<a class="headerlink" href="#memory-differentiation-and-interruptions" title="Permanent link">&para;</a></h3>
+<p>The reducer retains a constant number of arrays per selected output, plus one
+current state reference: its numerical storage is
+<code>O(n_state + sum(output_sizes))</code>, independent of the sample count. Producer
+storage is additional. A forward NumPy test verifies that old generator-owned
+state arrays become collectible. Native per-sample outputs are snapshotted
+before requesting the next sample, so a producer can reuse its state buffer.
+Forward NumPy buffer reuse is qualified; backend AD/in-place mutation rules
+still apply to differentiated producers.
+Treat returned arrays as immutable, and use pure evaluators and a fixed
+parameter meaning for the entire window.</p>
+<p>JAX JIT/vmap and state/observation-parameter gradients, and CPU Torch gradients
+in float32/float64, are independently qualified. Native arithmetic retains
+computation graphs: reverse-mode AD may retain work from every sample, so its
+memory is <strong>not</strong> bounded by the forward numerical storage claim. There is no
+automatic adjoint, checkpointing or rematerialization policy. Extract native
+summary arrays inside transformed functions; the static mapping is not a
+registered JAX pytree. Times, sample count and specifications stay static in
+the qualified transforms.</p>
+<p>There is no persistent or resumable reducer checkpoint. If a producer/callback
+raises, the consuming call returns no summary and may have advanced the
+producer. Recovery requires a fresh producer replay or its own compatible
+checkpoint; an incomplete prefix is not silently reported as a full-window
+result.</p>
+<p>Off-grid times/window boundaries, interpolated physical-coordinate samples,
+method-specific dense output and event-specific reconstruction remain later
+focused increments of <a href="https://github.com/ACCIDDA/op_engine/issues/225">op_engine #225</a>.
+Statistical noise, censoring and missingness belong to consuming observation
+models.</p>
 
 
 

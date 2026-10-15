@@ -1232,6 +1232,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/observation_reductions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observation Reductions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/observations/" class="md-nav__link">
         
   
@@ -1488,6 +1516,13 @@ Independent scalar/field values and error contracts run with NumPy; JAX JIT/vmap
 and initial-state/observation-parameter gradients run in float64; CPU Torch
 gradients run in float64 and float32. Each callback must preserve state namespace,
 dtype and its declared output shape.</p>
+<p>The runner also requires sampled-window <code>reduce_observations</code> contracts.
+NumPy checks independent nonuniform linear integrals/counter changes, released
+generator states, reused producer buffers and separate RK4/quadrature refinement
+with history disabled. JAX JIT/vmap and state/parameter gradients and CPU Torch
+float32/float64 gradients use independent weighted-linear references. These
+qualify supplied static sample windows, not method-specific dense output,
+off-grid boundaries or constant-memory reverse-mode differentiation.</p>
 <p>Separate required <code>Compiler observations (numpy|jax|torch, 3.12)</code> jobs install
 op_system's merged observation contract at immutable commit
 <code>0becde52474b48fef6b6f3c42a344498a17552a8</code>, then run
