@@ -5,6 +5,12 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Flat prepared adaptive Euler/RK4 replay preserves discovery's accepted
+  two-half-step state update and its parameter derivatives. Fixed prepared
+  plans retain their full-step kernels (#233).
+
 ### Added
 
 - `reduce_observations` consumes native time/state samples once, retaining

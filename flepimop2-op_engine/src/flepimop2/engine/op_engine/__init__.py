@@ -817,11 +817,48 @@ def _make_core(times: np.ndarray, y0: Array) -> ModelCore:
     return core
 
 
+def _explicit_plan_step(
+    solver: CoreSolver,
+    rhs: Callable[[Scalar, Array], Array],
+    *,
+    method: SolverMethod,
+    t: Scalar,
+    dt: Scalar,
+    state: Array,
+    first_stage: Array | None = None,
+    adaptive: bool,
+) -> tuple[Array, Array | None]:
+    """Keep fixed plans lean and frozen adaptive plans on their accepted map.
+
+    Returns:
+        Accepted state and optional reusable derivative.
+    """
+    if adaptive:
+        attempt = solver.adaptive_explicit_step(
+            rhs,
+            method=method.value,
+            t=t,
+            dt=dt,
+            y=state,
+            first_stage=first_stage,
+        )
+        return attempt.state, attempt.last_stage
+    return solver.fixed_explicit_step(
+        rhs,
+        method=method.value,
+        t=t,
+        dt=dt,
+        y=state,
+        first_stage=first_stage,
+    )
+
+
 def _run_eager_explicit_plan_trajectory(
     solver: CoreSolver,
     rhs: Callable[[Scalar, Array], Array],
     *,
     method: SolverMethod,
+    adaptive: bool = False,
     step_times: tuple[float, ...],
     step_sizes: tuple[float, ...],
     output_indices: np.ndarray,
@@ -835,12 +872,14 @@ def _run_eager_explicit_plan_trajectory(
     for step_index, (step_time, step_size) in enumerate(
         zip(step_times, step_sizes, strict=True)
     ):
-        state, first_stage = solver.fixed_explicit_step(
+        state, first_stage = _explicit_plan_step(
+            solver,
             rhs,
-            method=method.value,
+            method=method,
+            adaptive=adaptive,
             t=cast("Scalar", step_time),
             dt=cast("Scalar", step_size),
-            y=state,
+            state=state,
             first_stage=first_stage,
         )
         if step_index in output_index_set:
@@ -958,6 +997,7 @@ def _run_jax_explicit_plan_trajectory(
     rhs: Callable[[Scalar, Array], Array],
     *,
     method: SolverMethod,
+    adaptive: bool = False,
     step_times_values: tuple[float, ...],
     step_sizes_values: tuple[float, ...],
     output_indices: np.ndarray,
@@ -1027,12 +1067,14 @@ def _run_jax_explicit_plan_trajectory(
         ) -> tuple[Array, Array, Array]:
             state, first_stage, outputs = carry
             time, dt, output_slot = step
-            next_state, next_stage = solver.fixed_explicit_step(
+            next_state, next_stage = _explicit_plan_step(
+                solver,
                 rhs,
-                method=method.value,
+                method=method,
+                adaptive=adaptive,
                 t=time,
                 dt=dt,
-                y=state,
+                state=state,
                 first_stage=first_stage,
             )
             if next_stage is None:
@@ -1062,12 +1104,14 @@ def _run_jax_explicit_plan_trajectory(
         ) -> tuple[Array, Array]:
             state, outputs = carry
             time, dt, output_slot = step
-            next_state, _next_stage = solver.fixed_explicit_step(
+            next_state, _next_stage = _explicit_plan_step(
+                solver,
                 rhs,
-                method=method.value,
+                method=method,
+                adaptive=adaptive,
                 t=time,
                 dt=dt,
-                y=state,
+                state=state,
             )
             return next_state, save_requested(outputs, output_slot, next_state)
 
@@ -1818,6 +1862,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                     solver,
                     rhs,
                     method=config.method,
+                    adaptive=schedule is not None,
                     step_times_values=step_times,
                     step_sizes_values=step_sizes,
                     output_indices=output_indices,
@@ -1835,6 +1880,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                 solver,
                 rhs,
                 method=config.method,
+                adaptive=schedule is not None,
                 step_times=step_times,
                 step_sizes=step_sizes,
                 output_indices=output_indices,
