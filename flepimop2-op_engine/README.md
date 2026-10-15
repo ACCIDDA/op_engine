@@ -232,6 +232,12 @@ trajectory = engine.run(
 )
 ```
 
+Prepared adaptive Euler and RK4 execute the accepted two-half-step candidate
+for each frozen duration, just like ordinary replay. Fixed prepared plans keep
+their full-step updates. This corrects earlier flat prepared plans, which used
+full steps for both modes; rediscover and validate accuracy independently when
+reproducing results produced by those versions.
+
 The replay uses the same portable core kernels and keeps accept/reject decisions
 frozen, so it can be enclosed by `jax.jit` and `jax.grad`. Compact replay also
 recomputes each step's embedded or step-doubling error estimate to diagnose
