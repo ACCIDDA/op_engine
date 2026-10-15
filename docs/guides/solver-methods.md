@@ -35,6 +35,67 @@ The [linear-multistep design note](linear-multistep-methods.md) records the
 coefficient/history contract, restart rules, and the current no-go decision on
 exposing BDF3 before variable-step and rejection semantics exist.
 
+## Known deterministic forcing jumps
+
+For a right-continuous, piecewise-smooth explicit RHS, declare every known
+jump through `RunConfig(forcing_breakpoints=(...))`. Euler, Heun, RK4 and
+Dormand–Prince split fixed/adaptive internal steps at those coordinates.
+Saved output times remain unchanged; including a jump only in the output grid
+does not replace this declaration.
+
+```python
+import numpy as np
+from op_engine import CoreSolver, ModelCore
+from op_engine.core_solver import RunConfig
+
+core = ModelCore(1, 1, np.asarray([0.0, 2.0]))
+core.set_initial_state(np.ones((1, 1)))
+CoreSolver(core).run(
+    lambda time, state: np.where(time < 1.0, -state, 0.0 * state),
+    config=RunConfig(method="rk4", fixed_max_step=0.125,
+                     forcing_breakpoints=(1.0,)),
+)
+# Final state approximates exp(-1); no extra output row is inserted.
+```
+
+The driver integrates the full duration to each boundary. Incoming RHS stages
+are capped at its representable left neighbor. Stages starting at a declared
+jump use a representable right neighbor, ensuring that float32 rounding below
+a producer's float64 coordinate cannot select the old table value. These
+adjustments affect RHS evaluation times, not the integrated duration, stored
+times or state. For declared forcing, first-stage/FSAL cache reuse is disabled
+throughout the solve, including rejected attempts and replay. Smooth runs with
+an empty declaration retain their existing kernels and cache behavior.
+
+Times must be finite, strictly increasing and remain distinct/finite in the
+active float32/float64 state/time precision. Global declarations can extend
+outside the solve interval. Breakpoints are static metadata, with no state
+reset, jump impulse, inferred event detection, or gradients with respect to
+moving jump locations. Callbacks must implement the intended right-continuous
+regimes and remain smooth enough within each segment for the chosen method.
+
+Functional `fixed_explicit_step` and `adaptive_explicit_step` accept the same
+static declaration. External drivers must clip each step at the next jump;
+`fixed_step_sizes(..., forcing_breakpoints=...)` provides a static partition.
+These kernels adjust stage times but do not shorten the supplied duration.
+Frozen adaptive replay checks forcing provenance and rejects a mesh that
+crosses a declared jump; rediscover rather than splitting an accepted replay
+step. Parameter gradients remain conditional on the frozen mesh and jump times.
+
+The provider merges `system.option("forcing_breakpoints")` with configured
+boundaries at each run/preparation, without modifying the reusable engine.
+This automatically handles op_system `time_interpolation: previous` tables
+in flat/PyTree/block fixed runs, prepared execution and adaptive replay. Other
+deterministic methods and hybrid execution reject declared jumps until their
+stage/history policies are implemented. Previously the deterministic provider
+ignored producer declarations, so these unsupported methods now fail clearly.
+Smooth `linear` tables publish no jumps and retain their existing behavior.
+
+The implementation follows the known-jump split/cache-refresh principles in
+[Diffrax's controllers](https://docs.kidger.site/diffrax/api/stepsize_controller/)
+and [SciML's solver options](https://docs.sciml.ai/DiffEqDocs/dev/basics/common_solver_opts/),
+with explicit one-sided times for op_system's right-continuous convention.
+
 ## Stochastic reaction networks
 
 All stochastic solvers use one reaction contract: the stoichiometric matrix

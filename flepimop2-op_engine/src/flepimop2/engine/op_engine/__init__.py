@@ -33,6 +33,7 @@ from flepimop2.parameter.abc import ParameterValue
 from flepimop2.typing import IdentifierString, StateChangeEnum  # noqa: TC002
 from pydantic import Field, PrivateAttr
 
+from op_engine._forcing import _ForcingSchedule
 from op_engine._runge_kutta import (
     EXPLICIT_TABLEAUS,
     evaluate_explicit_runge_kutta,
@@ -155,6 +156,7 @@ class AdaptiveSchedule:
     state_layout: StateLayout = StateLayout.FLAT
     block_axis: str | None = None
     context_signature: str | None = None
+    forcing_breakpoints: tuple[float, ...] = ()
 
     @classmethod
     def from_core(
@@ -187,6 +189,7 @@ class AdaptiveSchedule:
             state_layout=config.state_layout,
             block_axis=config.block_axis,
             context_signature=context_signature,
+            forcing_breakpoints=config.forcing_breakpoints,
         )
 
     def validate_config(self, config: OpEngineEngineConfig) -> None:
@@ -202,6 +205,12 @@ class AdaptiveSchedule:
             msg = (
                 "Adaptive schedule state layout or block axis does not match "
                 "the active engine configuration; discover a fresh schedule."
+            )
+            raise ValueError(msg)
+        if config.forcing_breakpoints != self.forcing_breakpoints:
+            msg = (
+                "Adaptive schedule forcing_breakpoints changed; "
+                "discover a fresh schedule."
             )
             raise ValueError(msg)
         if config.method is not self.method:
@@ -822,6 +831,7 @@ def _explicit_plan_step(
     rhs: Callable[[Scalar, Array], Array],
     *,
     method: SolverMethod,
+    forcing_breakpoints: tuple[float, ...],
     t: Scalar,
     dt: Scalar,
     state: Array,
@@ -837,6 +847,7 @@ def _explicit_plan_step(
         attempt = solver.adaptive_explicit_step(
             rhs,
             method=method.value,
+            forcing_breakpoints=forcing_breakpoints,
             t=t,
             dt=dt,
             y=state,
@@ -846,6 +857,7 @@ def _explicit_plan_step(
     return solver.fixed_explicit_step(
         rhs,
         method=method.value,
+        forcing_breakpoints=forcing_breakpoints,
         t=t,
         dt=dt,
         y=state,
@@ -859,6 +871,7 @@ def _run_eager_explicit_plan_trajectory(
     *,
     method: SolverMethod,
     adaptive: bool = False,
+    forcing_breakpoints: tuple[float, ...] = (),
     step_times: tuple[float, ...],
     step_sizes: tuple[float, ...],
     output_indices: np.ndarray,
@@ -877,6 +890,7 @@ def _run_eager_explicit_plan_trajectory(
             rhs,
             method=method,
             adaptive=adaptive,
+            forcing_breakpoints=forcing_breakpoints,
             t=cast("Scalar", step_time),
             dt=cast("Scalar", step_size),
             state=state,
@@ -998,6 +1012,7 @@ def _run_jax_explicit_plan_trajectory(
     *,
     method: SolverMethod,
     adaptive: bool = False,
+    forcing_breakpoints: tuple[float, ...] = (),
     step_times_values: tuple[float, ...],
     step_sizes_values: tuple[float, ...],
     output_indices: np.ndarray,
@@ -1059,7 +1074,11 @@ def _run_jax_explicit_plan_trajectory(
         )
 
     if method is SolverMethod.DOPRI5:
-        initial_stage = rhs(_array_item(step_times, 0), initial_state)
+        initial_stage = (
+            xp.zeros_like(initial_state)
+            if forcing_breakpoints
+            else rhs(_array_item(step_times, 0), initial_state)
+        )
 
         def advance_dopri5(
             carry: tuple[Array, Array, Array],
@@ -1072,6 +1091,7 @@ def _run_jax_explicit_plan_trajectory(
                 rhs,
                 method=method,
                 adaptive=adaptive,
+                forcing_breakpoints=forcing_breakpoints,
                 t=time,
                 dt=dt,
                 state=state,
@@ -1109,6 +1129,7 @@ def _run_jax_explicit_plan_trajectory(
                 rhs,
                 method=method,
                 adaptive=adaptive,
+                forcing_breakpoints=forcing_breakpoints,
                 t=time,
                 dt=dt,
                 state=state,
@@ -1155,7 +1176,9 @@ def _run_jax_validated_adaptive_trajectory(
     """
     import jax  # noqa: PLC0415
 
-    step_times_values, step_sizes_values, output_indices = _schedule_step_plan(schedule)
+    step_times_values, step_sizes_values, output_indices = _schedule_step_plan(
+        schedule, forcing_breakpoints=config.forcing_breakpoints
+    )
     initial_state = solver.core.get_current_state()
     xp = _namespace_of(initial_state)
     zero_float = xp.asarray(0.0, dtype=initial_state.dtype)
@@ -1229,7 +1252,11 @@ def _run_jax_validated_adaptive_trajectory(
         )
 
     if method is SolverMethod.DOPRI5:
-        initial_stage = rhs(_array_item(step_times, 0), initial_state)
+        initial_stage = (
+            xp.zeros_like(initial_state)
+            if config.forcing_breakpoints
+            else rhs(_array_item(step_times, 0), initial_state)
+        )
 
         def advance_dopri5(
             carry: tuple[Array, Array, Array, Array, Array],
@@ -1240,6 +1267,7 @@ def _run_jax_validated_adaptive_trajectory(
             attempt = solver.adaptive_explicit_step(
                 rhs,
                 method=method.value,
+                forcing_breakpoints=config.forcing_breakpoints,
                 t=time,
                 dt=dt,
                 y=state,
@@ -1294,6 +1322,7 @@ def _run_jax_validated_adaptive_trajectory(
             attempt = solver.adaptive_explicit_step(
                 rhs,
                 method=method.value,
+                forcing_breakpoints=config.forcing_breakpoints,
                 t=time,
                 dt=dt,
                 y=state,
@@ -1355,6 +1384,7 @@ def _run_jax_fixed_explicit_trajectory(
     rhs: Callable[[Scalar, Array], Array],
     *,
     method: SolverMethod,
+    forcing_breakpoints: tuple[float, ...] = (),
     times: np.ndarray,
     fixed_max_step: float | None,
     checkpoint: ReplayCheckpoint,
@@ -1366,12 +1396,14 @@ def _run_jax_fixed_explicit_trajectory(
     step_times_values, step_sizes_values, output_indices = _fixed_step_plan(
         times,
         fixed_max_step,
+        forcing_breakpoints=forcing_breakpoints,
     )
     if method is SolverMethod.DOPRI5:
         _run_jax_explicit_plan_trajectory(
             solver,
             rhs,
             method=method,
+            forcing_breakpoints=forcing_breakpoints,
             step_times_values=step_times_values,
             step_sizes_values=step_sizes_values,
             output_indices=output_indices,
@@ -1401,6 +1433,7 @@ def _run_jax_fixed_explicit_trajectory(
         next_state, _next_stage = solver.fixed_explicit_step(
             rhs,
             method=method.value,
+            forcing_breakpoints=forcing_breakpoints,
             t=time,
             dt=dt,
             y=state,
@@ -1524,15 +1557,20 @@ def _jax_discovery_interval(
         ) = carry
         remaining = xp.subtract(target, time)
         attempted_dt = xp.minimum(current_dt, remaining)
-        stage = jax.lax.cond(
-            has_stage,
-            lambda _operand: cached_stage,
-            lambda _operand: rhs(time, state),
-            operand=None,
+        stage = (
+            None
+            if config.forcing_breakpoints
+            else jax.lax.cond(
+                has_stage,
+                lambda _operand: cached_stage,
+                lambda _operand: rhs(time, state),
+                operand=None,
+            )
         )
         attempt = solver.adaptive_explicit_step(
             rhs,
             method=method.value,
+            forcing_breakpoints=config.forcing_breakpoints,
             t=time,
             dt=attempted_dt,
             y=state,
@@ -1687,29 +1725,37 @@ def _run_jax_adaptive_explicit_discovery(
         3: "Adaptive JAX discovery reached dt_min after a rejected step.",
     }
     for start_value, target_value in itertools.pairwise(times):
-        result = discover_interval(
-            xp.asarray(start_value, dtype=state.dtype),
-            xp.asarray(target_value, dtype=state.dtype),
-            state,
-            first_stage,
-            has_first_stage,
+        collected_steps: list[float] = []
+        endpoints = _ForcingSchedule(config.forcing_breakpoints).segments(
+            float(start_value), float(target_value)
         )
-        status = int(np.asarray(result.status))
-        if status:
-            raise RuntimeError(errors.get(status, "Adaptive JAX discovery failed."))
-        accepted_steps = int(np.asarray(result.accepted_steps))
-        steps = np.asarray(
-            _array_item(result.step_sizes, slice(0, accepted_steps)),
-            dtype=np.float64,
-        )
-        host_steps = [float(value) for value in steps]
-        if host_steps:
-            interval = float(target_value) - float(start_value)
-            host_steps[-1] += interval - math.fsum(host_steps)
-        interval_steps.append(tuple(host_steps))
-        state = result.state
-        first_stage = result.first_stage
-        has_first_stage = result.has_first_stage
+        for segment_start, segment_end in itertools.pairwise(endpoints):
+            result = discover_interval(
+                xp.asarray(segment_start, dtype=state.dtype),
+                xp.asarray(segment_end, dtype=state.dtype),
+                state,
+                first_stage,
+                has_first_stage,
+            )
+            status = int(np.asarray(result.status))
+            if status:
+                raise RuntimeError(errors.get(status, "Adaptive JAX discovery failed."))
+            accepted_steps = int(np.asarray(result.accepted_steps))
+            steps = np.asarray(
+                _array_item(result.step_sizes, slice(0, accepted_steps)),
+                dtype=np.float64,
+            )
+            host_steps = [float(value) for value in steps]
+            if host_steps:
+                interval = segment_end - segment_start
+                host_steps[-1] += interval - math.fsum(host_steps)
+            collected_steps.extend(host_steps)
+            if len(collected_steps) > config.adaptive_cfg.max_steps:
+                raise RuntimeError(errors[1])
+            state = result.state
+            first_stage = result.first_stage
+            has_first_stage = result.has_first_stage
+        interval_steps.append(tuple(collected_steps))
         trajectory.append(state)
 
     solver.core.apply_trajectory(cast("Array", xp.stack(tuple(trajectory), axis=0)))
@@ -1722,6 +1768,8 @@ def _run_jax_adaptive_explicit_discovery(
 def _fixed_step_plan(
     times: np.ndarray,
     fixed_max_step: float | None,
+    *,
+    forcing_breakpoints: tuple[float, ...] = (),
 ) -> tuple[tuple[float, ...], tuple[float, ...], np.ndarray]:
     """Expand output intervals into fixed internal steps.
 
@@ -1730,17 +1778,21 @@ def _fixed_step_plan(
         states in the internal trajectory tail.
     """
     interval_steps = tuple(
-        fixed_step_sizes(float(start), float(end), fixed_max_step)
+        fixed_step_sizes(
+            float(start),
+            float(end),
+            fixed_max_step,
+            forcing_breakpoints=forcing_breakpoints,
+        )
         for start, end in itertools.pairwise(times)
     )
     flat_step_sizes: list[float] = []
     flat_step_times: list[float] = []
     for start, steps in zip(times[:-1], interval_steps, strict=True):
-        step_time = float(start)
-        for step_size in steps:
+        starts = _ForcingSchedule(forcing_breakpoints).step_times(float(start), steps)
+        for step_time, step_size in zip(starts, steps, strict=True):
             flat_step_times.append(step_time)
             flat_step_sizes.append(step_size)
-            step_time += step_size
     output_indices = (
         np.cumsum(
             np.asarray(tuple(len(steps) for steps in interval_steps), dtype=np.int64)
@@ -1752,6 +1804,8 @@ def _fixed_step_plan(
 
 def _schedule_step_plan(
     schedule: AdaptiveStepSchedule,
+    *,
+    forcing_breakpoints: tuple[float, ...] = (),
 ) -> tuple[tuple[float, ...], tuple[float, ...], np.ndarray]:
     """Flatten a validated accepted mesh for backend-native replay.
 
@@ -1763,11 +1817,10 @@ def _schedule_step_plan(
     for start, steps in zip(
         schedule.output_times[:-1], schedule.step_sizes, strict=True
     ):
-        step_time = start
-        for step_size in steps:
+        starts = _ForcingSchedule(forcing_breakpoints).step_times(start, steps)
+        for step_time, step_size in zip(starts, steps, strict=True):
             flat_step_times.append(step_time)
             flat_step_sizes.append(step_size)
-            step_time += step_size
     output_indices = (
         np.cumsum(
             np.asarray(
@@ -1802,10 +1855,11 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
         step_times, step_sizes, output_indices = _fixed_step_plan(
             times,
             config.fixed_max_step,
+            forcing_breakpoints=config.forcing_breakpoints,
         )
     else:
         step_times, step_sizes, output_indices = _schedule_step_plan(
-            schedule.step_schedule
+            schedule.step_schedule, forcing_breakpoints=config.forcing_breakpoints
         )
     initial_shapes = {name: entry.shape for name, entry in initial_state.items()}
     parameter_shapes = {name: entry.shape for name, entry in params.items()}
@@ -1852,6 +1906,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                     solver,
                     rhs,
                     method=config.method,
+                    forcing_breakpoints=config.forcing_breakpoints,
                     times=times,
                     fixed_max_step=config.fixed_max_step,
                     checkpoint=config.fixed_checkpoint,
@@ -1863,6 +1918,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                     rhs,
                     method=config.method,
                     adaptive=schedule is not None,
+                    forcing_breakpoints=config.forcing_breakpoints,
                     step_times_values=step_times,
                     step_sizes_values=step_sizes,
                     output_indices=output_indices,
@@ -1881,6 +1937,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                 rhs,
                 method=config.method,
                 adaptive=schedule is not None,
+                forcing_breakpoints=config.forcing_breakpoints,
                 step_times=step_times,
                 step_sizes=step_sizes,
                 output_indices=output_indices,
@@ -1914,10 +1971,11 @@ def _prepare_structured_explicit_executor(  # noqa: PLR0917
         _step_times, step_sizes, _output_indices = _fixed_step_plan(
             times,
             config.fixed_max_step,
+            forcing_breakpoints=config.forcing_breakpoints,
         )
     else:
         _step_times, step_sizes, _output_indices = _schedule_step_plan(
-            schedule.step_schedule
+            schedule.step_schedule, forcing_breakpoints=config.forcing_breakpoints
         )
     initial_shapes = {name: entry.shape for name, entry in initial_state.items()}
     parameter_shapes = {name: entry.shape for name, entry in params.items()}
@@ -1987,12 +2045,17 @@ def _structured_explicit_step(
     rhs: Callable[[Scalar, StateTree], StateTree],
     *,
     method: SolverMethod,
+    forcing_breakpoints: tuple[float, ...] = (),
     t: Scalar,
     dt: Scalar,
     state: StateTree,
     first_stage: StateTree | None = None,
 ) -> tuple[StateTree, StateTree | None]:
     """Advance one explicit fixed step without flattening the state tree."""
+    if forcing_breakpoints:
+        reference = next(iter(state.values()))
+        rhs = _ForcingSchedule(forcing_breakpoints).rhs_for_step(rhs, t, reference)
+        first_stage = None
     if method is SolverMethod.EULER:
         derivative = rhs(t, state)
         return _tree_weighted_sum(state, dt, (1.0,), (derivative,)), None
@@ -2103,6 +2166,7 @@ def _run_python_fixed_explicit_pytree(
     initial_state: StateTree,
     *,
     method: SolverMethod,
+    forcing_breakpoints: tuple[float, ...] = (),
     times: np.ndarray,
     fixed_max_step: float | None,
 ) -> StateTree:
@@ -2113,7 +2177,9 @@ def _run_python_fixed_explicit_pytree(
             for name, value in initial_state.items()
         }
 
-    step_times, step_sizes, output_indices = _fixed_step_plan(times, fixed_max_step)
+    step_times, step_sizes, output_indices = _fixed_step_plan(
+        times, fixed_max_step, forcing_breakpoints=forcing_breakpoints
+    )
     output_index_set = {int(index) for index in output_indices}
     state = initial_state
     first_stage: StateTree | None = None
@@ -2126,6 +2192,7 @@ def _run_python_fixed_explicit_pytree(
         state, first_stage = _structured_explicit_step(
             rhs,
             method=method,
+            forcing_breakpoints=forcing_breakpoints,
             t=cast("Scalar", step_time),
             dt=cast("Scalar", step_size),
             state=state,
@@ -2146,6 +2213,7 @@ def _run_jax_fixed_explicit_pytree(
     initial_state: StateTree,
     *,
     method: SolverMethod,
+    forcing_breakpoints: tuple[float, ...] = (),
     times: np.ndarray,
     fixed_max_step: float | None,
 ) -> StateTree:
@@ -2160,7 +2228,9 @@ def _run_jax_fixed_explicit_pytree(
             for name, value in initial_state.items()
         }
 
-    flat_times, flat_sizes, output_indices = _fixed_step_plan(times, fixed_max_step)
+    flat_times, flat_sizes, output_indices = _fixed_step_plan(
+        times, fixed_max_step, forcing_breakpoints=forcing_breakpoints
+    )
     step_times = cast("Array", xp.asarray(flat_times, dtype=first_value.dtype))
     step_sizes = cast("Array", xp.asarray(flat_sizes, dtype=first_value.dtype))
 
@@ -2168,6 +2238,7 @@ def _run_jax_fixed_explicit_pytree(
         first_state, first_stage = _structured_explicit_step(
             rhs,
             method=method,
+            forcing_breakpoints=forcing_breakpoints,
             t=_array_item(step_times, 0),
             dt=_array_item(step_sizes, 0),
             state=initial_state,
@@ -2192,6 +2263,7 @@ def _run_jax_fixed_explicit_pytree(
                 next_state, next_stage = _structured_explicit_step(
                     rhs,
                     method=method,
+                    forcing_breakpoints=forcing_breakpoints,
                     t=time,
                     dt=dt,
                     state=state,
@@ -2233,6 +2305,7 @@ def _run_jax_fixed_explicit_pytree(
             next_state, _next_stage = _structured_explicit_step(
                 rhs,
                 method=method,
+                forcing_breakpoints=forcing_breakpoints,
                 t=time,
                 dt=dt,
                 state=state,
@@ -2265,6 +2338,7 @@ def _run_fixed_explicit_pytree(
     initial_state: StateTree,
     *,
     method: SolverMethod,
+    forcing_breakpoints: tuple[float, ...] = (),
     times: np.ndarray,
     fixed_max_step: float | None,
 ) -> StateTree:
@@ -2275,6 +2349,7 @@ def _run_fixed_explicit_pytree(
             rhs,
             initial_state,
             method=method,
+            forcing_breakpoints=forcing_breakpoints,
             times=times,
             fixed_max_step=fixed_max_step,
         )
@@ -2282,6 +2357,7 @@ def _run_fixed_explicit_pytree(
         rhs,
         initial_state,
         method=method,
+        forcing_breakpoints=forcing_breakpoints,
         times=times,
         fixed_max_step=fixed_max_step,
     )
@@ -2509,6 +2585,7 @@ def _run_structured_deterministic(
                 rhs,
                 initial_tree,
                 method=config.method,
+                forcing_breakpoints=config.forcing_breakpoints,
                 times=times,
                 fixed_max_step=config.fixed_max_step,
             )
@@ -2612,6 +2689,7 @@ def _run_structured_deterministic(
             rhs,
             block_state,
             method=config.method,
+            forcing_breakpoints=config.forcing_breakpoints,
             times=times,
             fixed_max_step=config.fixed_max_step,
         )
@@ -2656,7 +2734,7 @@ def _stochastic_forcing_config(
     system: SystemABC,
     config: OpEngineEngineConfig,
 ) -> OpEngineEngineConfig:
-    """Combine declared producer changes with explicit stochastic boundaries.
+    """Combine producer and configured forcing boundaries for this run.
 
     Returns:
         A run-local configuration with the validated union of forcing times.
@@ -2664,8 +2742,6 @@ def _stochastic_forcing_config(
     Raises:
         ValueError: If producer metadata is invalid or requires hybrid forcing.
     """
-    if config.mode is ExecutionMode.DETERMINISTIC:
-        return config
     try:
         points = DirectSSAConfig(
             forcing_breakpoints=cast(
@@ -2684,7 +2760,9 @@ def _stochastic_forcing_config(
         )
         raise ValueError(msg)
     combined = tuple(sorted(set(points) | set(config.forcing_breakpoints)))
-    return config.model_copy(update={"forcing_breakpoints": combined})
+    return OpEngineEngineConfig.model_validate(
+        config.model_dump() | {"forcing_breakpoints": combined}
+    )
 
 
 def _resolve_samplers(
@@ -3341,7 +3419,7 @@ class OpEngineFlepimop2Engine(EngineABC):
             TypeError: If the requested provider mode is not supported.
             ValueError: If an adaptive schedule is missing or incompatible.
         """
-        config = self.config.model_copy(deep=True)
+        config = _stochastic_forcing_config(system, self.config.model_copy(deep=True))
         if config.mode is not ExecutionMode.DETERMINISTIC:
             msg = "Prepared execution currently requires deterministic mode."
             raise TypeError(msg)
@@ -3440,11 +3518,11 @@ class OpEngineFlepimop2Engine(EngineABC):
             )
 
         mode = self.config.mode
+        try:
+            _stochastic_forcing_config(system, self.config)
+        except ValueError as error:
+            issues.append(ValidationIssue(msg=str(error), kind="invalid_forcing"))
         if mode is not ExecutionMode.DETERMINISTIC:
-            try:
-                _stochastic_forcing_config(system, self.config)
-            except ValueError as error:
-                issues.append(ValidationIssue(msg=str(error), kind="invalid_forcing"))
             reactions = system.option("reactions", None)
             if not isinstance(reactions, tuple | list) or not reactions:
                 issues.append(
@@ -3679,9 +3757,10 @@ class OpEngineFlepimop2Engine(EngineABC):
         """Execute one provider run and retain schedule-aware metadata."""
         times = _as_float64_1d(eval_times, name="eval_times")
         _ensure_strictly_increasing(times, name="eval_times")
-        mode = self.config.mode
-        stochastic_config = _stochastic_forcing_config(system, self.config)
-        if self.config.stochastic_method is not StochasticMethod.THINNING_SSA and (
+        config = _stochastic_forcing_config(system, self.config)
+        mode = config.mode
+        stochastic_config = config
+        if config.stochastic_method is not StochasticMethod.THINNING_SSA and (
             "rate_bound" in kwargs or "thinning_sampler" in kwargs
         ):
             msg = (
@@ -3696,27 +3775,27 @@ class OpEngineFlepimop2Engine(EngineABC):
             if mode is not ExecutionMode.DETERMINISTIC:
                 msg = "Adaptive schedule replay requires deterministic mode."
                 raise ValueError(msg)
-            if not self.config.adaptive:
+            if not config.adaptive:
                 msg = "Adaptive schedule replay requires adaptive=True."
                 raise ValueError(msg)
-            adaptive_schedule.validate_config(self.config)
+            adaptive_schedule.validate_config(config)
 
         raw_params = _unwrap_parameter_values(params)
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
         n_state = int(y0.shape[0])
-        method = self.config.method
+        method = config.method
         context_signature = _schedule_context_signature(
             system,
             y0,
             raw_params,
             model_state,
-            self.config.schedule_tag,
+            config.schedule_tag,
         )
         if adaptive_schedule is not None:
             adaptive_schedule.validate_context(context_signature)
 
-        if self.config.state_layout is not StateLayout.FLAT and (
-            not self.config.adaptive or adaptive_schedule is not None
+        if config.state_layout is not StateLayout.FLAT and (
+            not config.adaptive or adaptive_schedule is not None
         ):
             structured_states, structured_replay_diagnostics = (
                 _run_structured_deterministic(
@@ -3724,7 +3803,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                     times,
                     y0,
                     raw_params,
-                    config=self.config,
+                    config=config,
                     adaptive_schedule=adaptive_schedule,
                 )
             )
@@ -3772,7 +3851,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                     solver=cast("NonlinearSolver", nonlinear_solver),
                 )
 
-        run_cfg = self.config.to_run_config(nonlinear=nonlinear)
+        run_cfg = config.to_run_config(nonlinear=nonlinear)
         is_imex = method.is_imex
         operators = run_cfg.operators
         compiled_system_operators = False
@@ -3810,7 +3889,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 run_cfg = replace(run_cfg, jacobian=jacobian)
 
         operator_axis: str | int = (
-            "state" if compiled_system_operators else self.config.operator_axis
+            "state" if compiled_system_operators else config.operator_axis
         )
         if operator_axis == "state":
             system_axis = system.option("operator_axis", None)
@@ -3860,13 +3939,13 @@ class OpEngineFlepimop2Engine(EngineABC):
                 system,
                 raw_params,
                 n_state=n_state,
-                reaction_names=self.config.stochastic_reactions,
+                reaction_names=config.stochastic_reactions,
             )
             hybrid_states = _run_hybrid(
                 times,
                 y0,
                 network=hybrid_network,
-                config=self.config,
+                config=config,
                 kwargs=kwargs,
                 rhs=rhs,
                 run_config=run_cfg,
@@ -3900,7 +3979,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         replay_diagnostics: AdaptiveReplayDiagnostics | None = None
         discovered_step_schedule: AdaptiveStepSchedule | None = None
         if adaptive_schedule is not None and _uses_compact_adaptive_replay(
-            self.config, state_namespace
+            config, state_namespace
         ):
             replay_diagnostics = _run_jax_adaptive_explicit_trajectory(
                 solver,
@@ -3908,12 +3987,12 @@ class OpEngineFlepimop2Engine(EngineABC):
                 method=method,
                 schedule=adaptive_schedule.step_schedule,
                 config=run_cfg,
-                error_factor=self.config.replay_error_factor,
+                error_factor=config.replay_error_factor,
                 error_reduction=(
-                    "max" if self.config.state_layout is StateLayout.BLOCK else "rms"
+                    "max" if config.state_layout is StateLayout.BLOCK else "rms"
                 ),
-                checkpoint=self.config.replay_checkpoint,
-                checkpoint_chunk_size=self.config.checkpoint_chunk_size,
+                checkpoint=config.replay_checkpoint,
+                checkpoint_chunk_size=config.checkpoint_chunk_size,
             )
         elif adaptive_schedule is not None:
             diagnostics = solver.replay_adaptive_schedule(
@@ -3928,8 +4007,9 @@ class OpEngineFlepimop2Engine(EngineABC):
                 method=method,
                 times=times,
                 fixed_max_step=run_cfg.fixed_max_step,
-                checkpoint=self.config.fixed_checkpoint,
-                checkpoint_chunk_size=self.config.checkpoint_chunk_size,
+                forcing_breakpoints=run_cfg.forcing_breakpoints,
+                checkpoint=config.fixed_checkpoint,
+                checkpoint_chunk_size=config.checkpoint_chunk_size,
             )
         elif (
             run_cfg.adaptive
@@ -3943,7 +4023,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 times=times,
                 config=run_cfg,
                 error_reduction=(
-                    "max" if self.config.state_layout is StateLayout.BLOCK else "rms"
+                    "max" if config.state_layout is StateLayout.BLOCK else "rms"
                 ),
             )
         else:
@@ -3955,13 +4035,13 @@ class OpEngineFlepimop2Engine(EngineABC):
         if schedule is None and discovered_step_schedule is not None:
             schedule = AdaptiveSchedule.from_core(
                 discovered_step_schedule,
-                self.config,
+                config,
                 context_signature=context_signature,
             )
         if schedule is None and step_schedule is not None:
             schedule = AdaptiveSchedule.from_core(
                 step_schedule,
-                self.config,
+                config,
                 context_signature=context_signature,
             )
         return _ExecutionResult(
