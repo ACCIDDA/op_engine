@@ -83,6 +83,7 @@ from ._additive_runge_kutta import (
     evaluate_additive_runge_kutta,
 )
 from ._array import array_namespace as _namespace_of
+from ._forcing import _ForcingSchedule
 from ._multistep import (
     BDF2,
     MultistepHistory,
@@ -396,6 +397,7 @@ class AdaptiveScheduleProvenance(NamedTuple):
     dtype: str
     model_id: str | None
     reference_regime: str | None
+    forcing_breakpoints: tuple[float, ...] = ()
 
 
 @dataclass(slots=True, frozen=True)
@@ -476,6 +478,8 @@ def fixed_step_sizes(
     t0: float,
     t1: float,
     max_step: float | None,
+    *,
+    forcing_breakpoints: tuple[float, ...] = (),
 ) -> tuple[float, ...]:
     """Partition one output interval into deterministic fixed steps.
 
@@ -486,6 +490,7 @@ def fixed_step_sizes(
         t0: Output interval start.
         t1: Output interval end.
         max_step: Maximum internal step, or ``None`` for one full interval step.
+        forcing_breakpoints: Additional mandatory internal boundaries.
 
     Returns:
         Positive internal step sizes that sum to ``t1 - t0``.
@@ -499,6 +504,13 @@ def fixed_step_sizes(
     if not math.isfinite(start) or not math.isfinite(end) or end <= start:
         raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
 
+    if forcing_breakpoints:
+        endpoints = _ForcingSchedule(forcing_breakpoints).segments(start, end)
+        return tuple(
+            dt
+            for left, right in pairwise(endpoints)
+            for dt in fixed_step_sizes(left, right, max_step)
+        )
     interval = end - start
     if max_step is None:
         return (interval,)
@@ -773,6 +785,10 @@ class RunConfig:
             replay. Keep fitted parameter values out of this identity.
         replay_reference_regime: Optional descriptive label for the nominal
             parameter/initial-state regime used to discover a mesh.
+        forcing_breakpoints: Finite, strictly increasing known jumps in a
+            right-continuous RHS. Explicit methods split internal steps here
+            and evaluate incoming endpoint stages from the left. Other
+            deterministic methods reject nonempty declarations.
         replay_require_provenance: Reject manually constructed/legacy meshes
             without provenance when True. False preserves compatibility.
     """
@@ -792,6 +808,7 @@ class RunConfig:
     replay_model_id: str | None = None
     replay_reference_regime: str | None = None
     replay_require_provenance: bool = False
+    forcing_breakpoints: tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -804,6 +821,7 @@ class RunConfig:
         object.__setattr__(self, "method", method)
 
         self._validate_replay_options()
+        self._validate_forcing_options(method)
 
         if self.fixed_max_step is not None:
             fixed_max_step = float(self.fixed_max_step)
@@ -832,6 +850,18 @@ class RunConfig:
             gamma = float(self.gamma)
             if not np.isfinite(gamma) or not (0.0 < gamma < 1.0):
                 raise ValueError(_GAMMA_RANGE_ERROR_MSG)
+
+    def _validate_forcing_options(self, method: str) -> None:
+        """Snapshot declared jumps and reject unsupported deterministic methods.
+
+        Raises:
+            ValueError: If the schedule or method is unsupported.
+        """
+        forcing = _ForcingSchedule(self.forcing_breakpoints)
+        object.__setattr__(self, "forcing_breakpoints", forcing.breakpoints)  # noqa: PLC2801
+        if forcing.breakpoints and method not in _EXPLICIT_METHODS:
+            msg = "Deterministic forcing_breakpoints require an explicit method"
+            raise ValueError(msg)
 
     def _validate_replay_options(self) -> None:
         """Validate namespace-loop options independently of the chosen method.
@@ -1256,6 +1286,7 @@ class CoreSolver:
             str(state.dtype),
             config.replay_model_id,
             config.replay_reference_regime,
+            config.forcing_breakpoints,
         )
 
     def _validate_schedule_provenance(
@@ -1281,6 +1312,7 @@ class CoreSolver:
             "gamma",
             "nonlinear_signature",
             "model_id",
+            "forcing_breakpoints",
         ):
             if getattr(recorded, name) != getattr(active, name):
                 msg = (
@@ -3088,6 +3120,7 @@ class CoreSolver:
         dt: float,
         y: Array,
         first_stage: Array | None = None,
+        forcing_breakpoints: tuple[float, ...] = (),
     ) -> ExplicitStepResult:
         """Dispatch one functional explicit step.
 
@@ -3098,6 +3131,11 @@ class CoreSolver:
         Raises:
             RuntimeError: If called with a non-explicit method.
         """
+        if forcing_breakpoints:
+            rhs_func = _ForcingSchedule(forcing_breakpoints).rhs_for_step(
+                rhs_func, t, y
+            )
+            first_stage = None
         if method == "euler":
             return self._step_explicit_euler_doubling(
                 rhs_func,
@@ -3168,6 +3206,7 @@ class CoreSolver:
         dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
+        forcing_breakpoints: tuple[float, ...] = (),
     ) -> tuple[Array, Array | None]:
         """Take one fixed explicit step without adaptive-only error work.
 
@@ -3177,6 +3216,11 @@ class CoreSolver:
         Raises:
             RuntimeError: If called with a non-explicit method.
         """
+        if forcing_breakpoints:
+            rhs_func = _ForcingSchedule(forcing_breakpoints).rhs_for_step(
+                rhs_func, t, y
+            )
+            first_stage = None
         if method == "euler":
             return self._step_explicit_euler_once(
                 rhs_func,
@@ -3207,6 +3251,7 @@ class CoreSolver:
         dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
+        forcing_breakpoints: tuple[float, ...] = (),
     ) -> ExplicitStepResult:
         """Attempt one explicit step and return its local-error estimate.
 
@@ -3221,6 +3266,9 @@ class CoreSolver:
             dt: Step size as a Python float or backend-native scalar.
             y: State at the step start.
             first_stage: Optional cached derivative at ``(t, y)``.
+            forcing_breakpoints: Static known jumps. The caller must clip the
+                step at the next jump. RHS times use native one-sided neighbors;
+                declared forcing disables first-stage reuse.
 
         Returns:
             Candidate state, local error estimate, controller order, and
@@ -3240,6 +3288,7 @@ class CoreSolver:
             dt=cast("float", dt),
             y=y,
             first_stage=first_stage,
+            forcing_breakpoints=forcing_breakpoints,
         )
 
     def fixed_explicit_step(  # noqa: PLR0913
@@ -3251,6 +3300,7 @@ class CoreSolver:
         dt: Scalar,
         y: Array,
         first_stage: Array | None = None,
+        forcing_breakpoints: tuple[float, ...] = (),
     ) -> tuple[Array, Array | None]:
         """Take one functional fixed step with an explicit method.
 
@@ -3271,6 +3321,9 @@ class CoreSolver:
             first_stage: Optional derivative at ``(t, y)``. Dormand--Prince
                 returns this cache for the next step; reuse it only when
                 time, state, and RHS parameters are unchanged at that start.
+            forcing_breakpoints: Static known jumps. The caller must clip the
+                step at the next jump. RHS times use native one-sided neighbors;
+                declared forcing disables first-stage reuse.
 
         Returns:
             Next state and an FSAL derivative for Dormand--Prince, or
@@ -3291,6 +3344,7 @@ class CoreSolver:
             dt=dt,
             y=y,
             first_stage=first_stage,
+            forcing_breakpoints=forcing_breakpoints,
         )
 
     @staticmethod
@@ -3944,6 +3998,7 @@ class CoreSolver:
         dt_ctrl: DtControllerConfig,
         accepted_steps: list[float],
         first_stage: Array | None = None,
+        forcing_breakpoints: tuple[float, ...] = (),
     ) -> tuple[Array, Array | None]:
         """Advance an explicit method with functional adaptive substeps.
 
@@ -3954,6 +4009,7 @@ class CoreSolver:
             RuntimeError: If step rejection, minimum-dt, or step-count limits
                 are exceeded.
         """
+        forcing = _ForcingSchedule(forcing_breakpoints)
         t = float(t0)
         target = float(t1)
         dt_out = target - t
@@ -3977,7 +4033,8 @@ class CoreSolver:
             if n_internal >= adaptive_cfg.max_steps:
                 raise RuntimeError(_MAX_STEPS_ERROR_MSG)
 
-            remaining = target - t
+            step_target = min(target, forcing.next_after(t))
+            remaining = step_target - t
             if remaining <= 0.0:
                 break
             dt = min(dt, remaining)
@@ -3994,6 +4051,7 @@ class CoreSolver:
                     dt=dt,
                     y=y_current,
                     first_stage=cached_first_stage,
+                    forcing_breakpoints=forcing_breakpoints,
                 )
                 error_norm = self._error_norm(
                     result.error,
@@ -4005,7 +4063,7 @@ class CoreSolver:
 
                 if error_norm <= 1.0:
                     accepted_steps.append(float(dt))
-                    t += dt
+                    t = step_target if dt == remaining else t + dt
                     y_current = result.state
                     cached_first_stage = result.last_stage
                     dt = self._propose_dt(
@@ -4068,21 +4126,28 @@ class CoreSolver:
                     dt_ctrl=config.dt_controller,
                     accepted_steps=accepted_steps,
                     first_stage=first_stage,
+                    forcing_breakpoints=config.forcing_breakpoints,
                 )
                 schedule_steps.append(tuple(accepted_steps))
             else:
                 t = t0
                 y_next = y_current
-                for dt in fixed_step_sizes(t0, t1, config.fixed_max_step):
-                    y_next, first_stage = self._step_explicit_fixed(
-                        rhs_func,
-                        method=plan.method,
-                        t=t,
-                        dt=dt,
-                        y=y_next,
-                        first_stage=first_stage,
-                    )
-                    t += dt
+                endpoints = _ForcingSchedule(config.forcing_breakpoints).segments(
+                    t0, t1
+                )
+                for left, right in pairwise(endpoints):
+                    t = left
+                    for dt in fixed_step_sizes(left, right, config.fixed_max_step):
+                        y_next, first_stage = self._step_explicit_fixed(
+                            rhs_func,
+                            method=plan.method,
+                            t=t,
+                            dt=dt,
+                            y=y_next,
+                            first_stage=first_stage,
+                            forcing_breakpoints=config.forcing_breakpoints,
+                        )
+                        t += dt
             self.core.advance_timestep(y_next)
 
         if config.adaptive:
@@ -4688,6 +4753,7 @@ class CoreSolver:
         *,
         plan: RunPlan,
         schedule: AdaptiveStepSchedule,
+        forcing_breakpoints: tuple[float, ...],
     ) -> None:
         """Replay accepted explicit steps with functional Array-API kernels."""
         first_stage: Array | None = None
@@ -4696,9 +4762,11 @@ class CoreSolver:
             schedule.step_sizes,
             strict=True,
         ):
-            t = t0
+            starts = _ForcingSchedule(forcing_breakpoints).step_times(
+                t0, interval_steps
+            )
             state = self.core.get_current_state()
-            for dt in interval_steps:
+            for t, dt in zip(starts, interval_steps, strict=True):
                 result = self._attempt_explicit_step(
                     rhs_func,
                     method=plan.method,
@@ -4706,10 +4774,10 @@ class CoreSolver:
                     dt=dt,
                     y=state,
                     first_stage=first_stage,
+                    forcing_breakpoints=forcing_breakpoints,
                 )
                 state = result.state
                 first_stage = result.last_stage
-                t += dt
             self.core.advance_timestep(state)
 
     def _replay_array_implicit_schedule(
@@ -4776,7 +4844,7 @@ class CoreSolver:
                 t += dt
             self.core.advance_timestep(self._y_curr)
 
-    def _replay_scan_schedule(  # noqa: PLR0914
+    def _replay_scan_schedule(  # noqa: PLR0913, PLR0914
         self,
         rhs_func: RHSFunction,
         *,
@@ -4784,6 +4852,7 @@ class CoreSolver:
         schedule: AdaptiveStepSchedule,
         adapter: LoopAdapter,
         checkpoint: bool,
+        forcing_breakpoints: tuple[float, ...],
     ) -> None:
         """Replay a whole mesh with one namespace-native scan.
 
@@ -4805,11 +4874,10 @@ class CoreSolver:
         for start, steps in zip(
             schedule.output_times[:-1], schedule.step_sizes, strict=True
         ):
-            time = start
-            for dt in steps:
+            step_starts = _ForcingSchedule(forcing_breakpoints).step_times(start, steps)
+            for time, dt in zip(step_starts, steps, strict=True):
                 starts.append(time)
                 sizes.append(dt)
-                time += dt
             output_indices.append(len(sizes) - 1)
         if not sizes:
             return
@@ -4830,6 +4898,7 @@ class CoreSolver:
                     dt=dt,
                     y=state,
                     first_stage=cached,
+                    forcing_breakpoints=forcing_breakpoints,
                 )
                 return (result.state, result.last_stage), result.state
             state, _error, _order = self._attempt_array_implicit_step(
@@ -4894,6 +4963,9 @@ class CoreSolver:
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
         self._validate_schedule_provenance(schedule, config, plan)
+        _ForcingSchedule(config.forcing_breakpoints).validate_mesh(
+            schedule.output_times, schedule.step_sizes
+        )
 
         adapter = None
         if config.replay_loop != "unroll":
@@ -4912,6 +4984,7 @@ class CoreSolver:
                 schedule=schedule,
                 adapter=adapter,
                 checkpoint=config.replay_checkpoint,
+                forcing_breakpoints=config.forcing_breakpoints,
             )
             self._last_adaptive_schedule = schedule
             return None
@@ -4925,7 +4998,12 @@ class CoreSolver:
             self._last_adaptive_schedule = schedule
             return diagnostics
         if plan.method in _EXPLICIT_METHODS:
-            self._replay_explicit_schedule(rhs_func, plan=plan, schedule=schedule)
+            self._replay_explicit_schedule(
+                rhs_func,
+                plan=plan,
+                schedule=schedule,
+                forcing_breakpoints=config.forcing_breakpoints,
+            )
         else:
             current_state = self.core.get_current_state()
             if plan.method == "imex-ark3" or not isinstance(current_state, np.ndarray):

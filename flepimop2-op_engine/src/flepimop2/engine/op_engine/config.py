@@ -248,8 +248,16 @@ class OpEngineEngineConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_execution_configuration(self) -> OpEngineEngineConfig:
-        if self.forcing_breakpoints and self.mode is not ExecutionMode.STOCHASTIC:
-            msg = "forcing_breakpoints currently require mode='stochastic'."
+        if self.forcing_breakpoints and (
+            self.mode is ExecutionMode.HYBRID
+            or (
+                self.mode is ExecutionMode.DETERMINISTIC and not self.method.is_explicit
+            )
+        ):
+            msg = (
+                "forcing_breakpoints require stochastic mode or an explicit "
+                "deterministic method."
+            )
             raise ValueError(msg)
         if (
             self.mode is not ExecutionMode.STOCHASTIC
@@ -370,6 +378,11 @@ class OpEngineEngineConfig(BaseModel):
             method=self.method,
             adaptive=self.adaptive,
             fixed_max_step=self.fixed_max_step,
+            forcing_breakpoints=(
+                self.forcing_breakpoints
+                if self.mode is ExecutionMode.DETERMINISTIC
+                else ()
+            ),
             strict=self.strict,
             adaptive_cfg=AdaptiveConfig(
                 rtol=self.rtol,

@@ -11,6 +11,14 @@ versioning while the project remains pre-1.0.
   two-half-step state update and its parameter derivatives. Fixed prepared
   plans retain their full-step kernels (#233).
 
+- Explicit deterministic runs split at declared forcing jumps and use native
+  one-sided RHS times, restoring RK4/Dormand–Prince convergence for `previous`
+  tables. First-stage reuse is disabled with declarations; frozen meshes check
+  forcing provenance and reject crossing steps. The provider now consumes the
+  producer/config union through ordinary, structured and prepared execution.
+  Implicit/IMEX and hybrid declarations fail explicitly instead of being
+  silently ignored in deterministic execution (#231).
+
 ### Added
 
 - `reduce_observations` consumes native time/state samples once, retaining

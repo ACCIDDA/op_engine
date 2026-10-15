@@ -42,10 +42,14 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
         files = (
-            ["tests/op_engine/test_compiled_observations.py"]
+            [
+                "tests/op_engine/test_compiled_observations.py",
+                "tests/op_engine/test_compiled_forcing.py",
+            ]
             if args.compiler_contract
             else [
                 "tests/op_engine/test_backend_qualification.py",
+                "tests/op_engine/test_explicit_forcing.py",
                 "tests/op_engine/test_operator_precision.py",
                 "tests/op_engine/test_hierarchical_ode.py",
                 "tests/op_engine/test_observations.py",

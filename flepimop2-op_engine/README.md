@@ -203,6 +203,20 @@ dense Newton solver is used. This is deliberately separate from the
 operator-axis `system.option("jacobian")` consumed by linearly implicit and
 Rosenbrock methods.
 
+### Deterministic forcing boundaries
+
+Explicit Euler/Heun/RK4/Dormand–Prince runs consume the union of configured
+`forcing_breakpoints` and the system's published declarations, including
+op_system's right-continuous `time_interpolation: previous` tables. Internal
+steps land at each jump, with incoming/outgoing stage evaluations on the
+appropriate side in the active precision. Output rows stay on `eval_times`.
+The policy also applies to fixed/adaptive, flat/structured, prepared and frozen
+replay execution. Replay records the union and rejects changes or crossing
+meshes. Other deterministic methods and hybrid mode reject nonempty declarations;
+earlier deterministic paths ignored producer metadata. See the core
+[forcing guide](../docs/guides/solver-methods.md#known-deterministic-forcing-jumps)
+for cache, precision, functional-driver and differentiation limits.
+
 ### Adaptive schedule replay
 
 Adaptive differentiation uses an explicit two-phase contract. First run the

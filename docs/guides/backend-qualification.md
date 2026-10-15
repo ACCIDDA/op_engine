@@ -34,6 +34,10 @@ adaptive gradients, mesh derivatives and arbitrary callbacks are not qualified
 by it. `just qualify` includes these compiler checks after the core CPU matrix.
 `just qualify-observations` assumes those namespaces are already installed.
 The pinned compiler is a development/CI contract, not a core runtime dependency.
+Those jobs also exercise an actual `previous` rate table through deterministic
+forcing boundaries on all three namespaces in float32 and float64. JAX x64 is
+enabled even for the float32 state, so the time table can retain float64
+coordinates; both incoming and outgoing one-sided evaluation must stay correct.
 
 Required qualification also includes [per-run random streams](random-streams.md).
 NumPy checks all four stochastic run interfaces against replay, stream-ownership,
@@ -41,6 +45,16 @@ indexed launch-order and analytic constant-birth contracts. JAX/CPU Torch check
 that the NumPy convenience path rejects native states before consuming randomness.
 Existing functional-key sampler tests remain in the baseline stochastic suite;
 these additions do not qualify new native PRNGs or stochastic derivatives.
+
+Required [explicit forcing](solver-methods.md#known-deterministic-forcing-jumps)
+contracts cover float32/float64 NumPy/JAX/CPU Torch fixed, adaptive and frozen
+eager replay against independent piecewise additive solutions. NumPy RK4 and
+Dormand–Prince refinement checks recover their smooth-segment orders across a
+held-table boundary. JAX scan/checkpoint/JIT/vmap parameter gradients and CPU
+Torch eager gradients use piecewise exponential references on a fixed mesh.
+Real op_system tables, provider preparation and structured layouts are checked
+separately in provider integration tests. These do not qualify implicit/hybrid
+forcing or derivatives of jump locations.
 
 ## Method and execution matrix
 

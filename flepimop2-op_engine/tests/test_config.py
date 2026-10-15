@@ -484,8 +484,8 @@ def test_engine_config_rejects_invalid_forcing_breakpoints(points: object) -> No
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {},
-        {"mode": "deterministic", "stochastic_method": "tau-leaping"},
+        {"mode": "deterministic", "method": "imex-euler"},
+        {"mode": "deterministic", "method": "bdf2"},
         {
             "mode": "hybrid",
             "stochastic_method": "tau-leaping",
@@ -507,7 +507,7 @@ def test_forcing_breakpoints_reject_unsupported_execution_paths(
     kwargs: dict[str, object],
 ) -> None:
     """Unsupported methods must not silently ignore a forcing schedule."""
-    with pytest.raises(ValidationError, match="forcing_breakpoints currently require"):
+    with pytest.raises(ValidationError, match="forcing_breakpoints require"):
         OpEngineEngineConfig.model_validate(kwargs | {"forcing_breakpoints": [0.5]})
 
 

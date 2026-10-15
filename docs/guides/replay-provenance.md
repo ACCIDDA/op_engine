@@ -11,6 +11,7 @@ The core contract distinguishes these questions before testing accuracy:
 | --- | --- |
 | Finite/increasing output grid and positive interval steps summing to each interval | Always validated by `AdaptiveStepSchedule` |
 | Producing resolved method, state shape/axis order, relevant operator axis, TR-BDF2 gamma, nonlinear stage solver/configuration | Known mismatches reject before stepping |
+| Declared forcing breakpoints | Recorded declarations must match; every accepted step must land at each intervening jump, including legacy/manual meshes |
 | Caller-supplied structural model identity | Compared when recording/replay use an identity; it must describe equations/geometry/layout, not fitted parameter values |
 | Array namespace and dtype | Descriptive; portable meshes may change NumPy/JAX/Torch or precision |
 | Discovery tolerances, controller limits, and reference parameter regime | Descriptive; changing fitted values or requested accuracy requires an external accuracy decision, not an automatic incompatibility |
