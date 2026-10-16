@@ -139,6 +139,15 @@ request fails clearly when the selected adapter cannot provide it.
 The optional flepimop2 provider also consumes the functional kernels and
 defaults explicit JAX replay to its compact scan driver.
 
+A provider `PreparedExecution` records the array namespace of its prepare-time
+samples, because the namespace selects the solver path (NumPy: eager stepping
+loop; JAX: compact scan). An executor prepared with NumPy arrays accepts JAX
+arrays only inside a JAX transformation (`jax.jit`, `jax.grad`, `jax.vmap`).
+An eager call with JAX arrays raises a `ValueError` naming the entries; call
+inside `jax.jit` or prepare with JAX arrays. Eager JAX arrays are deliberately
+not converted, since that would retrace the scan on every call. See the
+[provider README](https://github.com/ACCIDDA/op_engine/tree/main/flepimop2-op_engine#numpy-prepared-executors-and-jax-arrays).
+
 Run `uv run python scripts/benchmark_replay.py` to measure gradients,
 Hessians, and reverse-over-reverse at 8, 64, and 160 steps for Dormand--Prince
 and ROS2. Each case runs in a fresh CPU process and reports tracing,
