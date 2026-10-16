@@ -7,6 +7,11 @@ versioning while the project remains pre-1.0.
 
 ### Fixed
 
+- Calling a NumPy-prepared executor eagerly with JAX arrays still raises, but the
+  error now states that JAX arrays are accepted only inside a JAX transformation
+  and says to call inside `jax.jit` or prepare with JAX arrays; the rule is
+  documented in the provider README and backend guide (#237).
+
 - Flat prepared adaptive Euler/RK4 replay preserves discovery's accepted
   two-half-step state update and its parameter derivatives. Fixed prepared
   plans retain their full-step kernels (#233).

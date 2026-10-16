@@ -579,11 +579,51 @@ def _validate_prepared_values(
         )
         raise ValueError(msg)
     if actual.namespaces != effective.namespaces:
-        msg = (
-            f"Prepared {label} namespaces {actual.namespaces!r} do not match "
-            f"the prepared contract {effective.namespaces!r}."
+        raise ValueError(
+            _namespace_mismatch_message(label, actual, effective),
         )
-        raise ValueError(msg)
+
+
+def _namespace_mismatch_message(
+    label: str,
+    actual: _PreparedValueContract,
+    expected: _PreparedValueContract,
+) -> str:
+    """Explain a namespace mismatch, including the eager-JAX case.
+
+    Returns:
+        The error text, with remediation when JAX arrays reach a prepared
+        executor outside a JAX transformation.
+    """
+    msg = (
+        f"Prepared {label} namespaces {actual.namespaces!r} do not match "
+        f"the prepared contract {expected.namespaces!r}."
+    )
+    pairs = tuple(
+        zip(actual.names, actual.namespaces, expected.namespaces, strict=True)
+    )
+    eager_jax = [
+        name
+        for name, have, want in pairs
+        if have == "jax.numpy" and want != "jax.numpy"
+    ]
+    if eager_jax:
+        return (
+            f"{msg} The {label} entries {eager_jax!r} are JAX arrays, but this "
+            "executor was prepared with non-JAX (for example NumPy) arrays. "
+            "Such an executor accepts JAX arrays only inside a JAX "
+            "transformation (jax.jit, jax.grad, jax.vmap); an eager call "
+            "would select a different solver path with different retracing "
+            "and dtype behavior. Call the prepared executor inside "
+            "jax.jit, or prepare it with JAX arrays of the same shapes and "
+            "dtypes."
+        )
+    mismatched = [name for name, have, want in pairs if have != want]
+    return (
+        f"{msg} Mismatched {label} entries: {mismatched!r}. Call with arrays "
+        "from the namespace used in prepare; the namespace selects the "
+        "solver path."
+    )
 
 
 def _schedule_context_signature(

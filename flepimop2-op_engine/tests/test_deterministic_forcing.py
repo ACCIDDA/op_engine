@@ -192,6 +192,44 @@ def test_prepared_previous_table_parameter_gradient() -> None:
     )
 
 
+def test_numpy_prepared_executor_explains_eager_jax_arrays() -> None:
+    """Eager JAX arrays on a NumPy-prepared plan get an actionable error."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(method="rk4", fixed_max_step=0.05),
+    )
+    initial, params = _inputs("numpy")
+    prepared = engine.prepare(_system(), np.asarray([0.0, 1.5]), initial, params)
+
+    def final(rates: Array) -> Array:
+        return prepared(
+            {}, {"start": jnp.asarray(1.0), "zero": jnp.asarray(0.0), "rate": rates}
+        )[-1, 1]
+
+    rates = jnp.asarray([1.0, 0.0, 2.0])
+    with pytest.raises(ValueError, match=r"prepared with non-JAX") as excinfo:
+        final(rates)
+    message = str(excinfo.value)
+    for expected in ("NumPy", "inside a JAX", "jax.jit", "prepare it with JAX"):
+        assert expected in message
+    assert "'rate'" in message
+
+    expected_final = math.exp(-1.7)
+    np.testing.assert_allclose(jax.jit(final)(rates), expected_final, rtol=1e-4)
+    numpy_rates = {k: v.value for k, v in params.items()}
+    eager = prepared({}, numpy_rates)[-1, 1]
+    np.testing.assert_allclose(eager, expected_final, rtol=1e-4)
+
+    jax_initial, jax_params = _inputs("jax")
+    jax_prepared = engine.prepare(
+        _system(), np.asarray([0.0, 1.5]), jax_initial, jax_params
+    )
+    with pytest.raises(ValueError, match=r"Mismatched params entries"):
+        jax_prepared({}, numpy_rates)
+
+
 @pytest.mark.parametrize("adaptive", [False, True])
 def test_block_forcing_and_prepared_execution(*, adaptive: bool) -> None:
     """A held table with distinct block rates retains each independent regime."""

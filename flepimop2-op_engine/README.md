@@ -145,6 +145,21 @@ than silently falling back. A `PreparedExecution` can be passed directly to
 `jax.jit`; during tracing, its contract accounts for JAX canonicalizing dynamic
 NumPy inputs and disabled-x64 dtypes into the effective JAX namespace.
 
+#### NumPy-prepared executors and JAX arrays
+
+The array namespace seen at prepare time is part of the contract because it
+selects the solver path: NumPy arrays run an eager Python stepping loop, while
+JAX arrays run the compact `lax.scan` driver. An executor prepared with NumPy
+arrays therefore accepts JAX arrays only inside a JAX transformation
+(`jax.jit`, `jax.grad`, `jax.vmap`), where tracers are canonicalized into the
+JAX path. Called eagerly with JAX arrays, it raises a `ValueError` that names
+the offending entries. Either call it inside `jax.jit` or prepare it with JAX
+arrays of the same shapes and dtypes. This also applies to code that traces a
+model eagerly (for example NumPyro initialization): wrap the prepared solve in
+`jax.jit`, or prepare with JAX samples. Eager JAX arrays are not converted
+automatically, because that would retrace the scan on every call and silently
+change dtype semantics.
+
 ### Structured and block state execution
 
 The default `state_layout: flat` remains the compatibility path. An op_system
