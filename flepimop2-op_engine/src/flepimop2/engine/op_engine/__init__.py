@@ -3248,17 +3248,27 @@ def _as_initial_scalar(
     return arr
 
 
-def _shaped_initial_scalar(
+class _ShapedCell(NamedTuple):
+    """One state cell read from a shaped initial-state parameter."""
+
+    state_name: str
+    entry: Mapping[str, object]
+    shaped_name: str
+    index: tuple[int, ...]
+
+
+def _shaped_initial_cell(
     *,
     state_name: str,
     entry: Mapping[str, object],
     params: Mapping[IdentifierString, ParameterValue],
-    raw_params: Mapping[IdentifierString, object],
     axis_labels: Mapping[str, object],
-    xp: Any,  # noqa: ANN401
-    dtype: object,
-) -> Array:
-    """Resolve one expanded state cell from a shaped parameter value."""
+) -> tuple[str, tuple[int, ...]]:
+    """Locate one expanded state cell in its shaped parameter.
+
+    Returns:
+        The shaped parameter name and the cell's integer index into it.
+    """
     shaped_name = entry.get("shaped")
     if not isinstance(shaped_name, str):
         msg = f"Initial state entry for {state_name!r} has no shaped parameter name."
@@ -3293,10 +3303,69 @@ def _shaped_initial_scalar(
             )
             raise KeyError(msg)
         indices.append(string_labels.index(coord))
+    return shaped_name, tuple(indices)
 
+
+def _shaped_initial_scalar(
+    *,
+    state_name: str,
+    entry: Mapping[str, object],
+    params: Mapping[IdentifierString, ParameterValue],
+    raw_params: Mapping[IdentifierString, object],
+    axis_labels: Mapping[str, object],
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array:
+    """Resolve one expanded state cell from a shaped parameter value."""
+    shaped_name, indices = _shaped_initial_cell(
+        state_name=state_name,
+        entry=entry,
+        params=params,
+        axis_labels=axis_labels,
+    )
     shaped_value = cast("Array", raw_params[shaped_name])
-    value = _array_item(shaped_value, tuple(indices))
+    value = _array_item(shaped_value, indices)
     return _as_initial_scalar(value, name=state_name, xp=xp, dtype=dtype)
+
+
+def _gather_shaped_run(
+    shaped_value: Array,
+    cells: list[tuple[int, ...]],
+    *,
+    xp: Any,  # noqa: ANN401
+    dtype: object,
+) -> Array | None:
+    """Read consecutive cells of one shaped parameter with a single operation.
+
+    A traced program must not contain one slice per cell: state size, not
+    model structure, would then set its size and its compile time. The cells
+    become one static slice when they are consecutive in C order and one
+    static gather otherwise.
+
+    Returns:
+        A 1D array of the cells, or ``None`` when the indices do not address
+        scalar elements of ``shaped_value`` (the caller then reports the
+        error cell by cell).
+    """
+    array = cast("Array", xp.asarray(shaped_value, dtype=dtype))
+    shape = tuple(int(size) for size in array.shape)
+    index = np.asarray(cells, dtype=np.int64)
+    if (
+        not shape
+        or index.ndim != 2  # noqa: PLR2004
+        or index.shape[1] != len(shape)
+        or np.any(index < 0)
+        or np.any(index >= np.asarray(shape))
+    ):
+        return None
+    flat = np.ravel_multi_index(tuple(index.T), shape)
+    flat_array = cast("Array", xp.reshape(array, (-1,)))
+    start = int(flat[0])
+    if np.array_equal(flat, np.arange(start, start + flat.size)):
+        if start == 0 and flat.size == flat_array.shape[0]:
+            return flat_array
+        return _array_item(flat_array, slice(start, start + flat.size))
+    return _array_item(flat_array, flat)
 
 
 def _assemble_option_initial_state(
@@ -3322,11 +3391,11 @@ def _assemble_option_initial_state(
         msg = "system option 'axis_labels' must be a mapping when provided."
         raise TypeError(msg)
 
-    values: list[Array] = []
+    cells: list[Array | _ShapedCell] = []
     for state_name_obj in state_names:
         state_name = str(state_name_obj)
         if state_name in raw_initial_state:
-            values.append(
+            cells.append(
                 _as_initial_scalar(
                     raw_initial_state[state_name],
                     name=state_name,
@@ -3338,7 +3407,7 @@ def _assemble_option_initial_state(
 
         entry = init_map.get(state_name)
         if entry is None:
-            values.append(_as_initial_scalar(0.0, name=state_name, xp=xp, dtype=dtype))
+            cells.append(_as_initial_scalar(0.0, name=state_name, xp=xp, dtype=dtype))
         elif isinstance(entry, str):
             if entry not in raw_params:
                 msg = (
@@ -3346,7 +3415,7 @@ def _assemble_option_initial_state(
                     f"{entry!r}, which is not present in params."
                 )
                 raise KeyError(msg)
-            values.append(
+            cells.append(
                 _as_initial_scalar(
                     raw_params[entry],
                     name=state_name,
@@ -3355,23 +3424,51 @@ def _assemble_option_initial_state(
                 )
             )
         elif isinstance(entry, Mapping):
-            values.append(
-                _shaped_initial_scalar(
-                    state_name=state_name,
-                    entry=entry,
-                    params=params,
-                    raw_params=raw_params,
-                    axis_labels=axis_labels,
-                    xp=xp,
-                    dtype=dtype,
-                )
+            shaped_name, index = _shaped_initial_cell(
+                state_name=state_name,
+                entry=entry,
+                params=params,
+                axis_labels=axis_labels,
             )
+            cells.append(_ShapedCell(state_name, entry, shaped_name, index))
         else:
-            values.append(
-                _as_initial_scalar(entry, name=state_name, xp=xp, dtype=dtype)
-            )
+            cells.append(_as_initial_scalar(entry, name=state_name, xp=xp, dtype=dtype))
 
-    return cast("Array", xp.stack(tuple(values), axis=0))
+    pieces: list[Array] = []
+    for shaped_name, group_iter in itertools.groupby(
+        cells, key=lambda cell: cell.shaped_name if isinstance(cell, _ShapedCell) else None
+    ):
+        group = list(group_iter)
+        if shaped_name is None:
+            pieces.append(cast("Array", xp.stack(tuple(cast("list[Array]", group)))))
+            continue
+        shaped_cells = cast("list[_ShapedCell]", group)
+        gathered = _gather_shaped_run(
+            cast("Array", raw_params[shaped_name]),
+            [cell.index for cell in shaped_cells],
+            xp=xp,
+            dtype=dtype,
+        )
+        if gathered is None:
+            gathered = cast(
+                "Array",
+                xp.stack(
+                    tuple(
+                        _shaped_initial_scalar(
+                            state_name=cell.state_name,
+                            entry=cell.entry,
+                            params=params,
+                            raw_params=raw_params,
+                            axis_labels=axis_labels,
+                            xp=xp,
+                            dtype=dtype,
+                        )
+                        for cell in shaped_cells
+                    )
+                ),
+            )
+        pieces.append(gathered)
+    return pieces[0] if len(pieces) == 1 else cast("Array", xp.concat(pieces, axis=0))
 
 
 def _assemble_initial_state(
