@@ -12,6 +12,14 @@ versioning while the project remains pre-1.0.
   and says to call inside `jax.jit` or prepare with JAX arrays; the rule is
   documented in the provider README and backend guide (#237).
 
+- Prepared JAX solves no longer trace one slice per state cell when the initial
+  state is read from shaped parameters. The traced program, and with it compile
+  time, was proportional to the state size (a 51-location, 4,590-state system
+  took about 8 s to compile, and `jax.vmap` over draws that vary the initial
+  state took minutes to hours); consecutive cells now become one slice or
+  gather, so the program is independent of the number of independent blocks.
+  Results are bit-identical (#236).
+
 - Flat prepared adaptive Euler/RK4 replay preserves discovery's accepted
   two-half-step state update and its parameter derivatives. Fixed prepared
   plans retain their full-step kernels (#233).
