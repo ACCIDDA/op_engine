@@ -3254,7 +3254,7 @@ class _ShapedCell(NamedTuple):
     state_name: str
     entry: Mapping[str, object]
     shaped_name: str
-    index: tuple[int, ...]
+    position: tuple[int, ...]
 
 
 def _shaped_initial_cell(
@@ -3352,13 +3352,13 @@ def _gather_shaped_run(
     index = np.asarray(cells, dtype=np.int64)
     if (
         not shape
-        or index.ndim != 2  # noqa: PLR2004
+        or index.ndim != 2
         or index.shape[1] != len(shape)
         or np.any(index < 0)
         or np.any(index >= np.asarray(shape))
     ):
         return None
-    flat = np.ravel_multi_index(tuple(index.T), shape)
+    flat = np.asarray(np.ravel_multi_index(tuple(index.T), shape), dtype=np.int64)
     flat_array = cast("Array", xp.reshape(array, (-1,)))
     start = int(flat[0])
     if np.array_equal(flat, np.arange(start, start + flat.size)):
@@ -3424,28 +3424,29 @@ def _assemble_option_initial_state(
                 )
             )
         elif isinstance(entry, Mapping):
-            shaped_name, index = _shaped_initial_cell(
+            shaped_name, position = _shaped_initial_cell(
                 state_name=state_name,
                 entry=entry,
                 params=params,
                 axis_labels=axis_labels,
             )
-            cells.append(_ShapedCell(state_name, entry, shaped_name, index))
+            cells.append(_ShapedCell(state_name, entry, shaped_name, position))
         else:
             cells.append(_as_initial_scalar(entry, name=state_name, xp=xp, dtype=dtype))
 
     pieces: list[Array] = []
-    for shaped_name, group_iter in itertools.groupby(
-        cells, key=lambda cell: cell.shaped_name if isinstance(cell, _ShapedCell) else None
+    for group_name, group_iter in itertools.groupby(
+        cells,
+        key=lambda cell: cell.shaped_name if isinstance(cell, _ShapedCell) else None,
     ):
         group = list(group_iter)
-        if shaped_name is None:
+        if group_name is None:
             pieces.append(cast("Array", xp.stack(tuple(cast("list[Array]", group)))))
             continue
         shaped_cells = cast("list[_ShapedCell]", group)
         gathered = _gather_shaped_run(
-            cast("Array", raw_params[shaped_name]),
-            [cell.index for cell in shaped_cells],
+            cast("Array", raw_params[group_name]),
+            [cell.position for cell in shaped_cells],
             xp=xp,
             dtype=dtype,
         )
