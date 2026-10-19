@@ -1602,6 +1602,12 @@
 <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
 <p><code>ModelCore</code> owns a time grid and state history, while <code>CoreSolver</code> advances that
 state. Solves infer their Array-API namespace from the initial state.</p>
+<p>The scalar decay below is one introductory deterministic ODE. The same engine
+also advances <a href="../chemostat-pde/">spatial/trait-structured PDEs</a>,
+<a href="../solver-methods/">nonlocal operators and split dynamics</a>, and
+<a href="../op-system-reactions/">stochastic reaction networks</a>. See the
+<a href="../capabilities/#model-classes-and-numerical-representations">model-class map</a>
+for numerical interfaces and boundaries.</p>
 <pre><code class="language-python">import numpy as np
 
 from op_engine import CoreSolver, ModelCore

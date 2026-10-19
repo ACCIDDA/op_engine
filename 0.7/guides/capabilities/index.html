@@ -327,6 +327,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#model-classes-and-numerical-representations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model classes and numerical representations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#choose-a-public-interface" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1592,6 +1603,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#model-classes-and-numerical-representations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model classes and numerical representations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#choose-a-public-interface" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1642,9 +1664,49 @@
 
 
 <h1 id="capabilities-and-executable-examples">Capabilities and executable examples<a class="headerlink" href="#capabilities-and-executable-examples" title="Permanent link">&para;</a></h1>
-<p><code>op_engine</code> is a framework-independent numerical core for compartmental and
-spatial models. NumPy is the core dependency. The separate GPL
+<p><code>op_engine</code> is a framework-independent numerical core for structured
+deterministic and stochastic dynamics, including PDEs, nonlocal interactions,
+compartmental models, ODEs and reaction networks. NumPy is the core dependency.
+The separate GPL
 <code>flepimop2-op_engine</code> package adapts it to flepimop2 and shares its version.</p>
+<h2 id="model-classes-and-numerical-representations">Model classes and numerical representations<a class="headerlink" href="#model-classes-and-numerical-representations" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Model class</th>
+<th>Numerical interface and example</th>
+<th>Boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Spatial / trait-structured PDEs</td>
+<td><code>CoreSolver</code>, grid geometry and diffusion/advection operators; <a href="../chemostat-pde/">chemostat PDE</a> and <a href="../biogeochemical-network/">biogeochemical splitting</a></td>
+<td>Spatial/grid error and time-integration error require separate evidence</td>
+</tr>
+<tr>
+<td>Nonlocal / integro-differential dynamics</td>
+<td>Matrix/kernel operators and <a href="../solver-methods/">stage operator factories</a>; the provider assembles <code>axis_kernel</code> and <code>jump_integral</code> descriptors</td>
+<td>Coordinate measures, quadrature, orientation and boundary semantics must agree with the producer</td>
+</tr>
+<tr>
+<td>ODEs and compartmental flows</td>
+<td>Explicit/IMEX/implicit <code>CoreSolver</code> methods; <a href="../getting-started/">getting started</a></td>
+<td>Method, tolerance and backend qualification are specific to the numerical path</td>
+</tr>
+<tr>
+<td>Stochastic reaction networks</td>
+<td>Direct/thinning SSA, fixed/adaptive tau-leaping and independent-clock banks; <a href="../op-system-reactions/">reaction guide</a></td>
+<td>Propensities and stoichiometry define event semantics; frozen hazards, thinning bounds and leap approximations have distinct contracts</td>
+</tr>
+</tbody>
+</table>
+<p>Finite array state and an RHS callback are numerical representations used by
+multiple model classes. The scalar and SIR quickstarts illustrate one entry
+point; the PDE and nonlocal examples retain their field/operator structure.
+Provider integration additionally supports configured hybrid partitions; see
+<a href="https://github.com/ACCIDDA/op_engine/blob/main/flepimop2-op_engine/README.md#hybrid-execution">the provider's hybrid contract</a>
+for its scope and restrictions.</p>
 <h2 id="choose-a-public-interface">Choose a public interface<a class="headerlink" href="#choose-a-public-interface" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1711,7 +1773,7 @@ spatial models. NumPy is the core dependency. The separate GPL
 <td><a href="../steady-states/">Steady states</a>; convergence and conditional structural identities are separate checks.</td>
 </tr>
 <tr>
-<td>Reuse an adaptive ODE schedule</td>
+<td>Reuse an adaptive time-step schedule</td>
 <td><code>AdaptiveScheduleProvenance</code>, replay controls</td>
 <td><a href="../replay-provenance/">Replay provenance</a>; validate accuracy away from the producing parameters.</td>
 </tr>
@@ -1720,7 +1782,7 @@ spatial models. NumPy is the core dependency. The separate GPL
 <p>The <a href="../backend-qualification/">backend matrix</a> states which NumPy/JAX/CPU Torch
 operations and transforms are qualified. Native adaptive solvers such as diffrax
 live behind optional adapters/providers. Method availability does not imply all
-methods, stochastic gradients or accelerator paths have the same guarantees.</p>
+methods, stochastic gradients or accelerator paths have the same tested support.</p>
 <h2 id="run-an-independent-clock-example">Run an independent-clock example<a class="headerlink" href="#run-an-independent-clock-example" title="Permanent link">&para;</a></h2>
 <pre><code class="language-bash">uv sync --dev
 just example-replicates
