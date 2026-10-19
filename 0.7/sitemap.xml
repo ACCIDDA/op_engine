@@ -57,6 +57,10 @@
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
+         <loc>https://accidda.github.io/op_engine/0.7/api-reference/state_diagnostics/</loc>
+         <lastmod>2026-10-19</lastmod>
+    </url>
+    <url>
          <loc>https://accidda.github.io/op_engine/0.7/api-reference/steady_state/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
@@ -138,6 +142,10 @@
     </url>
     <url>
          <loc>https://accidda.github.io/op_engine/0.7/guides/op-system-reactions/</loc>
+         <lastmod>2026-10-19</lastmod>
+    </url>
+    <url>
+         <loc>https://accidda.github.io/op_engine/0.7/guides/output-state-checks/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>

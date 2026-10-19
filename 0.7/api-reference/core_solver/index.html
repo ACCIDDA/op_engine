@@ -563,6 +563,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/output-state-checks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output-state Checks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/solver-methods/" class="md-nav__link">
         
   
@@ -1307,6 +1335,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.last_state_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        last_state_diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#op_engine.core_solver.CoreSolver.adaptive_explicit_step" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1945,6 +1984,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../state_diagnostics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../steady_state/" class="md-nav__link">
         
   
@@ -2173,6 +2240,17 @@
     <span class="md-ellipsis">
       
         last_nonlinear_diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.core_solver.CoreSolver.last_state_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        last_state_diagnostics
       
     </span>
   </a>
@@ -2926,12 +3004,7 @@ optionally with a preprocessing predictor:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">345</span>
 <span class="normal">346</span>
 <span class="normal">347</span>
 <span class="normal">348</span>
@@ -2964,7 +3037,12 @@ optionally with a preprocessing predictor:
 <span class="normal">375</span>
 <span class="normal">376</span>
 <span class="normal">377</span>
-<span class="normal">378</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static adaptive-step parameters without coercing arrays.</span>
 
 <span class="sd">    Raises:</span>
@@ -3209,12 +3287,7 @@ None retains manually constructed/legacy mesh compatibility.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">422</span>
-<span class="normal">423</span>
-<span class="normal">424</span>
-<span class="normal">425</span>
-<span class="normal">426</span>
-<span class="normal">427</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">427</span>
 <span class="normal">428</span>
 <span class="normal">429</span>
 <span class="normal">430</span>
@@ -3261,7 +3334,12 @@ None retains manually constructed/legacy mesh compatibility.</p>
 <span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
-<span class="normal">474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize and validate the recorded mesh.</span>
 
 <span class="sd">    Raises:</span>
@@ -3418,29 +3496,7 @@ None retains manually constructed/legacy mesh compatibility.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1167</span>
-<span class="normal">1168</span>
-<span class="normal">1169</span>
-<span class="normal">1170</span>
-<span class="normal">1171</span>
-<span class="normal">1172</span>
-<span class="normal">1173</span>
-<span class="normal">1174</span>
-<span class="normal">1175</span>
-<span class="normal">1176</span>
-<span class="normal">1177</span>
-<span class="normal">1178</span>
-<span class="normal">1179</span>
-<span class="normal">1180</span>
-<span class="normal">1181</span>
-<span class="normal">1182</span>
-<span class="normal">1183</span>
-<span class="normal">1184</span>
-<span class="normal">1185</span>
-<span class="normal">1186</span>
-<span class="normal">1187</span>
-<span class="normal">1188</span>
-<span class="normal">1189</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1189</span>
 <span class="normal">1190</span>
 <span class="normal">1191</span>
 <span class="normal">1192</span>
@@ -3484,7 +3540,30 @@ None retains manually constructed/legacy mesh compatibility.</p>
 <span class="normal">1230</span>
 <span class="normal">1231</span>
 <span class="normal">1232</span>
-<span class="normal">1233</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">1233</span>
+<span class="normal">1234</span>
+<span class="normal">1235</span>
+<span class="normal">1236</span>
+<span class="normal">1237</span>
+<span class="normal">1238</span>
+<span class="normal">1239</span>
+<span class="normal">1240</span>
+<span class="normal">1241</span>
+<span class="normal">1242</span>
+<span class="normal">1243</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span>
+<span class="normal">1248</span>
+<span class="normal">1249</span>
+<span class="normal">1250</span>
+<span class="normal">1251</span>
+<span class="normal">1252</span>
+<span class="normal">1253</span>
+<span class="normal">1254</span>
+<span class="normal">1255</span>
+<span class="normal">1256</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">core</span><span class="p">:</span> <span class="n">ModelCore</span><span class="p">,</span>
     <span class="n">operators</span><span class="p">:</span> <span class="n">CoreOperators</span> <span class="o">|</span> <span class="n">StageOperatorFactory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -3544,6 +3623,7 @@ None retains manually constructed/legacy mesh compatibility.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_nonlinear_diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_state_monitor</span><span class="p">:</span> <span class="n">_OutputStateMonitor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="c1"># Validate operator sizes if default spec is a static tuple</span>
     <span class="k">if</span> <span class="n">operators</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">operators</span><span class="p">):</span>
@@ -3603,6 +3683,28 @@ None retains manually constructed/legacy mesh compatibility.</p>
     <div class="doc doc-contents ">
 
         <p>Return nonlinear diagnostics from the latest SDIRK run or replay.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="op_engine.core_solver.CoreSolver.last_state_diagnostics" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">last_state_diagnostics</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#op_engine.core_solver.CoreSolver.last_state_diagnostics" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return output-state checks from the latest run/replay, if enabled.</p>
 
     </div>
 
@@ -3823,54 +3925,54 @@ declared forcing disables first-stage reuse.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3273</span>
-<span class="normal">3274</span>
-<span class="normal">3275</span>
-<span class="normal">3276</span>
-<span class="normal">3277</span>
-<span class="normal">3278</span>
-<span class="normal">3279</span>
-<span class="normal">3280</span>
-<span class="normal">3281</span>
-<span class="normal">3282</span>
-<span class="normal">3283</span>
-<span class="normal">3284</span>
-<span class="normal">3285</span>
-<span class="normal">3286</span>
-<span class="normal">3287</span>
-<span class="normal">3288</span>
-<span class="normal">3289</span>
-<span class="normal">3290</span>
-<span class="normal">3291</span>
-<span class="normal">3292</span>
-<span class="normal">3293</span>
-<span class="normal">3294</span>
-<span class="normal">3295</span>
-<span class="normal">3296</span>
-<span class="normal">3297</span>
-<span class="normal">3298</span>
-<span class="normal">3299</span>
-<span class="normal">3300</span>
-<span class="normal">3301</span>
-<span class="normal">3302</span>
-<span class="normal">3303</span>
-<span class="normal">3304</span>
-<span class="normal">3305</span>
-<span class="normal">3306</span>
-<span class="normal">3307</span>
-<span class="normal">3308</span>
-<span class="normal">3309</span>
-<span class="normal">3310</span>
-<span class="normal">3311</span>
-<span class="normal">3312</span>
-<span class="normal">3313</span>
-<span class="normal">3314</span>
-<span class="normal">3315</span>
-<span class="normal">3316</span>
-<span class="normal">3317</span>
-<span class="normal">3318</span>
-<span class="normal">3319</span>
-<span class="normal">3320</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">adaptive_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3327</span>
+<span class="normal">3328</span>
+<span class="normal">3329</span>
+<span class="normal">3330</span>
+<span class="normal">3331</span>
+<span class="normal">3332</span>
+<span class="normal">3333</span>
+<span class="normal">3334</span>
+<span class="normal">3335</span>
+<span class="normal">3336</span>
+<span class="normal">3337</span>
+<span class="normal">3338</span>
+<span class="normal">3339</span>
+<span class="normal">3340</span>
+<span class="normal">3341</span>
+<span class="normal">3342</span>
+<span class="normal">3343</span>
+<span class="normal">3344</span>
+<span class="normal">3345</span>
+<span class="normal">3346</span>
+<span class="normal">3347</span>
+<span class="normal">3348</span>
+<span class="normal">3349</span>
+<span class="normal">3350</span>
+<span class="normal">3351</span>
+<span class="normal">3352</span>
+<span class="normal">3353</span>
+<span class="normal">3354</span>
+<span class="normal">3355</span>
+<span class="normal">3356</span>
+<span class="normal">3357</span>
+<span class="normal">3358</span>
+<span class="normal">3359</span>
+<span class="normal">3360</span>
+<span class="normal">3361</span>
+<span class="normal">3362</span>
+<span class="normal">3363</span>
+<span class="normal">3364</span>
+<span class="normal">3365</span>
+<span class="normal">3366</span>
+<span class="normal">3367</span>
+<span class="normal">3368</span>
+<span class="normal">3369</span>
+<span class="normal">3370</span>
+<span class="normal">3371</span>
+<span class="normal">3372</span>
+<span class="normal">3373</span>
+<span class="normal">3374</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">adaptive_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4144,61 +4246,61 @@ declared forcing disables first-stage reuse.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3322</span>
-<span class="normal">3323</span>
-<span class="normal">3324</span>
-<span class="normal">3325</span>
-<span class="normal">3326</span>
-<span class="normal">3327</span>
-<span class="normal">3328</span>
-<span class="normal">3329</span>
-<span class="normal">3330</span>
-<span class="normal">3331</span>
-<span class="normal">3332</span>
-<span class="normal">3333</span>
-<span class="normal">3334</span>
-<span class="normal">3335</span>
-<span class="normal">3336</span>
-<span class="normal">3337</span>
-<span class="normal">3338</span>
-<span class="normal">3339</span>
-<span class="normal">3340</span>
-<span class="normal">3341</span>
-<span class="normal">3342</span>
-<span class="normal">3343</span>
-<span class="normal">3344</span>
-<span class="normal">3345</span>
-<span class="normal">3346</span>
-<span class="normal">3347</span>
-<span class="normal">3348</span>
-<span class="normal">3349</span>
-<span class="normal">3350</span>
-<span class="normal">3351</span>
-<span class="normal">3352</span>
-<span class="normal">3353</span>
-<span class="normal">3354</span>
-<span class="normal">3355</span>
-<span class="normal">3356</span>
-<span class="normal">3357</span>
-<span class="normal">3358</span>
-<span class="normal">3359</span>
-<span class="normal">3360</span>
-<span class="normal">3361</span>
-<span class="normal">3362</span>
-<span class="normal">3363</span>
-<span class="normal">3364</span>
-<span class="normal">3365</span>
-<span class="normal">3366</span>
-<span class="normal">3367</span>
-<span class="normal">3368</span>
-<span class="normal">3369</span>
-<span class="normal">3370</span>
-<span class="normal">3371</span>
-<span class="normal">3372</span>
-<span class="normal">3373</span>
-<span class="normal">3374</span>
-<span class="normal">3375</span>
-<span class="normal">3376</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3376</span>
+<span class="normal">3377</span>
+<span class="normal">3378</span>
+<span class="normal">3379</span>
+<span class="normal">3380</span>
+<span class="normal">3381</span>
+<span class="normal">3382</span>
+<span class="normal">3383</span>
+<span class="normal">3384</span>
+<span class="normal">3385</span>
+<span class="normal">3386</span>
+<span class="normal">3387</span>
+<span class="normal">3388</span>
+<span class="normal">3389</span>
+<span class="normal">3390</span>
+<span class="normal">3391</span>
+<span class="normal">3392</span>
+<span class="normal">3393</span>
+<span class="normal">3394</span>
+<span class="normal">3395</span>
+<span class="normal">3396</span>
+<span class="normal">3397</span>
+<span class="normal">3398</span>
+<span class="normal">3399</span>
+<span class="normal">3400</span>
+<span class="normal">3401</span>
+<span class="normal">3402</span>
+<span class="normal">3403</span>
+<span class="normal">3404</span>
+<span class="normal">3405</span>
+<span class="normal">3406</span>
+<span class="normal">3407</span>
+<span class="normal">3408</span>
+<span class="normal">3409</span>
+<span class="normal">3410</span>
+<span class="normal">3411</span>
+<span class="normal">3412</span>
+<span class="normal">3413</span>
+<span class="normal">3414</span>
+<span class="normal">3415</span>
+<span class="normal">3416</span>
+<span class="normal">3417</span>
+<span class="normal">3418</span>
+<span class="normal">3419</span>
+<span class="normal">3420</span>
+<span class="normal">3421</span>
+<span class="normal">3422</span>
+<span class="normal">3423</span>
+<span class="normal">3424</span>
+<span class="normal">3425</span>
+<span class="normal">3426</span>
+<span class="normal">3427</span>
+<span class="normal">3428</span>
+<span class="normal">3429</span>
+<span class="normal">3430</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_explicit_step</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4329,7 +4431,7 @@ JAX state, the static Python schedule can therefore be traced by
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, nonlinear=None, gamma=None, fixed_max_step=None, replay_loop='unroll', replay_checkpoint=False, replay_model_id=None, replay_reference_regime=None, replay_require_provenance=False, forcing_breakpoints=(), fixed_loop='unroll', fixed_checkpoint=False)
+                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, nonlinear=None, gamma=None, fixed_max_step=None, replay_loop='unroll', replay_checkpoint=False, replay_model_id=None, replay_reference_regime=None, replay_require_provenance=False, forcing_breakpoints=(), fixed_loop='unroll', fixed_checkpoint=False, state_checks=None)
 
   
       dataclass
@@ -4364,6 +4466,26 @@ JAX state, the static Python schedule can therefore be traced by
             <td>
               <div class="doc-md-description">
                 <p>Array-valued nonlinear diagnostics for SDIRK2, otherwise <code>None</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Opt-in output-state checks are available through</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>attr:<code>last_state_diagnostics</code>, independently of this return value.</p>
               </div>
             </td>
           </tr>
@@ -4408,61 +4530,7 @@ required provenance is absent, or structural provenance differs.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5035</span>
-<span class="normal">5036</span>
-<span class="normal">5037</span>
-<span class="normal">5038</span>
-<span class="normal">5039</span>
-<span class="normal">5040</span>
-<span class="normal">5041</span>
-<span class="normal">5042</span>
-<span class="normal">5043</span>
-<span class="normal">5044</span>
-<span class="normal">5045</span>
-<span class="normal">5046</span>
-<span class="normal">5047</span>
-<span class="normal">5048</span>
-<span class="normal">5049</span>
-<span class="normal">5050</span>
-<span class="normal">5051</span>
-<span class="normal">5052</span>
-<span class="normal">5053</span>
-<span class="normal">5054</span>
-<span class="normal">5055</span>
-<span class="normal">5056</span>
-<span class="normal">5057</span>
-<span class="normal">5058</span>
-<span class="normal">5059</span>
-<span class="normal">5060</span>
-<span class="normal">5061</span>
-<span class="normal">5062</span>
-<span class="normal">5063</span>
-<span class="normal">5064</span>
-<span class="normal">5065</span>
-<span class="normal">5066</span>
-<span class="normal">5067</span>
-<span class="normal">5068</span>
-<span class="normal">5069</span>
-<span class="normal">5070</span>
-<span class="normal">5071</span>
-<span class="normal">5072</span>
-<span class="normal">5073</span>
-<span class="normal">5074</span>
-<span class="normal">5075</span>
-<span class="normal">5076</span>
-<span class="normal">5077</span>
-<span class="normal">5078</span>
-<span class="normal">5079</span>
-<span class="normal">5080</span>
-<span class="normal">5081</span>
-<span class="normal">5082</span>
-<span class="normal">5083</span>
-<span class="normal">5084</span>
-<span class="normal">5085</span>
-<span class="normal">5086</span>
-<span class="normal">5087</span>
-<span class="normal">5088</span>
-<span class="normal">5089</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5089</span>
 <span class="normal">5090</span>
 <span class="normal">5091</span>
 <span class="normal">5092</span>
@@ -4505,7 +4573,65 @@ required provenance is absent, or structural provenance differs.</p>
 <span class="normal">5129</span>
 <span class="normal">5130</span>
 <span class="normal">5131</span>
-<span class="normal">5132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
+<span class="normal">5132</span>
+<span class="normal">5133</span>
+<span class="normal">5134</span>
+<span class="normal">5135</span>
+<span class="normal">5136</span>
+<span class="normal">5137</span>
+<span class="normal">5138</span>
+<span class="normal">5139</span>
+<span class="normal">5140</span>
+<span class="normal">5141</span>
+<span class="normal">5142</span>
+<span class="normal">5143</span>
+<span class="normal">5144</span>
+<span class="normal">5145</span>
+<span class="normal">5146</span>
+<span class="normal">5147</span>
+<span class="normal">5148</span>
+<span class="normal">5149</span>
+<span class="normal">5150</span>
+<span class="normal">5151</span>
+<span class="normal">5152</span>
+<span class="normal">5153</span>
+<span class="normal">5154</span>
+<span class="normal">5155</span>
+<span class="normal">5156</span>
+<span class="normal">5157</span>
+<span class="normal">5158</span>
+<span class="normal">5159</span>
+<span class="normal">5160</span>
+<span class="normal">5161</span>
+<span class="normal">5162</span>
+<span class="normal">5163</span>
+<span class="normal">5164</span>
+<span class="normal">5165</span>
+<span class="normal">5166</span>
+<span class="normal">5167</span>
+<span class="normal">5168</span>
+<span class="normal">5169</span>
+<span class="normal">5170</span>
+<span class="normal">5171</span>
+<span class="normal">5172</span>
+<span class="normal">5173</span>
+<span class="normal">5174</span>
+<span class="normal">5175</span>
+<span class="normal">5176</span>
+<span class="normal">5177</span>
+<span class="normal">5178</span>
+<span class="normal">5179</span>
+<span class="normal">5180</span>
+<span class="normal">5181</span>
+<span class="normal">5182</span>
+<span class="normal">5183</span>
+<span class="normal">5184</span>
+<span class="normal">5185</span>
+<span class="normal">5186</span>
+<span class="normal">5187</span>
+<span class="normal">5188</span>
+<span class="normal">5189</span>
+<span class="normal">5190</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">replay_adaptive_schedule</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="n">schedule</span><span class="p">:</span> <span class="n">AdaptiveStepSchedule</span><span class="p">,</span>
@@ -4526,6 +4652,8 @@ required provenance is absent, or structural provenance differs.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.</span>
+<span class="sd">        Opt-in output-state checks are available through</span>
+<span class="sd">        :attr:`last_state_diagnostics`, independently of this return value.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If schedule has the wrong type or the state changes array</span>
@@ -4542,12 +4670,14 @@ required provenance is absent, or structural provenance differs.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_nonlinear_diagnostics</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_state_monitor</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate_schedule_time_grid</span><span class="p">(</span><span class="n">schedule</span><span class="p">)</span>
     <span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_run_plan</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate_schedule_provenance</span><span class="p">(</span><span class="n">schedule</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">plan</span><span class="p">)</span>
     <span class="n">_ForcingSchedule</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">forcing_breakpoints</span><span class="p">)</span><span class="o">.</span><span class="n">validate_mesh</span><span class="p">(</span>
         <span class="n">schedule</span><span class="o">.</span><span class="n">output_times</span><span class="p">,</span> <span class="n">schedule</span><span class="o">.</span><span class="n">step_sizes</span>
     <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start_state_diagnostics</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
     <span class="n">adapter</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">replay_loop</span> <span class="o">!=</span> <span class="s2">"unroll"</span><span class="p">:</span>
@@ -4655,7 +4785,7 @@ required provenance is absent, or structural provenance differs.</p>
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, nonlinear=None, gamma=None, fixed_max_step=None, replay_loop='unroll', replay_checkpoint=False, replay_model_id=None, replay_reference_regime=None, replay_require_provenance=False, forcing_breakpoints=(), fixed_loop='unroll', fixed_checkpoint=False)
+                  <code><a class="autorefs autorefs-internal" title="RunConfig(method='heun', adaptive=False, strict=True, dt_controller=DtControllerConfig(), adaptive_cfg=AdaptiveConfig(), operators=OperatorSpecs(), jacobian=None, nonlinear=None, gamma=None, fixed_max_step=None, replay_loop='unroll', replay_checkpoint=False, replay_model_id=None, replay_reference_regime=None, replay_require_provenance=False, forcing_breakpoints=(), fixed_loop='unroll', fixed_checkpoint=False, state_checks=None)
 
   
       dataclass
@@ -4690,6 +4820,26 @@ required provenance is absent, or structural provenance differs.</p>
             <td>
               <div class="doc-md-description">
                 <p>Array-valued nonlinear diagnostics for SDIRK2, otherwise <code>None</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Opt-in output-state checks are available through</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="NonlinearIntegrationDiagnostics (op_engine.core_solver.NonlinearIntegrationDiagnostics)" href="#op_engine.core_solver.NonlinearIntegrationDiagnostics">NonlinearIntegrationDiagnostics</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>attr:<code>last_state_diagnostics</code>, independently of this return value.</p>
               </div>
             </td>
           </tr>
@@ -4746,65 +4896,7 @@ required provenance is absent, or structural provenance differs.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5134</span>
-<span class="normal">5135</span>
-<span class="normal">5136</span>
-<span class="normal">5137</span>
-<span class="normal">5138</span>
-<span class="normal">5139</span>
-<span class="normal">5140</span>
-<span class="normal">5141</span>
-<span class="normal">5142</span>
-<span class="normal">5143</span>
-<span class="normal">5144</span>
-<span class="normal">5145</span>
-<span class="normal">5146</span>
-<span class="normal">5147</span>
-<span class="normal">5148</span>
-<span class="normal">5149</span>
-<span class="normal">5150</span>
-<span class="normal">5151</span>
-<span class="normal">5152</span>
-<span class="normal">5153</span>
-<span class="normal">5154</span>
-<span class="normal">5155</span>
-<span class="normal">5156</span>
-<span class="normal">5157</span>
-<span class="normal">5158</span>
-<span class="normal">5159</span>
-<span class="normal">5160</span>
-<span class="normal">5161</span>
-<span class="normal">5162</span>
-<span class="normal">5163</span>
-<span class="normal">5164</span>
-<span class="normal">5165</span>
-<span class="normal">5166</span>
-<span class="normal">5167</span>
-<span class="normal">5168</span>
-<span class="normal">5169</span>
-<span class="normal">5170</span>
-<span class="normal">5171</span>
-<span class="normal">5172</span>
-<span class="normal">5173</span>
-<span class="normal">5174</span>
-<span class="normal">5175</span>
-<span class="normal">5176</span>
-<span class="normal">5177</span>
-<span class="normal">5178</span>
-<span class="normal">5179</span>
-<span class="normal">5180</span>
-<span class="normal">5181</span>
-<span class="normal">5182</span>
-<span class="normal">5183</span>
-<span class="normal">5184</span>
-<span class="normal">5185</span>
-<span class="normal">5186</span>
-<span class="normal">5187</span>
-<span class="normal">5188</span>
-<span class="normal">5189</span>
-<span class="normal">5190</span>
-<span class="normal">5191</span>
-<span class="normal">5192</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5192</span>
 <span class="normal">5193</span>
 <span class="normal">5194</span>
 <span class="normal">5195</span>
@@ -4851,7 +4943,69 @@ required provenance is absent, or structural provenance differs.</p>
 <span class="normal">5236</span>
 <span class="normal">5237</span>
 <span class="normal">5238</span>
-<span class="normal">5239</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="normal">5239</span>
+<span class="normal">5240</span>
+<span class="normal">5241</span>
+<span class="normal">5242</span>
+<span class="normal">5243</span>
+<span class="normal">5244</span>
+<span class="normal">5245</span>
+<span class="normal">5246</span>
+<span class="normal">5247</span>
+<span class="normal">5248</span>
+<span class="normal">5249</span>
+<span class="normal">5250</span>
+<span class="normal">5251</span>
+<span class="normal">5252</span>
+<span class="normal">5253</span>
+<span class="normal">5254</span>
+<span class="normal">5255</span>
+<span class="normal">5256</span>
+<span class="normal">5257</span>
+<span class="normal">5258</span>
+<span class="normal">5259</span>
+<span class="normal">5260</span>
+<span class="normal">5261</span>
+<span class="normal">5262</span>
+<span class="normal">5263</span>
+<span class="normal">5264</span>
+<span class="normal">5265</span>
+<span class="normal">5266</span>
+<span class="normal">5267</span>
+<span class="normal">5268</span>
+<span class="normal">5269</span>
+<span class="normal">5270</span>
+<span class="normal">5271</span>
+<span class="normal">5272</span>
+<span class="normal">5273</span>
+<span class="normal">5274</span>
+<span class="normal">5275</span>
+<span class="normal">5276</span>
+<span class="normal">5277</span>
+<span class="normal">5278</span>
+<span class="normal">5279</span>
+<span class="normal">5280</span>
+<span class="normal">5281</span>
+<span class="normal">5282</span>
+<span class="normal">5283</span>
+<span class="normal">5284</span>
+<span class="normal">5285</span>
+<span class="normal">5286</span>
+<span class="normal">5287</span>
+<span class="normal">5288</span>
+<span class="normal">5289</span>
+<span class="normal">5290</span>
+<span class="normal">5291</span>
+<span class="normal">5292</span>
+<span class="normal">5293</span>
+<span class="normal">5294</span>
+<span class="normal">5295</span>
+<span class="normal">5296</span>
+<span class="normal">5297</span>
+<span class="normal">5298</span>
+<span class="normal">5299</span>
+<span class="normal">5300</span>
+<span class="normal">5301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rhs_func</span><span class="p">:</span> <span class="n">RHSFunction</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4865,6 +5019,8 @@ required provenance is absent, or structural provenance differs.</p>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.</span>
+<span class="sd">        Opt-in output-state checks are available through</span>
+<span class="sd">        :attr:`last_state_diagnostics`, independently of this return value.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        TypeError: If the state changes array ecosystems during a run.</span>
@@ -4884,8 +5040,10 @@ required provenance is absent, or structural provenance differs.</p>
 <span class="sd">    """</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_nonlinear_diagnostics</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_state_monitor</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">RunConfig</span><span class="p">()</span>
     <span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_run_plan</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start_state_diagnostics</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">plan</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">"sdirk2"</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_sdirk</span><span class="p">(</span><span class="n">rhs_func</span><span class="p">,</span> <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
@@ -4930,7 +5088,7 @@ required provenance is absent, or structural provenance differs.</p>
                 <span class="n">history</span><span class="o">=</span><span class="n">history</span><span class="o">.</span><span class="n">states</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">history</span> <span class="o">=</span> <span class="n">history</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">advance_timestep</span><span class="p">(</span><span class="n">y_next</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_advance_output_state</span><span class="p">(</span><span class="n">y_next</span><span class="p">)</span>
             <span class="k">continue</span>
 
         <span class="n">accepted_steps</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
@@ -4948,7 +5106,7 @@ required provenance is absent, or structural provenance differs.</p>
         <span class="p">)</span>
         <span class="n">schedule_steps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">accepted_steps</span><span class="p">))</span>
         <span class="n">history</span> <span class="o">=</span> <span class="n">history</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_curr</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">advance_timestep</span><span class="p">(</span><span class="n">y_end</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_output_state</span><span class="p">(</span><span class="n">y_end</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">adaptive</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_last_adaptive_schedule</span> <span class="o">=</span> <span class="n">AdaptiveStepSchedule</span><span class="p">(</span>
@@ -5120,12 +5278,7 @@ required provenance is absent, or structural provenance differs.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span>
-<span class="normal">296</span>
-<span class="normal">297</span>
-<span class="normal">298</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
 <span class="normal">301</span>
@@ -5146,7 +5299,12 @@ required provenance is absent, or structural provenance differs.</p>
 <span class="normal">316</span>
 <span class="normal">317</span>
 <span class="normal">318</span>
-<span class="normal">319</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static timestep-controller parameters.</span>
 
 <span class="sd">    Raises:</span>
@@ -5603,17 +5761,17 @@ required provenance is absent, or structural provenance differs.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">591</span>
 <span class="normal">592</span>
 <span class="normal">593</span>
 <span class="normal">594</span>
 <span class="normal">595</span>
-<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">:</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Store diagnostics for the invalid integration or frozen mesh."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">diagnostics</span> <span class="o">=</span> <span class="n">diagnostics</span>
     <span class="n">failed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
@@ -5755,19 +5913,19 @@ step contains a failed nonlinear stage.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">573</span>
 <span class="normal">574</span>
 <span class="normal">575</span>
 <span class="normal">576</span>
 <span class="normal">577</span>
 <span class="normal">578</span>
 <span class="normal">579</span>
-<span class="normal">580</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">:</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearIntegrationDiagnostics</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return valid diagnostics or invalidate a failed compiled replay.</span>
 
 <span class="sd">    Returns:</span>
@@ -5914,18 +6072,18 @@ separate from :attr:<code>RunConfig.jacobian</code>, whose operators act only al
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">748</span>
-<span class="normal">749</span>
-<span class="normal">750</span>
-<span class="normal">751</span>
-<span class="normal">752</span>
-<span class="normal">753</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">753</span>
 <span class="normal">754</span>
 <span class="normal">755</span>
 <span class="normal">756</span>
 <span class="normal">757</span>
 <span class="normal">758</span>
-<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span>
+<span class="normal">764</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate the method boundary without selecting an array backend.</span>
 
 <span class="sd">    Raises:</span>
@@ -6181,9 +6339,9 @@ and as a fallback for TR/BDF2 stages.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">256</span>
-<span class="normal">257</span>
-<span class="normal">258</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Apply the predictor to a 2D array."""</span>
     <span class="o">...</span>
 </code></pre></div></td></tr></table></div>
@@ -6205,7 +6363,7 @@ and as a fallback for TR/BDF2 stages.</p>
 
 
 <h3 id="op_engine.core_solver.RunConfig" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'heun'</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nonlinear</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_max_step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replay_loop</span><span class="o">=</span><span class="s1">'unroll'</span><span class="p">,</span> <span class="n">replay_checkpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">replay_model_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replay_reference_regime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replay_require_provenance</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">forcing_breakpoints</span><span class="o">=</span><span class="p">(),</span> <span class="n">fixed_loop</span><span class="o">=</span><span class="s1">'unroll'</span><span class="p">,</span> <span class="n">fixed_checkpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">RunConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'heun'</span><span class="p">,</span> <span class="n">adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_controller</span><span class="o">=</span><span class="n">DtControllerConfig</span><span class="p">(),</span> <span class="n">adaptive_cfg</span><span class="o">=</span><span class="n">AdaptiveConfig</span><span class="p">(),</span> <span class="n">operators</span><span class="o">=</span><span class="n">OperatorSpecs</span><span class="p">(),</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nonlinear</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_max_step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replay_loop</span><span class="o">=</span><span class="s1">'unroll'</span><span class="p">,</span> <span class="n">replay_checkpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">replay_model_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replay_reference_regime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replay_require_provenance</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">forcing_breakpoints</span><span class="o">=</span><span class="p">(),</span> <span class="n">fixed_loop</span><span class="o">=</span><span class="s1">'unroll'</span><span class="p">,</span> <span class="n">fixed_checkpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">state_checks</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -6386,6 +6544,23 @@ mode. Used only when <code>fixed_loop</code> selects an adapter.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code><span title="op_engine.core_solver.RunConfig.state_checks">state_checks</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="OutputStateCheckConfig(nonnegative_indices=None, monotone_indices=(), negative_tolerance=0.0, monotone_tolerance=0.0)
+
+  
+      dataclass
+   (op_engine.state_diagnostics.OutputStateCheckConfig)" href="../state_diagnostics/#op_engine.state_diagnostics.OutputStateCheckConfig">OutputStateCheckConfig</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional checks for nonnegative/monotone states at
+requested outputs. Records per-subgroup flags without modifying
+states; internal substeps and stages are not checked.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code><span title="op_engine.core_solver.RunConfig.replay_loop">replay_loop</span></code></td>
             <td>
                   <code><span title="typing.Literal">Literal</span>[&#39;auto&#39;, &#39;scan&#39;, &#39;unroll&#39;]</code>
@@ -6533,16 +6708,7 @@ without provenance when True. False preserves compatibility.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">821</span>
-<span class="normal">822</span>
-<span class="normal">823</span>
-<span class="normal">824</span>
-<span class="normal">825</span>
-<span class="normal">826</span>
-<span class="normal">827</span>
-<span class="normal">828</span>
-<span class="normal">829</span>
-<span class="normal">830</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">830</span>
 <span class="normal">831</span>
 <span class="normal">832</span>
 <span class="normal">833</span>
@@ -6573,7 +6739,17 @@ without provenance when True. False preserves compatibility.</p>
 <span class="normal">858</span>
 <span class="normal">859</span>
 <span class="normal">860</span>
-<span class="normal">861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
+<span class="normal">865</span>
+<span class="normal">866</span>
+<span class="normal">867</span>
+<span class="normal">868</span>
+<span class="normal">869</span>
+<span class="normal">870</span>
+<span class="normal">871</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Normalize the method and validate context-free configuration.</span>
 
 <span class="sd">    Raises:</span>
@@ -6586,6 +6762,7 @@ without provenance when True. False preserves compatibility.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate_replay_options</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate_forcing_options</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate_fixed_options</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_validate_state_options</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixed_max_step</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">fixed_max_step</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fixed_max_step</span><span class="p">)</span>
@@ -7187,12 +7364,7 @@ partition would be unreasonably large.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">482</span>
 <span class="normal">483</span>
 <span class="normal">484</span>
 <span class="normal">485</span>
@@ -7253,7 +7425,12 @@ partition would be unreasonably large.</p>
 <span class="normal">540</span>
 <span class="normal">541</span>
 <span class="normal">542</span>
-<span class="normal">543</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_step_sizes</span><span class="p">(</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fixed_step_sizes</span><span class="p">(</span>
     <span class="n">t0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">t1</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
     <span class="n">max_step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
@@ -7375,31 +7552,31 @@ partition would be unreasonably large.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1029</span>
-<span class="normal">1030</span>
-<span class="normal">1031</span>
-<span class="normal">1032</span>
-<span class="normal">1033</span>
-<span class="normal">1034</span>
-<span class="normal">1035</span>
-<span class="normal">1036</span>
-<span class="normal">1037</span>
-<span class="normal">1038</span>
-<span class="normal">1039</span>
-<span class="normal">1040</span>
-<span class="normal">1041</span>
-<span class="normal">1042</span>
-<span class="normal">1043</span>
-<span class="normal">1044</span>
-<span class="normal">1045</span>
-<span class="normal">1046</span>
-<span class="normal">1047</span>
-<span class="normal">1048</span>
-<span class="normal">1049</span>
-<span class="normal">1050</span>
-<span class="normal">1051</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1051</span>
 <span class="normal">1052</span>
-<span class="normal">1053</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propose_step_size</span><span class="p">(</span>
+<span class="normal">1053</span>
+<span class="normal">1054</span>
+<span class="normal">1055</span>
+<span class="normal">1056</span>
+<span class="normal">1057</span>
+<span class="normal">1058</span>
+<span class="normal">1059</span>
+<span class="normal">1060</span>
+<span class="normal">1061</span>
+<span class="normal">1062</span>
+<span class="normal">1063</span>
+<span class="normal">1064</span>
+<span class="normal">1065</span>
+<span class="normal">1066</span>
+<span class="normal">1067</span>
+<span class="normal">1068</span>
+<span class="normal">1069</span>
+<span class="normal">1070</span>
+<span class="normal">1071</span>
+<span class="normal">1072</span>
+<span class="normal">1073</span>
+<span class="normal">1074</span>
+<span class="normal">1075</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">propose_step_size</span><span class="p">(</span>
     <span class="n">step_size</span><span class="p">:</span> <span class="n">Scalar</span><span class="p">,</span>
     <span class="n">error_norm</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -7506,29 +7683,7 @@ therefore compose it with backend loop primitives such as
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/core_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 984</span>
-<span class="normal"> 985</span>
-<span class="normal"> 986</span>
-<span class="normal"> 987</span>
-<span class="normal"> 988</span>
-<span class="normal"> 989</span>
-<span class="normal"> 990</span>
-<span class="normal"> 991</span>
-<span class="normal"> 992</span>
-<span class="normal"> 993</span>
-<span class="normal"> 994</span>
-<span class="normal"> 995</span>
-<span class="normal"> 996</span>
-<span class="normal"> 997</span>
-<span class="normal"> 998</span>
-<span class="normal"> 999</span>
-<span class="normal">1000</span>
-<span class="normal">1001</span>
-<span class="normal">1002</span>
-<span class="normal">1003</span>
-<span class="normal">1004</span>
-<span class="normal">1005</span>
-<span class="normal">1006</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1006</span>
 <span class="normal">1007</span>
 <span class="normal">1008</span>
 <span class="normal">1009</span>
@@ -7548,7 +7703,29 @@ therefore compose it with backend loop primitives such as
 <span class="normal">1023</span>
 <span class="normal">1024</span>
 <span class="normal">1025</span>
-<span class="normal">1026</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scaled_error_norm</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
+<span class="normal">1026</span>
+<span class="normal">1027</span>
+<span class="normal">1028</span>
+<span class="normal">1029</span>
+<span class="normal">1030</span>
+<span class="normal">1031</span>
+<span class="normal">1032</span>
+<span class="normal">1033</span>
+<span class="normal">1034</span>
+<span class="normal">1035</span>
+<span class="normal">1036</span>
+<span class="normal">1037</span>
+<span class="normal">1038</span>
+<span class="normal">1039</span>
+<span class="normal">1040</span>
+<span class="normal">1041</span>
+<span class="normal">1042</span>
+<span class="normal">1043</span>
+<span class="normal">1044</span>
+<span class="normal">1045</span>
+<span class="normal">1046</span>
+<span class="normal">1047</span>
+<span class="normal">1048</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scaled_error_norm</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="n">error</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">reference</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
     <span class="n">previous</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
