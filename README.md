@@ -1,17 +1,17 @@
 # op_engine
 
 Operator-Partitioned Engine (OP Engine) is a framework-independent numerical
-core for structured dynamical systems: spatial and trait-structured PDEs,
-nonlocal integral/mixing dynamics, compartmental models, ODEs and stochastic
-reaction networks. It combines explicit/implicit time stepping, operator
-splitting and exact/approximate reaction simulation. PDE and nonlocal models
-use declared numerical discretizations and operators; method and backend
-qualification remain specific to the selected numerical path.
+core for structured dynamical systems, including spatial and trait-structured PDEs,
+nonlocal integrals and mixing, compartmental models, ODEs and stochastic
+reaction networks. It provides explicit and implicit time stepping, operator
+splitting, exact SSA and approximate tau-leaping. PDE and nonlocal models
+use specified discretizations and operators. The documentation lists the
+tested methods and array backends.
 
-## Why use it?
+## Methods and interfaces
 - State, operator and observation interfaces for structured fields and populations.
 - Explicit/IMEX/implicit integration and exact/approximate stochastic reaction methods.
-- Strong typing and Array-API explicit and dense-implicit paths, including
+- Typed interfaces and Array-API explicit and dense-implicit methods, including
   reusable higher-order Runge--Kutta tableaus.
 - JAX autodiff and JIT support for the same portable fixed-step methods.
 - Separates state/time management (`ModelCore`) from stepping logic (`CoreSolver`).
@@ -26,7 +26,7 @@ qualification remain specific to the selected numerical path.
 - `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection. Non-mass-action propensities (frequency-dependent infection) are supported through per-reaction dependency incidence and elasticity orders.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `from_compiled_rhs` / `compile_reaction_network`: build the flat stochastic network (stoichiometry, reactant orders, propensity) from an op_system spec's reaction artifacts, with no flepimop2 dependency.
-- `steady_state`: equilibria by pseudo-transient continuation, with absorbing states held fixed, conserved totals enforced exactly, and a Newton-correction convergence test; runs under `jax.jit`/`vmap`.
+- `steady_state`: equilibria by pseudo-transient continuation, with absorbing states held fixed, declared conservation constraints, and a Newton-correction convergence test; runs under `jax.jit`/`vmap`.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 

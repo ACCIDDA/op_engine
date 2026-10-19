@@ -202,7 +202,7 @@ config:
 
 PyTree execution is array-namespace polymorphic; block execution currently
 requires JAX because it relies on `vmap`. Both layouts use op_engine's own
-validated Euler, Heun, RK4, and Dormand--Prince coefficients—Diffrax is not an
+validated Euler, Heun, RK4, and Dormand--Prince coefficients. Diffrax is not an
 execution dependency. Explicit adaptive JAX discovery first builds one
 conservative shared schedule from the full state; PyTree replay consumes that
 schedule directly, while block replay vmaps it across the selected axis. Until

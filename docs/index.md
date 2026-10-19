@@ -1,8 +1,8 @@
 # Welcome to `OP Engine`
 
-Framework-independent numerical methods for spatial/trait-structured PDEs,
-nonlocal integral/mixing dynamics, compartmental models, ODEs and stochastic
-reaction networks. PDE/nonlocal fields use numerical grids and operators.
+Numerical methods for spatial and trait-structured PDEs,
+nonlocal integrals and mixing, compartmental models, ODEs and stochastic
+reaction networks. PDE and nonlocal fields use numerical grids and operators.
 The separate provider integrates with [`flepimop2`](https://github.com/ACCIDDA/flepimop2).
 
 Start with [Getting Started](guides/getting-started.md), then use

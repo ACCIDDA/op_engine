@@ -1,7 +1,7 @@
 # Capabilities and executable examples
 
 `op_engine` is a framework-independent numerical core for structured
-deterministic and stochastic dynamics: PDEs/fields, nonlocal interactions,
+deterministic and stochastic dynamics, including PDEs, nonlocal interactions,
 compartmental models, ODEs and reaction networks. NumPy is the core dependency.
 The separate GPL
 `flepimop2-op_engine` package adapts it to flepimop2 and shares its version.
@@ -42,7 +42,7 @@ for its scope and restrictions.
 The [backend matrix](backend-qualification.md) states which NumPy/JAX/CPU Torch
 operations and transforms are qualified. Native adaptive solvers such as diffrax
 live behind optional adapters/providers. Method availability does not imply all
-methods, stochastic gradients or accelerator paths have the same guarantees.
+methods, stochastic gradients or accelerator paths have the same tested support.
 
 ## Run an independent-clock example
 

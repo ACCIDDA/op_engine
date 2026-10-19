@@ -7,6 +7,9 @@ versioning while the project remains pre-1.0.
 
 ### Documentation
 
+- Simplify introductions and method descriptions, removing promotional phrasing
+  and replacing broad guarantees with specific interfaces and tested scope.
+
 - Make PDE/structured-field, nonlocal/integral, deterministic and stochastic
   scope explicit in introductions, provider guidance and example selection.
   Replace narrow package/module descriptions and map model classes to methods
