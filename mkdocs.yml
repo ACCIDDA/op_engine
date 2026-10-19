@@ -71,6 +71,7 @@ nav:
   - API Reference:
       - Adaptive Tau: api-reference/adaptive_tau.md
       - Core Solver: api-reference/core_solver.md
+      - Firing: api-reference/firing.md
       - Loop Ops: api-reference/loop_ops.md
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
