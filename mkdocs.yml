@@ -52,6 +52,7 @@ nav:
       - Getting Started: guides/getting-started.md
       - Choosing a Solver: guides/solver-methods.md
       - Bounded Thinning SSA: guides/bounded-thinning.md
+      - Independent SSA Banks: guides/replicate-ssa.md
       - Stochastic Simulation From op_system: guides/op-system-reactions.md
       - Per-run Random Streams: guides/random-streams.md
       - Linear Multistep Methods: guides/linear-multistep-methods.md
@@ -70,6 +71,7 @@ nav:
       - Backend Strategies: guides/backends.md
   - API Reference:
       - Adaptive Tau: api-reference/adaptive_tau.md
+      - Batched Ssa: api-reference/batched_ssa.md
       - Core Solver: api-reference/core_solver.md
       - Firing: api-reference/firing.md
       - Loop Ops: api-reference/loop_ops.md
@@ -79,6 +81,7 @@ nav:
       - Observation Reductions: api-reference/observation_reductions.md
       - Observations: api-reference/observations.md
       - Reactions: api-reference/reactions.md
+      - Replicate Network: api-reference/replicate_network.md
       - Spatial Grid: api-reference/spatial_grid.md
       - Steady State: api-reference/steady_state.md
       - Stochastic Solver: api-reference/stochastic_solver.md

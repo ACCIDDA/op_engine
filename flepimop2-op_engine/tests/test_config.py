@@ -459,6 +459,9 @@ def test_engine_config_round_trips_forcing_breakpoints(
     config = OpEngineEngineConfig.model_validate({
         "mode": "stochastic",
         "stochastic_method": method,
+        "replicate_axis": "rep"
+        if method is StochasticMethod.REPLICATE_DIRECT_SSA
+        else None,
         "forcing_breakpoints": points,
     })
     points[0] = 99.0
@@ -516,6 +519,7 @@ def test_engine_config_exposes_every_stochastic_core_method() -> None:
     assert set(StochasticMethod) == {
         StochasticMethod.ADAPTIVE_TAU_LEAPING,
         StochasticMethod.DIRECT_SSA,
+        StochasticMethod.REPLICATE_DIRECT_SSA,
         StochasticMethod.TAU_LEAPING,
         StochasticMethod.THINNING_SSA,
     }

@@ -15,6 +15,23 @@ permissions:
   contents: 'read'
 
 jobs:
+  independent-ssa:
+    name: 'Independent SSA compiler contract (3.12)'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - run: 'uv sync --dev'
+      - run: "uv pip install 'op-system==0.8.0'"
+      - name: 'Require real compiler and exact bank execution'
+        run: |
+          uv run --no-sync python -c 'from op_system import CompiledReaction; assert hasattr(CompiledReaction, "resolved_propensity_fn")'
+          uv run --no-sync pytest tests/op_engine/test_batched_ssa.py tests/op_engine/test_replicate_network.py
+          uv run --no-sync python -m benchmarks.replicate_ssa --sizes 2 --days 2 --flat-max 2 --output /tmp/replicate-ssa.json
   citation:
     name: 'Citation (3.12)'
     runs-on: 'ubuntu-latest'

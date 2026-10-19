@@ -1435,7 +1435,8 @@ def test_invalid_producer_forcing_fails_validation_and_run(points: object) -> No
     [
         method
         for method in StochasticMethod
-        if method is not StochasticMethod.THINNING_SSA
+        if method
+        not in {StochasticMethod.THINNING_SSA, StochasticMethod.REPLICATE_DIRECT_SSA}
     ],
 )
 def test_hybrid_rejects_declared_producer_forcing(method: StochasticMethod) -> None:

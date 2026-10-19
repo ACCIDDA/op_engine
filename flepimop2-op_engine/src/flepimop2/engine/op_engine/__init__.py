@@ -51,6 +51,7 @@ from op_engine.core_solver import (
     propose_step_size,
     scaled_error_norm,
 )
+from op_engine.firing import FiringRecorder
 from op_engine.model_core import ModelCore, ModelCoreOptions
 from op_engine.stochastic_solver import (
     DirectSSAConfig,
@@ -87,6 +88,7 @@ from .reactions import (
     compile_reaction_network,
     incomplete_reactants_message,
 )
+from .replicates import run_replicate_bank
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -2896,6 +2898,7 @@ def _run_stochastic_core(
     *,
     poisson_sampler: PoissonSampler | None,
     ssa_sampler: SSASampler | None,
+    recorder: FiringRecorder | None = None,
 ) -> None:
     """Run the configured discrete method on one prepared core."""
     state = core.get_current_state()
@@ -2983,6 +2986,7 @@ def _run_stochastic_core(
             max_events=config.ssa_max_events,
             forcing_breakpoints=config.forcing_breakpoints,
         ),
+        recorder=recorder,
     )
 
 
@@ -3152,6 +3156,10 @@ def _run_pure_stochastic(
 ) -> Array:
     """Run all typed reactions as one discrete process."""
     core = _make_core(times, y0)
+    recorder = kwargs.get("firing_recorder")
+    if recorder is not None and not isinstance(recorder, FiringRecorder):
+        msg = "firing_recorder must be a FiringRecorder"
+        raise TypeError(msg)
     if config.stochastic_method is StochasticMethod.THINNING_SSA:
         _run_thinning_core(core, network, config, kwargs)
     else:
@@ -3162,6 +3170,7 @@ def _run_pure_stochastic(
             config,
             poisson_sampler=poisson_sampler,
             ssa_sampler=ssa_sampler,
+            recorder=recorder,
         )
     return _extract_states_2d(core, n_state=network.n_state)
 
@@ -3898,6 +3907,13 @@ class OpEngineFlepimop2Engine(EngineABC):
         config = _stochastic_forcing_config(system, self.config)
         mode = config.mode
         stochastic_config = config
+        if kwargs.get("firing_recorder") is not None and (
+            mode is not ExecutionMode.STOCHASTIC
+            or config.stochastic_method
+            not in {StochasticMethod.DIRECT_SSA, StochasticMethod.REPLICATE_DIRECT_SSA}
+        ):
+            msg = "firing_recorder requires pure direct or replicate-direct SSA"
+            raise ValueError(msg)
         if config.stochastic_method is not StochasticMethod.THINNING_SSA and (
             "rate_bound" in kwargs or "thinning_sampler" in kwargs
         ):
@@ -3955,6 +3971,11 @@ class OpEngineFlepimop2Engine(EngineABC):
             coverage_issues = _pure_stochastic_coverage_issues(system)
             if coverage_issues:
                 raise ValueError(" ".join(issue.msg for issue in coverage_issues))
+            if config.stochastic_method is StochasticMethod.REPLICATE_DIRECT_SSA:
+                states = run_replicate_bank(
+                    system, times, y0, raw_params, config=config, kwargs=kwargs
+                )
+                return _ExecutionResult(trajectory=_format_result(times, states))
             stochastic_network = compile_reaction_network(
                 system,
                 raw_params,
