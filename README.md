@@ -170,3 +170,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for clean setup, focused submissions,
 required checks and support. Use [CITATION.cff](CITATION.cff) for attribution and
 [citation/archiving guidance](docs/development/citation-and-archiving.md) for the
 shared core/provider release unit and version-specific identifiers.
+
+The [capability guide](docs/guides/capabilities.md) maps deterministic and
+stochastic solvers, observations, replay, runnable examples and CI checks.

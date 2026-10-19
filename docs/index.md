@@ -1,6 +1,7 @@
 # Welcome to `OP Engine`
 
-The next generation vectorized compartmental model engine for [`flepimop2`](https://github.com/ACCIDDA/flepimop2).
+Framework-independent numerical methods for compartmental and spatial models.
+The separate provider integrates with [`flepimop2`](https://github.com/ACCIDDA/flepimop2).
 
 Start with [Getting Started](guides/getting-started.md), then use
 [Choosing and configuring a solver](guides/solver-methods.md) to select an
@@ -19,3 +20,6 @@ specialized adaptive solvers.
 The [contributor guide](development/contributing.md) documents setup, required
 checks and support. [Citation and archiving](development/citation-and-archiving.md)
 explains attribution, shared releases and the software-paper archive plan.
+
+See [capabilities and executable examples](guides/capabilities.md) for current interfaces,
+optional dependencies, limitations and the checks that run in CI.

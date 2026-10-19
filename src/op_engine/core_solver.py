@@ -5040,6 +5040,18 @@ class CoreSolver:
         Raises:
             TypeError: If the state changes array ecosystems during a run.
             ValueError: If invalid parameters are provided.
+
+        Examples:
+            >>> import numpy as np
+            >>> from op_engine import ModelCore
+            >>> from op_engine.core_solver import RunConfig
+            >>> core = ModelCore(1, 1, np.linspace(0.0, 1.0, 11))
+            >>> core.set_initial_state(np.array([[1.0]]))
+            >>> def decay(time, state):
+            ...     return -state
+            >>> CoreSolver(core).run(decay, config=RunConfig(method="rk4"))
+            >>> np.allclose(core.state_array[-1, 0, 0], np.exp(-1.0), rtol=1e-5)
+            True
         """
         self._last_adaptive_schedule = None
         self._last_nonlinear_diagnostics = None

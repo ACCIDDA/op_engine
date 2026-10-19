@@ -395,6 +395,16 @@ def steady_state(  # noqa: PLR0913, PLR0914, PLR0915
     Raises:
         ValueError: If shapes are inconsistent.
         TypeError: If ``y0`` is not a floating-point vector.
+
+    Examples:
+        >>> import numpy as np
+        >>> def relaxation(time, state):
+        ...     return 2.0 - state
+        >>> result = steady_state(relaxation, np.array([0.0]))
+        >>> bool(result.converged)
+        True
+        >>> np.allclose(result.state, [2.0])
+        True
     """
     config = config or SteadyStateConfig()
     xp = _namespace_of(y0)
@@ -611,6 +621,15 @@ def conserved_quantities(stoichiometry: object, *, tol: float = 1e-10) -> np.nda
 
     Returns:
         ``(k, n_state)`` orthonormal rows, possibly empty.
+
+    Examples:
+        >>> import numpy as np
+        >>> transfers = np.array([[-1.0], [1.0]])
+        >>> laws = conserved_quantities(transfers)
+        >>> np.allclose(laws @ transfers, 0.0)
+        True
+        >>> laws.shape
+        (1, 2)
     """
     return _left_null_space(np.asarray(stoichiometry, dtype=np.float64), tol=tol)
 

@@ -18,6 +18,21 @@ class FiringRecorder:
     namespace. Intervals are ``(t[i], t[i+1]]``. A forcing change wins a tie with
     a candidate event, so that discarded event is not counted. Reusing a recorder
     starts a fresh record. Recording never consumes random numbers.
+
+    Examples:
+        >>> import numpy as np
+        >>> from op_engine import DirectSSASolver, ModelCore
+        >>> core = ModelCore(2, 1, np.array([0.0, 1.0]))
+        >>> core.set_initial_state(np.array([[10.0], [0.0]]))
+        >>> counts = FiringRecorder((0,))
+        >>> solver = DirectSSASolver(core, np.array([[-1.0], [1.0]]))
+        >>> def hazards(time, state):
+        ...     return state[:1]
+        >>> solver.run(hazards, rng=np.random.default_rng(4), recorder=counts)
+        >>> counts.counts.shape, counts.cumulative.shape
+        ((1, 1, 1), (2, 1, 1))
+        >>> int(counts.counts.sum()) == int(core.state_array[-1, 1, 0])
+        True
     """
 
     def __init__(self, channels: tuple[int, ...] | None = None) -> None:

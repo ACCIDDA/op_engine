@@ -105,6 +105,9 @@ build-test-core:
 	cp -R tests "${CLEANROOM}/tests"
 	cp -R scripts "${CLEANROOM}/scripts"
 	cp -R examples "${CLEANROOM}/examples"
+	cp README.md "${CLEANROOM}/README.md"
+	mkdir -p "${CLEANROOM}/docs/guides"
+	cp docs/guides/getting-started.md docs/guides/observations.md "${CLEANROOM}/docs/guides/"
 	cp -R benchmarks "${CLEANROOM}/benchmarks"
 	cd "${CLEANROOM}"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst
@@ -213,3 +216,10 @@ benchmark-hierarchical *args:
 citation:
     uvx --python 3.12 --from cffconvert==2.0.0 cffconvert --validate
     uv run scripts/citation_metadata.py
+
+# Public executable docstrings and documentation without provider setup.
+doctest:
+	uv run pytest --doctest-modules src/op_engine tests/op_engine/test_documentation.py
+
+example-replicates:
+	uv run python examples/replicate_ssa.py

@@ -70,6 +70,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "--doctest-modules"
 pythonpath = ["."]
 testpaths = [
     "docs/",

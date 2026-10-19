@@ -43,6 +43,7 @@ markdown_extensions:
 # Navigation structure
 nav:
   - Home: index.md
+  - Capabilities and example checks: guides/capabilities.md
   - Development:
       - Contributing: development/contributing.md
       - Citation and Archiving: development/citation-and-archiving.md
