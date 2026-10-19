@@ -118,6 +118,11 @@ from .nonlinear_solver import (
     NonlinearSolver,
     NonlinearSolveResult,
 )
+from .state_diagnostics import (
+    OutputStateCheckConfig,
+    OutputStateDiagnostics,
+    _OutputStateMonitor,
+)
 
 if TYPE_CHECKING:
     from .model_core import ModelCore
@@ -782,6 +787,9 @@ class RunConfig:
             static, while states and RHS parameters may be traced.
         fixed_checkpoint: Rematerialize the fixed scan body during reverse
             mode. Used only when ``fixed_loop`` selects an adapter.
+        state_checks: Optional checks for nonnegative/monotone states at
+            requested outputs. Records per-subgroup flags without modifying
+            states; internal substeps and stages are not checked.
         replay_loop: Iteration strategy for frozen adaptive replay. ``unroll``
             retains eager loops; ``auto`` uses an available namespace adapter;
             ``scan`` requires one. SDIRK2 diagnostics retain eager replay.
@@ -817,6 +825,7 @@ class RunConfig:
     forcing_breakpoints: tuple[float, ...] = ()
     fixed_loop: Literal["auto", "scan", "unroll"] = "unroll"
     fixed_checkpoint: bool = False
+    state_checks: OutputStateCheckConfig | None = None
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -831,6 +840,7 @@ class RunConfig:
         self._validate_replay_options()
         self._validate_forcing_options(method)
         self._validate_fixed_options(method)
+        self._validate_state_options()
 
         if self.fixed_max_step is not None:
             fixed_max_step = float(self.fixed_max_step)
@@ -859,6 +869,18 @@ class RunConfig:
             gamma = float(self.gamma)
             if not np.isfinite(gamma) or not (0.0 < gamma < 1.0):
                 raise ValueError(_GAMMA_RANGE_ERROR_MSG)
+
+    def _validate_state_options(self) -> None:
+        """Validate the opt-in output-state diagnostic configuration.
+
+        Raises:
+            TypeError: If state_checks has the wrong configuration type.
+        """
+        if self.state_checks is not None and not isinstance(
+            self.state_checks, OutputStateCheckConfig
+        ):
+            msg = "state_checks must be an OutputStateCheckConfig or None"
+            raise TypeError(msg)
 
     def _validate_fixed_options(self, method: str) -> None:
         """Validate fixed explicit iteration options.
@@ -1224,6 +1246,7 @@ class CoreSolver:
 
         self._last_adaptive_schedule: AdaptiveStepSchedule | None = None
         self._last_nonlinear_diagnostics: NonlinearIntegrationDiagnostics | None = None
+        self._state_monitor: _OutputStateMonitor | None = None
 
         # Validate operator sizes if default spec is a static tuple
         if operators is not None and not callable(operators):
@@ -1243,6 +1266,37 @@ class CoreSolver:
     ) -> NonlinearIntegrationDiagnostics | None:
         """Return nonlinear diagnostics from the latest SDIRK run or replay."""
         return self._last_nonlinear_diagnostics
+
+    @property
+    def last_state_diagnostics(self) -> OutputStateDiagnostics | None:
+        """Return output-state checks from the latest run/replay, if enabled."""
+        return self._state_monitor.result if self._state_monitor is not None else None
+
+    def _start_state_diagnostics(self, config: RunConfig) -> None:
+        """Reset checks and inspect the initial state when requested."""
+        self._state_monitor = None
+        if config.state_checks is not None:
+            self._state_monitor = _OutputStateMonitor(
+                config.state_checks,
+                self.core.get_current_state(),
+                int(self.core.n_timesteps),
+            )
+
+    def _advance_output_state(self, state: Array) -> None:
+        """Commit one output and collect optional output-only diagnostics."""
+        self.core.advance_timestep(state)
+        if self._state_monitor is not None:
+            self._state_monitor.observe(self.core.get_current_state())
+
+    def _apply_output_trajectory(self, trajectory: Array) -> None:
+        """Adopt a complete trajectory and reduce diagnostics without Python loops."""
+        self.core.apply_trajectory(trajectory)
+        if self._state_monitor is not None:
+            self._state_monitor.replace_trajectory(
+                _namespace_of(trajectory).asarray(
+                    trajectory, dtype=self.core.get_current_state().dtype
+                )
+            )
 
     def _schedule_provenance(
         self, config: RunConfig, plan: RunPlan
@@ -4186,7 +4240,7 @@ class CoreSolver:
                             forcing_breakpoints=config.forcing_breakpoints,
                         )
                         t += dt
-            self.core.advance_timestep(y_next)
+            self._advance_output_state(y_next)
 
         if config.adaptive:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
@@ -4264,7 +4318,7 @@ class CoreSolver:
         tail = xp.concat((xp.expand_dims(first, axis=0), remaining), axis=0)
         outputs = tail[xp.asarray(output_indices, dtype=xp.int32)]
         trajectory = xp.concat((xp.expand_dims(initial, axis=0), outputs), axis=0)
-        self.core.apply_trajectory(cast("Array", trajectory))
+        self._apply_output_trajectory(cast("Array", trajectory))
 
     def _advance_array_implicit_adaptive_to_time(  # noqa: PLR0913
         self,
@@ -4399,7 +4453,7 @@ class CoreSolver:
                 )
 
             history = history.push(current_state)
-            self.core.advance_timestep(next_state)
+            self._advance_output_state(next_state)
 
         if config.adaptive:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
@@ -4773,7 +4827,7 @@ class CoreSolver:
                     raise NonlinearConvergenceError(failed)
                 next_state = result.state
 
-            self.core.advance_timestep(next_state)
+            self._advance_output_state(next_state)
 
         if config.adaptive:
             self._last_adaptive_schedule = AdaptiveStepSchedule(
@@ -4830,7 +4884,7 @@ class CoreSolver:
                 )
                 state = attempt.state
                 t += dt
-            self.core.advance_timestep(state)
+            self._advance_output_state(state)
 
         return self._update_nonlinear_diagnostics(
             reference,
@@ -4887,7 +4941,7 @@ class CoreSolver:
                 )
                 state = result.state
                 first_stage = result.last_stage
-            self.core.advance_timestep(state)
+            self._advance_output_state(state)
 
     def _replay_array_implicit_schedule(
         self,
@@ -4914,7 +4968,7 @@ class CoreSolver:
                     estimate_error=False,
                 )
                 t += dt
-            self.core.advance_timestep(state)
+            self._advance_output_state(state)
 
     def _replay_numpy_implicit_schedule(
         self,
@@ -4951,7 +5005,7 @@ class CoreSolver:
                 self._attempt_step(rhs_func, plan=plan, step=step, estimate_error=False)
                 self._y_curr, self._y_try = self._y_try, self._y_curr
                 t += dt
-            self.core.advance_timestep(self._y_curr)
+            self._advance_output_state(self._y_curr)
 
     def _replay_scan_schedule(  # noqa: PLR0913, PLR0914
         self,
@@ -5030,7 +5084,7 @@ class CoreSolver:
         tail = xp.concat((xp.expand_dims(first, axis=0), remaining), axis=0)
         outputs = tail[xp.asarray(output_indices, dtype=xp.int32)]
         trajectory = xp.concat((xp.expand_dims(initial, axis=0), outputs), axis=0)
-        self.core.apply_trajectory(cast("Array", trajectory))
+        self._apply_output_trajectory(cast("Array", trajectory))
 
     def replay_adaptive_schedule(
         self,
@@ -5053,6 +5107,8 @@ class CoreSolver:
 
         Returns:
             Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.
+            Opt-in output-state checks are available through
+            :attr:`last_state_diagnostics`, independently of this return value.
 
         Raises:
             TypeError: If schedule has the wrong type or the state changes array
@@ -5069,12 +5125,14 @@ class CoreSolver:
 
         self._last_adaptive_schedule = None
         self._last_nonlinear_diagnostics = None
+        self._state_monitor = None
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
         self._validate_schedule_provenance(schedule, config, plan)
         _ForcingSchedule(config.forcing_breakpoints).validate_mesh(
             schedule.output_times, schedule.step_sizes
         )
+        self._start_state_diagnostics(config)
 
         adapter = None
         if config.replay_loop != "unroll":
@@ -5145,6 +5203,8 @@ class CoreSolver:
 
         Returns:
             Array-valued nonlinear diagnostics for SDIRK2, otherwise ``None``.
+            Opt-in output-state checks are available through
+            :attr:`last_state_diagnostics`, independently of this return value.
 
         Raises:
             TypeError: If the state changes array ecosystems during a run.
@@ -5164,8 +5224,10 @@ class CoreSolver:
         """
         self._last_adaptive_schedule = None
         self._last_nonlinear_diagnostics = None
+        self._state_monitor = None
         cfg = config or RunConfig()
         plan = self._resolve_run_plan(cfg)
+        self._start_state_diagnostics(cfg)
 
         if plan.method == "sdirk2":
             return self._run_sdirk(rhs_func, plan=plan, config=cfg)
@@ -5210,7 +5272,7 @@ class CoreSolver:
                     history=history.states,
                 )
                 history = history.push(self._y_curr)
-                self.core.advance_timestep(y_next)
+                self._advance_output_state(y_next)
                 continue
 
             accepted_steps: list[float] = []
@@ -5228,7 +5290,7 @@ class CoreSolver:
             )
             schedule_steps.append(tuple(accepted_steps))
             history = history.push(self._y_curr)
-            self.core.advance_timestep(y_end)
+            self._advance_output_state(y_end)
 
         if cfg.adaptive:
             self._last_adaptive_schedule = AdaptiveStepSchedule(

@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Opt-in `RunConfig.state_checks`, `CoreSolver.last_state_diagnostics` and
+  `diagnose_trajectory` record per-subgroup/field-cell minima, negative and
+  nonfinite output counts, and optional cumulative-counter decrements.
+  Preserve trajectories and existing solver return values, support discarded
+  history and compiled output reductions, and label output-grid coverage
+  separately from internal-step positivity (#248).
+
 - Opt-in `RunConfig.fixed_loop` and `fixed_checkpoint` run a static explicit
   mesh through a namespace-native scan, including JAX JIT, gradients and vmap.
   Preserve fixed-method updates, maximum steps and declared forcing jumps;

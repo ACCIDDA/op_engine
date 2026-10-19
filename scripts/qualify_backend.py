@@ -55,6 +55,7 @@ def main() -> int:
                 "tests/op_engine/test_observations.py",
                 "tests/op_engine/test_observation_reductions.py",
                 "tests/op_engine/test_random_streams.py",
+                "tests/op_engine/test_state_diagnostics.py",
                 *(
                     ["tests/op_engine/test_array_namespace.py"]
                     if args.backend == "torch"
