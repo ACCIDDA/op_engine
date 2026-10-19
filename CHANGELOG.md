@@ -5,6 +5,9 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+
+## [0.8.0] - 2026-10-19
+
 ### Added
 
 - Opt-in `RunConfig.state_checks`, `CoreSolver.last_state_diagnostics` and

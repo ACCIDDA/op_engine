@@ -109,7 +109,7 @@ Core is MIT-licensed. Provider source grants GPL version 3 or any later version
 [CITATION.cff](CITATION.cff) retains authors/order from both package metadata
 files; maintainers review attribution when it changes. `just citation` validates
 CFF syntax and alignment with versions, authors, grants, dated changelog and
-release URL. The CFF describes the published 0.7.0 release; unreleased main changes
+release URL. The CFF records the shared 0.8.0 release metadata; unreleased main changes
 require a new release before they become part of an archived software version.
 
 Use the [documentation version selector](https://accidda.github.io/op_engine/)

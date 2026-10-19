@@ -18,13 +18,13 @@ authors:
   - family-names: Willard
     given-names: Timothy
     email: twillard@unc.edu
-version: "0.7.0"
+version: "0.8.0"
 date-released: "2026-10-19"
 license:
   - MIT
   - GPL-3.0-or-later
 repository-code: "https://github.com/ACCIDDA/op_engine"
-repository-artifact: "https://github.com/ACCIDDA/op_engine/releases/tag/v0.7.0"
+repository-artifact: "https://github.com/ACCIDDA/op_engine/releases/tag/v0.8.0"
 url: "https://accidda.github.io/op_engine/"
 keywords:
   - differential equations
