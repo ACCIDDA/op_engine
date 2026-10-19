@@ -79,6 +79,11 @@ from .reactions import (
 )
 from .replicate_network import ReplicateReactionNetwork, from_compiled_replicates
 from .spatial_grid import generate_adaptive_grid, generate_adaptive_grid_from_data
+from .state_diagnostics import (
+    OutputStateCheckConfig,
+    OutputStateDiagnostics,
+    diagnose_trajectory,
+)
 from .steady_state import (
     SteadyStateConfig,
     SteadyStateConvergenceError,
@@ -152,6 +157,8 @@ __all__ = [
     "ObservationSummary",
     "ObservationSummaryValue",
     "Operator",
+    "OutputStateCheckConfig",
+    "OutputStateDiagnostics",
     "PoissonSampler",
     "RandomStream",
     "RateBoundFunction",
@@ -178,6 +185,7 @@ __all__ = [
     "clear_implicit_solver_cache",
     "compile_reaction_network",
     "conserved_quantities",
+    "diagnose_trajectory",
     "encode_groups",
     "from_compiled_replicates",
     "from_compiled_rhs",
