@@ -656,6 +656,37 @@ instead accumulates the Erlang(`n - 1`, `r`) probability and the total is
 conserved on every path. Reaction artifacts from producers that predate
 `offsets` compile exactly as before.
 
+### Independent replicate SSA
+
+For an op_system 0.8.0+ model with a certified replicate factorize axis, select:
+
+```yaml
+engine:
+  module: op_engine
+  state_change: flow
+  config:
+    mode: stochastic
+    stochastic_method: replicate-direct-ssa
+    replicate_axis: rep
+    random_seed: 2026
+```
+
+The provider retains the ordinary flat `(time, full_state...)` result and restores
+the compiler's original cell order. Execution uses a local network with independent
+NumPy clocks. It consumes declared `previous` forcing automatically; time-varying
+parameters must explicitly carry the replicate axis. Optional local forcing
+schedules use `replicate_breakpoints` in current bank order. Runtime
+`replicate_ids=` preserves stable identities across reordered/sharded banks;
+`replicate_rng=` can supply a root SeedSequence or one native stream per replicate.
+Flattened `ssa_sampler`/`poisson_sampler` injection is rejected for this mode.
+
+Pass `firing_recorder=op_engine.FiringRecorder(...)` to `engine.run()` for a count
+sidecar, without changing its trajectory return contract. This is also supported
+by ordinary pure `direct-ssa`; other methods reject the option. Channel indices
+refer to local channels in replicate mode, with the replicate dimension separate.
+See the core [independent-bank guide](../docs/guides/replicate-ssa.md) for exactness,
+stream/version boundaries, shapes, tests and standalone measurements.
+
 ### Bounded thinning SSA
 
 `thinning-ssa` is an exact method for time-dependent propensities in pure

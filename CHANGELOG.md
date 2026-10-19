@@ -7,6 +7,17 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- `BatchedDirectSSASolver` advances independent NumPy replicates with local
+  clocks, local stoichiometry, indexed native random streams, shared/local
+  forcing schedules, output-invariant pending events and optional accepted
+  firing records. `from_compiled_replicates` consumes op_system 0.8.0's
+  per-reaction independence/resolved-time contract, rejects uncovered/coupled or
+  continuously varying dynamics, and resolves `previous` tables at each clock.
+  The provider exposes `replicate-direct-ssa`/`replicate_axis` and count sidecars;
+  the op-system integration extra now requires compiler/provider 0.8.0 (#241).
+
+### Added
+
 - `DirectSSASolver.run(recorder=FiringRecorder(...))` optionally records selected
   accepted reaction firings per output interval and cumulative counts. Host-side
   int64 records preserve channel/batch coordinates, forcing-boundary precedence,

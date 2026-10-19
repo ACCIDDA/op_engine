@@ -23,6 +23,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from op_engine.batched_ssa import BatchedSSAConfig
 from op_engine.core_solver import (
     AdaptiveConfig,
     DtControllerConfig,
@@ -141,6 +142,7 @@ class StochasticMethod(StrEnum):
 
     ADAPTIVE_TAU_LEAPING = "adaptive-tau-leaping"
     DIRECT_SSA = "direct-ssa"
+    REPLICATE_DIRECT_SSA = "replicate-direct-ssa"
     TAU_LEAPING = "tau-leaping"
     THINNING_SSA = "thinning-ssa"
 
@@ -155,6 +157,8 @@ class OpEngineEngineConfig(BaseModel):
     stochastic_method: StochasticMethod = StochasticMethod.TAU_LEAPING
     stochastic_reactions: tuple[str, ...] = ()
     random_seed: int | None = Field(default=None, ge=0)
+    replicate_axis: str | None = Field(default=None, min_length=1)
+    replicate_breakpoints: tuple[tuple[float, ...], ...] = ()
     tau_max_step: float | None = Field(default=None, gt=0.0)
     stochastic_max_steps: int = Field(default=1_000_000, ge=1)
     tau_leap_tolerance: float = Field(
@@ -224,6 +228,14 @@ class OpEngineEngineConfig(BaseModel):
         """
         return DirectSSAConfig(forcing_breakpoints=points).forcing_breakpoints
 
+    @field_validator("replicate_breakpoints", mode="before")
+    @classmethod
+    def _validate_replicate_breakpoints(
+        cls, points: tuple[tuple[float, ...], ...]
+    ) -> tuple[tuple[float, ...], ...]:
+        """Return validated immutable local forcing declarations."""
+        return BatchedSSAConfig(replicate_breakpoints=points).replicate_breakpoints
+
     @model_validator(mode="after")
     def _validate_thinning_configuration(self) -> OpEngineEngineConfig:
         """Restrict thinning to its supported mode and controls.
@@ -243,6 +255,13 @@ class OpEngineEngineConfig(BaseModel):
             or self.thinning_max_candidates != 1_000_000
         ):
             msg = "Thinning controls require stochastic_method='thinning-ssa'."
+            raise ValueError(msg)
+        if self.stochastic_method is StochasticMethod.REPLICATE_DIRECT_SSA:
+            if self.mode is not ExecutionMode.STOCHASTIC or self.replicate_axis is None:
+                msg = "replicate-direct-ssa requires stochastic mode and replicate_axis"
+                raise ValueError(msg)
+        elif self.replicate_axis is not None or self.replicate_breakpoints:
+            msg = "replicate_axis/breakpoints require replicate-direct-ssa"
             raise ValueError(msg)
         return self
 

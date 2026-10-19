@@ -9,6 +9,7 @@ from ._random_stream import RandomStream as RandomStream
 from ._typing import Array as Array
 from ._typing import Scalar as Scalar
 from .adaptive_tau import AdaptiveTauLeapingConfig, AdaptiveTauLeapingSolver
+from .batched_ssa import BatchedDirectSSASolver, BatchedSSAConfig
 from .core_solver import (
     AdaptiveScheduleProvenance,
     CoreSolver,
@@ -76,6 +77,7 @@ from .reactions import (
     compile_reaction_network,
     from_compiled_rhs,
 )
+from .replicate_network import ReplicateReactionNetwork, from_compiled_replicates
 from .spatial_grid import generate_adaptive_grid, generate_adaptive_grid_from_data
 from .steady_state import (
     SteadyStateConfig,
@@ -113,6 +115,8 @@ __all__ = [
     "AdaptiveTauLeapingConfig",
     "AdaptiveTauLeapingSolver",
     "Array",
+    "BatchedDirectSSASolver",
+    "BatchedSSAConfig",
     "CompiledObservableLike",
     "CompiledReactionNetwork",
     "CoreSolver",
@@ -151,6 +155,7 @@ __all__ = [
     "PoissonSampler",
     "RandomStream",
     "RateBoundFunction",
+    "ReplicateReactionNetwork",
     "SSASample",
     "SSASampler",
     "Scalar",
@@ -174,6 +179,7 @@ __all__ = [
     "compile_reaction_network",
     "conserved_quantities",
     "encode_groups",
+    "from_compiled_replicates",
     "from_compiled_rhs",
     "generate_adaptive_grid",
     "generate_adaptive_grid_from_data",
