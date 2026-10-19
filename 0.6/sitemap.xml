@@ -9,6 +9,10 @@
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
+         <loc>https://accidda.github.io/op_engine/0.6/api-reference/batched_ssa/</loc>
+         <lastmod>2026-10-19</lastmod>
+    </url>
+    <url>
          <loc>https://accidda.github.io/op_engine/0.6/api-reference/core_solver/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
@@ -42,6 +46,10 @@
     </url>
     <url>
          <loc>https://accidda.github.io/op_engine/0.6/api-reference/reactions/</loc>
+         <lastmod>2026-10-19</lastmod>
+    </url>
+    <url>
+         <loc>https://accidda.github.io/op_engine/0.6/api-reference/replicate_network/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
@@ -130,6 +138,10 @@
     </url>
     <url>
          <loc>https://accidda.github.io/op_engine/0.6/guides/replay-provenance/</loc>
+         <lastmod>2026-10-19</lastmod>
+    </url>
+    <url>
+         <loc>https://accidda.github.io/op_engine/0.6/guides/replicate-ssa/</loc>
          <lastmod>2026-10-19</lastmod>
     </url>
     <url>
