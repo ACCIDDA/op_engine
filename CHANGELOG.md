@@ -5,6 +5,8 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-19
+
 ### Added
 
 - `BatchedDirectSSASolver` advances independent NumPy replicates with local
@@ -15,8 +17,6 @@ versioning while the project remains pre-1.0.
   continuously varying dynamics, and resolves `previous` tables at each clock.
   The provider exposes `replicate-direct-ssa`/`replicate_axis` and count sidecars;
   the op-system integration extra now requires compiler/provider 0.8.0 (#241).
-
-### Added
 
 - `DirectSSASolver.run(recorder=FiringRecorder(...))` optionally records selected
   accepted reaction firings per output interval and cumulative counts. Host-side
