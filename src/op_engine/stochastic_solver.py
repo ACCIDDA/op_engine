@@ -24,6 +24,7 @@ from ._random_stream import _generator, _select_sampler
 if TYPE_CHECKING:
     from ._random_stream import RandomStream
     from ._typing import Array
+    from .firing import FiringRecorder
     from .model_core import ModelCore
 
 
@@ -710,13 +711,14 @@ class DirectSSASolver:
             raise RuntimeError(_SSA_NEGATIVE_STATE) from error
         return proposed
 
-    def run(
+    def run(  # noqa: C901 - pending events and optional recording share one event loop
         self,
         propensity_func: PropensityFunction,
         ssa_sampler: SSASampler | None = None,
         *,
         config: DirectSSAConfig | None = None,
         rng: RandomStream | None = None,
+        recorder: FiringRecorder | None = None,
     ) -> None:
         """Advance an exact reaction trajectory through the core output grid.
 
@@ -731,6 +733,7 @@ class DirectSSASolver:
             ssa_sampler: Backend-specific exponential/categorical sampler.
             config: Optional event-count guard and forcing schedule.
             rng: Explicit NumPy stream; supply instead of ssa_sampler.
+            recorder: Optional accepted-firing diagnostics, reset for this run.
 
         Raises:
             ValueError: If a sampler/stream is absent or both are supplied.
@@ -751,6 +754,13 @@ class DirectSSASolver:
             state,
             message="Initial state is invalid",
         )
+
+        if recorder is not None:
+            recorder.start(
+                int(self.core.n_timesteps) - 1,
+                self._network.reaction_shape,
+                self._network.reaction_axis,
+            )
 
         t = self.core.get_time_at(0)
         draw_index = 0
@@ -799,6 +809,8 @@ class DirectSSASolver:
                     raise RuntimeError(msg)
 
                 state = self._apply_event(pending_event_index, state)
+                if recorder is not None:
+                    recorder.record(output_index, pending_event_index)
                 t = pending_time
                 pending_time = None
                 pending_event_index = None
