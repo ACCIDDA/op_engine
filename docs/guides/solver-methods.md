@@ -16,7 +16,7 @@ NumPy does not select a different numerical method.
 | `heun` | 2 | None | Default non-stiff explicit integration |
 | `rk4` | 4 | None | Accurate fixed-step non-stiff integration |
 | `dopri5` | 5 (embedded 4) | None | Efficient adaptive non-stiff integration |
-| `imex-euler` | 1 | One implicit-Euler operator factory | Robust first-order split systems |
+| `imex-euler` | 1 | One implicit-Euler operator factory | First-order integration of split systems |
 | `imex-heun-tr` | 2 | One trapezoidal operator factory | Split-step doubling covers explicit and implicit error |
 | `imex-trbdf2` | 2 | Trapezoidal and BDF2-stage factories | Split systems needing stronger damping |
 | `imex-ark3` | 3 (embedded 2) | One implicit-Euler stage factory | Higher-order adaptive split systems |
