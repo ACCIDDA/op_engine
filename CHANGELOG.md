@@ -7,6 +7,9 @@ versioning while the project remains pre-1.0.
 
 ### Documentation
 
+- Align package summaries with deterministic and stochastic model support, and
+  state the alpha development stage separately from public release availability.
+
 - Simplify introductions and method descriptions, removing promotional phrasing
   and replacing broad guarantees with specific interfaces and tested scope.
 

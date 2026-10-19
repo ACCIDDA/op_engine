@@ -1,5 +1,10 @@
 # op_engine
 
+Public alpha software. Released solvers have executable examples and
+method-specific numerical and backend tests; interfaces and coverage are still
+evolving. The alpha classifier describes software maturity, separately from
+the scientific assessment of a particular model or simulation.
+
 Operator-Partitioned Engine (OP Engine) is a framework-independent numerical
 core for structured dynamical systems, including spatial and trait-structured PDEs,
 nonlocal integrals and mixing, compartmental models, ODEs and stochastic

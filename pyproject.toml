@@ -1,7 +1,7 @@
 [project]
 name = "op_engine"
 version = "0.7.0"
-description = "Multiphysics integration engine for ODEs and PDEs using implicit-explicit operator splitting"
+description = "Numerical solvers for spatial, nonlocal, compartmental and stochastic reaction models, with observations and replay"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11,<3.15"
 license = { file = "LICENSE" }
