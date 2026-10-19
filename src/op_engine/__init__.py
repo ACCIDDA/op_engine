@@ -1,4 +1,4 @@
-"""op_engine multiphysics ODE/PDE engine package."""
+"""Numerical methods for structured deterministic and stochastic dynamics."""
 
 from __future__ import annotations
 

@@ -3,6 +3,13 @@
 `ModelCore` owns a time grid and state history, while `CoreSolver` advances that
 state. Solves infer their Array-API namespace from the initial state.
 
+The scalar decay below is one introductory deterministic ODE. The same engine
+also advances [spatial/trait-structured PDEs](chemostat-pde.md),
+[nonlocal operators and split dynamics](solver-methods.md), and
+[stochastic reaction networks](op-system-reactions.md). See the
+[model-class map](capabilities.md#model-classes-and-numerical-representations)
+for numerical interfaces and boundaries.
+
 ```python
 import numpy as np
 

@@ -1,5 +1,5 @@
 # op_engine/src/op_engine/core_solver.py
-"""Core semi-implicit solver for time-evolving models (ODE + IMEX multiphysics).
+"""Deterministic time stepping for structured dynamics and field/operator systems.
 
 This solver advances a :class:`op_engine.model_core.ModelCore` instance over its
 configured time grid. In the updated semantics, ModelCore.time_grid is treated
@@ -32,7 +32,7 @@ IMEX structure:
         y' = A(t,y) y + F(t,y)
     where F is provided by rhs_func(t, y), and A is represented by linear operators
     applied along a single tensor axis. Operators may be:
-        - None (ODE-only / explicit-only behavior), or
+        - None (no supplied implicit split operator), or
         - provided as tuples (predictor?, L, R), or
         - provided as factories depending on dt, stage-scale, and context.
 

@@ -1,5 +1,10 @@
 # flepimop2-op_engine
 
+The provider connects structured PDE/field and nonlocal operators, compartmental
+dynamics and reaction networks to the numerical core. Model geometry and
+discretization, deterministic/stochastic partitioning and backend qualification
+remain explicit contracts; see the [model-class map](../docs/guides/capabilities.md).
+
 Provider package that adapts `op_engine` to `flepimop2`.
 
 | Example question | Where to look | Interpretation |

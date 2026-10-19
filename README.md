@@ -1,9 +1,16 @@
 # op_engine
 
-Operator-Partitioned Engine (OP Engine) is a lightweight multiphysics solver core for time-dependent systems. It supports explicit ODE solvers, IMEX/operator-based schemes for PDE-like models, and exact or approximate stochastic reaction-network solvers while staying framework-agnostic.
+Operator-Partitioned Engine (OP Engine) is a framework-independent numerical
+core for structured dynamical systems: spatial and trait-structured PDEs,
+nonlocal integral/mixing dynamics, compartmental models, ODEs and stochastic
+reaction networks. It combines explicit/implicit time stepping, operator
+splitting and exact/approximate reaction simulation. PDE and nonlocal models
+use declared numerical discretizations and operators; method and backend
+qualification remain specific to the selected numerical path.
 
 ## Why use it?
-- Shared solver surface for ODEs and operator-split PDEs.
+- State, operator and observation interfaces for structured fields and populations.
+- Explicit/IMEX/implicit integration and exact/approximate stochastic reaction methods.
 - Strong typing and Array-API explicit and dense-implicit paths, including
   reusable higher-order Runge--Kutta tableaus.
 - JAX autodiff and JIT support for the same portable fixed-step methods.
@@ -66,6 +73,12 @@ pip install "flepimop2-op-engine[op-system]"
 ```
 
 ## Quickstart
+
+This SIR example is a compartmental ODE introducing the deterministic call surface. For other model classes,
+see the [trait-structured PDE](docs/guides/chemostat-pde.md),
+[spatial operator splitting](docs/guides/biogeochemical-network.md),
+[nonlocal/operator factories](docs/guides/solver-methods.md), and
+[stochastic reaction simulation](docs/guides/op-system-reactions.md).
 
 ```python
 import numpy as np

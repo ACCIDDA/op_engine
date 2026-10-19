@@ -1,8 +1,26 @@
 # Capabilities and executable examples
 
-`op_engine` is a framework-independent numerical core for compartmental and
-spatial models. NumPy is the core dependency. The separate GPL
+`op_engine` is a framework-independent numerical core for structured
+deterministic and stochastic dynamics: PDEs/fields, nonlocal interactions,
+compartmental models, ODEs and reaction networks. NumPy is the core dependency.
+The separate GPL
 `flepimop2-op_engine` package adapts it to flepimop2 and shares its version.
+
+## Model classes and numerical representations
+
+| Model class | Numerical interface and example | Boundary |
+| --- | --- | --- |
+| Spatial / trait-structured PDEs | `CoreSolver`, grid geometry and diffusion/advection operators; [chemostat PDE](chemostat-pde.md) and [biogeochemical splitting](biogeochemical-network.md) | Spatial/grid error and time-integration error require separate evidence |
+| Nonlocal / integro-differential dynamics | Matrix/kernel operators and [stage operator factories](solver-methods.md); the provider assembles `axis_kernel` and `jump_integral` descriptors | Coordinate measures, quadrature, orientation and boundary semantics must agree with the producer |
+| ODEs and compartmental flows | Explicit/IMEX/implicit `CoreSolver` methods; [getting started](getting-started.md) | Method, tolerance and backend qualification are specific to the numerical path |
+| Stochastic reaction networks | Direct/thinning SSA, fixed/adaptive tau-leaping and independent-clock banks; [reaction guide](op-system-reactions.md) | Propensities and stoichiometry define event semantics; frozen hazards, thinning bounds and leap approximations have distinct contracts |
+
+Finite array state and an RHS callback are numerical representations used by
+multiple model classes. The scalar and SIR quickstarts illustrate one entry
+point; the PDE and nonlocal examples retain their field/operator structure.
+Provider integration additionally supports configured hybrid partitions; see
+[the provider's hybrid contract](https://github.com/ACCIDDA/op_engine/blob/main/flepimop2-op_engine/README.md#hybrid-execution)
+for its scope and restrictions.
 
 ## Choose a public interface
 
@@ -19,7 +37,7 @@ spatial models. NumPy is the core dependency. The separate GPL
 | Replay stochastic experiments | `RandomStream`, solver `rng` and stable replicate IDs | [Random streams](random-streams.md); distinguish reproducibility within a supported runtime from cross-version bitwise identity. |
 | Evaluate observations and summaries | `ObservationSpec`, `observe_model`, `observe_solution`, `reduce_observations` | [Named observations](observations.md); explicit measures, interval/point semantics and storage choices. |
 | Inspect equilibria and conservation | `steady_state`, `conserved_quantities`, `linear_invariants`, `sink_states` | [Steady states](steady-states.md); convergence and conditional structural identities are separate checks. |
-| Reuse an adaptive ODE schedule | `AdaptiveScheduleProvenance`, replay controls | [Replay provenance](replay-provenance.md); validate accuracy away from the producing parameters. |
+| Reuse an adaptive time-step schedule | `AdaptiveScheduleProvenance`, replay controls | [Replay provenance](replay-provenance.md); validate accuracy away from the producing parameters. |
 
 The [backend matrix](backend-qualification.md) states which NumPy/JAX/CPU Torch
 operations and transforms are qualified. Native adaptive solvers such as diffrax

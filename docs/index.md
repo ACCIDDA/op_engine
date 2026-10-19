@@ -1,11 +1,13 @@
 # Welcome to `OP Engine`
 
-Framework-independent numerical methods for compartmental and spatial models.
+Framework-independent numerical methods for spatial/trait-structured PDEs,
+nonlocal integral/mixing dynamics, compartmental models, ODEs and stochastic
+reaction networks. PDE/nonlocal fields use numerical grids and operators.
 The separate provider integrates with [`flepimop2`](https://github.com/ACCIDDA/flepimop2).
 
 Start with [Getting Started](guides/getting-started.md), then use
-[Choosing and configuring a solver](guides/solver-methods.md) to select an
-explicit, IMEX, or linearly implicit method. The
+[Choosing and configuring a solver](guides/solver-methods.md) to select a
+deterministic or stochastic method and its accuracy contract. The
 [biogeochemical network tutorial](guides/biogeochemical-network.md) shows
 stage-dependent operator splitting in a complete example.
 The [trait-structured chemostat tutorial](guides/chemostat-pde.md) combines a
