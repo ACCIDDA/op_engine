@@ -14,7 +14,7 @@
         <link rel="prev" href="../../development/fem-assembly-boundary/">
       
       
-        <link rel="next" href="../solver-methods/">
+        <link rel="next" href="../fixed-scan/">
       
       
         
@@ -583,6 +583,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fixed-scan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compiled Fixed Explicit Loops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1647,6 +1675,10 @@ cached factorization for NumPy state. Installing <code>op-engine[cupy]</code> re
 matching <code>cupyx.scipy.sparse</code> adapter; CuPy is never imported when it is not
 installed. Each adapter detects only its own sparse objects. Backends without a
 registered sparse implementation can use dense operators without engine changes.</p>
+<p>For long JAX fixed explicit solves, use the
+<a href="../fixed-scan/">compiled loop option</a> to avoid unrolling every internal step
+during JIT tracing. Adaptive discovery and frozen-mesh replay have separate
+iteration contracts.</p>
 
 
 
