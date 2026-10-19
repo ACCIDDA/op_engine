@@ -659,6 +659,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#accepted-reaction-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accepted reaction counts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adaptive-tau-leaping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1142,6 +1153,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/firing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/loop_ops/" class="md-nav__link">
         
   
@@ -1510,6 +1549,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#accepted-reaction-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accepted reaction counts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adaptive-tau-leaping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1617,6 +1667,33 @@ trajectory = core.state_array[:, :, 0]  # (time, state)
 </code></pre>
 <p><code>TauLeapingSolver(core, network.stoichiometry)</code> runs the same network with a
 <code>NumpyPoissonSampler</code>.</p>
+<h2 id="accepted-reaction-counts">Accepted reaction counts<a class="headerlink" href="#accepted-reaction-counts" title="Permanent link">&para;</a></h2>
+<p>Exact incidence is an event count: compartment differences can hide events when
+other channels replenish the same compartment. Select channel indices from
+<code>network.channel_names</code> and attach an optional recorder:</p>
+<pre><code class="language-python">from op_engine import FiringRecorder
+
+infection_channels = tuple(
+    i for i, name in enumerate(network.channel_reactions) if name == &quot;infect&quot;
+)
+recorder = FiringRecorder(infection_channels)
+# Use a fresh/reset core for each independent run.
+DirectSSASolver(core, network.stoichiometry).run(
+    network.propensity, rng=np.random.default_rng(42), recorder=recorder
+)
+interval_counts = recorder.counts
+cumulative_counts = recorder.cumulative
+</code></pre>
+<p><code>counts</code> is a read-only NumPy int64 array shaped <code>(interval, selected_channel,
+batch...)</code>; <code>cumulative</code> includes an initial zero row at the first output time.
+Intervals are <code>(t[i], t[i+1]]</code>. An accepted event exactly on an output time is
+included; a forcing change at the same time discards the candidate event before
+recording. Pending events beyond the current output time are retained and counted
+only when accepted. Absorbing intervals contain zeros. Reusing a recorder replaces
+its previous record. These host-side diagnostics consume no random numbers and
+do not change the state trajectory, return value, or array namespace. With no
+recorder, the solver allocates no count history. Tau-leaping recording remains a
+separate extension.</p>
 <h2 id="adaptive-tau-leaping">Adaptive tau-leaping<a class="headerlink" href="#adaptive-tau-leaping" title="Permanent link">&para;</a></h2>
 <p><code>AdaptiveTauLeapingSolver</code> chooses each leap so that no propensity changes
 by more than <code>leap_tolerance</code> relative to itself. It therefore needs to know
