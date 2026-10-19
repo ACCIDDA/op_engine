@@ -653,6 +653,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#read-a-two-replicate-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read a two-replicate simulation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#compile-an-independent-model" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1605,6 +1616,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#read-a-two-replicate-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read a two-replicate simulation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#compile-an-independent-model" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1675,6 +1697,57 @@ in the superposed <code>DirectSSASolver</code> process.</p>
 <p>The first implementation is eager NumPy CPU execution. It supplies no stochastic
 gradient estimator, accelerator driver, tau-leaping or jump/ODE hybrid mode.
 Those require separate implementations and qualification.</p>
+<h2 id="read-a-two-replicate-simulation">Read a two-replicate simulation<a class="headerlink" href="#read-a-two-replicate-simulation" title="Permanent link">&para;</a></h2>
+<p>The executable <a href="https://github.com/ACCIDDA/op_engine/blob/main/examples/replicate_ssa.py">two-replicate example</a>
+has a numerical illustration:</p>
+<p><img alt="Output-time transfer observations and analytic mean references for two differently parameterized replicates; a second panel shows accepted firing counts per interval." src="../../assets/replicate-ssa/figure.svg" /></p>
+<table>
+<thead>
+<tr>
+<th>Replicate ID</th>
+<th style="text-align: right;">Initial A</th>
+<th style="text-align: right;">Base rate</th>
+<th style="text-align: right;">Final A</th>
+<th style="text-align: right;">Final B</th>
+<th style="text-align: right;">Accepted firings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">0.4</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">10</td>
+</tr>
+<tr>
+<td>20</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">0.7</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">17</td>
+</tr>
+</tbody>
+</table>
+<p>Each initial A individual transfers once to B. The base rate is multiplied by
+one before <code>t = 1</code> and two thereafter. Thus the analytic mean remaining in A is
+<code>A(0) * exp(-rate * (min(t, 1) + 2 * max(t - 1, 0)))</code>. The smooth curves show
+the corresponding mean B; markers are observations on the output grid. They
+do not reconstruct every event time. The two IDs have different initial
+populations and rates and are not an IID bank for estimating one distribution.
+The firing ledger agrees with the transferred population in each replicate.</p>
+<p><a href="../../assets/replicate-ssa/figure.pdf">Download the vector PDF</a>. From a checkout,
+regenerate with:</p>
+<pre><code class="language-bash">uv run --with matplotlib==3.11.2 python -m examples.illustrate_replicate_ssa
+just figures-check
+</code></pre>
+<p>The source example checks population conservation, firing counts, bank-order
+invariance and shard replay. <code>figures-check</code> reruns it and checks the generated
+table, complete plotted data, source identity and export hashes without a
+plotting dependency. The <a href="../../assets/replicate-ssa/data.json">plotted data</a> retains
+the numerical inputs.</p>
 <h2 id="compile-an-independent-model">Compile an independent model<a class="headerlink" href="#compile-an-independent-model" title="Permanent link">&para;</a></h2>
 <p>With <code>op-system==0.8.0</code> or later:</p>
 <pre><code class="language-python">import numpy as np

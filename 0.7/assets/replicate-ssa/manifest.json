@@ -1,0 +1,17 @@
+{
+  "source_sha256": "0fcef24fb1a19f9f7bae4fb61942904defbb1c5bd3a97946d5d99249918b35a2",
+  "data_sha256": "b66869dce435114a0af91bdbb10fd16a5a97636983da71be66e12f8d0f7f0eab",
+  "sources": [
+    "illustrate_replicate_ssa.py",
+    "replicate_ssa.py"
+  ],
+  "rendered_with": {
+    "numpy": "2.5.4",
+    "matplotlib": "3.11.2"
+  },
+  "exports": {
+    "figure.svg": "314662dec3ac880f3e86ddf5ac8615ab752dd9284ddcedf66d347334ea14c200",
+    "figure.pdf": "995da6e13b668a20c5771770ea0878ba5ced5dd8ec440cf49507da23dc6ac0a5",
+    "data.json": "b66869dce435114a0af91bdbb10fd16a5a97636983da71be66e12f8d0f7f0eab"
+  }
+}
