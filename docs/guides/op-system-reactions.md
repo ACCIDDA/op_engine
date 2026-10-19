@@ -85,6 +85,38 @@ trajectory = core.state_array[:, :, 0]  # (time, state)
 `TauLeapingSolver(core, network.stoichiometry)` runs the same network with a
 `NumpyPoissonSampler`.
 
+## Accepted reaction counts
+
+Exact incidence is an event count: compartment differences can hide events when
+other channels replenish the same compartment. Select channel indices from
+`network.channel_names` and attach an optional recorder:
+
+```python
+from op_engine import FiringRecorder
+
+infection_channels = tuple(
+    i for i, name in enumerate(network.channel_reactions) if name == "infect"
+)
+recorder = FiringRecorder(infection_channels)
+# Use a fresh/reset core for each independent run.
+DirectSSASolver(core, network.stoichiometry).run(
+    network.propensity, rng=np.random.default_rng(42), recorder=recorder
+)
+interval_counts = recorder.counts
+cumulative_counts = recorder.cumulative
+```
+
+`counts` is a read-only NumPy int64 array shaped `(interval, selected_channel,
+batch...)`; `cumulative` includes an initial zero row at the first output time.
+Intervals are `(t[i], t[i+1]]`. An accepted event exactly on an output time is
+included; a forcing change at the same time discards the candidate event before
+recording. Pending events beyond the current output time are retained and counted
+only when accepted. Absorbing intervals contain zeros. Reusing a recorder replaces
+its previous record. These host-side diagnostics consume no random numbers and
+do not change the state trajectory, return value, or array namespace. With no
+recorder, the solver allocates no count history. Tau-leaping recording remains a
+separate extension.
+
 ## Adaptive tau-leaping
 
 `AdaptiveTauLeapingSolver` chooses each leap so that no propensity changes

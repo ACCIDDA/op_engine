@@ -16,6 +16,7 @@ from .core_solver import (
     NonlinearIntegrationDiagnostics,
     NonlinearMethodConfig,
 )
+from .firing import FiringRecorder
 from .matrix_ops import (
     DiffusionConfig,
     GridGeometry,
@@ -119,6 +120,7 @@ __all__ = [
     "DiffusionConfig",
     "DirectSSAConfig",
     "DirectSSASolver",
+    "FiringRecorder",
     "GridGeometry",
     "JacobianVectorProduct",
     "ModelCore",

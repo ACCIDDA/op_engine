@@ -5,6 +5,14 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `DirectSSASolver.run(recorder=FiringRecorder(...))` optionally records selected
+  accepted reaction firings per output interval and cumulative counts. Host-side
+  int64 records preserve channel/batch coordinates, forcing-boundary precedence,
+  seeded trajectories, and the existing return/allocation behavior when disabled
+  (#240).
+
 ### Fixed
 
 - Calling a NumPy-prepared executor eagerly with JAX arrays still raises, but the
