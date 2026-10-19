@@ -125,7 +125,17 @@ class ModelCoreOptions:
 
 
 class ModelCore:
-    """Core state and time manager for time-evolving models."""
+    """Core state and time manager for time-evolving models.
+
+    Examples:
+        >>> import numpy as np
+        >>> core = ModelCore(1, 1, np.array([0.0, 0.5, 1.0]))
+        >>> core.set_initial_state(np.array([[2.0]]))
+        >>> core.get_current_state().shape
+        (1, 1)
+        >>> core.get_time_at(1)
+        0.5
+    """
 
     def __init__(
         self,

@@ -109,8 +109,8 @@ Core is MIT-licensed. Provider source grants GPL version 3 or any later version
 [CITATION.cff](CITATION.cff) retains authors/order from both package metadata
 files; maintainers review attribution when it changes. `just citation` validates
 CFF syntax and alignment with versions, authors, grants, dated changelog and
-release URL. The CFF initially describes the already published 0.6.0 release;
-unreleased main changes do not become part of 0.6.0 without a new release.
+release URL. The CFF describes the published 0.7.0 release; unreleased main changes
+require a new release before they become part of an archived software version.
 
 Use the [documentation version selector](https://accidda.github.io/op_engine/)
 and exact release tag for reproducibility. The docs deployment groups
@@ -118,3 +118,12 @@ major/minor releases, so patch-specific behavior should use that exact tag's
 source/changelog. [Citation and archiving](docs/development/citation-and-archiving.md)
 describes version-specific identifiers and the ACCIDDA Zenodo follow-up. Add a
 preferred paper citation only once its authors and bibliographic record exist.
+
+## Executable documentation
+
+Keep capability claims, API docstrings and complete examples in sync. Add a
+small deterministic `Examples:` doctest for a changed public workflow where
+useful; assert independently known equations, shapes or invariants. Larger and
+optional workflows belong in dedicated tests that require their dependencies.
+Run `just doctest` during iteration and the full checks above before a PR.
+See [capabilities and example checks](docs/guides/capabilities.md).

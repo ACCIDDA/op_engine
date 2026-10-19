@@ -114,6 +114,21 @@ class BatchedDirectSSASolver:
     It must use each replicate's own time, preserve the state, and remain constant
     between jumps and declared forcing boundaries. Generic callbacks assert that
     independence themselves; the compiled-model adapter checks it structurally.
+
+    Examples:
+        >>> import numpy as np
+        >>> from op_engine import FiringRecorder, ModelCore
+        >>> core = ModelCore(2, 3, np.array([0.0, 1.0, 2.0]))
+        >>> core.set_initial_state(np.array([[10.0] * 3, [0.0] * 3]))
+        >>> counts = FiringRecorder((0,))
+        >>> solver = BatchedDirectSSASolver(core, np.array([[-1.0], [1.0]]))
+        >>> def hazards(times, state):
+        ...     return 0.5 * state[:1]
+        >>> solver.run(hazards, rng=np.random.SeedSequence(7), recorder=counts)
+        >>> core.state_array.shape, counts.counts.shape
+        ((3, 2, 3), (2, 1, 3))
+        >>> bool(np.all(core.state_array.sum(axis=1) == 10.0))
+        True
     """
 
     def __init__(self, core: ModelCore, stoichiometry: FloatBank) -> None:
