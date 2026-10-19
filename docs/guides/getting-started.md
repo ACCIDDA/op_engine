@@ -56,3 +56,8 @@ cached factorization for NumPy state. Installing `op-engine[cupy]` registers the
 matching `cupyx.scipy.sparse` adapter; CuPy is never imported when it is not
 installed. Each adapter detects only its own sparse objects. Backends without a
 registered sparse implementation can use dense operators without engine changes.
+
+For long JAX fixed explicit solves, use the
+[compiled loop option](fixed-scan.md) to avoid unrolling every internal step
+during JIT tracing. Adaptive discovery and frozen-mesh replay have separate
+iteration contracts.

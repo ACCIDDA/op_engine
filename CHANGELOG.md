@@ -5,6 +5,15 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in `RunConfig.fixed_loop` and `fixed_checkpoint` run a static explicit
+  mesh through a namespace-native scan, including JAX JIT, gradients and vmap.
+  Preserve fixed-method updates, maximum steps and declared forcing jumps;
+  retain eager defaults and non-adapter `auto` fallback. Add a checked example,
+  graph-size regression and optional fixed-solve compile/memory measurements
+  to the existing replay benchmark (#247).
+
 ### Documentation
 
 - Align package summaries with deterministic and stochastic model support, and

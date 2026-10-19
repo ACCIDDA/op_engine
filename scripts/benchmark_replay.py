@@ -1,10 +1,11 @@
-"""Measure frozen replay compilation and memory in isolated CPU processes.
+"""Measure frozen replay or fixed-solve compilation in isolated CPU processes.
 
 Run with ``uv run python scripts/benchmark_replay.py``. Each JSON line records
 one method, step count, iteration driver, and derivative. Add ``--loops scan
 unroll`` for a comparison, and use ``--timeout`` to bound expensive unrolled
 compilations. RSS includes backend startup; XLA buffer sizes describe the
 compiled computation separately.
+Use ``--execution fixed --methods dopri5`` to measure live fixed-step solves.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ def _parser() -> argparse.ArgumentParser:
         Parser for step counts, methods, drivers, and differentiation modes.
     """
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--execution", choices=["replay", "fixed"], default="replay")
     parser.add_argument("--steps", nargs="+", type=int, default=[8, 64, 160])
     parser.add_argument(
         "--methods", nargs="+", choices=["dopri5", "ros2"], default=["dopri5", "ros2"]
@@ -86,17 +88,25 @@ def _run_case(args: argparse.Namespace) -> dict[str, object]:  # noqa: PLR0914
             options=ModelCoreOptions(store_history=False),
         )
         core.set_initial_state(jnp.asarray([[1.0], [0.75], [0.5]], dtype=values.dtype))
-        CoreSolver(core).replay_adaptive_schedule(
-            lambda t, y: rate * (1.0 + t) * y + forcing * t,
-            schedule,
-            config=RunConfig(
-                method=method,
-                adaptive=True,
-                replay_loop=loop,
-                replay_checkpoint=args.checkpoint,
-                jacobian=lambda t, _y: rate * (1.0 + t) * jnp.eye(3),
-            ),
+        solver = CoreSolver(core)
+        config = RunConfig(
+            method=method,
+            adaptive=args.execution == "replay",
+            replay_loop=loop,
+            replay_checkpoint=args.checkpoint,
+            fixed_loop=loop if args.execution == "fixed" else "unroll",
+            fixed_checkpoint=args.checkpoint,
+            fixed_max_step=1.0 / count if args.execution == "fixed" else None,
+            jacobian=lambda t, _y: rate * (1.0 + t) * jnp.eye(3),
         )
+        if args.execution == "fixed":
+            solver.run(lambda t, y: rate * (1.0 + t) * y + forcing * t, config=config)
+        else:
+            solver.replay_adaptive_schedule(
+                lambda t, y: rate * (1.0 + t) * y + forcing * t,
+                schedule,
+                config=config,
+            )
         final = core.get_current_state()
         return cast("Array", 0.5 * jnp.sum(final**2) + 2.0 * jnp.sum(values**2))
 
@@ -118,6 +128,7 @@ def _run_case(args: argparse.Namespace) -> dict[str, object]:  # noqa: PLR0914
     analysis = compiled.memory_analysis()
     rss_divisor = 1024**2 if sys.platform == "darwin" else 1024
     return {
+        "execution": args.execution,
         "method": method,
         "steps": count,
         "loop": loop,
@@ -154,6 +165,8 @@ def main() -> int:
     args = parser.parse_args()
     if any(count < 1 for count in args.steps) or args.timeout <= 0:
         parser.error("Step counts and timeout must be positive")
+    if args.execution == "fixed" and any(method != "dopri5" for method in args.methods):
+        parser.error("This fixed-solve benchmark supports --methods dopri5")
     if args.worker:
         if any(
             len(values) != 1
@@ -171,6 +184,8 @@ def main() -> int:
             sys.executable,
             str(Path(__file__).resolve()),
             "--worker",
+            "--execution",
+            args.execution,
             "--steps",
             str(count),
             "--methods",
@@ -201,6 +216,7 @@ def main() -> int:
         failed = True
         print(
             json.dumps({
+                "execution": args.execution,
                 "method": method,
                 "steps": count,
                 "loop": loop,

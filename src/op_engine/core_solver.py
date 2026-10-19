@@ -776,6 +776,12 @@ class RunConfig:
         gamma: Optional TR-BDF2 gamma (if None, uses default).
         fixed_max_step: Maximum explicit fixed-step size between output times.
             ``None`` retains one step per output interval.
+        fixed_loop: Iteration strategy for fixed explicit solves. ``unroll``
+            retains eager loops; ``auto`` selects an available namespace
+            adapter; ``scan`` requires one. Output times and step counts are
+            static, while states and RHS parameters may be traced.
+        fixed_checkpoint: Rematerialize the fixed scan body during reverse
+            mode. Used only when ``fixed_loop`` selects an adapter.
         replay_loop: Iteration strategy for frozen adaptive replay. ``unroll``
             retains eager loops; ``auto`` uses an available namespace adapter;
             ``scan`` requires one. SDIRK2 diagnostics retain eager replay.
@@ -809,6 +815,8 @@ class RunConfig:
     replay_reference_regime: str | None = None
     replay_require_provenance: bool = False
     forcing_breakpoints: tuple[float, ...] = ()
+    fixed_loop: Literal["auto", "scan", "unroll"] = "unroll"
+    fixed_checkpoint: bool = False
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -822,6 +830,7 @@ class RunConfig:
 
         self._validate_replay_options()
         self._validate_forcing_options(method)
+        self._validate_fixed_options(method)
 
         if self.fixed_max_step is not None:
             fixed_max_step = float(self.fixed_max_step)
@@ -850,6 +859,25 @@ class RunConfig:
             gamma = float(self.gamma)
             if not np.isfinite(gamma) or not (0.0 < gamma < 1.0):
                 raise ValueError(_GAMMA_RANGE_ERROR_MSG)
+
+    def _validate_fixed_options(self, method: str) -> None:
+        """Validate fixed explicit iteration options.
+
+        Raises:
+            TypeError: If the checkpoint flag is not boolean.
+            ValueError: If the strategy or method is unsupported.
+        """
+        if self.fixed_loop not in {"auto", "scan", "unroll"}:
+            msg = "fixed_loop must be 'auto', 'scan', or 'unroll'"
+            raise ValueError(msg)
+        if not isinstance(self.fixed_checkpoint, bool):
+            msg = "fixed_checkpoint must be boolean"
+            raise TypeError(msg)
+        if self.fixed_loop != "unroll" and (
+            self.adaptive or method not in _EXPLICIT_METHODS
+        ):
+            msg = "fixed_loop requires a fixed explicit method (adaptive=False)"
+            raise ValueError(msg)
 
     def _validate_forcing_options(self, method: str) -> None:
         """Snapshot declared jumps and reject unsupported deterministic methods.
@@ -4102,6 +4130,16 @@ class CoreSolver:
         Raises:
             ValueError: If an output interval is not strictly increasing.
         """
+        if not config.adaptive and config.fixed_loop != "unroll":
+            adapter = get_loop_adapter(_namespace_of(self.core.get_current_state()))
+            if adapter is not None:
+                self._run_fixed_scan(
+                    rhs_func, plan=plan, config=config, adapter=adapter
+                )
+                return
+            if config.fixed_loop == "scan":
+                msg = "Fixed scan requires a loop adapter for the state namespace"
+                raise ValueError(msg)
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
         schedule_steps: list[tuple[float, ...]] = []
@@ -4156,6 +4194,77 @@ class CoreSolver:
                 step_sizes=tuple(schedule_steps),
                 provenance=self._schedule_provenance(config, plan),
             )
+
+    def _run_fixed_scan(  # noqa: PLR0914
+        self,
+        rhs_func: RHSFunction,
+        *,
+        plan: RunPlan,
+        config: RunConfig,
+        adapter: LoopAdapter,
+    ) -> None:
+        """Apply a static fixed mesh through one namespace-native scan.
+
+        Use the fixed kernels, including one full Euler/RK4 step, rather than
+        the two-half-step candidates used by adaptive replay. The first step
+        seeds Dormand--Prince's FSAL carry with a consistent array structure.
+
+        Raises:
+            ValueError: If output times or checkpoint support are invalid.
+        """
+        if config.fixed_checkpoint and adapter.checkpoint is None:
+            msg = "The selected loop adapter does not support checkpointing"
+            raise ValueError(msg)
+        starts: list[float] = []
+        sizes: list[float] = []
+        output_indices: list[int] = []
+        forcing = _ForcingSchedule(config.forcing_breakpoints)
+        time_grid = np.asarray(self.core.time_grid, dtype=float)
+        for t0, t1 in pairwise(time_grid):
+            if t1 <= t0:
+                raise ValueError(_TIME_GRID_INCREASING_ERROR_MSG)
+            for left, right in pairwise(forcing.segments(float(t0), float(t1))):
+                time = left
+                for dt in fixed_step_sizes(left, right, config.fixed_max_step):
+                    starts.append(time)
+                    sizes.append(dt)
+                    time += dt
+            output_indices.append(len(sizes) - 1)
+        if not sizes:
+            return
+        initial = self.core.get_current_state()
+        xp = _namespace_of(initial)
+        times = xp.asarray(starts, dtype=initial.dtype)
+        steps = xp.asarray(sizes, dtype=initial.dtype)
+
+        def advance(
+            carry: tuple[Array, Array | None],
+            step: tuple[Scalar, Scalar],
+        ) -> tuple[tuple[Array, Array | None], Array]:
+            state, cached = carry
+            time, dt = step
+            state, cached = self._step_explicit_fixed(
+                rhs_func,
+                method=plan.method,
+                t=time,
+                dt=dt,
+                y=state,
+                first_stage=cached,
+                forcing_breakpoints=config.forcing_breakpoints,
+            )
+            return (state, cached), state
+
+        body = (
+            adapter.checkpoint(advance)
+            if config.fixed_checkpoint and adapter.checkpoint
+            else advance
+        )
+        carry, first = body((initial, None), (times[0], steps[0]))
+        _final, remaining = adapter.scan(body, carry, (times[1:], steps[1:]))
+        tail = xp.concat((xp.expand_dims(first, axis=0), remaining), axis=0)
+        outputs = tail[xp.asarray(output_indices, dtype=xp.int32)]
+        trajectory = xp.concat((xp.expand_dims(initial, axis=0), outputs), axis=0)
+        self.core.apply_trajectory(cast("Array", trajectory))
 
     def _advance_array_implicit_adaptive_to_time(  # noqa: PLR0913
         self,

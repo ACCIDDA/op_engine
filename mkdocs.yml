@@ -54,6 +54,7 @@ nav:
       - Finite-Element Assembly Boundary: development/fem-assembly-boundary.md
   - Guides:
       - Getting Started: guides/getting-started.md
+      - Compiled Fixed Explicit Loops: guides/fixed-scan.md
       - Choosing a Solver: guides/solver-methods.md
       - Bounded Thinning SSA: guides/bounded-thinning.md
       - Independent SSA Banks: guides/replicate-ssa.md
