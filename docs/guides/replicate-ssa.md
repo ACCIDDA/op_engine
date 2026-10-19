@@ -11,6 +11,37 @@ The first implementation is eager NumPy CPU execution. It supplies no stochastic
 gradient estimator, accelerator driver, tau-leaping or jump/ODE hybrid mode.
 Those require separate implementations and qualification.
 
+## Read a two-replicate simulation
+
+The executable [two-replicate example](https://github.com/ACCIDDA/op_engine/blob/main/examples/replicate_ssa.py)
+has a numerical illustration:
+
+![Output-time transfer observations and analytic mean references for two differently parameterized replicates; a second panel shows accepted firing counts per interval.](../assets/replicate-ssa/figure.svg)
+
+--8<-- "docs/assets/replicate-ssa/summary.txt"
+
+Each initial A individual transfers once to B. The base rate is multiplied by
+one before `t = 1` and two thereafter. Thus the analytic mean remaining in A is
+`A(0) * exp(-rate * (min(t, 1) + 2 * max(t - 1, 0)))`. The smooth curves show
+the corresponding mean B; markers are observations on the output grid. They
+do not reconstruct every event time. The two IDs have different initial
+populations and rates and are not an IID bank for estimating one distribution.
+The firing ledger agrees with the transferred population in each replicate.
+
+[Download the vector PDF](../assets/replicate-ssa/figure.pdf). From a checkout,
+regenerate with:
+
+```bash
+uv run --with matplotlib==3.11.2 python -m examples.illustrate_replicate_ssa
+just figures-check
+```
+
+The source example checks population conservation, firing counts, bank-order
+invariance and shard replay. `figures-check` reruns it and checks the generated
+table, complete plotted data, source identity and export hashes without a
+plotting dependency. The [plotted data](../assets/replicate-ssa/data.json) retains
+the numerical inputs.
+
 ## Compile an independent model
 
 With `op-system==0.8.0` or later:

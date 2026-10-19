@@ -2,6 +2,12 @@
 
 Provider package that adapts `op_engine` to `flepimop2`.
 
+| Example question | Where to look | Interpretation |
+| --- | --- | --- |
+| What happened in independent stochastic replicates? | [SSA observations and firing table](https://accidda.github.io/op_engine/latest/guides/replicate-ssa/#read-a-two-replicate-simulation) | Direct NumPy core example; campaign configuration is separate. |
+| How does splitting affect a spatial numerical result? | [Chemostat comparison](https://accidda.github.io/op_engine/latest/guides/chemostat-pde/) | Reproduce the stated model, mesh and error reference. |
+| Which state/backend combinations are qualified? | [Qualification matrix](https://accidda.github.io/op_engine/latest/guides/backend-qualification/) | Evidence is specific to each method, layout and backend. |
+
 Install the provider directly, or include its op_system integration extra:
 
 ```bash

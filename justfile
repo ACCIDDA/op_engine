@@ -176,8 +176,12 @@ api-reference:
     uv run scripts/api-reference.py
 
 # Build the documentation using `mkdocs`
-docs: api-reference
+docs: api-reference figures-check
 	uv run mkdocs build --verbose --strict
+
+# Verify generated vignette inputs and export identity; no plotting dependency.
+figures-check:
+	uv run python -m examples.illustrate_replicate_ssa --check
 
 # Serve the documentation locally using `mkdocs`
 serve: api-reference

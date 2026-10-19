@@ -39,6 +39,9 @@ markdown_extensions:
       permalink: true
       toc_depth: 4
   - attr_list
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: true
 
 # Navigation structure
 nav:

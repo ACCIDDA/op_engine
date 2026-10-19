@@ -7,6 +7,9 @@ versioning while the project remains pre-1.0.
 
 ### Documentation
 
+- Illustrate independent SSA observations, analytic transfer means and firing
+  ledgers with a generated table and vector figure. Verify the source, full
+  numerical inputs and exports in docs CI without a core plotting dependency.
 - Audit current capabilities against public APIs; correct scope and limitations,
   add executable workflow examples and public API doctests, and document their
   CI and optional-dependency checks. No runtime API or dependency changes.
