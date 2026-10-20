@@ -1,9 +1,8 @@
 # Bounded thinning SSA
 
 `ThinningSSASolver` provides an exact waiting-time method for smoothly varying
-propensities with user-certified bounds. This design addresses
-[#173](https://github.com/ACCIDDA/op_engine/issues/173), including the flepimop2
-provider's explicit `thinning-ssa` method.
+propensities with user-certified bounds. The flepimop2 provider exposes the
+method as `thinning-ssa`.
 
 ## Bound contract
 

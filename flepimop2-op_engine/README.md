@@ -354,25 +354,22 @@ stoichiometric matrix.
 
 Pure stochastic mode runs only those reactions, so it refuses models whose
 dynamics they do not cover. When the producer reports transitions without a
-reaction artifact (`system.option("reaction_gaps")`, from op_system
-[PR #249](https://github.com/ACCIDDA/op_system/pull/249)), validation and
-`run` fail and list each one by spec origin, selectors, and reason. Examples
-are an unnamed transition, a `chain:` stage, or a routing transition. Typed
+reaction artifact (`system.option("reaction_gaps")`), validation and
+`run` fail and list each one by spec origin, selectors, and reason. An unnamed
+or otherwise unrepresented transition is a coverage gap. Typed
 operators are rejected for the same reason. Name the transitions to give them
 reaction artifacts, or use `mode: hybrid`, which integrates everything outside
 its jump partition deterministically. Producers that predate coverage records
 are not checked.
 
-Axis-less states take part like templated ones. With op_system
-[PR #250](https://github.com/ACCIDDA/op_system/pull/250), a scalar S→I→R model
+Axis-less states take part like templated ones. A scalar S→I→R model
 publishes one 0-d channel per transition. Mixed models can move units between
 an axis-less state and a pinned cell or a whole template. Each reaction's
 target is indexed with its own axis order (`to_full_axes`), which can differ
 from the source's (`full_axes`).
 
 Routing (`X[imm:i] -> X[imm:j]`) and target-only fan-out
-(`I[age] -> X[age, imm:j]`) reactions from op_system
-[PR #252](https://github.com/ACCIDDA/op_system/pull/252) expand into one
+(`I[age] -> X[age, imm:j]`) reactions expand into one
 channel per source cell and target coordinate (`routed_axes`), named like
 `wane[imm=0,to:imm=1]`. A waning generator therefore runs as discrete moves
 between immunity bins; op_system gives the no-op diagonal zero propensity.
@@ -440,8 +437,7 @@ the same engine is reused with another system. A producer without this option
 retains the existing execution path. Observation times do not supply forcing
 boundaries.
 
-For a producer containing [op_system PR #241](https://github.com/ACCIDDA/op_system/pull/241),
-select hold interpolation in the **system specification**. For example:
+Select hold interpolation in the **system specification**. For example:
 
 ```yaml
 kind: transitions
@@ -509,10 +505,10 @@ stochastic gradient estimator must be supplied explicitly above this layer.
 ### Renewal births and pinned age bins
 
 Renewal models can sum fertility across living age bins and send each birth to
-the youngest bin. Use matching provider builds containing this support and an
-op_system producer containing [PR #242](https://github.com/ACCIDDA/op_system/pull/242).
-The development dependency pins include that producer; the published minimum
-dependencies remain unchanged for existing execution paths.
+the youngest bin. The system must publish the corresponding named reaction
+artifacts, including source and target axis metadata. The provider expands those
+artifacts into discrete channels. Use compatible releases of op_system and its
+provider as specified by the package dependencies.
 
 This three-bin example has a living population `N` and an absorbing departure
 counter `D`. A birth has no donor and declares `reactants: []`, even though its
@@ -608,8 +604,7 @@ These are ensemble expectations rather than requirements on each sampled path.
 
 ### Axis-wide aging chains
 
-An op_system producer containing
-[PR #243](https://github.com/ACCIDDA/op_system/pull/243) can declare a whole
+An op_system producer can declare a whole
 aging chain with one axis-wide `coord_shift` entry. It publishes one reaction
 per state template, rather than one pinned reaction per pair of bins. Its
 `offsets` field names the shifted axis and step: a firing in bin `k` moves one

@@ -41,9 +41,8 @@ is the verified identifier until a resolving archive record is confirmed.
 
 ## ACCIDDA software-paper archive plan
 
-[#215](https://github.com/ACCIDDA/op_engine/issues/215) tracks the shared release
-archive and verified DOI, following the ACCIDDA Zenodo pattern selected for
-op_system. Finish the JOSS/release blockers before freezing that archival release.
+The shared release archive follows the ACCIDDA Zenodo pattern selected for
+op_system. The archival deposit and resolving DOI still need verification. Finish the JOSS/release blockers before freezing that archival release.
 The release maintainer should:
 
 1. Check the ACCIDDA Zenodo account for an existing op_engine record/version

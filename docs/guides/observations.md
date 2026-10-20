@@ -40,9 +40,9 @@ describes explicit time use, not all indirect evolution through a state.
 ## Consuming compiled op_system observables
 
 `observation_from_compiled` reads the compiler artifact structurally. Neither
-op_system nor flepimop2 is imported by engine core. Use a compiler build exposing
-the named observables from [op_system #294](https://github.com/ACCIDDA/op_system/issues/294);
-the pinned cross-package qualification commit is documented in
+op_system nor flepimop2 is imported by engine core. The compiler must expose
+`observables` with named evaluation functions and metadata. The pinned
+cross-package qualification commit is documented in
 [backend qualification](backend-qualification.md).
 
 ```python
@@ -226,7 +226,7 @@ checkpoint; an incomplete prefix is not silently reported as a full-window
 result.
 
 Off-grid times/window boundaries, interpolated physical-coordinate samples,
-method-specific dense output and event-specific reconstruction remain later
-focused increments of [op_engine #225](https://github.com/ACCIDDA/op_engine/issues/225).
+method-specific dense output and event-specific reconstruction are not supported
+by these observation interfaces.
 Statistical noise, censoring and missingness belong to consuming observation
 models.

@@ -5,6 +5,11 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replace issue and pull-request breadcrumbs in guides and API docstrings with
+  current behavior, named interfaces and explicit limitations.
+
 
 ## [0.8.0] - 2026-10-19
 

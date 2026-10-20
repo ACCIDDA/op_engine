@@ -99,7 +99,7 @@ with nonlinear stage machinery, rather than a stiff accuracy survey.
 | Capability | Required evidence / boundary |
 | --- | --- |
 | Differentiation | JAX JIT/AD and CPU Torch functional AD in float64 through structured Dormand–Prince, IMEX ARK3, ROS2, and SDIRK2; initial-state derivatives agree with an exact reference. Additional transformations remain separately qualified. |
-| Native matrix builders | Both precisions, namespaces and independent advection/diffusion stencils; dynamic coefficient derivatives through JAX JIT/AD and CPU Torch AD (#212). |
+| Native matrix builders | Both precisions, namespaces and independent advection/diffusion stencils; dynamic coefficient derivatives through JAX JIT/AD and CPU Torch AD. |
 | Live adaptive controller | Eager Python branches extract error scalars. Preserving JAX arrays does not make the controller JIT compatible. |
 | Frozen replay | A NumPy-recorded mesh is portable to each namespace. JAX `auto` uses its scan adapter except SDIRK2, whose diagnostics retain eager replay; NumPy/Torch `auto` retain eager loops. Derivatives remain conditional on the frozen mesh. |
 | SciPy sparse factorization | Required NumPy sparse solve; JAX/Torch state with SciPy sparse operators is rejected explicitly. SciPy remains a core dependency, and its sparse acceleration is a separate namespace contract. Native dense operators use the state's `linalg.solve`. |
