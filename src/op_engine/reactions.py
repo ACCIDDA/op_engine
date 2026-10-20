@@ -295,7 +295,7 @@ def _state_blocks(
 def _target_axes(reaction: ReactionArtifact) -> object:
     """Return the target template's axis order.
 
-    ``full_axes`` is the source template's order. op_system #250 publishes
+    ``full_axes`` is the source template's order. The op_system compiler publishes
     ``to_full_axes`` because an axis-less source and a templated target (or
     the reverse) do not share it; older artifacts imply the shared order.
 

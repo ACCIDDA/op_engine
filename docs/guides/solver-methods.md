@@ -191,8 +191,7 @@ dependence between boundaries must be constant for this exactness claim;
 smoothly varying rates require a different waiting-time method. In particular,
 `op_system` defaults to linear interpolation of time-indexed parameters, so
 listing their grid points as breakpoints does not make direct SSA exact for
-those interpolated rates. Producers containing
-[op_system PR #241](https://github.com/ACCIDDA/op_system/pull/241) can select
+those interpolated rates. An op_system producer can select
 `time_interpolation: previous` to hold table values until the next coordinate.
 The flepimop2 engine provider consumes their published `forcing_breakpoints`
 automatically in pure stochastic mode and combines them with any extra

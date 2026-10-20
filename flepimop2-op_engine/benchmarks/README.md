@@ -36,7 +36,7 @@ uv run python benchmarks/solver_matrix.py \
   --references scipy --output solver-matrix.json
 ```
 
-For the fixed-step compile/storage comparison in #147, keep the numerical work
+For the fixed-step compile/storage comparison, keep the numerical work
 and requested grid matched between RK4 and DOPRI5:
 
 ```console

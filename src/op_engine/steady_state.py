@@ -7,7 +7,7 @@ continuation (PTC). Each iteration solves the implicit-Euler step
 
 and grows ``dt`` by the ratio of successive residuals, so early iterations
 follow the dynamics and later ones become Newton steps. Three features of
-epidemic models need handling (issue #192):
+epidemic models need handling:
 
 - **Absorbing states.** Cumulative counters (deaths, incidence) never reach a
   zero derivative. Pass them as ``fixed``: they keep their initial value and

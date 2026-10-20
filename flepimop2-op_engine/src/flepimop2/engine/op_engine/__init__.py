@@ -3112,7 +3112,7 @@ def _pure_stochastic_coverage_issues(system: SystemABC) -> list[ValidationIssue]
     """Find model dynamics that pure stochastic execution would drop.
 
     Pure stochastic mode executes only reaction artifacts. Transitions the
-    producer reports in ``reaction_gaps`` (op_system #244) and typed
+    producer reports in ``reaction_gaps`` and typed
     operators have no discrete counterpart there. Producers that predate
     ``reaction_gaps`` are not checked.
 
