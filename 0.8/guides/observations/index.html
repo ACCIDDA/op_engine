@@ -1840,9 +1840,9 @@ numerical boundaries without inferring geometry or dimensions. <code>time_depend
 describes explicit time use, not all indirect evolution through a state.</p>
 <h2 id="consuming-compiled-op_system-observables">Consuming compiled op_system observables<a class="headerlink" href="#consuming-compiled-op_system-observables" title="Permanent link">&para;</a></h2>
 <p><code>observation_from_compiled</code> reads the compiler artifact structurally. Neither
-op_system nor flepimop2 is imported by engine core. Use a compiler build exposing
-the named observables from <a href="https://github.com/ACCIDDA/op_system/issues/294">op_system #294</a>;
-the pinned cross-package qualification commit is documented in
+op_system nor flepimop2 is imported by engine core. The compiler must expose
+<code>observables</code> with named evaluation functions and metadata. The pinned
+cross-package qualification commit is documented in
 <a href="../backend-qualification/">backend qualification</a>.</p>
 <pre><code class="language-python">from op_engine import observation_from_compiled, observe_model
 
@@ -1999,8 +1999,8 @@ producer. Recovery requires a fresh producer replay or its own compatible
 checkpoint; an incomplete prefix is not silently reported as a full-window
 result.</p>
 <p>Off-grid times/window boundaries, interpolated physical-coordinate samples,
-method-specific dense output and event-specific reconstruction remain later
-focused increments of <a href="https://github.com/ACCIDDA/op_engine/issues/225">op_engine #225</a>.
+method-specific dense output and event-specific reconstruction are not supported
+by these observation interfaces.
 Statistical noise, censoring and missingness belong to consuming observation
 models.</p>
 

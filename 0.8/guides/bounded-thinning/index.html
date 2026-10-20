@@ -1729,9 +1729,8 @@
 
 <h1 id="bounded-thinning-ssa">Bounded thinning SSA<a class="headerlink" href="#bounded-thinning-ssa" title="Permanent link">&para;</a></h1>
 <p><code>ThinningSSASolver</code> provides an exact waiting-time method for smoothly varying
-propensities with user-certified bounds. This design addresses
-<a href="https://github.com/ACCIDDA/op_engine/issues/173">#173</a>, including the flepimop2
-provider's explicit <code>thinning-ssa</code> method.</p>
+propensities with user-certified bounds. The flepimop2 provider exposes the
+method as <code>thinning-ssa</code>.</p>
 <h2 id="bound-contract">Bound contract<a class="headerlink" href="#bound-contract" title="Permanent link">&para;</a></h2>
 <p><code>ThinningSSASolver.run(propensity_func, thinning_sampler, *, rate_bound, config=None)</code>
 uses the same stoichiometry, reaction axis, and batched propensity contract as
