@@ -7,6 +7,10 @@ versioning while the project remains pre-1.0.
 
 ### Fixed
 
+- Preserve native state autograd graphs during adoption and dtype conversion,
+  including Torch 2.6, and allocate stored history on the initial state's device.
+  Require minimum-version Torch state/gradient checks in CI.
+
 - Honor explicit provider fixed-loop controls on ordinary and prepared flat,
   PyTree and block solves, retaining omitted-setting defaults. Separate general
   scan rematerialization from existing DOPRI5 step/chunk checkpoint policies,
