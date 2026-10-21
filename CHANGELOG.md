@@ -5,6 +5,13 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Integrate bounded smooth forward parameter sensitivities with existing fixed
+  explicit kernels, required initial-state derivatives, ordered measurement
+  derivatives and final-only output by default. Qualify native CPU transforms,
+  independent analytic/refinement references and the optional compiler boundary.
+
 ### Fixed
 
 - Preserve native state autograd graphs during adoption and dtype conversion,
