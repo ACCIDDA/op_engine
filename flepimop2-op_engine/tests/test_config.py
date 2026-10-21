@@ -610,3 +610,66 @@ def test_hybrid_mode_rejects_methods_requiring_the_full_jacobian(
             method=method,
             stochastic_reactions=("infect",),
         )
+
+
+@pytest.mark.parametrize("loop", ["auto", "scan", "unroll"])
+def test_fixed_loop_config_roundtrip_and_core_forwarding(loop: str) -> None:
+    """Declared provider controls survive serialization and reach the core."""
+    settings = {
+        "method": "rk4",
+        "fixed_loop": loop,
+        "fixed_scan_checkpoint": loop == "scan",
+    }
+    config = OpEngineEngineConfig.model_validate(settings)
+    restored = OpEngineEngineConfig.model_validate_json(config.model_dump_json())
+    assert restored == config
+    run = restored.to_run_config()
+    assert run.fixed_loop == loop
+    assert run.fixed_checkpoint is (loop == "scan")
+    assert restored.fixed_checkpoint is ReplayCheckpoint.NONE
+    assert "fixed_loop" not in (restored.model_extra or {})
+
+
+def test_fixed_loop_defaults_preserve_legacy_checkpoint_types() -> None:
+    """An omitted selection and the DOPRI5 enum remain distinct core contracts."""
+    config = OpEngineEngineConfig()
+    assert OpEngineEngineConfig.model_validate_json(config.model_dump_json()) == config
+    assert config.fixed_loop is None
+    assert config.fixed_scan_checkpoint is False
+    assert config.to_run_config().fixed_loop == "unroll"
+    for policy in ReplayCheckpoint:
+        checkpointed = OpEngineEngineConfig(method="dopri5", fixed_checkpoint=policy)
+        assert checkpointed.fixed_checkpoint is policy
+        assert checkpointed.to_run_config().fixed_checkpoint is False
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"fixed_loop": "typo"},
+        {"fixed_loop": "scan", "adaptive": True},
+        {"fixed_loop": "unroll", "adaptive": True},
+        {"fixed_loop": "auto", "method": "implicit-euler"},
+        {"fixed_loop": "scan", "mode": "stochastic"},
+        {"fixed_loop": "scan", "mode": "hybrid", "stochastic_reactions": ["jump"]},
+        {"fixed_scan_checkpoint": True},
+        {"fixed_loop": "auto", "fixed_scan_checkpoint": True},
+        {"fixed_loop": "unroll", "fixed_scan_checkpoint": True},
+        {"fixed_loop": "scan", "fixed_scan_checkpoint": "true"},
+        {"fixed_loop": "scan", "fixed_scan_checkpoint": 1},
+        {"method": "dopri5", "fixed_loop": "unroll", "fixed_checkpoint": "step"},
+        {"method": "dopri5", "fixed_loop": "unroll", "fixed_checkpoint": "chunk"},
+        {
+            "method": "dopri5",
+            "fixed_loop": "scan",
+            "fixed_scan_checkpoint": True,
+            "fixed_checkpoint": "step",
+        },
+    ],
+)
+def test_fixed_loop_rejects_unsupported_or_conflicting_controls(
+    settings: dict[str, object],
+) -> None:
+    """Unused, mistyped or competing execution policies fail at configuration."""
+    with pytest.raises(ValidationError):
+        OpEngineEngineConfig.model_validate(settings)

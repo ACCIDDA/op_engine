@@ -64,9 +64,9 @@ zero-copy transfer or automatic-differentiation graph continuity.
 
 1. Reconcile scopes with implemented SSA, scaling gauges, compiled observables and
    existing JAX drivers. Establish [representative baselines](execution-baselines.md).
-   Resolve [provider access to fixed loops](https://github.com/ACCIDDA/op_engine/issues/261)
-   before downstream scan comparisons: accepting an extra config key does not
-   establish that the solver receives it.
+   Use the [provider fixed-loop controls](../guides/fixed-scan.md#provider-configuration)
+   and retain actual prepared-path graph and memory evidence before downstream
+   execution comparisons.
 2. Connect the forward-model interface and structural model identity to existing
    inference provenance. Preserve semantic ordering in identity serialization.
 3. Implement shared statistical observation models and declarative priors with
@@ -103,26 +103,23 @@ state/output contracts; lack of a current driver is not an impossibility result.
 Qualification still needs the stochastic law and replay/stream ownership, rather
 than a speed comparison alone.
 
-## Provider access before additional acceleration
+## Provider controls before additional acceleration
 
-Issue [#261](https://github.com/ACCIDDA/op_engine/issues/261) blocks consumers
-from selecting the existing core fixed-loop driver through provider configuration.
-Qualify config serialization, validation and dispatch, then compare prepared
-provider loop variants and parameter gradients on the same explicit method
-and static mesh. Record compile time, graph structure and peak memory separately
-from warm execution; core-only measurements do not qualify the provider path.
+Provider `fixed_loop` now selects actual ordinary/prepared flat, PyTree and block
+fixed explicit drivers. Omitted or `null` settings preserve the existing provider
+JAX scans and eager execution elsewhere; explicit `auto` uses that same dispatch,
+`scan` requires JAX, and `unroll` selects Python stepping. This differs from the
+core's default unrolled loop.
 
-Checkpoint names need an explicit compatibility decision: the provider currently
-uses `fixed_checkpoint: none|step|chunk` for its specialized flat DOPRI5 executor,
-whereas core `RunConfig.fixed_checkpoint` is a boolean for its general fixed scan.
-Passing the enum directly is invalid. Preserve the existing provider policies and
-defaults while defining how general scan rematerialization is selected. Retain
-negative tests for unsupported methods, adaptive execution and nonstatic meshes.
+The strict boolean `fixed_scan_checkpoint` requires explicit `scan`, forwards
+the core's boolean checkpoint flag and rematerializes provider scan bodies. The
+provider's existing `fixed_checkpoint: none|step|chunk` retains its flat DOPRI5
+meaning. Unsupported modes and conflicting checkpoint selections fail at config
+validation. See the [configuration guide](../guides/fixed-scan.md#provider-configuration).
 
-Provider JAX fixed execution already has specialized scans for flat and structured
-states, including prepared flat plans. These paths can bypass generic core
-`RunConfig` loop dispatch. The missing configuration fields do not establish
-that the current provider unrolls, and forwarding them alone cannot define all
-provider behavior. Capture the actual consumer's selected namespace/layout/path
-and graph first; preserve existing scan defaults while defining explicit loop
-selection. The new field must not silently replace an existing scan with unroll.
+The before-change reproduction showed that accepted extra loop keys were ignored
+across all three prepared layouts. The fixed provider now honors them; its omitted
+setting already used scans. Benchmark source identities, matched meshes, graph
+structure, values/gradients, compile/warm time and memory remain necessary for any
+performance comparison. This control fix alone does not establish an application
+speedup.

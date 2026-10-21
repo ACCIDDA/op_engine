@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import resource
 import statistics
 import sys
 import time
@@ -36,9 +37,9 @@ from pydantic import PrivateAttr
 from typing_extensions import override
 
 try:
-    from .solver_matrix import _environment
+    from .solver_matrix import _environment, _temp_bytes
 except ImportError:  # pragma: no cover - direct script execution
-    from solver_matrix import _environment  # noqa: PLC2701
+    from solver_matrix import _environment, _temp_bytes  # noqa: PLC2701
 
 from flepimop2.engine.op_engine import (
     OpEngineEngineConfig,
@@ -68,6 +69,9 @@ class _Compiled(Protocol):
 
     def __call__(self, *args: object) -> object:
         """Execute the compiled program."""
+
+    def memory_analysis(self) -> object:
+        """Return optional backend buffer estimates."""
 
 
 class _RateSystem(SystemABC, module="prepared_execution_benchmark"):
@@ -145,9 +149,12 @@ class Measurement:
     first_execution_seconds: float
     warm_execution_seconds: float
     trace_equations: int
+    top_level_scans: int
     stablehlo_characters: int
     system_bind_calls: int
-    final_state_abs_error: float
+    compiled_temp_bytes: int | None
+    final_state_abs_error: float | None
+    rate_gradient_abs_error: float | None
 
 
 def _elapsed(action: Callable[[], object]) -> tuple[object, float]:
@@ -176,6 +183,7 @@ def _measure(
     system: _RateSystem,
     repeats: int,
     exact: np.ndarray,
+    rate_gradient: bool,
 ) -> Measurement:
     """Measure a stable callable from trace through warm execution.
 
@@ -214,9 +222,18 @@ def _measure(
         first_execution_seconds=first_seconds,
         warm_execution_seconds=statistics.median(warm_samples),
         trace_equations=len(jaxpr.jaxpr.eqns),
+        top_level_scans=sum(
+            equation.primitive.name == "scan" for equation in jaxpr.jaxpr.eqns
+        ),
         stablehlo_characters=stablehlo_characters,
         system_bind_calls=system.bind_calls,
-        final_state_abs_error=float(np.max(np.abs(np.asarray(first) - exact))),
+        compiled_temp_bytes=_temp_bytes(compiled),
+        final_state_abs_error=(
+            None if rate_gradient else float(np.max(np.abs(np.asarray(first) - exact)))
+        ),
+        rate_gradient_abs_error=(
+            float(np.max(np.abs(np.asarray(first) - exact))) if rate_gradient else None
+        ),
     )
 
 
@@ -232,6 +249,12 @@ def _parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         default=StateLayout.FLAT.value,
     )
     parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument(
+        "--method", choices=("euler", "heun", "rk4", "dopri5"), default="dopri5"
+    )
+    parser.add_argument("--fixed-loop", choices=("auto", "scan", "unroll"))
+    parser.add_argument("--fixed-scan-checkpoint", action="store_true")
+    parser.add_argument("--rate-gradient", action="store_true")
     parser.add_argument("--output", type=Path)
     return parser.parse_args(args)
 
@@ -254,10 +277,12 @@ def main(args: Sequence[str] | None = None) -> None:
 
     layout = StateLayout(options.layout)
     config = OpEngineEngineConfig(
-        method=SolverMethod.DOPRI5,
+        method=SolverMethod(options.method),
         fixed_max_step=options.fixed_max_step,
         state_layout=layout,
         block_axis="batch" if layout is StateLayout.BLOCK else None,
+        fixed_loop=options.fixed_loop,
+        fixed_scan_checkpoint=options.fixed_scan_checkpoint,
     )
     engine_value, engine_seconds = _elapsed(
         lambda: OpEngineFlepimop2Engine(
@@ -320,10 +345,23 @@ def main(args: Sequence[str] | None = None) -> None:
         return cast("Array", trajectory[-1, 1:])
 
     exact = np.asarray(initial) * np.exp(np.asarray(rate) * options.horizon)
+    ordinary_measure = ordinary
+    prepared_measure = prepared_solve
+    if options.rate_gradient:
+
+        def ordinary_total(active_rate: Array, active_initial: Array) -> Array:
+            return cast("Array", jnp.sum(ordinary(active_rate, active_initial)))
+
+        def prepared_total(active_rate: Array, active_initial: Array) -> Array:
+            return cast("Array", jnp.sum(prepared_solve(active_rate, active_initial)))
+
+        ordinary_measure = jax.grad(ordinary_total, argnums=0)
+        prepared_measure = jax.grad(prepared_total, argnums=0)
+        exact *= options.horizon
     results = [
         _measure(
             path="ordinary",
-            solve=ordinary,
+            solve=ordinary_measure,
             rate=rate,
             initial=initial,
             construction_seconds=engine_seconds,
@@ -331,10 +369,11 @@ def main(args: Sequence[str] | None = None) -> None:
             system=system,
             repeats=options.repeats,
             exact=exact,
+            rate_gradient=options.rate_gradient,
         ),
         _measure(
             path="prepared",
-            solve=prepared_solve,
+            solve=prepared_measure,
             rate=rate,
             initial=initial,
             construction_seconds=prepare_seconds,
@@ -342,11 +381,12 @@ def main(args: Sequence[str] | None = None) -> None:
             system=system,
             repeats=options.repeats,
             exact=exact,
+            rate_gradient=options.rate_gradient,
         ),
     ]
     root = Path(__file__).resolve().parents[2]
     document = {
-        "schema_version": 1,
+        "schema_version": 2,
         "settings": {
             "method": config.method.value,
             "horizon": options.horizon,
@@ -355,9 +395,15 @@ def main(args: Sequence[str] | None = None) -> None:
             "repeats": options.repeats,
             "layout": layout.value,
             "batch_size": options.batch_size,
+            "fixed_loop": config.fixed_loop,
+            "fixed_scan_checkpoint": config.fixed_scan_checkpoint,
+            "rate_gradient": options.rate_gradient,
         },
         "environment": _environment(root),
         "results": [asdict(result) for result in results],
+        "worker_peak_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        / (1024**2 if sys.platform == "darwin" else 1024),
+        "worker_peak_rss_scope": "Whole worker, including both paths and setup",
     }
     rendered = json.dumps(document, indent=2, sort_keys=True) + "\n"
     if options.output is None:
