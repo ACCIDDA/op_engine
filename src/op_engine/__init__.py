@@ -78,6 +78,15 @@ from .reactions import (
     from_compiled_rhs,
 )
 from .replicate_network import ReplicateReactionNetwork, from_compiled_replicates
+from .sensitivities import (
+    DerivativeArtifact,
+    DerivativeMatrices,
+    SensitivityInitial,
+    SensitivityOptions,
+    SensitivitySolution,
+    SensitivitySystem,
+    solve_sensitivities,
+)
 from .spatial_grid import generate_adaptive_grid, generate_adaptive_grid_from_data
 from .state_diagnostics import (
     OutputStateCheckConfig,
@@ -126,6 +135,8 @@ __all__ = [
     "CompiledReactionNetwork",
     "CoreSolver",
     "DenseNewtonSolver",
+    "DerivativeArtifact",
+    "DerivativeMatrices",
     "DiffusionConfig",
     "DirectSSAConfig",
     "DirectSSASolver",
@@ -166,6 +177,10 @@ __all__ = [
     "SSASample",
     "SSASampler",
     "Scalar",
+    "SensitivityInitial",
+    "SensitivityOptions",
+    "SensitivitySolution",
+    "SensitivitySystem",
     "SteadyStateConfig",
     "SteadyStateConvergenceError",
     "SteadyStateResult",
@@ -209,6 +224,7 @@ __all__ = [
     "require_steady_state",
     "sink_states",
     "smooth",
+    "solve_sensitivities",
     "steady_state",
 ]
 

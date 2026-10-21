@@ -57,6 +57,7 @@ nav:
   - Guides:
       - Getting Started: guides/getting-started.md
       - Compiled Fixed Explicit Loops: guides/fixed-scan.md
+      - Forward Parameter Sensitivities: guides/sensitivities.md
       - Output-state Checks: guides/output-state-checks.md
       - Choosing a Solver: guides/solver-methods.md
       - Bounded Thinning SSA: guides/bounded-thinning.md
@@ -90,6 +91,7 @@ nav:
       - Observations: api-reference/observations.md
       - Reactions: api-reference/reactions.md
       - Replicate Network: api-reference/replicate_network.md
+      - Sensitivities: api-reference/sensitivities.md
       - Spatial Grid: api-reference/spatial_grid.md
       - State Diagnostics: api-reference/state_diagnostics.md
       - Steady State: api-reference/steady_state.md

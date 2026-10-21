@@ -33,7 +33,7 @@ jobs:
       - name: 'Require native state and solver gradients'
         run: |
           uv run --no-sync python -c 'import torch; assert torch.__version__.split("+")[0] == "2.6.0"'
-          uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py -q
+          uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py tests/op_engine/test_sensitivities.py -k torch -q
   independent-ssa:
     name: 'Independent SSA compiler contract (3.12)'
     runs-on: 'ubuntu-latest'
@@ -148,7 +148,7 @@ jobs:
       - name: 'Install immutable merged compiler contract'
         run: >-
           uv pip install
-          'op-system @ git+https://github.com/ACCIDDA/op_system.git@0becde52474b48fef6b6f3c42a344498a17552a8'
+          'op-system @ git+https://github.com/ACCIDDA/op_system.git@ad3c28ac63e9af3b1210413a764b44a9c9bd2074'
       - name: 'Check two-mesh values and native derivatives without selected skips'
         run: >-
           uv run --no-sync python scripts/qualify_backend.py

@@ -45,10 +45,12 @@ def main() -> int:
             [
                 "tests/op_engine/test_compiled_observations.py",
                 "tests/op_engine/test_compiled_forcing.py",
+                "tests/op_engine/test_compiled_sensitivities.py",
             ]
             if args.compiler_contract
             else [
                 "tests/op_engine/test_backend_qualification.py",
+                "tests/op_engine/test_sensitivities.py",
                 "tests/op_engine/test_explicit_forcing.py",
                 "tests/op_engine/test_operator_precision.py",
                 "tests/op_engine/test_hierarchical_ode.py",

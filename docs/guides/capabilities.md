@@ -28,6 +28,7 @@ for its scope and restrictions.
 | --- | --- | --- |
 | Store state and output times | `ModelCore` | [Getting started](getting-started.md); state is `(species, batch)` and stored history adds a leading time dimension. |
 | Solve deterministic dynamics | `CoreSolver.run` | [Solver methods](solver-methods.md): explicit, IMEX and linearly implicit methods; select an accuracy policy for the problem. |
+| Differentiate a bounded smooth fixed ODE | `SensitivitySystem`, `solve_sensitivities` | [Forward sensitivities](sensitivities.md); explicit initial derivatives and measurement maps, native CPU arrays and bounded retained output. |
 | Solve nonlinear stages | `NonlinearProblem`, `DenseNewtonSolver`, `NewtonConfig` | [Nonlinear solvers](nonlinear-solvers.md); inspect convergence evidence. |
 | Integrate stiff or spatial models | matrix/operator utilities, `GridGeometry`, diffusion/advection builders | [Chemostat](chemostat-pde.md), [biogeochemistry](biogeochemical-network.md) and [linear multistep](linear-multistep-methods.md). |
 | Simulate a reaction process | `DirectSSASolver`, `TauLeapingSolver`, `AdaptiveTauLeapingSolver` | [Compiled reactions](op-system-reactions.md); direct SSA has a superposed clock, tau-leaping is approximate. |
