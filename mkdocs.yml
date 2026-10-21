@@ -48,6 +48,8 @@ nav:
   - Home: index.md
   - Capabilities and example checks: guides/capabilities.md
   - Development:
+      - Execution Roadmap: development/execution-roadmap.md
+      - Representative Baselines: development/execution-baselines.md
       - Contributing: development/contributing.md
       - Citation and Archiving: development/citation-and-archiving.md
       - Creating A Release: development/creating-a-release.md

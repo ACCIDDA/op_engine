@@ -7,6 +7,9 @@ versioning while the project remains pre-1.0.
 
 ### Documentation
 
+- Record cross-package execution/backend decisions, reconciled solver/acceleration
+  scope and a representative baseline protocol reusing existing measurement harnesses.
+
 - Replace issue and pull-request breadcrumbs in guides and API docstrings with
   current behavior, named interfaces and explicit limitations.
 
