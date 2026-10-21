@@ -160,9 +160,9 @@ Compiler normalization and `compile_rhs` repeat within each worker and can reuse
 
 ## Next integration measurements
 
-The first extension is the prepared provider path after
-[#261](https://github.com/ACCIDDA/op_engine/issues/261), not another implementation
-of the core loop. Use public synthetic multi-axis models at small and bounded
+The provider measurements below extend the initial baseline through
+[#261](https://github.com/ACCIDDA/op_engine/issues/261). Further integration work
+should measure complete simulation-to-observation execution and retained storage. Use public synthetic multi-axis models at small and bounded
 larger sizes, identical explicit-method meshes and output grids, and compare
 provider loop variants, parameter gradients, graph size, compile time,
 warm execution and peak memory. Include checkpoint variants only after resolving
@@ -178,3 +178,60 @@ Provider fixed JAX paths already use specialized scans. The pre-change provider
 graph/path is therefore a required baseline: an ignored core option does not
 prove Python unrolling in the provider. Explicit selection must be qualified
 through its actual dispatch, without changing its established default accidentally.
+
+## Provider fixed-loop controls (2026-10-21)
+
+The [provider receipt](../assets/provider-fixed-loops-2026-10-21/receipt.json) and
+[summary](../assets/provider-fixed-loops-2026-10-21/summary.json) contain 20 cases
+with three fresh CPU workers each: **60 successful records, zero errors and zero
+timeouts** under a 45-second worker bound. The same shared laptop CPU, singleton
+affinity, float64 and one requested BLAS/OpenMP thread were used. No CI workload
+ran during this measurement interval; other host activity remained uncontrolled.
+
+The matrix uses the existing public exponential-system provider harness with
+rate gradients of the sum of final states. It covers ordinary and prepared
+RK4 flat/PyTree/block execution and flat DOPRI5, omitted/automatic controls,
+explicit scan/unroll and scan rematerialization. Most cases have eight steps and
+16 states; a larger flat RK4 probe has 64 steps and 256 states. This is a bounded
+subset, not a Cartesian product of all methods, shapes and namespaces.
+
+The receipt also retains the before/after prepared reproduction and source
+identities. Before the fix, accepted `unroll` and `scan` keys both produced a scan
+in all three layouts. After the fix, explicit unroll has no scan, explicit scan
+has one forward scan, and omitted settings retain their original dispatch.
+Independent discrete-method values and parameter/initial-state derivatives are
+qualified separately in provider tests, including the existing precision policy.
+
+Selected **prepared rate-gradient** medians follow. Whole-worker RSS includes
+both ordinary and prepared paths and setup; XLA temporary bytes are compiler
+estimates and are a different quantity.
+
+| RK4 flat case | Selected compile | Warm call | Worker peak RSS | XLA temporary bytes |
+| --- | ---: | ---: | ---: | ---: |
+| 8 steps / 16 states, scan | 0.181 s | 43.8 us | 261.7 MiB | 6,400 |
+| 8 steps / 16 states, unroll | 0.098 s | 25.6 us | 252.0 MiB | 0 |
+| 64 steps / 256 states, scan | 0.190 s | 112.9 us | 264.4 MiB | 665,536 |
+| 64 steps / 256 states, unroll | 2.685 s | 196.0 us | 403.6 MiB | 319,488 |
+| 64 steps / 256 states, checkpointed scan | 0.133 s | 106.8 us | 259.9 MiB | 401,584 |
+
+The small case favors unroll; the larger case favors scan for selected compile
+time, warm execution and whole-worker peak RSS. The examples differ in both
+state count and step count, so they do not identify a universal crossover.
+Rematerialization reduces the larger scan's temporary-buffer estimate by about
+40%; its similar worker RSS illustrates why that estimate is not a measured
+live-memory reduction for an application.
+
+All measured rate-gradient comparisons with the analytic exponential reference
+had maximum absolute error below `3.83e-10`. Each worker reports trace and warm
+medians from three inner samples; individual inner samples are not retained by
+this harness. The receipt retains all fresh-worker records, and the summary
+retains their samples, medians and ranges.
+
+Ordinary execution precedes prepared execution within each worker. Compilation
+follows tracing/backend setup and can reuse in-process resources; it is not
+whole-process cold startup. Persistent JAX caches were disabled. The source
+hashes identify the measured dirty implementation against its base commit;
+immutable development dependency pins and package versions are recorded. These
+are execution-choice comparisons: the provider already used scans by default.
+No production workload, GPU, statistical calibration or new default-path speedup
+is established by this control fix.

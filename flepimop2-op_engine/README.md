@@ -44,7 +44,7 @@ pip install "flepimop2-op_engine[jax]"
 
 Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, RK4,
 Dormand--Prince 5(4), or dense IMEX/implicit methods. Fixed-step explicit JAX
-trajectories use one `jax.lax.scan`, so the traced program does not grow with
+trajectories use one `jax.lax.scan` by default, so the traced program does not grow with
 the number of output times. Fixed flat-state Dormand--Prince computes only the
 high-order solution, reuses its FSAL stage, and carries storage for requested
 outputs rather than returning every hidden step from the scan. RK4 retains its
@@ -87,6 +87,39 @@ Each output interval is partitioned into bounded internal steps, including a
 final remainder, but the returned trajectory contains only requested output
 times. The setting is mutually exclusive with `adaptive: true` and does not
 apply to stochastic mode (`tau_max_step` controls fixed tau-leaping).
+
+Fixed deterministic explicit solves can select their provider loop explicitly:
+
+```yaml
+config:
+  method: rk4
+  fixed_max_step: 0.25
+  fixed_loop: scan
+  fixed_scan_checkpoint: true
+```
+
+Omitting `fixed_loop` (or setting it to `null`) preserves existing behavior:
+JAX uses the provider's specialized scans and other namespaces retain eager
+execution. Explicit `auto` selects that same namespace-dependent behavior;
+`scan` requires JAX state arrays, and `unroll` selects the Python stepping loop,
+which is unrolled when traced by JAX. Selection applies to ordinary and prepared
+flat, PyTree and block solves; block execution still requires JAX. Only fixed
+deterministic Euler, Heun, RK4 and DOPRI5 accept these controls. Output times,
+substep bounds, forcing breakpoints and layouts must be static under JIT.
+
+`fixed_scan_checkpoint: true` rematerializes the scan body during reverse-mode
+differentiation and requires explicit `fixed_loop: scan`. It can trade residual
+storage for recomputation; measure actual memory for the workload. It forwards
+the core's boolean `RunConfig.fixed_checkpoint`. The provider's existing
+`fixed_checkpoint: none|step|chunk` is a separate DOPRI5 policy, described below;
+the two checkpoint controls cannot be combined. Non-default legacy checkpointing
+also conflicts with explicit `unroll`. Unavailable forced scans fail rather than
+silently changing the requested driver. Configs containing a previously ignored
+extra `fixed_loop` entry now select that driver; compare results before adopting
+the new implementation in an existing workflow.
+
+Configuration JSON round-trips preserve the unbounded default `dt_max` as the
+string `"Infinity"`; loading restores its floating-point meaning.
 
 Long reverse-mode DOPRI5 solves can opt into step or chunk rematerialization:
 
@@ -158,9 +191,10 @@ NumPy inputs and disabled-x64 dtypes into the effective JAX namespace.
 
 #### NumPy-prepared executors and JAX arrays
 
-The array namespace seen at prepare time is part of the contract because it
-selects the solver path: NumPy arrays run an eager Python stepping loop, while
-JAX arrays run the compact `lax.scan` driver. An executor prepared with NumPy
+The array namespace seen at prepare time is part of the contract. With omitted
+or automatic fixed-loop selection, NumPy arrays run an eager Python stepping
+loop and JAX arrays run the compact `lax.scan` driver. Explicit loop controls
+also apply after preparation. An executor prepared with NumPy
 arrays therefore accepts JAX arrays only inside a JAX transformation
 (`jax.jit`, `jax.grad`, `jax.vmap`), where tracers are canonicalized into the
 JAX path. Called eagerly with JAX arrays, it raises a `ValueError` that names

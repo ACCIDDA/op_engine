@@ -37,6 +37,29 @@ Fixed solves do not create an `AdaptiveStepSchedule` or adaptive provenance.
 The FlepiMoP2 provider's prepared execution has its own loop configuration;
 this option configures `CoreSolver.run` directly.
 
+## Provider configuration
+
+The FlepiMoP2 provider exposes `fixed_loop: auto|scan|unroll` for deterministic
+fixed explicit methods on ordinary and prepared flat, PyTree and block paths.
+Its default is `null`: omitted controls preserve the existing specialized JAX
+scans and eager execution for other namespaces. `auto` makes that choice explicit;
+`scan` requires JAX arrays, while `unroll` selects Python stepping. Block layouts
+continue to require JAX for independent-axis `vmap`.
+
+For rematerialization use `fixed_loop: scan` with
+`fixed_scan_checkpoint: true`. This boolean is forwarded to core
+`RunConfig.fixed_checkpoint` and applied to provider scan bodies. The provider's
+existing `fixed_checkpoint: none|step|chunk` remains its separate flat DOPRI5
+policy. Combining the two controls, or asking for legacy checkpointing with
+`unroll`, raises at configuration. Adaptive, implicit, IMEX and stochastic modes
+reject explicit fixed-loop controls. See the
+[provider examples](https://github.com/ACCIDDA/op_engine/blob/main/flepimop2-op_engine/README.md).
+
+The provider already used JAX scans before these explicit controls were added.
+Compare its actual pre-change prepared graph and matched workloads before
+interpreting loop timings. The change makes execution selection reliable;
+omitted settings retain their established numerical and dtype behavior.
+
 Known right-continuous forcing jumps split steps, including jumps between
 requested outputs, and incoming endpoint stages use the left limit. Scan
 execution preserves this contract and the `fixed_max_step` bound. It does not
@@ -56,3 +79,19 @@ These are optional measurements, not CI timing thresholds. The regression test
 checks one scan and a constant traced graph size at 50 and 200 steps. A small
 linear example can expose driver overhead; its timing is not a performance
 claim for a larger scientific model.
+
+The provider benchmark measures ordinary and prepared execution separately. From
+the `flepimop2-op_engine` directory, with its development environment installed:
+
+```shell
+uv run --no-sync python -m benchmarks.prepared_execution --method rk4 \
+  --layout flat --fixed-loop scan --rate-gradient --horizon 1 \
+  --output-count 3 --fixed-max-step 0.125 --batch-size 16 --repeats 3
+```
+
+Repeat with `unroll`, with the option omitted, and with `scan` plus
+`--fixed-scan-checkpoint` in fresh processes. Schema 2 reports separate
+trace/lower/compile/first/warm phases, gradient error, graph/scan counts and XLA
+temporary-buffer estimates. Whole-worker peak RSS includes both execution paths
+and setup; it is not per-path or live solver memory. Use bounded workers and
+retain censored cases when expanding the mesh.

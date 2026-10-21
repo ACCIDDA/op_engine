@@ -441,6 +441,37 @@ def _is_jax_namespace(namespace: object) -> bool:
     return getattr(namespace, "__name__", "") == "jax.numpy"
 
 
+def _uses_fixed_scan(
+    loop: Literal["auto", "scan", "unroll"] | None,
+    state_namespace: object,
+) -> bool:
+    """Preserve legacy dispatch unless the caller explicitly selects a loop.
+
+    Returns:
+        Whether the fixed solve uses the provider's JAX scan.
+
+    Raises:
+        TypeError: A forced scan receives a non-JAX state.
+    """
+    if loop == "unroll":
+        return False
+    if _is_jax_namespace(state_namespace):
+        return True
+    if loop == "scan":
+        msg = "fixed_loop='scan' requires JAX state arrays in the provider."
+        raise TypeError(msg)
+    return False
+
+
+def _fixed_checkpoint_policy(config: OpEngineEngineConfig) -> ReplayCheckpoint:
+    """Resolve general scan rematerialization without changing DOPRI5 policies."""
+    return (
+        ReplayCheckpoint.STEP
+        if config.fixed_scan_checkpoint
+        else config.fixed_checkpoint
+    )
+
+
 def _uses_compact_adaptive_replay(
     config: OpEngineEngineConfig,
     state_namespace: object,
@@ -1432,7 +1463,7 @@ def _run_jax_fixed_explicit_trajectory(
     checkpoint: ReplayCheckpoint,
     checkpoint_chunk_size: int,
 ) -> None:
-    """Run fixed DOPRI5 with requested-only storage and preserve lean RK4."""
+    """Run fixed JAX scans with optional step rematerialization."""
     import jax  # noqa: PLC0415
 
     step_times_values, step_sizes_values, output_indices = _fixed_step_plan(
@@ -1483,7 +1514,7 @@ def _run_jax_fixed_explicit_trajectory(
         return next_state, next_state
 
     _final_state, internal_tail = jax.lax.scan(
-        advance,
+        jax.checkpoint(advance) if checkpoint is ReplayCheckpoint.STEP else advance,
         initial_state,
         (step_times, step_sizes),
     )
@@ -1939,8 +1970,10 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
         core = _make_core(times, y0)
         solver = CoreSolver(core)
         namespace = _namespace_of(y0)
-        use_compact = _is_jax_namespace(namespace) and (
-            schedule is None or _uses_compact_adaptive_replay(config, namespace)
+        use_compact = (
+            _uses_fixed_scan(config.fixed_loop, namespace)
+            if schedule is None
+            else _uses_compact_adaptive_replay(config, namespace)
         )
         if use_compact:
             if schedule is None and config.method is not SolverMethod.DOPRI5:
@@ -1951,7 +1984,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                     forcing_breakpoints=config.forcing_breakpoints,
                     times=times,
                     fixed_max_step=config.fixed_max_step,
-                    checkpoint=config.fixed_checkpoint,
+                    checkpoint=_fixed_checkpoint_policy(config),
                     checkpoint_chunk_size=config.checkpoint_chunk_size,
                 )
             else:
@@ -1967,7 +2000,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
                     checkpoint=(
                         config.replay_checkpoint
                         if schedule is not None
-                        else config.fixed_checkpoint
+                        else _fixed_checkpoint_policy(config)
                     ),
                     checkpoint_chunk_size=config.checkpoint_chunk_size,
                 )
@@ -2258,6 +2291,7 @@ def _run_jax_fixed_explicit_pytree(
     forcing_breakpoints: tuple[float, ...] = (),
     times: np.ndarray,
     fixed_max_step: float | None,
+    checkpoint: bool = False,
 ) -> StateTree:
     """Integrate a PyTree with one compact JAX scan."""
     import jax  # noqa: PLC0415
@@ -2317,7 +2351,7 @@ def _run_jax_fixed_explicit_pytree(
                 return (next_state, next_stage), next_state
 
             (_final_state, _final_stage), remaining_tail = jax.lax.scan(
-                advance_dopri5,
+                jax.checkpoint(advance_dopri5) if checkpoint else advance_dopri5,
                 (first_state, first_stage),
                 (
                     _array_item(step_times, slice(1, None)),
@@ -2355,7 +2389,7 @@ def _run_jax_fixed_explicit_pytree(
             return next_state, next_state
 
         _final_state, internal_tail = jax.lax.scan(
-            advance,
+            jax.checkpoint(advance) if checkpoint else advance,
             initial_state,
             (step_times, step_sizes),
         )
@@ -2383,10 +2417,12 @@ def _run_fixed_explicit_pytree(
     forcing_breakpoints: tuple[float, ...] = (),
     times: np.ndarray,
     fixed_max_step: float | None,
+    fixed_loop: Literal["auto", "scan", "unroll"] | None = None,
+    checkpoint: bool = False,
 ) -> StateTree:
     """Dispatch structured fixed integration without changing namespaces."""
     first_value = next(iter(initial_state.values()))
-    if _is_jax_namespace(_namespace_of(first_value)):
+    if _uses_fixed_scan(fixed_loop, _namespace_of(first_value)):
         return _run_jax_fixed_explicit_pytree(
             rhs,
             initial_state,
@@ -2394,6 +2430,7 @@ def _run_fixed_explicit_pytree(
             forcing_breakpoints=forcing_breakpoints,
             times=times,
             fixed_max_step=fixed_max_step,
+            checkpoint=checkpoint,
         )
     return _run_python_fixed_explicit_pytree(
         rhs,
@@ -2630,6 +2667,8 @@ def _run_structured_deterministic(
                 forcing_breakpoints=config.forcing_breakpoints,
                 times=times,
                 fixed_max_step=config.fixed_max_step,
+                fixed_loop=config.fixed_loop,
+                checkpoint=config.fixed_scan_checkpoint,
             )
             replay_diagnostics = None
         return (
@@ -2727,13 +2766,15 @@ def _run_structured_deterministic(
         block_params: Mapping[str, object],
     ) -> StateTree:
         rhs = block_rhs(block_state, block_params)
-        return _run_jax_fixed_explicit_pytree(
+        return _run_fixed_explicit_pytree(
             rhs,
             block_state,
             method=config.method,
             forcing_breakpoints=config.forcing_breakpoints,
             times=times,
             fixed_max_step=config.fixed_max_step,
+            fixed_loop=config.fixed_loop,
+            checkpoint=config.fixed_scan_checkpoint,
         )
 
     trajectory = jax.vmap(
@@ -4124,8 +4165,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         )
         state_namespace = _namespace_of(y0)
         use_jax_scan = (
-            _is_jax_namespace(state_namespace)
-            and not run_cfg.adaptive
+            not run_cfg.adaptive
             and method
             in {
                 SolverMethod.EULER,
@@ -4133,6 +4173,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 SolverMethod.RK4,
                 SolverMethod.DOPRI5,
             }
+            and _uses_fixed_scan(config.fixed_loop, state_namespace)
         )
         diagnostics: NonlinearIntegrationDiagnostics | None = None
         replay_diagnostics: AdaptiveReplayDiagnostics | None = None
@@ -4167,7 +4208,7 @@ class OpEngineFlepimop2Engine(EngineABC):
                 times=times,
                 fixed_max_step=run_cfg.fixed_max_step,
                 forcing_breakpoints=run_cfg.forcing_breakpoints,
-                checkpoint=config.fixed_checkpoint,
+                checkpoint=_fixed_checkpoint_policy(config),
                 checkpoint_chunk_size=config.checkpoint_chunk_size,
             )
         elif (

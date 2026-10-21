@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -148,9 +148,26 @@ class StochasticMethod(StrEnum):
 
 
 class OpEngineEngineConfig(BaseModel):
-    """Configuration schema for op_engine when used as a flepimop2 engine."""
+    """Configuration schema for op_engine when used as a flepimop2 engine.
 
-    model_config = ConfigDict(extra="allow")
+    Omitted fixed-loop controls retain the provider's existing JAX scans and
+    eager execution on other namespaces. General scan rematerialization uses
+    a boolean distinct from the legacy DOPRI5 checkpoint enum.
+
+    Examples:
+        >>> config = OpEngineEngineConfig(
+        ...     method="rk4", fixed_loop="scan", fixed_scan_checkpoint=True
+        ... )
+        >>> restored = OpEngineEngineConfig.model_validate_json(
+        ...     config.model_dump_json()
+        ... )
+        >>> restored.to_run_config().fixed_loop
+        'scan'
+        >>> restored.to_run_config().fixed_checkpoint
+        True
+    """
+
+    model_config = ConfigDict(extra="allow", ser_json_inf_nan="strings")
 
     mode: ExecutionMode = ExecutionMode.DETERMINISTIC
     method: SolverMethod = SolverMethod.HEUN
@@ -189,6 +206,14 @@ class OpEngineEngineConfig(BaseModel):
     adaptive_replay: AdaptiveReplayMode = AdaptiveReplayMode.AUTO
     replay_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
     fixed_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
+    fixed_loop: Literal["auto", "scan", "unroll"] | None = Field(
+        default=None, description="Fixed explicit loop; null preserves legacy dispatch."
+    )
+    fixed_scan_checkpoint: bool = Field(
+        default=False,
+        strict=True,
+        description="Rematerialize the JAX scan body; requires fixed_loop='scan'.",
+    )
     checkpoint_chunk_size: int = Field(default=32, ge=1)
     schedule_tag: str | None = None
     replay_error_factor: float = Field(
@@ -379,6 +404,38 @@ class OpEngineEngineConfig(BaseModel):
             raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def _validate_fixed_loop(self) -> OpEngineEngineConfig:
+        """Keep explicit fixed-loop controls separate from legacy checkpointing.
+
+        Returns:
+            This validated configuration.
+
+        Raises:
+            ValueError: The requested loop or checkpoint policy cannot apply.
+        """
+        if self.fixed_loop is not None:
+            if self.adaptive or not self.method.is_explicit:
+                msg = "fixed_loop requires a fixed explicit method (adaptive=False)"
+                raise ValueError(msg)
+            if self.mode is not ExecutionMode.DETERMINISTIC:
+                msg = "fixed_loop requires deterministic execution."
+                raise ValueError(msg)
+        if self.fixed_scan_checkpoint:
+            if self.fixed_loop != "scan":
+                msg = "fixed_scan_checkpoint requires fixed_loop='scan'."
+                raise ValueError(msg)
+            if self.fixed_checkpoint is not ReplayCheckpoint.NONE:
+                msg = "Select fixed_scan_checkpoint or fixed_checkpoint, not both."
+                raise ValueError(msg)
+        if (
+            self.fixed_loop == "unroll"
+            and self.fixed_checkpoint is not ReplayCheckpoint.NONE
+        ):
+            msg = "fixed_checkpoint requires a scan; fixed_loop='unroll' conflicts."
+            raise ValueError(msg)
+        return self
+
     def to_run_config(
         self,
         *,
@@ -397,6 +454,8 @@ class OpEngineEngineConfig(BaseModel):
             method=self.method,
             adaptive=self.adaptive,
             fixed_max_step=self.fixed_max_step,
+            fixed_loop=self.fixed_loop or "unroll",
+            fixed_checkpoint=self.fixed_scan_checkpoint,
             forcing_breakpoints=(
                 self.forcing_breakpoints
                 if self.mode is ExecutionMode.DETERMINISTIC

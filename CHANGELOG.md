@@ -5,6 +5,14 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Honor explicit provider fixed-loop controls on ordinary and prepared flat,
+  PyTree and block solves, retaining omitted-setting defaults. Separate general
+  scan rematerialization from existing DOPRI5 step/chunk checkpoint policies,
+  reject conflicting or unsupported selections, and preserve the unbounded
+  provider step limit through configuration JSON round-trips.
+
 ### Documentation
 
 - Record cross-package execution/backend decisions, reconciled solver/acceleration
