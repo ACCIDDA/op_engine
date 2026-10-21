@@ -502,6 +502,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#provider-fixed-loop-controls-2026-10-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider fixed-loop controls (2026-10-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1844,6 +1855,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#provider-fixed-loop-controls-2026-10-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider fixed-loop controls (2026-10-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2112,9 +2134,9 @@ compiled simulation-to-observation next; they do not predict GPU, application or
 Rust/Numba performance. Torch compilation was not measured.</p>
 <p>Compiler normalization and <code>compile_rhs</code> repeat within each worker and can reuse caches. The summary separately retains all three process-initial samples and their median for those phases; the within-process median must not be labeled cold compilation.</p>
 <h2 id="next-integration-measurements">Next integration measurements<a class="headerlink" href="#next-integration-measurements" title="Permanent link">&para;</a></h2>
-<p>The first extension is the prepared provider path after
-<a href="https://github.com/ACCIDDA/op_engine/issues/261">#261</a>, not another implementation
-of the core loop. Use public synthetic multi-axis models at small and bounded
+<p>The provider measurements below extend the initial baseline through
+<a href="https://github.com/ACCIDDA/op_engine/issues/261">#261</a>. Further integration work
+should measure complete simulation-to-observation execution and retained storage. Use public synthetic multi-axis models at small and bounded
 larger sizes, identical explicit-method meshes and output grids, and compare
 provider loop variants, parameter gradients, graph size, compile time,
 warm execution and peak memory. Include checkpoint variants only after resolving
@@ -2128,6 +2150,95 @@ authorize changing a consumer's frozen runs or its scientific acceptance rules.<
 graph/path is therefore a required baseline: an ignored core option does not
 prove Python unrolling in the provider. Explicit selection must be qualified
 through its actual dispatch, without changing its established default accidentally.</p>
+<h2 id="provider-fixed-loop-controls-2026-10-21">Provider fixed-loop controls (2026-10-21)<a class="headerlink" href="#provider-fixed-loop-controls-2026-10-21" title="Permanent link">&para;</a></h2>
+<p>The <a href="../../assets/provider-fixed-loops-2026-10-21/receipt.json">provider receipt</a> and
+<a href="../../assets/provider-fixed-loops-2026-10-21/summary.json">summary</a> contain 20 cases
+with three fresh CPU workers each: <strong>60 successful records, zero errors and zero
+timeouts</strong> under a 45-second worker bound. The same shared laptop CPU, singleton
+affinity, float64 and one requested BLAS/OpenMP thread were used. No CI workload
+ran during this measurement interval; other host activity remained uncontrolled.</p>
+<p>The matrix uses the existing public exponential-system provider harness with
+rate gradients of the sum of final states. It covers ordinary and prepared
+RK4 flat/PyTree/block execution and flat DOPRI5, omitted/automatic controls,
+explicit scan/unroll and scan rematerialization. Most cases have eight steps and
+16 states; a larger flat RK4 probe has 64 steps and 256 states. This is a bounded
+subset, not a Cartesian product of all methods, shapes and namespaces.</p>
+<p>The receipt also retains the before/after prepared reproduction and source
+identities. Before the fix, accepted <code>unroll</code> and <code>scan</code> keys both produced a scan
+in all three layouts. After the fix, explicit unroll has no scan, explicit scan
+has one forward scan, and omitted settings retain their original dispatch.
+Independent discrete-method values and parameter/initial-state derivatives are
+qualified separately in provider tests, including the existing precision policy.</p>
+<p>Selected <strong>prepared rate-gradient</strong> medians follow. Whole-worker RSS includes
+both ordinary and prepared paths and setup; XLA temporary bytes are compiler
+estimates and are a different quantity.</p>
+<table>
+<thead>
+<tr>
+<th>RK4 flat case</th>
+<th style="text-align: right;">Selected compile</th>
+<th style="text-align: right;">Warm call</th>
+<th style="text-align: right;">Worker peak RSS</th>
+<th style="text-align: right;">XLA temporary bytes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8 steps / 16 states, scan</td>
+<td style="text-align: right;">0.181 s</td>
+<td style="text-align: right;">43.8 us</td>
+<td style="text-align: right;">261.7 MiB</td>
+<td style="text-align: right;">6,400</td>
+</tr>
+<tr>
+<td>8 steps / 16 states, unroll</td>
+<td style="text-align: right;">0.098 s</td>
+<td style="text-align: right;">25.6 us</td>
+<td style="text-align: right;">252.0 MiB</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>64 steps / 256 states, scan</td>
+<td style="text-align: right;">0.190 s</td>
+<td style="text-align: right;">112.9 us</td>
+<td style="text-align: right;">264.4 MiB</td>
+<td style="text-align: right;">665,536</td>
+</tr>
+<tr>
+<td>64 steps / 256 states, unroll</td>
+<td style="text-align: right;">2.685 s</td>
+<td style="text-align: right;">196.0 us</td>
+<td style="text-align: right;">403.6 MiB</td>
+<td style="text-align: right;">319,488</td>
+</tr>
+<tr>
+<td>64 steps / 256 states, checkpointed scan</td>
+<td style="text-align: right;">0.133 s</td>
+<td style="text-align: right;">106.8 us</td>
+<td style="text-align: right;">259.9 MiB</td>
+<td style="text-align: right;">401,584</td>
+</tr>
+</tbody>
+</table>
+<p>The small case favors unroll; the larger case favors scan for selected compile
+time, warm execution and whole-worker peak RSS. The examples differ in both
+state count and step count, so they do not identify a universal crossover.
+Rematerialization reduces the larger scan's temporary-buffer estimate by about
+40%; its similar worker RSS illustrates why that estimate is not a measured
+live-memory reduction for an application.</p>
+<p>All measured rate-gradient comparisons with the analytic exponential reference
+had maximum absolute error below <code>3.83e-10</code>. Each worker reports trace and warm
+medians from three inner samples; individual inner samples are not retained by
+this harness. The receipt retains all fresh-worker records, and the summary
+retains their samples, medians and ranges.</p>
+<p>Ordinary execution precedes prepared execution within each worker. Compilation
+follows tracing/backend setup and can reuse in-process resources; it is not
+whole-process cold startup. Persistent JAX caches were disabled. The source
+hashes identify the measured dirty implementation against its base commit;
+immutable development dependency pins and package versions are recorded. These
+are execution-choice comparisons: the provider already used scans by default.
+No production workload, GPU, statistical calibration or new default-path speedup
+is established by this control fix.</p>
 
 
 

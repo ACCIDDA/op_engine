@@ -458,10 +458,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#provider-access-before-additional-acceleration" class="md-nav__link">
+  <a href="#provider-controls-before-additional-acceleration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Provider access before additional acceleration
+        Provider controls before additional acceleration
       
     </span>
   </a>
@@ -1822,10 +1822,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#provider-access-before-additional-acceleration" class="md-nav__link">
+  <a href="#provider-controls-before-additional-acceleration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Provider access before additional acceleration
+        Provider controls before additional acceleration
       
     </span>
   </a>
@@ -1959,9 +1959,9 @@ zero-copy transfer or automatic-differentiation graph continuity.</p>
 <ol>
 <li>Reconcile scopes with implemented SSA, scaling gauges, compiled observables and
    existing JAX drivers. Establish <a href="../execution-baselines/">representative baselines</a>.
-   Resolve <a href="https://github.com/ACCIDDA/op_engine/issues/261">provider access to fixed loops</a>
-   before downstream scan comparisons: accepting an extra config key does not
-   establish that the solver receives it.</li>
+   Use the <a href="../../guides/fixed-scan/#provider-configuration">provider fixed-loop controls</a>
+   and retain actual prepared-path graph and memory evidence before downstream
+   execution comparisons.</li>
 <li>Connect the forward-model interface and structural model identity to existing
    inference provenance. Preserve semantic ordering in identity serialization.</li>
 <li>Implement shared statistical observation models and declarative priors with
@@ -1994,26 +1994,23 @@ Jacobian alone is not that Fisher matrix.</p>
 state/output contracts; lack of a current driver is not an impossibility result.
 Qualification still needs the stochastic law and replay/stream ownership, rather
 than a speed comparison alone.</p>
-<h2 id="provider-access-before-additional-acceleration">Provider access before additional acceleration<a class="headerlink" href="#provider-access-before-additional-acceleration" title="Permanent link">&para;</a></h2>
-<p>Issue <a href="https://github.com/ACCIDDA/op_engine/issues/261">#261</a> blocks consumers
-from selecting the existing core fixed-loop driver through provider configuration.
-Qualify config serialization, validation and dispatch, then compare prepared
-provider loop variants and parameter gradients on the same explicit method
-and static mesh. Record compile time, graph structure and peak memory separately
-from warm execution; core-only measurements do not qualify the provider path.</p>
-<p>Checkpoint names need an explicit compatibility decision: the provider currently
-uses <code>fixed_checkpoint: none|step|chunk</code> for its specialized flat DOPRI5 executor,
-whereas core <code>RunConfig.fixed_checkpoint</code> is a boolean for its general fixed scan.
-Passing the enum directly is invalid. Preserve the existing provider policies and
-defaults while defining how general scan rematerialization is selected. Retain
-negative tests for unsupported methods, adaptive execution and nonstatic meshes.</p>
-<p>Provider JAX fixed execution already has specialized scans for flat and structured
-states, including prepared flat plans. These paths can bypass generic core
-<code>RunConfig</code> loop dispatch. The missing configuration fields do not establish
-that the current provider unrolls, and forwarding them alone cannot define all
-provider behavior. Capture the actual consumer's selected namespace/layout/path
-and graph first; preserve existing scan defaults while defining explicit loop
-selection. The new field must not silently replace an existing scan with unroll.</p>
+<h2 id="provider-controls-before-additional-acceleration">Provider controls before additional acceleration<a class="headerlink" href="#provider-controls-before-additional-acceleration" title="Permanent link">&para;</a></h2>
+<p>Provider <code>fixed_loop</code> now selects actual ordinary/prepared flat, PyTree and block
+fixed explicit drivers. Omitted or <code>null</code> settings preserve the existing provider
+JAX scans and eager execution elsewhere; explicit <code>auto</code> uses that same dispatch,
+<code>scan</code> requires JAX, and <code>unroll</code> selects Python stepping. This differs from the
+core's default unrolled loop.</p>
+<p>The strict boolean <code>fixed_scan_checkpoint</code> requires explicit <code>scan</code>, forwards
+the core's boolean checkpoint flag and rematerializes provider scan bodies. The
+provider's existing <code>fixed_checkpoint: none|step|chunk</code> retains its flat DOPRI5
+meaning. Unsupported modes and conflicting checkpoint selections fail at config
+validation. See the <a href="../../guides/fixed-scan/#provider-configuration">configuration guide</a>.</p>
+<p>The before-change reproduction showed that accepted extra loop keys were ignored
+across all three prepared layouts. The fixed provider now honors them; its omitted
+setting already used scans. Benchmark source identities, matched meshes, graph
+structure, values/gradients, compile/warm time and memory remain necessary for any
+performance comparison. This control fix alone does not establish an application
+speedup.</p>
 
 
 

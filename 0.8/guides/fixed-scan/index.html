@@ -653,6 +653,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#provider-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#compile-time-measurements" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1712,6 +1723,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#provider-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#compile-time-measurements" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1821,6 +1843,25 @@ discovered adaptive mesh use <a href="../replay-provenance/">adaptive replay</a>
 Fixed solves do not create an <code>AdaptiveStepSchedule</code> or adaptive provenance.
 The FlepiMoP2 provider's prepared execution has its own loop configuration;
 this option configures <code>CoreSolver.run</code> directly.</p>
+<h2 id="provider-configuration">Provider configuration<a class="headerlink" href="#provider-configuration" title="Permanent link">&para;</a></h2>
+<p>The FlepiMoP2 provider exposes <code>fixed_loop: auto|scan|unroll</code> for deterministic
+fixed explicit methods on ordinary and prepared flat, PyTree and block paths.
+Its default is <code>null</code>: omitted controls preserve the existing specialized JAX
+scans and eager execution for other namespaces. <code>auto</code> makes that choice explicit;
+<code>scan</code> requires JAX arrays, while <code>unroll</code> selects Python stepping. Block layouts
+continue to require JAX for independent-axis <code>vmap</code>.</p>
+<p>For rematerialization use <code>fixed_loop: scan</code> with
+<code>fixed_scan_checkpoint: true</code>. This boolean is forwarded to core
+<code>RunConfig.fixed_checkpoint</code> and applied to provider scan bodies. The provider's
+existing <code>fixed_checkpoint: none|step|chunk</code> remains its separate flat DOPRI5
+policy. Combining the two controls, or asking for legacy checkpointing with
+<code>unroll</code>, raises at configuration. Adaptive, implicit, IMEX and stochastic modes
+reject explicit fixed-loop controls. See the
+<a href="https://github.com/ACCIDDA/op_engine/blob/main/flepimop2-op_engine/README.md">provider examples</a>.</p>
+<p>The provider already used JAX scans before these explicit controls were added.
+Compare its actual pre-change prepared graph and matched workloads before
+interpreting loop timings. The change makes execution selection reliable;
+omitted settings retain their established numerical and dtype behavior.</p>
 <p>Known right-continuous forcing jumps split steps, including jumps between
 requested outputs, and incoming endpoint stages use the left limit. Scan
 execution preserves this contract and the <code>fixed_max_step</code> bound. It does not
@@ -1835,6 +1876,18 @@ processes, including tracing, compilation, execution and memory metadata:</p>
 checks one scan and a constant traced graph size at 50 and 200 steps. A small
 linear example can expose driver overhead; its timing is not a performance
 claim for a larger scientific model.</p>
+<p>The provider benchmark measures ordinary and prepared execution separately. From
+the <code>flepimop2-op_engine</code> directory, with its development environment installed:</p>
+<pre><code class="language-shell">uv run --no-sync python -m benchmarks.prepared_execution --method rk4 \
+  --layout flat --fixed-loop scan --rate-gradient --horizon 1 \
+  --output-count 3 --fixed-max-step 0.125 --batch-size 16 --repeats 3
+</code></pre>
+<p>Repeat with <code>unroll</code>, with the option omitted, and with <code>scan</code> plus
+<code>--fixed-scan-checkpoint</code> in fresh processes. Schema 2 reports separate
+trace/lower/compile/first/warm phases, gradient error, graph/scan counts and XLA
+temporary-buffer estimates. Whole-worker peak RSS includes both execution paths
+and setup; it is not per-path or live solver memory. Use bounded workers and
+retain censored cases when expanding the mesh.</p>
 
 
 
