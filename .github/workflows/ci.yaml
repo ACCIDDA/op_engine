@@ -15,6 +15,25 @@ permissions:
   contents: 'read'
 
 jobs:
+  torch-minimum:
+    name: 'Torch minimum state/gradient contract (3.12)'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install minimum supported Torch and array compatibility'
+        run: |
+          uv venv --python 3.12
+          uv pip install -e . pytest 'numpy==2.0.2' 'array-api-compat==1.12.0'
+          uv pip install 'torch==2.6.0' --index-url https://download.pytorch.org/whl/cpu
+      - name: 'Require native state and solver gradients'
+        run: |
+          uv run --no-sync python -c 'import torch; assert torch.__version__.split("+")[0] == "2.6.0"'
+          uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py -q
   independent-ssa:
     name: 'Independent SSA compiler contract (3.12)'
     runs-on: 'ubuntu-latest'

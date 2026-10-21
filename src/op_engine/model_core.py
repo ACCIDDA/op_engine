@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, cast
 
 import numpy as np
+from array_api_compat import device as _device  # type: ignore[import-untyped]
 
 from ._array import array_namespace as _namespace_of
 
@@ -67,6 +68,20 @@ def _array_slice(value: Array, key: int | slice) -> Array:
         Requested array slice.
     """
     return cast("_IndexableArray", value)[key]
+
+
+def _coerce_state(
+    value: Array, dtype: object, *, reference: Array | None = None
+) -> Array:
+    """Cast native states while retaining their autograd graph and device.
+
+    Returns:
+        Same-namespace native cast, or the historical conversion for other arrays.
+    """
+    xp = _namespace_of(value if reference is None else reference)
+    if _namespace_of(value) is xp:
+        return cast("Array", xp.astype(value, dtype, copy=False))
+    return cast("Array", xp.asarray(value, dtype=dtype))
 
 
 @dataclass(slots=True, frozen=True)
@@ -434,10 +449,7 @@ class ModelCore:
             ValueError: if initial_state has incorrect shape.
         """
         xp = _namespace_of(initial_state)
-        initial_state_arr = cast(
-            "Array",
-            xp.asarray(initial_state, dtype=getattr(xp, self.dtype.name)),
-        )
+        initial_state_arr = _coerce_state(initial_state, getattr(xp, self.dtype.name))
         if initial_state_arr.shape != self.state_shape:
             raise ValueError(
                 _INITIAL_STATE_SHAPE_ERROR.format(
@@ -458,6 +470,7 @@ class ModelCore:
                 xp.zeros(
                     (self.n_timesteps, *self.state_shape),
                     dtype=initial_state_arr.dtype,
+                    device=_device(initial_state_arr),
                 ),
             )
             self._store_history_value(0, self.current_state)
@@ -484,9 +497,8 @@ class ModelCore:
             msg = "Trajectory must preserve the current state array namespace."
             raise TypeError(msg)
 
-        adopted = cast(
-            "Array",
-            state_namespace.asarray(trajectory, dtype=self.current_state.dtype),
+        adopted = _coerce_state(
+            trajectory, self.current_state.dtype, reference=self.current_state
         )
         expected_shape = (self.n_timesteps, *self.state_shape)
         if adopted.shape != expected_shape:
@@ -553,7 +565,9 @@ class ModelCore:
             ValueError: if deltas has incorrect shape.
         """
         xp = _namespace_of(self.current_state)
-        deltas_arr = cast("Array", xp.asarray(deltas, dtype=self.current_state.dtype))
+        deltas_arr = _coerce_state(
+            deltas, self.current_state.dtype, reference=self.current_state
+        )
         if deltas_arr.shape != self.state_shape:
             raise ValueError(
                 _DELTAS_SHAPE_ERROR.format(
@@ -583,10 +597,8 @@ class ModelCore:
         Raises:
             ValueError: if next_state has incorrect shape.
         """
-        xp = _namespace_of(self.current_state)
-        next_state_arr = cast(
-            "Array",
-            xp.asarray(next_state, dtype=self.current_state.dtype),
+        next_state_arr = _coerce_state(
+            next_state, self.current_state.dtype, reference=self.current_state
         )
         if next_state_arr.shape != self.state_shape:
             raise ValueError(
