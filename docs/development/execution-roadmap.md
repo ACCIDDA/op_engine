@@ -157,9 +157,13 @@ receipt requirements and native-device gates. It stays draft and #182 stays open
 Earlier A100 records remain historical evidence. No publication or application
 adoption is authorized by this engineering handoff.
 
-Next, profile the existing stochastic kernels for #259 before choosing a coarse
-Numba/Rust experiment; callback and propensity costs must be included. Follow with
-the scoped Diffrax adapter (#255), local stability diagnostics (#256), checked
+The [stochastic CPU measurements](../guides/stochastic-performance.md) now cover
+168 exact-replay-gated workers, a NumPy single-event optimization and a separate
+Numba event-selection feasibility experiment. The 64-column direct solver gains
+1.31–1.36×; allocation probes are reported separately. Full native independent-bank
+integration remains unqualified and optional; Rust has no new adoption commitment.
+
+Next, implement the scoped Diffrax adapter (#255), local stability diagnostics (#256), checked
 dependency/derivative structure (op_system #296), and the corresponding Fisher
 screen (trade-study #216). Broader estimator/statistical-method qualification and
 application studies retain their own gates. Rust IR normalization remains deferred
