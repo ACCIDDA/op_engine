@@ -75,7 +75,10 @@ def main() -> int:
             else [
                 "tests/op_engine/test_linear_operator.py",
                 *(
-                    ["tests/op_engine/test_scipy_operator.py"]
+                    [
+                        "tests/op_engine/test_scipy_operator.py",
+                        "tests/op_engine/test_numpy_newton_krylov.py",
+                    ]
                     if args.backend == "numpy"
                     else []
                 ),
@@ -107,6 +110,7 @@ def main() -> int:
                     [
                         "tests/op_engine/test_numpy_event_update.py",
                         "tests/op_engine/test_scipy_operator.py",
+                        "tests/op_engine/test_numpy_newton_krylov.py",
                     ]
                     if args.backend == "numpy"
                     else []

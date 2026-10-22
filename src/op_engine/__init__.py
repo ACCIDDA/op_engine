@@ -16,6 +16,7 @@ from .core_solver import (
     NonlinearIntegrationConvergenceError,
     NonlinearIntegrationDiagnostics,
     NonlinearMethodConfig,
+    NonlinearWorkDiagnostics,
 )
 from .firing import FiringRecorder
 from .linear_operator import (
@@ -57,6 +58,13 @@ from .matrix_ops import (
     unregister_sparse_adapter,
 )
 from .model_core import ModelCore
+from .newton_krylov import (
+    InversePreconditionerFactory,
+    NewtonKrylovConfig,
+    NewtonKrylovSolver,
+    NewtonKrylovTermination,
+    NewtonLinearization,
+)
 from .nonlinear_solver import (
     DenseNewtonSolver,
     JacobianVectorProduct,
@@ -68,6 +76,7 @@ from .nonlinear_solver import (
     NonlinearSolveDiagnostics,
     NonlinearSolver,
     NonlinearSolveResult,
+    NonlinearStageContext,
     require_converged,
 )
 from .observation_reductions import (
@@ -167,6 +176,7 @@ __all__ = [
     "DirectSSASolver",
     "FiringRecorder",
     "GridGeometry",
+    "InversePreconditionerFactory",
     "JacobianVectorProduct",
     "LinearSolveCandidate",
     "LinearSolveDiagnostics",
@@ -177,6 +187,10 @@ __all__ = [
     "LinearSolver",
     "ModelCore",
     "NewtonConfig",
+    "NewtonKrylovConfig",
+    "NewtonKrylovSolver",
+    "NewtonKrylovTermination",
+    "NewtonLinearization",
     "NonlinearConvergenceError",
     "NonlinearIntegrationConvergenceError",
     "NonlinearIntegrationDiagnostics",
@@ -187,6 +201,8 @@ __all__ = [
     "NonlinearSolveDiagnostics",
     "NonlinearSolveResult",
     "NonlinearSolver",
+    "NonlinearStageContext",
+    "NonlinearWorkDiagnostics",
     "NumpyPoissonSampler",
     "NumpySSASampler",
     "NumpyThinningSampler",

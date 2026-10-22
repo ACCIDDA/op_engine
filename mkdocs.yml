@@ -93,6 +93,7 @@ nav:
       - Loop Ops: api-reference/loop_ops.md
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md
+      - Newton Krylov: api-reference/newton_krylov.md
       - Nonlinear Solver: api-reference/nonlinear_solver.md
       - Observation Reductions: api-reference/observation_reductions.md
       - Observations: api-reference/observations.md

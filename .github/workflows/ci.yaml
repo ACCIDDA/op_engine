@@ -41,6 +41,11 @@ jobs:
           uv run --no-sync python -m scripts.benchmark_linear_operators
           --sizes 8 --rhs 2 --workers-per-case 1 --repeats 1 --require-success
           --output /tmp/eager-operator-smoke.jsonl
+      - name: 'Check bounded nonlinear roots with common accuracy gates'
+        run: >-
+          uv run --no-sync python -m scripts.benchmark_newton_krylov
+          --sizes 8 --workers-per-case 1 --repeats 1 --require-success
+          --output /tmp/newton-krylov-smoke.jsonl
   diffrax:
     name: 'Compiled Diffrax CPU (${{ matrix.contract }}, 3.12)'
     runs-on: 'ubuntu-latest'

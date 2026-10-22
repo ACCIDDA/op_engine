@@ -183,8 +183,11 @@ eager solve callback; no additional backend registry is introduced. The
 [banded/GMRES adapters](../guides/scipy-operators.md) add explicit eager CPU
 implementations with independent references and original-residual checks. Their
 measurements retain initial accuracy failures and a stricter tolerance run; no
-default change follows solely from representation size. Next, wire nonlinear
-stage JVPs and bounded Newton--Krylov integration in #222. Local
+default change follows solely from representation size. Full-state SDIRK JVPs
+and optional eager NumPy Newton–Krylov now use that checked linear boundary,
+with explicit inner/outer gates, per-linearization inverse preparation and
+per-stage failure evidence. Native converged-root differentiation (#223),
+independent proven-block schedules (#224), and local
 stability diagnostics (#256) remain open. Broader estimator/statistical-method
 qualification and application studies retain their own gates. Rust IR
 normalization remains deferred until a measured compile-time or interoperability

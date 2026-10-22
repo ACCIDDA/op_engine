@@ -113,6 +113,7 @@ from .matrix_ops import (
     build_trapezoidal_operators,
     implicit_solve,
 )
+from .newton_krylov import NewtonKrylovSolver
 from .nonlinear_solver import (
     DenseNewtonSolver,
     NonlinearConvergenceError,
@@ -551,10 +552,77 @@ def fixed_step_sizes(
     return (step_limit,) * (step_count - 1) + (final_step,)
 
 
+class NonlinearWorkDiagnostics(NamedTuple):
+    """Ragged eager inner-solve evidence using only namespace-preserving arrays.
+
+    ``solves_per_stage`` maps linear solves to flattened stages;
+    ``columns_per_solve`` maps residual/threshold/convergence entries to those
+    solves. Iteration counts are per solve. Termination, JVP and backtracking
+    counts are per stage. Zero termination means unspecified (the dense
+    default). Tolerances and L2 residuals use the integration diagnostic dtype;
+    the checked inner convergence flag was computed before this conversion.
+    """
+
+    solves_per_stage: Array
+    columns_per_solve: Array
+    converged: Array
+    iterations: Array
+    residual_norm: Array
+    tolerance: Array
+    termination: Array
+    jvp_evaluations: Array
+    backtracks: Array
+
+
+def _collect_nonlinear_work(
+    reference: Array, stages: Sequence[NonlinearSolveDiagnostics]
+) -> NonlinearWorkDiagnostics:
+    """Collect optional inner evidence without host decisions on native arrays.
+
+    Returns:
+        Array-only work record, with empty inner fields for the dense default.
+    """
+    xp = _namespace_of(reference)
+    linear = tuple(solve for stage in stages for solve in stage.linear_solves)
+
+    def integers(values: tuple[int, ...]) -> Array:
+        return cast("Array", xp.asarray(values, dtype=xp.int32))
+
+    return NonlinearWorkDiagnostics(
+        solves_per_stage=integers(tuple(len(s.linear_solves) for s in stages)),
+        columns_per_solve=integers(tuple(s.converged.size for s in linear)),
+        converged=cast(
+            "Array",
+            xp.asarray(
+                tuple(value for solve in linear for value in solve.converged),
+                dtype=xp.bool,
+            ),
+        ),
+        iterations=integers(tuple(s.iterations for s in linear)),
+        residual_norm=cast(
+            "Array",
+            xp.asarray(
+                tuple(value for solve in linear for value in solve.residual_norm),
+                dtype=reference.dtype,
+            ),
+        ),
+        tolerance=cast(
+            "Array",
+            xp.asarray(
+                tuple(value for solve in linear for value in solve.tolerance),
+                dtype=reference.dtype,
+            ),
+        ),
+        termination=integers(tuple(s.termination for s in stages)),
+        jvp_evaluations=integers(tuple(s.jvp_evaluations for s in stages)),
+        backtracks=integers(tuple(s.backtracks for s in stages)),
+    )
+
+
 class NonlinearIntegrationDiagnostics(NamedTuple):
     """Array-valued nonlinear diagnostics for one integration or replay.
 
-    Every field is in the state array's namespace, so the record can cross a
+    Every array is in the state array's namespace, so the record can cross a
     compiled JAX boundary. ``stages_per_step`` maps flattened stage fields back
     to attempted steps. Rejected adaptive attempts remain present with
     ``step_accepted=False``.
@@ -572,6 +640,7 @@ class NonlinearIntegrationDiagnostics(NamedTuple):
     initial_residual_norm: Array
     residual_norm: Array
     step_norm: Array
+    work: NonlinearWorkDiagnostics | None = None
 
     def require_converged(self) -> NonlinearIntegrationDiagnostics:
         """Return valid diagnostics or invalidate a failed compiled replay.
@@ -643,6 +712,7 @@ def _collect_nonlinear_diagnostics(
             initial_residual_norm=empty_float,
             residual_norm=empty_float,
             step_norm=empty_float,
+            work=_collect_nonlinear_work(reference, ()),
         )
 
     step_converged = cast(
@@ -717,6 +787,7 @@ def _collect_nonlinear_diagnostics(
             "Array",
             xp.stack(tuple(item.step_norm for item in stage_diagnostics)),
         ),
+        work=_collect_nonlinear_work(reference, stage_diagnostics),
     )
 
 
@@ -1367,6 +1438,13 @@ class CoreSolver:
                         "atol",
                         "damping",
                     )
+                )
+            elif isinstance(solver, NewtonKrylovSolver):
+                nonlinear += (
+                    repr(solver.config),
+                    f"{type(solver.linear_solver).__module__}.{type(solver.linear_solver).__qualname__}",
+                    str(getattr(solver.linear_solver, "restart", None)),
+                    str(solver.preconditioner_factory is not None),
                 )
         operator_axis = (
             None
