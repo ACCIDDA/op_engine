@@ -1157,6 +1157,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#independent-provider-block-schedules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Independent provider block schedules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#method-and-execution-matrix" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1241,6 +1252,34 @@
     
   
     Replay Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../independent-block-schedules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent Block Schedules
   
 
     
@@ -2070,6 +2109,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#independent-provider-block-schedules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Independent provider block schedules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#method-and-execution-matrix" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2176,6 +2226,17 @@ Torch eager gradients use piecewise exponential references on a fixed mesh.
 Real op_system tables, provider preparation and structured layouts are checked
 separately in provider integration tests. These do not qualify implicit/hybrid
 forcing or derivatives of jump locations.</p>
+<h2 id="independent-provider-block-schedules">Independent provider block schedules<a class="headerlink" href="#independent-provider-block-schedules" title="Permanent link">&para;</a></h2>
+<p>Required <code>Independent block schedules (current|minimum, CPU, 3.12)</code> jobs run the
+real pinned compiler/provider contract, independent mesh discovery, replay,
+prepared JIT, shared/local/initial-state gradients, per-block freshness and
+proof-refusal tests. They require nonempty selection with zero skips. JAX
+0.12.0.1/NumPy 2.5.4 and JAX 0.4.38/NumPy 2.2.6 are pinned; the provider's
+FlepiMoP2 dependency determines that joint NumPy floor. A tiny isolated benchmark
+checks all three scheduling policies against common analytic accuracy gates and
+retains complete lifecycle costs. These gates complement the core/backend and
+full provider suites. See <a href="../independent-block-schedules/">independent block schedules</a>
+for batching, storage, transformation and qualification scope.</p>
 <h2 id="method-and-execution-matrix">Method and execution matrix<a class="headerlink" href="#method-and-execution-matrix" title="Permanent link">&para;</a></h2>
 <p>The table describes the small required structured workload, not all possible
 models, versions, devices, or differentiation transforms. Each qualified fixed
