@@ -61,6 +61,10 @@
          <lastmod>2026-10-22</lastmod>
     </url>
     <url>
+         <loc>https://accidda.github.io/op_engine/0.8/api-reference/scipy_operator/</loc>
+         <lastmod>2026-10-22</lastmod>
+    </url>
+    <url>
          <loc>https://accidda.github.io/op_engine/0.8/api-reference/sensitivities/</loc>
          <lastmod>2026-10-22</lastmod>
     </url>
@@ -190,6 +194,10 @@
     </url>
     <url>
          <loc>https://accidda.github.io/op_engine/0.8/guides/replicate-ssa/</loc>
+         <lastmod>2026-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://accidda.github.io/op_engine/0.8/guides/scipy-operators/</loc>
          <lastmod>2026-10-22</lastmod>
     </url>
     <url>

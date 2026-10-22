@@ -1087,6 +1087,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/scipy-operators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eager SciPy Operator Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/steady-states/" class="md-nav__link">
         
   
@@ -1785,6 +1813,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/scipy_operator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scipy Operator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/sensitivities/" class="md-nav__link">
         
   
@@ -2136,8 +2192,9 @@ custom differentiation rule for its solver.</p>
 <p>An <a href="../../guides/linear-operators/">external eager solve callback</a> can now opt
 into checked operator actions, per-column original-residual diagnostics and
 explicit inverse-preconditioner/context inputs through the existing adapter
-registry. It owns any preparation/cache lifecycle; native differentiable
-implicit solves and concrete banded/Krylov adapters need separate qualification.
+registry. It owns any preparation/cache lifecycle. The explicit
+<a href="../../guides/scipy-operators/">banded/GMRES adapters</a> have scoped eager CPU
+qualification; native differentiable implicit solves need separate qualification.
 Nonlinear forms such as (M(y,t)\dot y=r(t,y)) and differential-algebraic
 constraints remain separate, use-case-led work.</p>
 <h2 id="proof-of-concept">Proof of concept<a class="headerlink" href="#proof-of-concept" title="Permanent link">&para;</a></h2>
