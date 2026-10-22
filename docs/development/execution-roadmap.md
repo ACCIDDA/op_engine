@@ -163,7 +163,15 @@ Numba event-selection feasibility experiment. The 64-column direct solver gains
 1.31–1.36×; allocation probes are reported separately. Full native independent-bank
 integration remains unqualified and optional; Rust has no new adoption commitment.
 
-Next, implement the scoped Diffrax adapter (#255), local stability diagnostics (#256), checked
+The [optional compiled Diffrax term](../guides/diffrax.md) now uses the current
+compiler's flat/PyTree evaluators and complete scalar/shaped parameter metadata.
+Separate current/minimum CPU contracts and 88 fresh hierarchical workers qualify
+the scoped numerical and derivative paths. Legacy consumer plugins informed the
+design; their caches, global settings and application reporting policies are not
+part of the core interface. Live adaptive and frozen-mesh measurements remain
+separate, with cold/warm and memory evidence retained.
+
+Next, implement local stability diagnostics (#256), checked
 dependency/derivative structure (op_system #296), and the corresponding Fisher
 screen (trade-study #216). Broader estimator/statistical-method qualification and
 application studies retain their own gates. Rust IR normalization remains deferred

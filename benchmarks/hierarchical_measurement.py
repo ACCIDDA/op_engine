@@ -12,10 +12,11 @@ import subprocess  # noqa: S404
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import numpy as np
 
+from benchmarks.compiled_hierarchical import compiled_hierarchical_term
 from benchmarks.hierarchical_ode import (
     HierarchicalProblem,
     _flatten_mesh,
@@ -113,6 +114,8 @@ def _provenance() -> dict[str, object]:
         "measurement": Path(__file__),
         "driver": root / "scripts/benchmark_hierarchical.py",
         "core_solver": Path(core_solver.__file__),
+        "diffrax_adapter": root / "src/op_engine/diffrax.py",
+        "compiled_fixture": root / "benchmarks/compiled_hierarchical.py",
     }
     return {
         "commit": commit.stdout.strip() if commit.returncode == 0 else None,
@@ -121,6 +124,39 @@ def _provenance() -> dict[str, object]:
             name: hashlib.sha256(path.read_bytes()).hexdigest()
             for name, path in files.items()
         },
+    }
+
+
+def _compiler_provenance() -> dict[str, object]:
+    """Identify the actual optional compiler checkout and compilation source.
+
+    Returns:
+        Version, checkout commit/dirty state where available, and source digest.
+    """
+    module = importlib.import_module("op_system")
+    package = Path(cast("str", module.__file__)).parent
+    git = shutil.which("git") or "/usr/bin/git"
+    commit = subprocess.run(  # noqa: S603 - read-only optional source provenance
+        [git, "rev-parse", "HEAD"],
+        cwd=package,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    dirty = subprocess.run(  # noqa: S603 - read-only optional source provenance
+        [git, "status", "--porcelain"],
+        cwd=package,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return {
+        "version": _version("op-system"),
+        "checkout_head": commit.stdout.strip() if commit.returncode == 0 else None,
+        "dirty": bool(dirty.stdout) if dirty.returncode == 0 else None,
+        "compile_module_sha256": hashlib.sha256(
+            (package / "compile.py").read_bytes()
+        ).hexdigest(),
     }
 
 
@@ -154,7 +190,7 @@ def _discover(
     return solver.last_adaptive_schedule, config
 
 
-def _diffrax_functions(
+def _diffrax_functions(  # noqa: PLR0914 - explicit paired numerical configurations
     problem: HierarchicalProblem,
     schedule: AdaptiveStepSchedule,
     settings: _DiffraxSettings,
@@ -165,6 +201,7 @@ def _diffrax_functions(
     dict[str, object],
     Callable[[Array], Any],
 ]:
+    setup_start = time.perf_counter()
     import diffrax as d  # noqa: PLC0415
     import jax.numpy as jnp  # noqa: PLC0415
 
@@ -177,7 +214,9 @@ def _diffrax_functions(
         adjoint = d.DirectAdjoint()
     # Bounded RK-stage scans support forward and higher-order AD. The adjoint
     # selection additionally covers saved outputs and the solve iteration loop.
-    if solver_name == "diffrax-fixed":
+    fixed = solver_name.endswith("-fixed")
+    use_compiler = solver_name.startswith("compiled-")
+    if fixed:
         solver = d.Dopri5(scan_kind="bounded")
         starts, sizes, _ = _flatten_mesh(schedule)
         boundaries = np.concatenate((starts, [schedule.output_times[-1]]))
@@ -195,17 +234,21 @@ def _diffrax_functions(
         max_steps = max(256, 4 * sum(map(len, schedule.step_sizes)))
         dt0 = min(0.02, max_step)
         mesh_mode = "live adaptive PID; separate task from frozen replay"
-    term = d.ODETerm(lambda t, y, args: rhs(problem, args)(t, y))
+    if use_compiler:
+        term, pack_parameters = compiled_hierarchical_term(problem)
+    else:
+        term = d.ODETerm(lambda t, y, args: rhs(problem, args)(t, y))
 
     def solution_at(values: Array) -> Any:  # noqa: ANN401
+        initial = initial_state(problem, values)
         return d.diffeqsolve(
             term,
             solver,
             t0=0.0,
             t1=1.0,
             dt0=dt0,
-            y0=initial_state(problem, values),
-            args=values,
+            y0={"A": initial[0], "B": initial[1]} if use_compiler else initial,
+            args=pack_parameters(values) if use_compiler else values,
             saveat=d.SaveAt(ts=jnp.asarray(OUTPUT_TIMES)),
             stepsize_controller=controller,
             adjoint=adjoint,
@@ -213,7 +256,8 @@ def _diffrax_functions(
         )
 
     def trajectory(values: Array) -> Array:
-        return solution_at(values).ys
+        result = solution_at(values).ys
+        return jnp.stack((result["A"], result["B"]), axis=1) if use_compiler else result
 
     def loss(values: Array) -> Array:
         return objective(problem, values, trajectory(values), data)
@@ -225,12 +269,17 @@ def _diffrax_functions(
         "max_steps": max_steps,
         "mesh_mode": mesh_mode,
         "controller": type(controller).__name__,
-        "rtol": None if solver_name == "diffrax-fixed" else 2e-8,
-        "atol": None if solver_name == "diffrax-fixed" else 2e-10,
+        "rtol": None if fixed else 2e-8,
+        "atol": None if fixed else 2e-10,
+        "rhs_source": "current compiled PyTree"
+        if use_compiler
+        else "handwritten native array",
         "implicit_root_finder": type(solver.root_finder).__name__
         if hasattr(solver, "root_finder")
         else None,
         "root_find_max_steps": getattr(solver, "root_find_max_steps", None),
+        "term_and_controller_setup_seconds": time.perf_counter() - setup_start,
+        "compiler_source": _compiler_provenance() if use_compiler else None,
     }
     return trajectory, loss, settings, solution_at
 
@@ -292,7 +341,7 @@ def run_case(args: Namespace) -> dict[str, object]:  # noqa: C901, PLR0912, PLR0
         "repeats": args.repeats,
         "versions": {
             name: _version(name)
-            for name in ["op-engine", "numpy", "scipy", "jax", "diffrax"]
+            for name in ["op-engine", "numpy", "scipy", "jax", "diffrax", "op-system"]
         },
         "python": sys.version.split()[0],
         "hardware": _hardware(),
@@ -406,7 +455,7 @@ def run_case(args: Namespace) -> dict[str, object]:  # noqa: C901, PLR0912, PLR0
         base["first_execution_seconds"] = executed_at - compiled_at
         base["warm_execution_seconds"] = samples
         actual = np.asarray(jax.jit(trajectory)(parameters))
-        if solver_name.startswith("diffrax"):
+        if "diffrax" in solver_name:
             solution = solution_at(parameters)
             stats = {key: int(value) for key, value in solution.stats.items()}
             base["solver_step_statistics"] = stats

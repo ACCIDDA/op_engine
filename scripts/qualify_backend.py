@@ -26,6 +26,11 @@ def main() -> int:
         help="Qualify the separately installed pinned compiler observation contract",
     )
     contracts.add_argument(
+        "--diffrax",
+        action="store_true",
+        help="Require the optional current-compiler Diffrax CPU adapter contract",
+    )
+    contracts.add_argument(
         "--torch-compile",
         action="store_true",
         help="Require the separately qualified CPU fullgraph Inductor adapter",
@@ -33,6 +38,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.torch_compile and args.backend != "torch":
         parser.error("--torch-compile requires the torch backend")
+    if args.diffrax and args.backend != "jax":
+        parser.error("--diffrax requires the jax backend")
     try:
         module = importlib.import_module(args.backend)
     except ImportError:
@@ -42,6 +49,9 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    if args.diffrax:
+        for name in ["diffrax", "op_system"]:
+            importlib.import_module(name)
     print(
         f"Qualifying {args.backend} {module.__version__} "
         f"on Python {sys.version.split()[0]}",
@@ -50,7 +60,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
         files = (
-            ["tests/op_engine/test_torch_loop.py"]
+            ["tests/op_engine/test_jax_diffrax.py"]
+            if args.diffrax
+            else ["tests/op_engine/test_torch_loop.py"]
             if args.torch_compile
             else [
                 "tests/op_engine/test_compiled_observations.py",

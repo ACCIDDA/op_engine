@@ -16,7 +16,16 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-SOLVERS = ("core", "external", "diffrax-fixed", "diffrax-adaptive", "numpy", "scipy")
+SOLVERS = (
+    "core",
+    "external",
+    "diffrax-fixed",
+    "diffrax-adaptive",
+    "compiled-diffrax-fixed",
+    "compiled-diffrax-adaptive",
+    "numpy",
+    "scipy",
+)
 DERIVATIVES = ("trajectory", "grad-fwd", "grad-rev", "hessian", "logdet-grad")
 
 
