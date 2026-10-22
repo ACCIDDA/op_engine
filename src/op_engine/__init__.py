@@ -94,6 +94,12 @@ from .reactions import (
     from_compiled_rhs,
 )
 from .replicate_network import ReplicateReactionNetwork, from_compiled_replicates
+from .scipy_operator import (
+    BandedOperator,
+    ScipyGmresSolver,
+    scipy_banded_adapter,
+    scipy_gmres_adapter,
+)
 from .sensitivities import (
     DerivativeArtifact,
     DerivativeMatrices,
@@ -147,6 +153,7 @@ __all__ = [
     "AdaptiveTauLeapingSolver",
     "ApplicableOperator",
     "Array",
+    "BandedOperator",
     "BatchedDirectSSASolver",
     "BatchedSSAConfig",
     "CompiledObservableLike",
@@ -202,6 +209,7 @@ __all__ = [
     "SSASample",
     "SSASampler",
     "Scalar",
+    "ScipyGmresSolver",
     "SensitivityInitial",
     "SensitivityOptions",
     "SensitivitySolution",
@@ -250,6 +258,8 @@ __all__ = [
     "require_converged",
     "require_linear_converged",
     "require_steady_state",
+    "scipy_banded_adapter",
+    "scipy_gmres_adapter",
     "sink_states",
     "smooth",
     "solve_linear",

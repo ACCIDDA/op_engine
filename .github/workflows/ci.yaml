@@ -15,6 +15,30 @@ permissions:
   contents: 'read'
 
 jobs:
+  scipy-minimum:
+    name: 'Eager operators oldest compatible SciPy (3.12)'
+    runs-on: 'ubuntu-latest'
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install the oldest NumPy 2-compatible SciPy series'
+        run: |
+          uv venv --python 3.12
+          uv pip install -e . pytest 'numpy==2.0.2' 'scipy==1.13.1' 'array-api-compat==1.12.0'
+      - name: 'Require original-residual and banded/matrix-free CPU contracts'
+        run: 'uv run --no-sync python scripts/qualify_backend.py numpy --linear-operators'
+      - name: 'Check all eager paths in isolated correctness-gated workers'
+        run: >-
+          uv run --no-sync python -m scripts.benchmark_linear_operators
+          --sizes 8 --rhs 2 --workers-per-case 1 --repeats 1 --require-success
+          --output /tmp/eager-operator-smoke.jsonl
   diffrax:
     name: 'Compiled Diffrax CPU (${{ matrix.contract }}, 3.12)'
     runs-on: 'ubuntu-latest'
