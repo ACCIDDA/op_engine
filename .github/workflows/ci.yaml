@@ -34,6 +34,8 @@ jobs:
           uv pip install -e . pytest 'numpy==2.0.2' 'scipy==1.13.1' 'array-api-compat==1.12.0'
       - name: 'Require original-residual and banded/matrix-free CPU contracts'
         run: 'uv run --no-sync python scripts/qualify_backend.py numpy --linear-operators'
+      - name: 'Require JVP-only stages at the NumPy floor'
+        run: 'uv run --no-sync python scripts/qualify_backend.py numpy --sdirk-jvp'
       - name: 'Check all eager paths in isolated correctness-gated workers'
         run: >-
           uv run --no-sync python -m scripts.benchmark_linear_operators
@@ -73,6 +75,8 @@ jobs:
         run: 'uv run --no-sync python scripts/qualify_backend.py jax --diffrax'
       - name: 'Require native operator actions on the selected JAX contract'
         run: 'uv run --no-sync python scripts/qualify_backend.py jax --linear-operators'
+      - name: 'Require JVP-only stages and finite-iteration transformations'
+        run: 'uv run --no-sync python scripts/qualify_backend.py jax --sdirk-jvp'
       - name: 'Check actual compiled hierarchical fixed/adaptive consumers'
         run: >-
           uv run --no-sync python -m scripts.benchmark_hierarchical
@@ -122,6 +126,7 @@ jobs:
           uv run --no-sync python -c 'import torch; assert torch.__version__.split("+")[0] == "2.6.0"'
           uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py tests/op_engine/test_sensitivities.py tests/op_engine/test_torch_loop.py::test_torch_minimum_version_is_explicitly_rejected -k torch -q
           uv run --no-sync python scripts/qualify_backend.py torch --linear-operators
+          uv run --no-sync python scripts/qualify_backend.py torch --sdirk-jvp
   independent-ssa:
     name: 'Independent SSA compiler contract (3.12)'
     runs-on: 'ubuntu-latest'

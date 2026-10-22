@@ -101,7 +101,7 @@ preconditioner bindings remain adapter-wide, as described in the contract guide.
 Compiler-native JAX/Torch state actions may supply native application and
 transpose callbacks, but these eager NumPy solvers deliberately refuse their
 native inputs. Do not add a hidden host conversion to make them match. Native
-implicit-stage derivatives, SDIRK JVP wiring and nonlinear Newton--Krylov solves
+implicit-stage derivatives and nonlinear Newton--Krylov solves
 retain separate qualification. Nonlocal tiled callbacks remain possible without
 claiming subquadratic all-pairs arithmetic.
 

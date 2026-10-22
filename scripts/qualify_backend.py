@@ -21,6 +21,11 @@ def main() -> int:
     parser.add_argument("backend", choices=["numpy", "jax", "torch"])
     contracts = parser.add_mutually_exclusive_group()
     contracts.add_argument(
+        "--sdirk-jvp",
+        action="store_true",
+        help="Require full-state JVP-only nonlinear stage integration contracts",
+    )
+    contracts.add_argument(
         "--linear-operators",
         action="store_true",
         help="Require native actions and the selected eager operator contract",
@@ -65,7 +70,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
         files = (
-            [
+            ["tests/op_engine/test_sdirk_jvp.py"]
+            if args.sdirk_jvp
+            else [
                 "tests/op_engine/test_linear_operator.py",
                 *(
                     ["tests/op_engine/test_scipy_operator.py"]
@@ -90,6 +97,7 @@ def main() -> int:
                 "tests/op_engine/test_explicit_forcing.py",
                 "tests/op_engine/test_operator_precision.py",
                 "tests/op_engine/test_linear_operator.py",
+                "tests/op_engine/test_sdirk_jvp.py",
                 "tests/op_engine/test_hierarchical_ode.py",
                 "tests/op_engine/test_observations.py",
                 "tests/op_engine/test_observation_reductions.py",
