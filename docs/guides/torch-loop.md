@@ -76,9 +76,63 @@ state/gradient checks.
 
 ## Consumer measurements
 
-A serial fresh-process comparison separately measures import/setup, first
-forward, first backward, warm forward, warm value-plus-gradient and process peak
-RSS for a bounded `CoreSolver` case and the actual op_infer observation adapter.
-The receipt, source snapshots and limits are recorded here after the comparison
-completes. Feasibility timings are not a basis for changing defaults, and none of
-these CPU results qualifies GPU or training performance.
+The [complete receipt](../assets/torch-loop-cpu/workers.json.gz) retains 32 serial
+fresh workers: two consumers × 8/32 steps × float32/64 × eager/compiled × two
+repetitions, reversing mode order in the second repetition. Twenty-five warm
+calls per phase follow independent discrete RK4 value/gradient checks for two
+parameter sets. The actual observation consumer is the public op_infer scalar
+fixture; the core case has two scalar states. All 32 workers passed, with native
+Inductor kernels and no recorded graph breaks in each compiled worker.
+
+The host was an Intel Core Ultra 7 265U, Python 3.12.14, Torch 2.14.1+cpu,
+NumPy 2.5.4 and array-api-compat 1.15.0. Workers used one pinned CPU, one
+OpenBLAS/OMP/compiler thread and separate empty compiler caches. These bounded
+toy cases do not establish results across larger models or different hardware.
+
+Ratios are eager latency divided by compiled latency, using the median of the
+two process medians; values below one indicate a regression. First forward and
+backward are separate process medians in seconds. Warm value+gradient includes
+its forward call.
+
+| Consumer | Steps | Precision | Warm forward ratio | Warm value+gradient ratio | First forward / backward (s) |
+| --- | --- | --- | --- | --- | --- |
+| core | 8 | float32 | 0.86× | 1.14× | 10.8 / 8.1 |
+| core | 8 | float64 | 1.37× | 1.74× | 10.3 / 8.6 |
+| core | 32 | float32 | 3.70× | 4.50× | 27.8 / 29.2 |
+| core | 32 | float64 | 3.67× | 4.33× | 31.7 / 41.3 |
+| observations | 8 | float32 | 2.22× | 2.34× | 19.9 / 10.8 |
+| observations | 8 | float64 | 2.13× | 2.45× | 24.7 / 10.6 |
+| observations | 32 | float32 | 7.40× | 8.63× | 55.3 / 49.4 |
+| observations | 32 | float64 | 6.73× | 7.83× | 55.3 / 33.5 |
+
+Compiled process peak RSS was **441–587 MiB**. Eight additional fresh ordinary
+eager memory controls, one per condition and all passing, used **249–274 MiB**.
+The primary timing workers import compiler diagnostic modules in both modes;
+their instrumented eager RSS of 317–341 MiB must not be presented as ordinary
+eager memory. The extra controls omit those unused imports and remain separate
+from the timing ratios. RSS includes imports/compiler state and excludes child
+compiler processes; it is distinct from output-array size or a hard memory cap.
+
+The smallest core float32 warm forward regresses, and cold forward/backward
+costs and compiler memory can outweigh repeated-call savings. Retain explicit
+opt-in and existing eager defaults. These two-replicate observations support
+bounded engineering decisions, not general timing CI thresholds, GPU or
+estimator-training claims. Source snapshots, hashes, raw samples, compiler
+diagnostics, stderr, and the eight memory controls are in the receipt; the
+[summary](../assets/torch-loop-cpu/summary.json) records the protocol limits.
+Only lint comments changed in the adapter during collection; all exact
+snapshots and their identical executable AST digest are retained.
+
+To rerun, extract `reproduction_files` from the gzip JSON into a new directory.
+Install the receipt’s Python/backend versions in a separate CPU environment and
+provide the engine, compiler and op_infer checkouts to the relocatable coordinator:
+
+```sh
+python reproduce.py --python /path/to/cpu-env/bin/python \
+    --engine-checkout /path/to/op_engine --system-checkout /path/to/op_system \
+    --infer-checkout /path/to/op_infer --output /path/to/new-results
+```
+
+The archived plain-eager worker runs the separate memory control by selecting
+`--mode unroll`; it deliberately omits unused compiler-diagnostic imports.
+Feasibility timings are not pooled into this comparison.
