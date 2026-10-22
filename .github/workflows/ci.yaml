@@ -47,6 +47,8 @@ jobs:
           uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@bbde00697428f16f6cf948e7aff207f7b65231c8'
       - name: 'Require current compiler values and each claimed transform without skips'
         run: 'uv run --no-sync python scripts/qualify_backend.py jax --diffrax'
+      - name: 'Require native operator actions on the selected JAX contract'
+        run: 'uv run --no-sync python scripts/qualify_backend.py jax --linear-operators'
       - name: 'Check actual compiled hierarchical fixed/adaptive consumers'
         run: >-
           uv run --no-sync python -m scripts.benchmark_hierarchical
@@ -95,6 +97,7 @@ jobs:
         run: |
           uv run --no-sync python -c 'import torch; assert torch.__version__.split("+")[0] == "2.6.0"'
           uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py tests/op_engine/test_sensitivities.py tests/op_engine/test_torch_loop.py::test_torch_minimum_version_is_explicitly_rejected -k torch -q
+          uv run --no-sync python scripts/qualify_backend.py torch --linear-operators
   independent-ssa:
     name: 'Independent SSA compiler contract (3.12)'
     runs-on: 'ubuntu-latest'

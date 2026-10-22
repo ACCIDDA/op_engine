@@ -104,9 +104,11 @@ from ._sdirk import (
     evaluate_sdirk_step,
 )
 from ._typing import Array, Scalar
+from .linear_operator import ActionOperator, ApplicableOperator
 from .loop_ops import LoopAdapter, get_loop_adapter
 from .matrix_ops import (
     StageOperatorContext,
+    _is_registered_operator,
     build_implicit_euler_operators,
     build_trapezoidal_operators,
     implicit_solve,
@@ -153,7 +155,7 @@ _INTERNAL_ERROR_GAMMA_MSG = "Internal error: gamma was not resolved for imex-trb
 _INTERNAL_ERROR_ERR_OUT_MSG = "Internal error: err_out is required for this step"
 _UNSUPPORTED_OPERATOR_TYPE_MSG = (
     "Unsupported operator type for current backend. "
-    "Expected numpy.ndarray or scipy.sparse.csr_matrix."
+    "Expected numpy.ndarray, scipy.sparse.csr_matrix or a registered operator."
 )
 _NUMPY_ARRAY_ERROR_MSG = "This solver path requires a NumPy ndarray; got {type_name}."
 _SCHEDULE_TIME_GRID_ERROR_MSG = (
@@ -269,7 +271,7 @@ CoreOperators = CoreOperators2 | CoreOperators3
 StageOperatorFactory = Callable[[float, float, StageOperatorContext], CoreOperators]
 
 # What the current (NumPy/SciPy) implicit_solve backend actually accepts.
-ScipyOperator: TypeAlias = NDArray[np.floating] | csr_matrix
+ScipyOperator: TypeAlias = NDArray[np.floating] | csr_matrix | ApplicableOperator
 
 
 # =============================================================================
@@ -1463,9 +1465,9 @@ class CoreSolver:
     def _as_scipy_operator(op: OperatorLike) -> ScipyOperator:
         """Convert an OperatorLike to a backend-supported operator type.
 
-        The current backend uses NumPy/SciPy, so implicit_solve requires either a
-        NumPy ndarray or a SciPy CSR matrix. This method is the single boundary
-        where backend-specific operator requirements are enforced.
+        NumPy/CSR matrices retain their existing paths. Registered eager
+        operators pass through without coercion; pair selection and original
+        residual checks happen in implicit_solve.
 
         Args:
             op: Operator-like object.
@@ -1482,7 +1484,27 @@ class CoreSolver:
         if csr_matrix is not None and isinstance(op, csr_matrix):
             return op
 
+        if _is_registered_operator(op):
+            return cast("ApplicableOperator", op)
+
         raise TypeError(_UNSUPPORTED_OPERATOR_TYPE_MSG)
+
+    @staticmethod
+    def _as_scipy_matrix(op: OperatorLike) -> NDArray[np.floating] | csr_matrix:
+        """Require an assembled Jacobian for matrix-building numerical methods.
+
+        Returns:
+            Existing assembled NumPy/CSR matrix.
+
+        Raises:
+            TypeError: If an action would be used as an assembled Jacobian.
+        """
+        if isinstance(op, np.ndarray):
+            return cast("NDArray[np.floating]", op)
+        if isinstance(op, csr_matrix):
+            return op
+        msg = "Jacobian-driven matrix builders require an assembled NumPy/CSR matrix"
+        raise TypeError(msg)
 
     def _reshape_for_solve(
         self,
@@ -1716,7 +1738,7 @@ class CoreSolver:
 
         left_s = self._as_scipy_operator(left_op)
         right_s = self._as_scipy_operator(right_op)
-        rhs_2d = np.asarray(right_s @ base_2d + addition_2d, dtype=self.dtype)
+        rhs_2d = np.asarray(right_s @ base_2d, dtype=self.dtype) + addition_2d
         if isinstance(left_s, csr_matrix):
             if self._sparse_identity is None:
                 self._sparse_identity = identity(
@@ -1789,7 +1811,15 @@ class CoreSolver:
 
         Returns:
             Dense operator array in the reference namespace.
+
+        Raises:
+            TypeError: If an action/registered operator would be densified.
         """
+        if isinstance(op, ActionOperator) or (
+            not isinstance(op, (np.ndarray, csr_matrix)) and _is_registered_operator(op)
+        ):
+            msg = "action operators cannot be converted to dense arrays"
+            raise TypeError(msg)
         xp = _namespace_of(reference)
         toarray = getattr(op, "toarray", None)
         value = toarray() if callable(toarray) else op
@@ -1804,8 +1834,11 @@ class CoreSolver:
         self._validate_operator_sizes(op, op)
         xp = _namespace_of(x)
         x2d, original_shape, axes = self._reshape_array_for_solve(x)
-        op_array = self._operator_array(op, x)
-        y2d = cast("Array", xp.matmul(op_array, x2d))
+        if isinstance(op, ActionOperator):
+            y2d = op @ x2d
+        else:
+            op_array = self._operator_array(op, x)
+            y2d = cast("Array", xp.matmul(op_array, x2d))
         return self._unreshape_array_after_solve(y2d, original_shape, axes)
 
     def _apply_predictor_array(
@@ -3764,7 +3797,7 @@ class CoreSolver:
         out: NDArray[np.floating],
     ) -> None:
         jac = self._compute_linearized_residual(rhs_func, jacobian, t, y)
-        base_op = self._as_scipy_operator(jac)
+        base_op = self._as_scipy_matrix(jac)
         left_op, right_op = build_implicit_euler_operators(base_op, dt_scale=dt)
 
         np.copyto(self._rhs_buffer, y)
@@ -3840,7 +3873,7 @@ class CoreSolver:
         err_out = self._require_err_out(step)
 
         jac = self._compute_linearized_residual(rhs_func, jacobian, step.t, step.y)
-        base_op = self._as_scipy_operator(jac)
+        base_op = self._as_scipy_matrix(jac)
         left_op, right_op = build_trapezoidal_operators(base_op, dt_scale=step.dt)
 
         self._apply_operator_matmul(right_op, step.y, self._rhs_buffer)
@@ -3880,7 +3913,7 @@ class CoreSolver:
         err_out = self._require_err_out(step)
         tableau = select_multistep_tableau(BDF2, len(step.history))
         jac = self._compute_linearized_residual(rhs_func, jacobian, step.t, step.y)
-        jac_op = self._as_scipy_operator(jac)
+        jac_op = self._as_scipy_matrix(jac)
         n = self._require_op_axis_len()
 
         def weighted_sum(
@@ -3961,7 +3994,7 @@ class CoreSolver:
         """
         err_out = self._require_err_out(step)
         tableau = ROSENBROCK_W_TABLEAUS["ros2"]
-        jac_op = self._as_scipy_operator(jacobian(float(step.t), step.y))
+        jac_op = self._as_scipy_matrix(jacobian(float(step.t), step.y))
         left_op, right_op = build_implicit_euler_operators(
             jac_op,
             dt_scale=tableau.gamma * step.dt,

@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Add checked native linear actions and explicit Euclidean transpose capability,
+  plus an uncached eager solve callback in the existing sparse adapter registry.
+  Verify original residuals per RHS column before implicit-stage adoption;
+  expose inverse-preconditioner/context inputs and checked registration/removal.
+  Preserve assembled solves; keep concrete banded/Krylov adapters and native
+  implicit-solve differentiation as separate qualification work.
+
 - Bind current compiler flat/PyTree RHS artifacts to optional native Diffrax
   terms with explicit named parameter, dtype and shape checks. Qualify current
   and minimum CPU dependencies, scoped derivatives and hierarchical consumers;
