@@ -107,7 +107,7 @@ build-test-core:
 	cp -R examples "${CLEANROOM}/examples"
 	cp README.md "${CLEANROOM}/README.md"
 	mkdir -p "${CLEANROOM}/docs/guides"
-	cp docs/guides/getting-started.md docs/guides/observations.md docs/guides/linear-operators.md "${CLEANROOM}/docs/guides/"
+	cp docs/guides/getting-started.md docs/guides/observations.md docs/guides/linear-operators.md docs/guides/scipy-operators.md "${CLEANROOM}/docs/guides/"
 	cp -R benchmarks "${CLEANROOM}/benchmarks"
 	cd "${CLEANROOM}"
 	"${CLEANROOM}/venv/bin/pytest" --import-mode=importlib tests --quiet --exitfirst

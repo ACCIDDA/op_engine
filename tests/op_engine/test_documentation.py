@@ -71,3 +71,14 @@ def test_linear_operator_guide_executes_checked_callback() -> None:
     result = runner.run(case)
     assert result.failed == 0
     assert result.attempted > 0
+
+
+def test_scipy_operator_guide_preserves_known_solution() -> None:
+    """Both real opt-in adapters recover the public example's known solution."""
+    guide = ROOT / "docs/guides/scipy-operators.md"
+    blocks = re.findall(r"```python\n(.*?)\n```", guide.read_text(), re.DOTALL)
+    assert len(blocks) == 1
+    namespace: dict[str, Any] = {}
+    exec(blocks[0], namespace)  # noqa: S102 - trusted repository documentation
+    for name in ("banded_result", "matrix_free_result"):
+        np.testing.assert_allclose(namespace[name], np.ones(3), rtol=1e-12, atol=1e-12)

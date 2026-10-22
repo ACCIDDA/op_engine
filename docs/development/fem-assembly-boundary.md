@@ -70,8 +70,9 @@ custom differentiation rule for its solver.
 An [external eager solve callback](../guides/linear-operators.md) can now opt
 into checked operator actions, per-column original-residual diagnostics and
 explicit inverse-preconditioner/context inputs through the existing adapter
-registry. It owns any preparation/cache lifecycle; native differentiable
-implicit solves and concrete banded/Krylov adapters need separate qualification.
+registry. It owns any preparation/cache lifecycle. The explicit
+[banded/GMRES adapters](../guides/scipy-operators.md) have scoped eager CPU
+qualification; native differentiable implicit solves need separate qualification.
 Nonlinear forms such as \(M(y,t)\dot y=r(t,y)\) and differential-algebraic
 constraints remain separate, use-case-led work.
 

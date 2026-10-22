@@ -121,15 +121,17 @@ callback is deliberately separate from native action transforms. A provider
 using SciPy/PETSc must supply and qualify any differentiation rule it needs.
 Torch compilation and GPU execution are not claimed by this contract.
 
-Banded/tridiagonal and general matrix-free Krylov adapters follow as separate
-increments. On nonuniform grids, diffusion can be self-adjoint in a weighted
+[Eager banded and matrix-free GMRES adapters](scipy-operators.md) now implement
+this callback contract with independent references. On nonuniform grids,
+diffusion can be self-adjoint in a weighted
 inner product without being Euclidean symmetric. Do not infer plain CG
 suitability; it requires justified positive definiteness/symmetry or an
 explicit similarity transform. A general solver such as GMRES has separate
 preconditioning and iteration semantics. The declared SciPy floor also needs
 care: [SciPy 1.11 GMRES](https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.sparse.linalg.gmres.html)
 uses `tol`, whereas [current GMRES](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.gmres.html)
-uses `rtol`. No new adapter or dependency floor is silently selected here.
+uses `rtol`. Adapter selection remains explicit and the dependency floor is
+not silently changed.
 
 Nonlocal callbacks may use tiled reductions to bound memory. That does not
 make all-pairs arithmetic subquadratic; FFT/approximation paths need their own

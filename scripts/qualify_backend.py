@@ -65,7 +65,14 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
         files = (
-            ["tests/op_engine/test_linear_operator.py"]
+            [
+                "tests/op_engine/test_linear_operator.py",
+                *(
+                    ["tests/op_engine/test_scipy_operator.py"]
+                    if args.backend == "numpy"
+                    else []
+                ),
+            ]
             if args.linear_operators
             else ["tests/op_engine/test_jax_diffrax.py"]
             if args.diffrax
@@ -89,7 +96,10 @@ def main() -> int:
                 "tests/op_engine/test_random_streams.py",
                 "tests/op_engine/test_state_diagnostics.py",
                 *(
-                    ["tests/op_engine/test_numpy_event_update.py"]
+                    [
+                        "tests/op_engine/test_numpy_event_update.py",
+                        "tests/op_engine/test_scipy_operator.py",
+                    ]
                     if args.backend == "numpy"
                     else []
                 ),
