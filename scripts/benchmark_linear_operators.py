@@ -41,6 +41,14 @@ def _positive(value: str) -> int:
     return result
 
 
+def _tolerance(value: str) -> float:
+    result = float(value)
+    if not np.isfinite(result) or result < 0:
+        msg = "tolerances must be finite and non-negative"
+        raise argparse.ArgumentTypeError(msg)
+    return result
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sizes", nargs="+", type=_positive, default=[64])
@@ -52,14 +60,16 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repeats", type=_positive, default=5)
     parser.add_argument("--workers-per-case", type=_positive, default=3)
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--rtol-float32", type=_tolerance, default=2e-5)
+    parser.add_argument("--rtol-float64", type=_tolerance, default=1e-10)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--require-success", action="store_true")
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
-def _worker(  # noqa: PLR0914, PLR0915 - bounded single-worker measurement
-    n: int, columns: int, dtype: str, solver: str, repeats: int
+def _worker(  # noqa: PLR0913, PLR0914, PLR0915 - bounded worker configuration
+    n: int, columns: int, dtype: str, solver: str, repeats: int, *, rtol: float
 ) -> dict[str, object]:
     start = perf_counter()
     # Fixed spectral scale across sizes; this is a storage/solve experiment,
@@ -90,7 +100,7 @@ def _worker(  # noqa: PLR0914, PLR0915 - bounded single-worker measurement
     # bands or a solver's materialized matrix.
     rhs = np.column_stack([apply(truth[:, j]) for j in range(columns)])
     options = LinearSolveOptions(
-        rtol=2e-5 if dtype == "float32" else 1e-10,
+        rtol=rtol,
         atol=1e-7 if dtype == "float32" else 1e-12,
         max_iterations=100,
     )
@@ -147,11 +157,13 @@ def _worker(  # noqa: PLR0914, PLR0915 - bounded single-worker measurement
             value = implicit_solve(left, right, rhs)
             samples.append(perf_counter() - tick)
         result = np.asarray(value)
-        np.testing.assert_allclose(
-            result,
-            truth,
-            rtol=1e-4 if dtype == "float32" else 2e-9,
-            atol=1e-5 if dtype == "float32" else 2e-10,
+        accuracy_passed = bool(
+            np.allclose(
+                result,
+                truth,
+                rtol=1e-4 if dtype == "float32" else 2e-9,
+                atol=1e-5 if dtype == "float32" else 2e-10,
+            )
         )
         residual = np.column_stack([apply(result[:, j]) for j in range(columns)]) - rhs
         norms = np.hypot.reduce(np.abs(residual.astype(np.float64)), axis=0)
@@ -159,9 +171,7 @@ def _worker(  # noqa: PLR0914, PLR0915 - bounded single-worker measurement
             options.atol,
             options.rtol * np.hypot.reduce(np.abs(rhs.astype(np.float64)), axis=0),
         )
-        if not np.all(np.isfinite(result)) or not np.all(norms <= limits):
-            msg = "independent original-residual gate failed"
-            raise RuntimeError(msg)
+        residual_passed = bool(np.all(np.isfinite(result)) and np.all(norms <= limits))
     finally:
         if adapter_name is not None:
             unregister_sparse_adapter(adapter_name)
@@ -191,7 +201,15 @@ def _worker(  # noqa: PLR0914, PLR0915 - bounded single-worker measurement
             cpu,
         )
     return {
-        "status": "success",
+        "status": "success"
+        if accuracy_passed and residual_passed
+        else "validation_failed",
+        "accuracy_passed": accuracy_passed,
+        "residual_passed": residual_passed,
+        "solve_rtol": options.rtol,
+        "solve_atol": options.atol,
+        "pointwise_rtol": 1e-4 if dtype == "float32" else 2e-9,
+        "pointwise_atol": 1e-5 if dtype == "float32" else 2e-10,
         "solver": solver,
         "n": n,
         "rhs": columns,
@@ -241,7 +259,14 @@ def main() -> int:
     args = _parser().parse_args()
     if args.worker:
         row = _worker(
-            args.sizes[0], args.rhs[0], args.dtypes[0], args.solvers[0], args.repeats
+            args.sizes[0],
+            args.rhs[0],
+            args.dtypes[0],
+            args.solvers[0],
+            args.repeats,
+            rtol=args.rtol_float32
+            if args.dtypes[0] == "float32"
+            else args.rtol_float64,
         )
         print(json.dumps(row))
         return 0
@@ -264,6 +289,10 @@ def main() -> int:
             solver,
             "--repeats",
             str(args.repeats),
+            "--rtol-float32",
+            str(args.rtol_float32),
+            "--rtol-float64",
+            str(args.rtol_float64),
         ]
         metadata = {
             "solver": solver,
@@ -282,7 +311,12 @@ def main() -> int:
                 check=False,
             )
             if process.returncode:
-                row = {**metadata, "status": "error", "stderr": process.stderr}
+                row = {
+                    **metadata,
+                    "status": "error",
+                    "stderr": process.stderr,
+                    "worker_wall_seconds": perf_counter() - tick,
+                }
             else:
                 row = {
                     **json.loads(process.stdout),

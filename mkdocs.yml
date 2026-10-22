@@ -70,6 +70,7 @@ nav:
       - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
       - Linear Actions and External Solves: guides/linear-operators.md
+      - Eager SciPy Operator Adapters: guides/scipy-operators.md
       - Steady States: guides/steady-states.md
       - Biogeochemical Network: guides/biogeochemical-network.md
       - Trait-Structured Chemostat: guides/chemostat-pde.md
@@ -97,6 +98,7 @@ nav:
       - Observations: api-reference/observations.md
       - Reactions: api-reference/reactions.md
       - Replicate Network: api-reference/replicate_network.md
+      - Scipy Operator: api-reference/scipy_operator.md
       - Sensitivities: api-reference/sensitivities.md
       - Spatial Grid: api-reference/spatial_grid.md
       - State Diagnostics: api-reference/state_diagnostics.md

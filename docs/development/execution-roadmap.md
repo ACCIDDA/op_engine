@@ -179,9 +179,12 @@ not an automatic warm-runtime or peak-RSS gain.
 
 The first [operator/solve contract](../guides/linear-operators.md) increment
 extends the existing registry with checked native actions and an uncached
-eager solve callback; no additional backend registry is introduced. Finish
-banded/tridiagonal and matrix-free adapter qualification in #221, then wire
-nonlinear stage JVPs and bounded Newton--Krylov integration in #222. Local
+eager solve callback; no additional backend registry is introduced. The
+[banded/GMRES adapters](../guides/scipy-operators.md) add explicit eager CPU
+implementations with independent references and original-residual checks. Their
+measurements retain initial accuracy failures and a stricter tolerance run; no
+default change follows solely from representation size. Next, wire nonlinear
+stage JVPs and bounded Newton--Krylov integration in #222. Local
 stability diagnostics (#256) remain open. Broader estimator/statistical-method
 qualification and application studies retain their own gates. Rust IR
 normalization remains deferred until a measured compile-time or interoperability

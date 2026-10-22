@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Add explicit eager NumPy banded direct and matrix-free SciPy GMRES adapters,
+  with copied band storage, Euclidean transpose application, left inverse
+  preconditioning and a per-column inner-iteration budget. Require original
+  residual checks, qualify the oldest NumPy 2-compatible SciPy series, and retain
+  independent accuracy/memory measurements including unsuccessful initial runs.
+
 - Add checked native linear actions and explicit Euclidean transpose capability,
   plus an uncached eager solve callback in the existing sparse adapter registry.
   Verify original residuals per RHS column before implicit-stage adoption;
