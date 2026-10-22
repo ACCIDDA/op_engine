@@ -19,12 +19,20 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("backend", choices=["numpy", "jax", "torch"])
-    parser.add_argument(
+    contracts = parser.add_mutually_exclusive_group()
+    contracts.add_argument(
         "--compiler-contract",
         action="store_true",
         help="Qualify the separately installed pinned compiler observation contract",
     )
+    contracts.add_argument(
+        "--torch-compile",
+        action="store_true",
+        help="Require the separately qualified CPU fullgraph Inductor adapter",
+    )
     args = parser.parse_args()
+    if args.torch_compile and args.backend != "torch":
+        parser.error("--torch-compile requires the torch backend")
     try:
         module = importlib.import_module(args.backend)
     except ImportError:
@@ -42,7 +50,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
         files = (
-            [
+            ["tests/op_engine/test_torch_loop.py"]
+            if args.torch_compile
+            else [
                 "tests/op_engine/test_compiled_observations.py",
                 "tests/op_engine/test_compiled_forcing.py",
                 "tests/op_engine/test_compiled_sensitivities.py",

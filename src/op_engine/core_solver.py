@@ -4314,8 +4314,10 @@ class CoreSolver:
             else advance
         )
         carry, first = body((initial, None), (times[0], steps[0]))
-        _final, remaining = adapter.scan(body, carry, (times[1:], steps[1:]))
-        tail = xp.concat((xp.expand_dims(first, axis=0), remaining), axis=0)
+        tail = xp.expand_dims(first, axis=0)
+        if len(sizes) > 1:
+            _final, remaining = adapter.scan(body, carry, (times[1:], steps[1:]))
+            tail = xp.concat((tail, remaining), axis=0)
         outputs = tail[xp.asarray(output_indices, dtype=xp.int32)]
         trajectory = xp.concat((xp.expand_dims(initial, axis=0), outputs), axis=0)
         self._apply_output_trajectory(cast("Array", trajectory))
@@ -5080,8 +5082,10 @@ class CoreSolver:
             else advance
         )
         carry, first = body((initial, None), (times[0], steps[0]))
-        _final, remaining = adapter.scan(body, carry, (times[1:], steps[1:]))
-        tail = xp.concat((xp.expand_dims(first, axis=0), remaining), axis=0)
+        tail = xp.expand_dims(first, axis=0)
+        if len(sizes) > 1:
+            _final, remaining = adapter.scan(body, carry, (times[1:], steps[1:]))
+            tail = xp.concat((tail, remaining), axis=0)
         outputs = tail[xp.asarray(output_indices, dtype=xp.int32)]
         trajectory = xp.concat((xp.expand_dims(initial, axis=0), outputs), axis=0)
         self._apply_output_trajectory(cast("Array", trajectory))

@@ -15,6 +15,28 @@ permissions:
   contents: 'read'
 
 jobs:
+  torch-compile:
+    name: 'Torch compiled sequential CPU (3.12)'
+    runs-on: 'ubuntu-latest'
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      TORCHINDUCTOR_COMPILE_THREADS: '1'
+    steps:
+      - uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install explicit qualified CPU compiler version'
+        run: |
+          uv venv --python 3.12
+          uv pip install -e . pytest
+          uv pip install 'torch==2.14.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: 'Require actual Inductor values, gradients and failures with zero skips'
+        run: >-
+          uv run --no-sync python scripts/qualify_backend.py torch --torch-compile
   torch-minimum:
     name: 'Torch minimum state/gradient contract (3.12)'
     runs-on: 'ubuntu-latest'
@@ -33,7 +55,7 @@ jobs:
       - name: 'Require native state and solver gradients'
         run: |
           uv run --no-sync python -c 'import torch; assert torch.__version__.split("+")[0] == "2.6.0"'
-          uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py tests/op_engine/test_sensitivities.py -k torch -q
+          uv run --no-sync pytest tests/op_engine/test_model_core_autograd.py tests/op_engine/test_sensitivities.py tests/op_engine/test_torch_loop.py::test_torch_minimum_version_is_explicitly_rejected -k torch -q
   independent-ssa:
     name: 'Independent SSA compiler contract (3.12)'
     runs-on: 'ubuntu-latest'

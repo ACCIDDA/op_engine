@@ -57,6 +57,7 @@ nav:
   - Guides:
       - Getting Started: guides/getting-started.md
       - Compiled Fixed Explicit Loops: guides/fixed-scan.md
+      - Optional Torch Compiled Loops: guides/torch-loop.md
       - Forward Parameter Sensitivities: guides/sensitivities.md
       - Output-state Checks: guides/output-state-checks.md
       - Choosing a Solver: guides/solver-methods.md
@@ -97,3 +98,4 @@ nav:
       - Steady State: api-reference/steady_state.md
       - Stochastic Solver: api-reference/stochastic_solver.md
       - Thinning Ssa: api-reference/thinning_ssa.md
+      - Torch Loop: api-reference/torch_loop.md
