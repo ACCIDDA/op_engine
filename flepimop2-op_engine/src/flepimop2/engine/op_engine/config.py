@@ -202,6 +202,9 @@ class OpEngineEngineConfig(BaseModel):
     forcing_breakpoints: tuple[float, ...] = ()
     state_layout: StateLayout = StateLayout.FLAT
     block_axis: str | None = None
+    block_schedule: Literal["shared", "independent"] = "shared"
+    block_batching: Literal["length", "serial"] = "length"
+    block_batch_size: int | None = Field(default=None, ge=1, strict=True)
     adaptive: bool = False
     adaptive_replay: AdaptiveReplayMode = AdaptiveReplayMode.AUTO
     replay_checkpoint: ReplayCheckpoint = ReplayCheckpoint.NONE
@@ -401,6 +404,28 @@ class OpEngineEngineConfig(BaseModel):
             raise ValueError(msg)
         if self.schedule_tag is not None and not self.schedule_tag.strip():
             msg = "schedule_tag must not be empty when provided."
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_block_schedules(self) -> OpEngineEngineConfig:
+        """Keep independent schedules within their explicit JAX block contract.
+
+        Returns:
+            This validated configuration.
+
+        Raises:
+            ValueError: The selected scheduling or batching policy cannot apply.
+        """
+        if self.block_schedule == "independent":
+            if self.state_layout is not StateLayout.BLOCK or not self.adaptive:
+                msg = "block_schedule='independent' requires adaptive block layout."
+                raise ValueError(msg)
+            if self.adaptive_replay is AdaptiveReplayMode.UNROLLED:
+                msg = "Independent block schedules require compact JAX replay."
+                raise ValueError(msg)
+        elif self.block_batching != "length" or self.block_batch_size is not None:
+            msg = "Block batching controls require block_schedule='independent'."
             raise ValueError(msg)
         return self
 

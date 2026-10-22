@@ -237,9 +237,16 @@ config:
 PyTree execution is array-namespace polymorphic; block execution currently
 requires JAX because it relies on `vmap`. Both layouts use op_engine's own
 validated Euler, Heun, RK4, and Dormand--Prince coefficients. Diffrax is not an
-execution dependency. Explicit adaptive JAX discovery first builds one
+execution dependency. The default explicit adaptive policy discovers one
 conservative shared schedule from the full state; PyTree replay consumes that
-schedule directly, while block replay vmaps it across the selected axis. Until
+schedule directly, while block replay vmaps it across the selected axis.
+Opt-in `block_schedule: independent` discovers each proven block separately.
+`block_batching: length` groups exactly equal accepted lengths without padded
+ODE steps; `serial` replays one block per batch. `block_batch_size` limits the
+size of independent batches. Each member retains its own mesh, context and
+array-valued replay evidence, including through prepared execution. See the
+[independent schedule guide](../docs/guides/independent-block-schedules.md) for
+configuration, freshness checks, memory and compilation costs. Until
 flepimop2 defines a structured engine-result contract, the provider flattens
 only the completed history at its public `(time, state...)` result boundary.
 Structured layouts intentionally reject IMEX/implicit, hybrid, stochastic, and
@@ -356,8 +363,10 @@ Compact `run_adaptive(..., schedule=schedule)` results include array-valued
 local-error norm exceeds `replay_error_factor: 1.25`. Call
 `result.require_accurate()` outside a JAX transform to raise
 `AdaptiveScheduleAccuracyError` and trigger fresh discovery. Block execution
-uses the maximum scaled cell error to discover its shared schedule and
-aggregates validation across every block. Ordinary `engine.run()` remains
+uses the maximum scaled cell error across the full state for its shared
+schedule, or within each block for independent schedules. It aggregates
+validation across every block; independent results also retain original-order
+`block_replay_diagnostics`. Ordinary `engine.run()` remains
 JIT/gradient-safe and returns only the trajectory; callers that need the
 freshness decision should use `run_adaptive()` at an outer orchestration
 boundary.

@@ -78,6 +78,7 @@ nav:
       - Named Observations: guides/observations.md
 
       - Replay Provenance: guides/replay-provenance.md
+      - Independent Block Schedules: guides/independent-block-schedules.md
 
       - Hierarchical ODE Evidence: guides/hierarchical-ode.md
 
