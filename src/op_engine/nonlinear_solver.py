@@ -12,16 +12,29 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Integral
-from typing import Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import numpy as np
 
 from ._array import array_namespace as _namespace_of
 from ._typing import Array
 
+if TYPE_CHECKING:
+    from .linear_operator import LinearSolveDiagnostics
+
 NonlinearResidual = Callable[[Array], Array]
 NonlinearJacobian = Callable[[Array], Array]
 JacobianVectorProduct = Callable[[Array, Array], Array]
+
+
+@dataclass(frozen=True, slots=True)
+class NonlinearStageContext:
+    """Explicit SDIRK stage metadata, freshly bound on every stage and retry."""
+
+    time: float
+    step_size: float
+    diagonal_step: float
+    stage_index: int
 
 
 @dataclass(slots=True, frozen=True)
@@ -38,11 +51,13 @@ class NonlinearProblem:
         residual: Residual function whose root is sought.
         jacobian: Optional dense Jacobian function.
         jvp: Optional matrix-free Jacobian-vector product.
+        context: Caller-owned stage/linearization metadata; no cache is created.
     """
 
     residual: NonlinearResidual
     jacobian: NonlinearJacobian | None = None
     jvp: JacobianVectorProduct | None = None
+    context: object | None = None
 
     def __post_init__(self) -> None:
         """Validate callback presence.
@@ -116,6 +131,10 @@ class NonlinearSolveDiagnostics:
         initial_residual_norm: RMS norm before the first update.
         residual_norm: RMS norm after the final update.
         step_norm: RMS norm of the final damped update.
+        linear_solves: Checked eager inner solves in execution order.
+        termination: Optional eager solver termination code (zero is unspecified).
+        jvp_evaluations: Number of residual derivative actions evaluated.
+        backtracks: Number of step-length reductions attempted.
     """
 
     converged: Array
@@ -125,6 +144,10 @@ class NonlinearSolveDiagnostics:
     initial_residual_norm: Array
     residual_norm: Array
     step_norm: Array
+    linear_solves: tuple[LinearSolveDiagnostics, ...] = ()
+    termination: int = 0
+    jvp_evaluations: int = 0
+    backtracks: int = 0
 
 
 @dataclass(slots=True, frozen=True)
@@ -339,5 +362,6 @@ __all__ = [
     "NonlinearSolveDiagnostics",
     "NonlinearSolveResult",
     "NonlinearSolver",
+    "NonlinearStageContext",
     "require_converged",
 ]

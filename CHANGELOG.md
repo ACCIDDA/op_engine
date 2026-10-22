@@ -7,11 +7,20 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Add an optional eager NumPy Newton–Krylov solver using full residual JVPs,
+  checked GMRES inner solves and bounded Armijo backtracking. Bind inverse
+  preparation to each current stage/linearization, preserve failed candidates
+  as nonconvergence, and retain array-only per-stage inner-solve evidence through
+  fixed/adaptive/replay integration. Preserve dense defaults and distinguish the
+  eager solver from separately qualified native finite-iteration derivatives.
+  Own retained residuals and GMRES work outputs so reused buffers, read-only
+  views and identity actions cannot corrupt accepted states or Krylov bases.
+
 - Accept full-state RHS JVPs through fixed, adaptive and replayed SDIRK stages,
   validating derivative directions/results without creating a dense identity
   on the JVP-only path. Preserve dense configuration and qualify scoped CPU
-  values and finite-iteration derivatives with a custom test solver. Production
-  Newton--Krylov and converged-root differentiation remain separate work.
+  values and finite-iteration derivatives with a custom test solver.
+  Converged-root differentiation remains separate work.
 
 - Add explicit eager NumPy banded direct and matrix-free SciPy GMRES adapters,
   with copied band storage, Euclidean transpose application, left inverse

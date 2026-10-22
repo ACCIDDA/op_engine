@@ -184,6 +184,46 @@ def test_matrix_free_weighted_diffusion_numpy(
     assert 0 < result.diagnostics.iterations <= 4
 
 
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+@pytest.mark.parametrize("storage", ["input", "readonly", "scratch"])
+def test_gmres_borrowed_action_and_inverse_outputs_numpy(
+    dtype: str, storage: str
+) -> None:
+    """Identity actions may return aliases, read-only views or reused storage."""
+    rhs = np.array([[1.0, 2.0], [0.0, -1.0], [3.0, 4.0], [5.0, 0.0]], dtype=dtype)
+    before = rhs.copy()
+    rhs.flags.writeable = False
+    forward_buffer = np.zeros(4, dtype=dtype)
+    inverse_buffer = np.zeros(4, dtype=dtype)
+
+    def output(vector: np.ndarray, buffer: np.ndarray) -> np.ndarray:
+        if storage == "input":
+            return vector
+        if storage == "readonly":
+            result = vector.view()
+            result.flags.writeable = False
+            return result
+        np.copyto(buffer, vector)
+        return buffer
+
+    xp = array_namespace(rhs)
+    action = ActionOperator((4, 4), rhs.dtype, xp, lambda v: output(v, forward_buffer))
+    inverse = ActionOperator((4, 4), rhs.dtype, xp, lambda v: output(v, inverse_buffer))
+    result = solve_linear(
+        LinearSolveRequest(
+            action,
+            rhs,
+            LinearSolveOptions(rtol=1e-5, atol=1e-7),
+            preconditioner=inverse,
+        ),
+        ScipyGmresSolver(),
+    )
+    np.testing.assert_allclose(
+        require_linear_converged(result), rhs, rtol=1e-5, atol=1e-7
+    )
+    np.testing.assert_array_equal(rhs, before)
+
+
 def test_gmres_inner_iteration_budget_and_diagnostics_numpy() -> None:
     """A too-small inner budget fails explicitly while retaining the actual residual."""
     diagonal = np.asarray([1.0, 2.0, 4.0, 8.0])

@@ -15,6 +15,7 @@ from .nonlinear_solver import (
     NonlinearSolveDiagnostics,
     NonlinearSolver,
     NonlinearSolveResult,
+    NonlinearStageContext,
 )
 
 ImplicitRhs = Callable[[float, Array], Array]
@@ -203,6 +204,7 @@ def _make_stage_problem(  # noqa: PLR0913
     dt_diagonal: float,
     identity: Array | None,
     rhs_jvp: ImplicitRhsJvp | None,
+    context: NonlinearStageContext | None = None,
 ) -> NonlinearProblem:
     """Bind one stage's residual and supplied derivative callbacks.
 
@@ -258,6 +260,7 @@ def _make_stage_problem(  # noqa: PLR0913
         residual=residual,
         jacobian=jacobian if rhs_jacobian is not None else None,
         jvp=jvp if rhs_jvp is not None else None,
+        context=context,
     )
 
 
@@ -325,6 +328,7 @@ def evaluate_sdirk_step(  # noqa: PLR0913
                 dt_diagonal=dt * diagonal,
                 identity=identity,
                 rhs_jvp=rhs_jvp,
+                context=NonlinearStageContext(stage_t, dt, dt * diagonal, stage_index),
             ),
             base,
         )

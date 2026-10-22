@@ -149,7 +149,9 @@ def _apply_numpy(
     ):
         msg = "SciPy GMRES actions must preserve the NumPy vector shape and dtype"
         raise TypeError(msg)
-    return result
+    # GMRES overwrites action results while orthogonalizing. Providers may
+    # return the input, a read-only view or reused scratch storage.
+    return result.copy()
 
 
 def _banded_solve(request: LinearSolveRequest) -> LinearSolveCandidate:
