@@ -185,7 +185,10 @@ class NewtonKrylovSolver:
         result = problem.residual(iterate)
         _validate_like(result, iterate, label="residual")
         work.residuals += 1
-        return cast("NDArray[np.floating]", result)
+        # A callback may reuse its output while rejected trials are evaluated.
+        owned = np.array(cast("NDArray[np.floating]", result), copy=True)
+        owned.flags.writeable = False
+        return owned
 
     def _direction(
         self,

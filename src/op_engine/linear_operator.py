@@ -135,7 +135,12 @@ class ActionOperator:
                     xp.sum(other, axis=0, keepdims=True), (self.shape[0], 0)
                 ),
             )
-        columns = [self._vector(other[:, index]) for index in range(other.shape[1])]  # type: ignore[index]
+        # Snapshot each output before the next call can reuse its storage.
+        # A neutral native operation retains AD graphs in all supported namespaces.
+        columns = [
+            xp.multiply(self._vector(other[:, index]), 1)  # type: ignore[index]
+            for index in range(other.shape[1])
+        ]
         return cast("Array", xp.stack(columns, axis=1))
 
     @property

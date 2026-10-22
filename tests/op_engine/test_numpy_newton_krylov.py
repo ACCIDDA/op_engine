@@ -524,3 +524,38 @@ def test_large_action_only_problem_never_assembles_a_jacobian(
     )
     np.testing.assert_allclose(result.value, 1.0, rtol=1e-8, atol=1e-10)
     assert result.diagnostics.jvp_evaluations < 100
+
+
+def test_reused_residual_buffer_preserves_last_accepted_pair_on_line_failure() -> None:
+    """Rejected trial evaluation cannot replace or alias retained residual data."""
+    buffer = np.zeros(1)
+
+    def residual(value: Array) -> Array:
+        np.copyto(buffer, cast("FloatArray", value))
+        return buffer
+
+    result = NewtonKrylovSolver(NewtonKrylovConfig(max_backtracks=0)).solve(
+        NonlinearProblem(residual, jvp=lambda _state, vector: -vector),
+        np.array([2.0]),
+    )
+    assert result.diagnostics.termination == NewtonKrylovTermination.LINE_SEARCH_FAILURE
+    np.testing.assert_array_equal(result.value, [2.0])
+    np.testing.assert_array_equal(result.residual, [2.0])
+    assert result.diagnostics.residual_norm == 2.0
+    assert not np.shares_memory(result.residual, buffer)
+    buffer.fill(100)
+    np.testing.assert_array_equal(result.residual, [2.0])
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_identity_jvp_can_return_its_borrowed_direction(
+    dtype: type[np.floating],
+) -> None:
+    """SciPy's orthogonalization cannot overwrite its own basis through an alias."""
+    result = require_converged(
+        NewtonKrylovSolver().solve(
+            NonlinearProblem(lambda value: value, jvp=lambda _value, vector: vector),
+            np.array([2.0, 3.0], dtype=dtype),
+        )
+    )
+    np.testing.assert_allclose(result.value, 0.0, atol=1e-6)

@@ -106,6 +106,11 @@ the outer gate or reduces RMS by the Armijo fraction `armijo * step_length`.
 `max_backtracks` counts reductions after the first trial. Exhaustion preserves
 the last accepted iterate and reports nonconvergence. Callback exceptions and
 invalid shapes/dtypes/namespaces propagate as fatal errors.
+Validated residuals are copied before retention so callbacks may reuse output
+buffers across trials. The SciPy adapter also owns action outputs before GMRES
+orthogonalization; an action or inverse may return its input or a read-only view.
+Matrix actions snapshot each column before another callback can reuse its
+buffer, using native operations that retain the automatic differentiation graph.
 
 `NewtonKrylovTermination` reports convergence (1), outer budget exhaustion (2),
 failed checked inner solve (3), exhausted line search (4), or a nonfinite
@@ -162,18 +167,21 @@ allocator/BLAS work. Process RSS includes Python and dependency imports.
 
 | dtype | state size | dense ms | GMRES ms | inverse-preconditioned GMRES ms | dense traced peak KiB | preconditioned traced peak KiB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| float32 | 32 | 0.229 | 2.946 | 0.948 | 23.9 | 15.0 |
-| float32 | 128 | 0.763 | 4.744 | 1.076 | 328.8 | 26.7 |
-| float32 | 512 | 24.532 | 5.221 | 1.129 | 5148.3 | 78.2 |
-| float64 | 32 | 0.210 | 10.078 | 2.292 | 24.0 | 21.1 |
-| float64 | 128 | 0.738 | 16.777 | 3.470 | 268.5 | 45.6 |
-| float64 | 512 | 21.966 | 19.517 | 4.448 | 4132.6 | 150.8 |
+| float32 | 32 | 0.519 | 3.592 | 1.194 | 23.9 | 14.8 |
+| float32 | 128 | 0.956 | 5.987 | 1.302 | 328.8 | 26.8 |
+| float32 | 512 | 33.184 | 6.647 | 1.500 | 5148.3 | 78.1 |
+| float64 | 32 | 0.272 | 13.173 | 2.859 | 24.0 | 21.5 |
+| float64 | 128 | 0.913 | 23.526 | 4.521 | 268.5 | 45.7 |
+| float64 | 512 | 42.075 | 40.784 | 9.847 | 4132.6 | 150.8 |
 
 The small cases favor dense solves. At size 512, the inverse-preconditioned
-path takes about 22× less time for float32 and 4.9× less for float64, with about
+path takes about 22.1× less time for float32 and 4.3× less for float64, with about
 66× and 27× lower traced allocation peaks on this machine. These bounds support
 an optional choice for qualified workloads; they do not select defaults for
-other geometries, trajectories or hardware.
+other geometries, trajectories or hardware. The
+[pre-fix candidate workers](../assets/newton-krylov-cpu/workers-a01366f.jsonl)
+are retained with their original source hashes; this table uses refreshed runs
+after the callback-buffer ownership corrections.
 
 Reproduce on Linux with a suitable available CPU in place of `0`:
 

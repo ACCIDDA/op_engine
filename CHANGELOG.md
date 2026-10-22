@@ -13,6 +13,8 @@ versioning while the project remains pre-1.0.
   as nonconvergence, and retain array-only per-stage inner-solve evidence through
   fixed/adaptive/replay integration. Preserve dense defaults and distinguish the
   eager solver from separately qualified native finite-iteration derivatives.
+  Own retained residuals and GMRES work outputs so reused buffers, read-only
+  views and identity actions cannot corrupt accepted states or Krylov bases.
 
 - Accept full-state RHS JVPs through fixed, adaptive and replayed SDIRK stages,
   validating derivative directions/results without creating a dense identity
