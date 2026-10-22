@@ -1000,6 +1000,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#eager-numpy-newtonkrylov" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eager NumPy Newton–Krylov
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synthetic-cpu-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Synthetic CPU measurements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#failure-and-adaptive-stepping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1690,6 +1712,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/newton_krylov/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Newton Krylov
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/nonlinear_solver/" class="md-nav__link">
         
   
@@ -2092,6 +2142,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#eager-numpy-newtonkrylov" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eager NumPy Newton–Krylov
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synthetic-cpu-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Synthetic CPU measurements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#failure-and-adaptive-stepping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2225,6 +2297,174 @@ methods, line searches, trust regions, and PETSc- or package-specific state
 belong in optional implementations of the <code>NonlinearSolver</code> protocol. Core
 configuration depends only on that protocol; it has no SciPy-, JAX-, or
 PETSc-specific field or backend selector.</p>
+<h2 id="eager-numpy-newtonkrylov">Eager NumPy Newton–Krylov<a class="headerlink" href="#eager-numpy-newtonkrylov" title="Permanent link">&para;</a></h2>
+<p><code>NewtonKrylovSolver</code> is an optional real NumPy float32/float64 implementation.
+It consumes the full residual JVP through the existing <code>ActionOperator</code>,
+<code>LinearSolveRequest</code> and <code>solve_linear</code> contracts, with <code>ScipyGmresSolver</code> as
+its default inner solver. It creates no full Jacobian, identity or basis-probed
+matrix. Dense Newton remains the default. Krylov storage scales with state size
+times restart length; supplying a preconditioner may require additional storage.</p>
+<pre><code class="language-python">import numpy as np
+from op_engine import (
+    NewtonKrylovConfig, NewtonKrylovSolver, NonlinearProblem, require_converged,
+)
+
+problem = NonlinearProblem(
+    residual=lambda x: x * x - 2.0,
+    jvp=lambda x, v: 2.0 * x * v,
+)
+result = NewtonKrylovSolver(
+    NewtonKrylovConfig(max_iterations=20, rtol=0.0, atol=1e-12)
+).solve(problem, np.array([0.01]))
+require_converged(result)
+</code></pre>
+<p>The outer convergence test uses residual RMS and the initial residual scale:
+<code>rms &lt;= atol + rtol * initial_rms</code>. <code>max_iterations</code> limits <strong>applied</strong> updates;
+an initially converged guess performs none. <code>linear_options</code> independently
+controls the inner original-residual L2 test,
+<code>||rhs - A*delta|| &lt;= max(atol, rtol * ||rhs||)</code>, and its iteration budget.
+The default GMRES budget counts inner iterations, with a configurable restart
+on <code>ScipyGmresSolver</code>. Outer and inner tolerances have different norms and
+scales; a passing residual gate alone does not certify solution accuracy.</p>
+<p>Every checked Newton direction starts with the configured <code>damping</code>. Bounded
+backtracking multiplies it by <code>backtrack_factor</code> until a finite trial reaches
+the outer gate or reduces RMS by the Armijo fraction <code>armijo * step_length</code>.
+<code>max_backtracks</code> counts reductions after the first trial. Exhaustion preserves
+the last accepted iterate and reports nonconvergence. Callback exceptions and
+invalid shapes/dtypes/namespaces propagate as fatal errors.
+Validated residuals are copied before retention so callbacks may reuse output
+buffers across trials. The SciPy adapter also owns action outputs before GMRES
+orthogonalization; an action or inverse may return its input or a read-only view.
+Matrix actions snapshot each column before another callback can reuse its
+buffer, using native operations that retain the automatic differentiation graph.</p>
+<p><code>NewtonKrylovTermination</code> reports convergence (1), outer budget exhaustion (2),
+failed checked inner solve (3), exhausted line search (4), or a nonfinite
+residual (5). A failed inner candidate is never applied, even if the callback
+reports a small residual; the original residual and solver success must both
+pass. Existing fixed/adaptive/replay policies then apply. Solve diagnostics
+retain each inner result, JVP count and step-length reduction count. Integration
+diagnostics expose array-only <code>work</code>: per-stage termination/action counts,
+<code>solves_per_stage</code>, <code>columns_per_solve</code>, and flattened inner convergence,
+iterations, L2 residuals and thresholds. Rejected attempts remain visible.
+Diagnostic norms use the integration dtype; inner acceptance is checked before
+that conversion. Zero termination means unspecified for other solvers.</p>
+<p>A <code>preconditioner_factory(request)</code> may return an inverse <code>ActionOperator</code> or
+<code>None</code>. GMRES applies this inverse on the left. Each call receives a fresh
+<code>NewtonLinearization</code> context with an owned read-only iterate and the original
+problem metadata. SDIRK supplies <code>NonlinearStageContext</code>: stage time, full step
+size, diagonal step scale and stage index. The factory runs once per current
+linearization, including new stages and retries. The engine keeps no preparation
+cache; callers that retain one must invalidate it when the context, coefficients,
+mesh, state, scale or inverse version changes. Solver diagnostics keep no iterate
+history.</p>
+<p>Use <code>NonlinearMethodConfig(rhs_jvp=full_rhs_jvp,
+solver=NewtonKrylovSolver(...))</code> for SDIRK. Schedule provenance records outer,
+inner and line-search controls, the linear-solver class/restart and inverse
+presence. A custom callback's hidden state and coefficient versions must be
+represented by the caller's <code>RunConfig.replay_model_id</code>; discover a fresh mesh
+when that contract changes.</p>
+<p>This solver makes data-dependent host decisions and rejects native JAX/Torch
+arrays before coercion. It supplies no JIT, vmap, automatic derivative or
+converged-root implicit derivative. The portable dense solver retains its
+separately qualified finite-iteration transformations; converged-root
+differentiation remains a separate implementation task.</p>
+<h2 id="synthetic-cpu-measurements">Synthetic CPU measurements<a class="headerlink" href="#synthetic-cpu-measurements" title="Permanent link">&para;</a></h2>
+<p>The <a href="../../assets/newton-krylov-cpu/workers.jsonl">raw worker evidence</a> contains
+54 isolated, single-threaded workers: three workers for each size, dtype and
+solver case, with seven timed solves after warmup. Every timed, warmup and
+separate memory run passed the same independently declared residual and
+manufactured-root pointwise gates. Numerical and benchmark source hashes,
+dependencies, thread settings, CPU model/affinity, setup time, individual solve
+times, updates and process peak RSS are retained.</p>
+<p>These are coupled synthetic nonlinear roots at a fixed spectral scale, rather
+than a domain-refinement or application study. The dense implementation performs
+its configured eight updates; the eager implementation stops at its outer gate.
+The comparison includes both that policy difference and the derivative/linear
+solve implementation. Times below are medians of the three worker medians;
+allocation peaks come from a separate <code>tracemalloc</code> solve and exclude some native
+allocator/BLAS work. Process RSS includes Python and dependency imports.</p>
+<table>
+<thead>
+<tr>
+<th>dtype</th>
+<th style="text-align: right;">state size</th>
+<th style="text-align: right;">dense ms</th>
+<th style="text-align: right;">GMRES ms</th>
+<th style="text-align: right;">inverse-preconditioned GMRES ms</th>
+<th style="text-align: right;">dense traced peak KiB</th>
+<th style="text-align: right;">preconditioned traced peak KiB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>float32</td>
+<td style="text-align: right;">32</td>
+<td style="text-align: right;">0.519</td>
+<td style="text-align: right;">3.592</td>
+<td style="text-align: right;">1.194</td>
+<td style="text-align: right;">23.9</td>
+<td style="text-align: right;">14.8</td>
+</tr>
+<tr>
+<td>float32</td>
+<td style="text-align: right;">128</td>
+<td style="text-align: right;">0.956</td>
+<td style="text-align: right;">5.987</td>
+<td style="text-align: right;">1.302</td>
+<td style="text-align: right;">328.8</td>
+<td style="text-align: right;">26.8</td>
+</tr>
+<tr>
+<td>float32</td>
+<td style="text-align: right;">512</td>
+<td style="text-align: right;">33.184</td>
+<td style="text-align: right;">6.647</td>
+<td style="text-align: right;">1.500</td>
+<td style="text-align: right;">5148.3</td>
+<td style="text-align: right;">78.1</td>
+</tr>
+<tr>
+<td>float64</td>
+<td style="text-align: right;">32</td>
+<td style="text-align: right;">0.272</td>
+<td style="text-align: right;">13.173</td>
+<td style="text-align: right;">2.859</td>
+<td style="text-align: right;">24.0</td>
+<td style="text-align: right;">21.5</td>
+</tr>
+<tr>
+<td>float64</td>
+<td style="text-align: right;">128</td>
+<td style="text-align: right;">0.913</td>
+<td style="text-align: right;">23.526</td>
+<td style="text-align: right;">4.521</td>
+<td style="text-align: right;">268.5</td>
+<td style="text-align: right;">45.7</td>
+</tr>
+<tr>
+<td>float64</td>
+<td style="text-align: right;">512</td>
+<td style="text-align: right;">42.075</td>
+<td style="text-align: right;">40.784</td>
+<td style="text-align: right;">9.847</td>
+<td style="text-align: right;">4132.6</td>
+<td style="text-align: right;">150.8</td>
+</tr>
+</tbody>
+</table>
+<p>The small cases favor dense solves. At size 512, the inverse-preconditioned
+path takes about 22.1× less time for float32 and 4.3× less for float64, with about
+66× and 27× lower traced allocation peaks on this machine. These bounds support
+an optional choice for qualified workloads; they do not select defaults for
+other geometries, trajectories or hardware. The
+<a href="../../assets/newton-krylov-cpu/workers-a01366f.jsonl">pre-fix candidate workers</a>
+are retained with their original source hashes; this table uses refreshed runs
+after the callback-buffer ownership corrections.</p>
+<p>Reproduce on Linux with a suitable available CPU in place of <code>0</code>:</p>
+<pre><code class="language-bash">taskset -c 0 uv run --no-sync python -m scripts.benchmark_newton_krylov \
+  --sizes 32 128 512 --repeats 7 --workers-per-case 3 --require-success \
+  --output /tmp/newton-krylov-workers.jsonl
+</code></pre>
 <h2 id="failure-and-adaptive-stepping">Failure and adaptive stepping<a class="headerlink" href="#failure-and-adaptive-stepping" title="Permanent link">&para;</a></h2>
 <p>Nonconvergence is data until an integration boundary applies policy:</p>
 <table>
@@ -2320,8 +2560,9 @@ diagnostics.require_converged()
 </code></pre>
 <p><code>NonlinearMethodConfig</code> defaults to the backend-neutral <code>DenseNewtonSolver</code> and
 also accepts another <code>NonlinearSolver</code> implementation. It never stores an
-array namespace or backend module. A JVP-only configuration needs a custom
-solver that consumes <code>NonlinearProblem.jvp</code>; the default dense solver still
+array namespace or backend module. A JVP-only configuration can use the eager
+NumPy <code>NewtonKrylovSolver</code> or another implementation consuming
+<code>NonlinearProblem.jvp</code>; the default dense solver still
 requires the dense callback and raises if it is absent.</p>
 <h3 id="matrix-free-stage-boundary">Matrix-free stage boundary<a class="headerlink" href="#matrix-free-stage-boundary" title="Permanent link">&para;</a></h3>
 <p>For stage time <code>t_i</code>, predictor <code>base</code> and diagonal step <code>d = dt * gamma</code>,
@@ -2345,17 +2586,17 @@ JAX and Torch. JAX fixed solves support JIT, first gradients and <code>vmap</cod
 contract; Torch supports eager functional first gradients. The existing
 public Torch SDIRK convergence check calls <code>.item()</code> and excludes <code>vmap</code>.
 This change does not qualify Torch compilation or GPU execution.</p>
-<p>These derivatives follow the <strong>finite iterations performed by the supplied
-solver</strong>. They are not a converged-root derivative rule. A production
-Newton--Krylov solver, its inner/outer tolerances, preconditioner, globalization
-and linear-solve diagnostics remain separate work using the checked linear
-operator interfaces. The stage boundary adds no operator registry, automatic
+<p>These native derivatives follow the <strong>finite iterations performed by the supplied
+test solver</strong>. The eager NumPy Newton–Krylov implementation described above has
+its own value, failure and finite-difference sensitivity qualification; it
+supplies no native transformation rule. The stage boundary adds no operator registry, automatic
 backend selection or implicit differentiation rule. Keep a custom solver's
 configuration and derivative semantics fixed when replaying a recorded mesh;
 custom configuration is caller-owned rather than automatically fingerprinted.</p>
 <h2 id="integration-diagnostics-and-replay">Integration diagnostics and replay<a class="headerlink" href="#integration-diagnostics-and-replay" title="Permanent link">&para;</a></h2>
 <p><code>CoreSolver.run</code> and <code>replay_adaptive_schedule</code> return
-<code>NonlinearIntegrationDiagnostics</code> for SDIRK2. All fields are native arrays.
+<code>NonlinearIntegrationDiagnostics</code> for SDIRK2. All arrays, including nested
+<code>work</code> evidence, retain the native namespace.
 <code>step_converged</code>, <code>step_accepted</code>, and <code>step_sizes</code> describe attempted steps;
 rejected adaptive attempts remain present. <code>stages_per_step</code> maps the flattened
 stage fields back to each attempt. The stage fields include convergence flags,

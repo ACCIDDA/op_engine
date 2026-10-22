@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://accidda.github.io/op_engine/0.8/api-reference/nonlinear_solver/">
       
       
-        <link rel="prev" href="../model_core/">
+        <link rel="prev" href="../newton_krylov/">
       
       
         <link rel="next" href="../observation_reductions/">
@@ -1568,6 +1568,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../newton_krylov/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Newton Krylov
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1784,6 +1812,17 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#op_engine.nonlinear_solver.NonlinearStageContext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearStageContext
+      
+    </span>
+  </a>
   
 </li>
         
@@ -2339,6 +2378,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#op_engine.nonlinear_solver.NonlinearStageContext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NonlinearStageContext
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#op_engine.nonlinear_solver.require_converged" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2515,7 +2565,7 @@ not install an implicit-function or custom derivative rule.</p>
                 <code>problem</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="NonlinearProblem(residual, jacobian=None, jvp=None)
+                  <code><a class="autorefs autorefs-internal" title="NonlinearProblem(residual, jacobian=None, jvp=None, context=None)
 
   
       dataclass
@@ -2612,30 +2662,7 @@ not install an implicit-function or custom derivative rule.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/nonlinear_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">198</span>
-<span class="normal">199</span>
-<span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">221</span>
 <span class="normal">222</span>
 <span class="normal">223</span>
 <span class="normal">224</span>
@@ -2707,7 +2734,30 @@ not install an implicit-function or custom derivative rule.</p>
 <span class="normal">290</span>
 <span class="normal">291</span>
 <span class="normal">292</span>
-<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>  <span class="c1"># noqa: PLR0914</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>  <span class="c1"># noqa: PLR0914</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">NonlinearProblem</span><span class="p">,</span>
     <span class="n">initial_guess</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -2955,28 +3005,28 @@ not install an implicit-function or custom derivative rule.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/nonlinear_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
-<span class="normal"> 85</span>
-<span class="normal"> 86</span>
-<span class="normal"> 87</span>
-<span class="normal"> 88</span>
-<span class="normal"> 89</span>
-<span class="normal"> 90</span>
-<span class="normal"> 91</span>
-<span class="normal"> 92</span>
-<span class="normal"> 93</span>
-<span class="normal"> 94</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 94</span>
 <span class="normal"> 95</span>
 <span class="normal"> 96</span>
 <span class="normal"> 97</span>
 <span class="normal"> 98</span>
 <span class="normal"> 99</span>
-<span class="normal">100</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate static solver parameters.</span>
 
 <span class="sd">    Raises:</span>
@@ -3041,15 +3091,15 @@ not install an implicit-function or custom derivative rule.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/op_engine/nonlinear_solver.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">299</span>
-<span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
-<span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">NonlinearSolveResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">NonlinearSolveResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Store the failed result and its diagnostics."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
     <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">diagnostics</span>
@@ -3087,7 +3137,7 @@ not install an implicit-function or custom derivative rule.</p>
 
 
 <h3 id="op_engine.nonlinear_solver.NonlinearProblem" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">NonlinearProblem</span><span class="p">(</span><span class="n">residual</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jvp</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">NonlinearProblem</span><span class="p">(</span><span class="n">residual</span><span class="p">,</span> <span class="n">jacobian</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jvp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -3148,6 +3198,17 @@ the same structure as <code>x</code>. Solvers may require either derivative form
             <td>
               <div class="doc-md-description">
                 <p>Optional matrix-free Jacobian-vector product.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.nonlinear_solver.NonlinearProblem.context">context</span></code></td>
+            <td>
+                  <code><span title="object">object</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Caller-owned stage/linearization metadata; no cache is created.</p>
               </div>
             </td>
           </tr>
@@ -3214,20 +3275,20 @@ the same structure as <code>x</code>. Solvers may require either derivative form
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/nonlinear_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
-<span class="normal">48</span>
-<span class="normal">49</span>
-<span class="normal">50</span>
-<span class="normal">51</span>
-<span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
-<span class="normal">56</span>
-<span class="normal">57</span>
-<span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Validate callback presence.</span>
 
 <span class="sd">    Raises:</span>
@@ -3260,7 +3321,7 @@ the same structure as <code>x</code>. Solvers may require either derivative form
 
 
 <h3 id="op_engine.nonlinear_solver.NonlinearSolveDiagnostics" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">NonlinearSolveDiagnostics</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">residual_evaluations</span><span class="p">,</span> <span class="n">jacobian_evaluations</span><span class="p">,</span> <span class="n">initial_residual_norm</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">,</span> <span class="n">step_norm</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">NonlinearSolveDiagnostics</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">residual_evaluations</span><span class="p">,</span> <span class="n">jacobian_evaluations</span><span class="p">,</span> <span class="n">initial_residual_norm</span><span class="p">,</span> <span class="n">residual_norm</span><span class="p">,</span> <span class="n">step_norm</span><span class="p">,</span> <span class="n">linear_solves</span><span class="o">=</span><span class="p">(),</span> <span class="n">termination</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">jvp_evaluations</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">backtracks</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -3363,6 +3424,54 @@ host synchronization or tracer conversion in compiled code.</p>
             <td>
               <div class="doc-md-description">
                 <p>RMS norm of the final damped update.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.nonlinear_solver.NonlinearSolveDiagnostics.linear_solves">linear_solves</span></code></td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<a class="autorefs autorefs-internal" title="LinearSolveDiagnostics(converged, residual_norm, tolerance, iterations, message)
+
+  
+      dataclass
+   (op_engine.linear_operator.LinearSolveDiagnostics)" href="../linear_operator/#op_engine.linear_operator.LinearSolveDiagnostics">LinearSolveDiagnostics</a>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Checked eager inner solves in execution order.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.nonlinear_solver.NonlinearSolveDiagnostics.termination">termination</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional eager solver termination code (zero is unspecified).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.nonlinear_solver.NonlinearSolveDiagnostics.jvp_evaluations">jvp_evaluations</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of residual derivative actions evaluated.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="op_engine.nonlinear_solver.NonlinearSolveDiagnostics.backtracks">backtracks</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of step-length reductions attempted.</p>
               </div>
             </td>
           </tr>
@@ -3503,13 +3612,13 @@ host synchronization or tracer conversion in compiled code.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/nonlinear_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">problem</span><span class="p">:</span> <span class="n">NonlinearProblem</span><span class="p">,</span>
     <span class="n">initial_guess</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span>
@@ -3521,6 +3630,55 @@ host synchronization or tracer conversion in compiled code.</p>
     </div>
 
 </div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="op_engine.nonlinear_solver.NonlinearStageContext" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">NonlinearStageContext</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">step_size</span><span class="p">,</span> <span class="n">diagonal_step</span><span class="p">,</span> <span class="n">stage_index</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#op_engine.nonlinear_solver.NonlinearStageContext" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Explicit SDIRK stage metadata, freshly bound on every stage and retry.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3635,25 +3793,25 @@ compiled integrations must return diagnostics and validate them afterward.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/op_engine/nonlinear_solver.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
-<span class="normal">314</span>
-<span class="normal">315</span>
-<span class="normal">316</span>
-<span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span>
-<span class="normal">325</span>
-<span class="normal">326</span>
-<span class="normal">327</span>
-<span class="normal">328</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">NonlinearSolveResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearSolveResult</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">require_converged</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">NonlinearSolveResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NonlinearSolveResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return a converged result or raise at an eager host boundary.</span>
 
 <span class="sd">    This function intentionally converts the scalar convergence array to a</span>
