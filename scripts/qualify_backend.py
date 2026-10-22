@@ -69,6 +69,11 @@ def main() -> int:
                 "tests/op_engine/test_random_streams.py",
                 "tests/op_engine/test_state_diagnostics.py",
                 *(
+                    ["tests/op_engine/test_numpy_event_update.py"]
+                    if args.backend == "numpy"
+                    else []
+                ),
+                *(
                     [
                         "tests/op_engine/test_array_namespace.py",
                         "tests/op_engine/test_model_core_autograd.py",

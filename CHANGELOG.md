@@ -7,6 +7,11 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Apply single NumPy stochastic events through one selected batch cell in a
+  fresh state copy, avoiding dense firing/delta temporaries. Retain portable
+  namespace behavior and exact stochastic replay; record paired solver,
+  allocation and optional native feasibility measurements separately.
+
 - Add an explicitly registered, bounded CPU Torch fullgraph Inductor loop adapter
   for fixed explicit methods, optional Tensor/None carry and measured output
   trees. Qualify values/first gradients, input/output bounds and strict failure

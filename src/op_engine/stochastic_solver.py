@@ -492,6 +492,16 @@ class _ReactionNetwork:
         Returns:
             State after applying the selected reaction once.
         """
+        if type(state) is np.ndarray and type(self.stoichiometry) is np.ndarray:
+            event = list(np.unravel_index(flat_event_index, self.reaction_shape))
+            reaction = int(event[self.reaction_axis])
+            selector: list[int | slice] = [int(index) for index in event]
+            selector[self.reaction_axis] = slice(None)
+            result = state.copy()
+            result[tuple(selector)] += self.stoichiometry[:, reaction].astype(
+                state.dtype, copy=False
+            )
+            return cast("Array", result)
         xp = _namespace_of(state)
         n_events = int(np.prod(self.reaction_shape))
         event_ids = xp.arange(n_events)
