@@ -15,6 +15,45 @@ permissions:
   contents: 'read'
 
 jobs:
+  diffrax:
+    name: 'Compiled Diffrax CPU (${{ matrix.contract }}, 3.12)'
+    runs-on: 'ubuntu-latest'
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      JAX_PLATFORMS: 'cpu'
+    strategy:
+      matrix:
+        include:
+          - contract: 'current'
+            jax: '0.12.0'
+            numpy: '2.5.4'
+            compat: '1.15.0'
+          - contract: 'minimum'
+            jax: '0.4.38'
+            numpy: '2.0.2'
+            compat: '1.12.0'
+    steps:
+      - uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install explicit CPU numerical contract'
+        run: |
+          uv venv --python 3.12
+          uv pip install -e '.[diffrax]' pytest 'diffrax==0.7.2' 'jax==${{ matrix.jax }}' 'numpy==${{ matrix.numpy }}' 'array-api-compat==${{ matrix.compat }}'
+          uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@bbde00697428f16f6cf948e7aff207f7b65231c8'
+      - name: 'Require current compiler values and each claimed transform without skips'
+        run: 'uv run --no-sync python scripts/qualify_backend.py jax --diffrax'
+      - name: 'Check actual compiled hierarchical fixed/adaptive consumers'
+        run: >-
+          uv run --no-sync python -m scripts.benchmark_hierarchical
+          --groups 1 --local-dimensions 1 --steps 4
+          --solvers compiled-diffrax-fixed compiled-diffrax-adaptive
+          --derivatives trajectory grad-rev --repeats 1 --timeout 180
+          --require-success --output /tmp/compiled-diffrax-smoke.jsonl
   torch-compile:
     name: 'Torch compiled sequential CPU (3.12)'
     runs-on: 'ubuntu-latest'
