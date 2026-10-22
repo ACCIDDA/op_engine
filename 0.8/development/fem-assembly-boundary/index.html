@@ -1059,6 +1059,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/linear-operators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Actions and External Solves
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/steady-states/" class="md-nav__link">
         
   
@@ -1485,6 +1513,34 @@
     
   
     Firing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/linear_operator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Operator
   
 
     
@@ -2077,10 +2133,13 @@ Array-API linear solve. A JAX-native dense assembly remains differentiable
 through matrix construction and solve; eager NumPy/SciPy assembly and
 factorization do not. An external PETSc or FEniCSx provider would own any
 custom differentiation rule for its solver.</p>
-<p>Nonlinear forms such as (M(y,t)\dot y=r(t,y)), differential-algebraic
-constraints, and external Krylov/preconditioner callbacks are outside the
-current stage-operator contract. They require a concrete use case before a new
-portable solver interface is added.</p>
+<p>An <a href="../../guides/linear-operators/">external eager solve callback</a> can now opt
+into checked operator actions, per-column original-residual diagnostics and
+explicit inverse-preconditioner/context inputs through the existing adapter
+registry. It owns any preparation/cache lifecycle; native differentiable
+implicit solves and concrete banded/Krylov adapters need separate qualification.
+Nonlinear forms such as (M(y,t)\dot y=r(t,y)) and differential-algebraic
+constraints remain separate, use-case-led work.</p>
 <h2 id="proof-of-concept">Proof of concept<a class="headerlink" href="#proof-of-concept" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/ACCIDDA/op_engine/blob/main/examples/fem_diffusion.py"><code>examples/fem_diffusion.py</code></a>
 assembles a consistent P1 mass matrix and diffusion stiffness matrix on a 1D

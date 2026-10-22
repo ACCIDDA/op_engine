@@ -25,6 +25,10 @@
          <lastmod>2026-10-22</lastmod>
     </url>
     <url>
+         <loc>https://accidda.github.io/op_engine/0.8/api-reference/linear_operator/</loc>
+         <lastmod>2026-10-22</lastmod>
+    </url>
+    <url>
          <loc>https://accidda.github.io/op_engine/0.8/api-reference/loop_ops/</loc>
          <lastmod>2026-10-22</lastmod>
     </url>
@@ -154,6 +158,10 @@
     </url>
     <url>
          <loc>https://accidda.github.io/op_engine/0.8/guides/linear-multistep-methods/</loc>
+         <lastmod>2026-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://accidda.github.io/op_engine/0.8/guides/linear-operators/</loc>
          <lastmod>2026-10-22</lastmod>
     </url>
     <url>
