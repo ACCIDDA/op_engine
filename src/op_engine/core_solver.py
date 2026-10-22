@@ -763,8 +763,8 @@ class NonlinearMethodConfig:
         """Validate the method boundary without selecting an array backend.
 
         Raises:
-            TypeError: If a callback or nonlinear solver is invalid.
-            ValueError: If neither derivative form is supplied.
+            TypeError: If a callback or nonlinear solver is invalid, or neither
+                derivative form is supplied.
         """
         for name, callback in (
             ("rhs_jacobian", self.rhs_jacobian),
@@ -775,7 +775,7 @@ class NonlinearMethodConfig:
                 raise TypeError(msg)
         if self.rhs_jacobian is None and self.rhs_jvp is None:
             msg = "Supply at least one of rhs_jacobian or rhs_jvp"
-            raise ValueError(msg)
+            raise TypeError(msg)
         if not isinstance(self.solver, NonlinearSolver):
             msg = "solver must implement the NonlinearSolver protocol"
             raise TypeError(msg)

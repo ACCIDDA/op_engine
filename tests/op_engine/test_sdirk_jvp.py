@@ -364,7 +364,7 @@ def test_numpy_nonlinear_config_retains_dense_positional_arguments() -> None:
     assert config.rhs_jacobian is jacobian
     assert config.rhs_jvp is None
     assert config.solver is solver
-    with pytest.raises(ValueError, match="at least one"):
+    with pytest.raises(TypeError, match="at least one"):
         NonlinearMethodConfig()
     for field in ("rhs_jacobian", "rhs_jvp"):
         with pytest.raises(TypeError, match=f"{field} must be callable"):
