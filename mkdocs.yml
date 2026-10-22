@@ -58,6 +58,7 @@ nav:
       - Getting Started: guides/getting-started.md
       - Compiled Fixed Explicit Loops: guides/fixed-scan.md
       - Optional Torch Compiled Loops: guides/torch-loop.md
+      - Optional Compiled Diffrax Terms: guides/diffrax.md
       - Stochastic CPU Measurements: guides/stochastic-performance.md
       - Forward Parameter Sensitivities: guides/sensitivities.md
       - Output-state Checks: guides/output-state-checks.md
@@ -84,6 +85,7 @@ nav:
       - Adaptive Tau: api-reference/adaptive_tau.md
       - Batched Ssa: api-reference/batched_ssa.md
       - Core Solver: api-reference/core_solver.md
+      - Diffrax: api-reference/diffrax.md
       - Firing: api-reference/firing.md
       - Loop Ops: api-reference/loop_ops.md
       - Matrix Ops: api-reference/matrix_ops.md

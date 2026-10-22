@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Bind current compiler flat/PyTree RHS artifacts to optional native Diffrax
+  terms with explicit named parameter, dtype and shape checks. Qualify current
+  and minimum CPU dependencies, scoped derivatives and hierarchical consumers;
+  reject unsupported operator/history/forcing contributions and retain caller
+  control of numerical methods, output storage and failures.
+
 - Apply single NumPy stochastic events through one selected batch cell in a
   fresh state copy, avoiding dense firing/delta temporaries. Retain portable
   namespace behavior and exact stochastic replay; record paired solver,

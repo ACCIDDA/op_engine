@@ -7,6 +7,13 @@ failure. Ordinary optional skips in baseline tests are separate evidence.
 Provider integration tests run separately; provider success cannot substitute
 for these core contracts.
 
+The optional [compiled Diffrax term](diffrax.md) has separate required current
+and minimum CPU jobs. They pin the current compiler source, execute 31 native
+value/transform/error cases with zero skips and run the real hierarchical
+fixed/adaptive consumer. Use `scripts/qualify_backend.py jax --diffrax` with
+Diffrax and the qualified compiler explicitly installed. Ordinary base imports
+and required NumPy/JAX/Torch contracts keep their existing dependency boundaries.
+
 The same required backend runner includes native [stored-time observations](observations.md).
 Independent scalar/field values and error contracts run with NumPy; JAX JIT/vmap
 and initial-state/observation-parameter gradients run in float64; CPU Torch
