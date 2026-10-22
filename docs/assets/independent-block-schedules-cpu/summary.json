@@ -1,0 +1,128 @@
+{
+  "workload": "four state cells per independent block, repeated rate -0.2 and one rate -50, shared decay0.15, initialX1/Y2; all18workers retained",
+  "cpu_model": "Intel(R) Core(TM) Ultra 7 265U",
+  "aggregation": "median across three independent workers; each warm median contains seven synchronized calls",
+  "source_hashes_verified": true,
+  "summary": [
+    {
+      "blocks": 4,
+      "policy": "shared",
+      "workers": 3,
+      "model_setup_seconds": 0.16409835097147152,
+      "discovery_seconds": 0.42690151202259585,
+      "prepare_seconds": 0.0013882839703001082,
+      "compile_seconds": 0.21743156196316704,
+      "first_call_seconds": 0.0004475410096347332,
+      "median_replay_seconds": 1.333095133304596e-05,
+      "total_block_steps": 212,
+      "process_peak_rss_bytes": 287412224,
+      "compiler_memory_estimates": {
+        "alias_size_in_bytes": 0,
+        "argument_size_in_bytes": 84,
+        "output_size_in_bytes": 272,
+        "temp_size_in_bytes": 1048
+      },
+      "max_pointwise_scaled_error": 0.022411144051658487
+    },
+    {
+      "blocks": 4,
+      "policy": "independent-length",
+      "workers": 3,
+      "model_setup_seconds": 0.18892549199517816,
+      "discovery_seconds": 1.097503561002668,
+      "prepare_seconds": 0.0020235609845258296,
+      "compile_seconds": 0.7392104329774156,
+      "first_call_seconds": 0.00047865399392321706,
+      "median_replay_seconds": 3.150297561660409e-05,
+      "total_block_steps": 62,
+      "process_peak_rss_bytes": 322240512,
+      "compiler_memory_estimates": {
+        "alias_size_in_bytes": 0,
+        "argument_size_in_bytes": 84,
+        "output_size_in_bytes": 272,
+        "temp_size_in_bytes": 1496
+      },
+      "max_pointwise_scaled_error": 0.022411144051658487
+    },
+    {
+      "blocks": 4,
+      "policy": "independent-serial",
+      "workers": 3,
+      "model_setup_seconds": 0.18224088399438187,
+      "discovery_seconds": 1.1037057689973153,
+      "prepare_seconds": 0.001879218965768814,
+      "compile_seconds": 0.6662737089791335,
+      "first_call_seconds": 0.00047345698112621903,
+      "median_replay_seconds": 3.2059033401310444e-05,
+      "total_block_steps": 62,
+      "process_peak_rss_bytes": 313151488,
+      "compiler_memory_estimates": {
+        "alias_size_in_bytes": 0,
+        "argument_size_in_bytes": 84,
+        "output_size_in_bytes": 272,
+        "temp_size_in_bytes": 2520
+      },
+      "max_pointwise_scaled_error": 0.022411144051658487
+    },
+    {
+      "blocks": 16,
+      "policy": "shared",
+      "workers": 3,
+      "model_setup_seconds": 0.18495352403260767,
+      "discovery_seconds": 0.5457459439639933,
+      "prepare_seconds": 0.0019340480212122202,
+      "compile_seconds": 0.3417227410245687,
+      "first_call_seconds": 0.0004643569700419903,
+      "median_replay_seconds": 4.2953004594892263e-05,
+      "total_block_steps": 848,
+      "process_peak_rss_bytes": 287748096,
+      "compiler_memory_estimates": {
+        "alias_size_in_bytes": 0,
+        "argument_size_in_bytes": 324,
+        "output_size_in_bytes": 1040,
+        "temp_size_in_bytes": 2584
+      },
+      "max_pointwise_scaled_error": 0.022411144051658487
+    },
+    {
+      "blocks": 16,
+      "policy": "independent-length",
+      "workers": 3,
+      "model_setup_seconds": 0.1884542959742248,
+      "discovery_seconds": 2.7367628490319476,
+      "prepare_seconds": 0.002398356969933957,
+      "compile_seconds": 0.8275961559847929,
+      "first_call_seconds": 0.0005048519815318286,
+      "median_replay_seconds": 4.653795622289181e-05,
+      "total_block_steps": 98,
+      "process_peak_rss_bytes": 322527232,
+      "compiler_memory_estimates": {
+        "alias_size_in_bytes": 0,
+        "argument_size_in_bytes": 324,
+        "output_size_in_bytes": 1040,
+        "temp_size_in_bytes": 3672
+      },
+      "max_pointwise_scaled_error": 0.022411144051658487
+    },
+    {
+      "blocks": 16,
+      "policy": "independent-serial",
+      "workers": 3,
+      "model_setup_seconds": 0.19120818102965131,
+      "discovery_seconds": 3.034917518030852,
+      "prepare_seconds": 0.0024233500007539988,
+      "compile_seconds": 2.7839901050319895,
+      "first_call_seconds": 0.0006602400098927319,
+      "median_replay_seconds": 7.787300273776054e-05,
+      "total_block_steps": 98,
+      "process_peak_rss_bytes": 394760192,
+      "compiler_memory_estimates": {
+        "alias_size_in_bytes": 0,
+        "argument_size_in_bytes": 324,
+        "output_size_in_bytes": 1040,
+        "temp_size_in_bytes": 8664
+      },
+      "max_pointwise_scaled_error": 0.022411144051658487
+    }
+  ]
+}

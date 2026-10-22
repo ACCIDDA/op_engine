@@ -15,6 +15,56 @@ permissions:
   contents: 'read'
 
 jobs:
+  independent-block-schedules:
+    name: 'Independent block schedules (${{ matrix.contract }}, CPU, 3.12)'
+    runs-on: 'ubuntu-latest'
+    env:
+      JAX_PLATFORMS: 'cpu'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    strategy:
+      matrix:
+        include:
+          - contract: 'current'
+            jax: '0.12.0.1'
+            numpy: '2.5.4'
+            scipy: '1.18.1'
+            compat: '1.15.0'
+          - contract: 'minimum'
+            jax: '0.4.38'
+            numpy: '2.2.6'
+            scipy: '1.13.1'
+            compat: '1.12.0'
+    defaults:
+      run:
+        working-directory: 'flepimop2-op_engine'
+    steps:
+      - uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+      - uses: 'astral-sh/setup-uv@v7.2.0'
+        with:
+          python-version: '3.12'
+      - name: 'Install the pinned provider and selected CPU numerical contract'
+        run: |
+          uv sync --dev
+          uv pip install 'jax==${{ matrix.jax }}' 'numpy==${{ matrix.numpy }}' 'scipy==${{ matrix.scipy }}' 'array-api-compat==${{ matrix.compat }}'
+      - name: 'Require discovery, independent meshes, values, gradients and proof refusal'
+        run: |
+          .venv/bin/python -m pytest tests/test_independent_block_schedules.py --junitxml=/tmp/block-schedules.xml
+          .venv/bin/python -c 'import xml.etree.ElementTree as E; cases=E.parse("/tmp/block-schedules.xml").findall(".//testcase"); assert len(cases)>=34 and not any(c.find("skipped") is not None for c in cases)'
+      - name: 'Check common accuracy gates and complete cost accounting'
+        run: >-
+          .venv/bin/python -m benchmarks.independent_schedules
+          --blocks 2 --repeats 1 --output /tmp/independent-block-smoke.jsonl
+      - name: 'Retain per-policy measurements and test evidence'
+        if: 'always()'
+        uses: 'actions/upload-artifact@v7'
+        with:
+          name: 'independent-block-schedules-${{ matrix.contract }}'
+          path: |
+            /tmp/independent-block-smoke*
+            /tmp/block-schedules.xml
   scipy-minimum:
     name: 'Eager operators oldest compatible SciPy (3.12)'
     runs-on: 'ubuntu-latest'

@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Add opt-in independent adaptive schedules for compiler-proven JAX blocks,
+  with per-block context and replay diagnostics, equal-length batching without
+  padded ODE steps, a batch-size limit and serial replay. Preserve shared-mesh
+  defaults and qualify frozen-mesh parameter/initial-state gradients, proof
+  refusal and bounded CPU discovery/compile/replay/memory measurements.
+
 - Add an optional eager NumPy Newton–Krylov solver using full residual JVPs,
   checked GMRES inner solves and bounded Armijo backtracking. Bind inverse
   preparation to each current stage/linearization, preserve failed candidates

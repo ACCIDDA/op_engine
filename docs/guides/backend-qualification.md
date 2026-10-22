@@ -63,6 +63,19 @@ Real op_system tables, provider preparation and structured layouts are checked
 separately in provider integration tests. These do not qualify implicit/hybrid
 forcing or derivatives of jump locations.
 
+## Independent provider block schedules
+
+Required `Independent block schedules (current|minimum, CPU, 3.12)` jobs run the
+real pinned compiler/provider contract, independent mesh discovery, replay,
+prepared JIT, shared/local/initial-state gradients, per-block freshness and
+proof-refusal tests. They require nonempty selection with zero skips. JAX
+0.12.0.1/NumPy 2.5.4 and JAX 0.4.38/NumPy 2.2.6 are pinned; the provider's
+FlepiMoP2 dependency determines that joint NumPy floor. A tiny isolated benchmark
+checks all three scheduling policies against common analytic accuracy gates and
+retains complete lifecycle costs. These gates complement the core/backend and
+full provider suites. See [independent block schedules](independent-block-schedules.md)
+for batching, storage, transformation and qualification scope.
+
 ## Method and execution matrix
 
 The table describes the small required structured workload, not all possible

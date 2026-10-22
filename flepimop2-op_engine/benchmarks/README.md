@@ -83,6 +83,18 @@ the state layout being qualified. Dynamic alternate sample values are used for
 cache hits so the result also
 checks that contents are not structural cache keys.
 
+## Independent adaptive blocks
+
+Run `JAX_PLATFORMS=cpu .venv/bin/python -m benchmarks.independent_schedules
+--blocks 4 16 --workers-per-case 3 --repeats 7 --output /tmp/blocks.jsonl` after
+provider dependency synchronization. Each shared, length-batched independent,
+and serial independent policy runs in an isolated CPU worker. All must pass a
+common analytic accuracy gate and replay diagnostics. Receipts include discovery,
+preparation, compilation, first-call and warm replay costs, per-block work,
+source hashes, compiler memory estimates and process peak RSS. These memory
+quantities have different meanings; see the
+[guide](../../docs/guides/independent-block-schedules.md) before comparing them.
+
 ## Focused diagnostics
 
 - `prepared_execution.py` compares ordinary and cached provider staging.

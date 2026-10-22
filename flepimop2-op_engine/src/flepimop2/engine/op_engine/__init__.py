@@ -200,6 +200,11 @@ class AdaptiveSchedule:
         Raises:
             ValueError: If the solver method or adaptive controls changed.
         """
+        if config.block_schedule != "shared":
+            msg = (
+                "A shared adaptive schedule cannot replay an independent block policy."
+            )
+            raise ValueError(msg)
         if (
             config.state_layout is not self.state_layout
             or config.block_axis != self.block_axis
@@ -279,6 +284,105 @@ class AdaptiveSchedule:
             raise ValueError(msg)
 
 
+@dataclass(frozen=True, slots=True)
+class IndependentBlockSchedule:
+    """One separately discovered mesh and context per compiler-proven block.
+
+    Block order is the compiler axis order. Meshes are immutable host metadata;
+    they do not retain parameter arrays, states, or internal state trajectories.
+    Replay batching is an execution choice and can change without rediscovery.
+    """
+
+    blocks: tuple[AdaptiveSchedule, ...]
+    block_axis: str
+    context_signature: str
+
+    def __post_init__(self) -> None:
+        """Reject empty, inconsistent, or reordered block artifacts."""
+        blocks = tuple(self.blocks)
+        object.__setattr__(self, "blocks", blocks)
+        if not blocks or not all(
+            isinstance(block, AdaptiveSchedule) for block in blocks
+        ):
+            msg = (
+                "Independent block schedules require non-empty AdaptiveSchedule blocks."
+            )
+            raise ValueError(msg)
+        for index, block in enumerate(blocks):
+            if (
+                block.state_layout is not StateLayout.BLOCK
+                or block.step_schedule.output_times != self.output_times
+                or block.context_signature != self.block_context(index)
+            ):
+                msg = (
+                    "Independent block schedules have inconsistent grid, "
+                    "layout or context."
+                )
+                raise ValueError(msg)
+
+    @property
+    def output_times(self) -> tuple[float, ...]:
+        """Return the common requested output grid."""
+        return self.blocks[0].step_schedule.output_times
+
+    @property
+    def step_counts(self) -> tuple[int, ...]:
+        """Return actual accepted-step counts in original block order."""
+        return tuple(
+            sum(map(len, block.step_schedule.step_sizes)) for block in self.blocks
+        )
+
+    def block_context(self, index: int) -> str:
+        """Bind one mesh to its compiler-axis position and discovery context."""
+        value = f"{self.context_signature}:{self.block_axis}:{index}".encode()
+        return hashlib.sha256(value).hexdigest()
+
+    def validate_config(self, config: OpEngineEngineConfig) -> None:
+        """Require the independent policy and unchanged numerical controls."""
+        if config.block_schedule != "independent":
+            msg = "Independent block schedules require block_schedule='independent'."
+            raise ValueError(msg)
+        shared = config.model_copy(update={"block_schedule": "shared"})
+        for block in self.blocks:
+            block.validate_config(shared)
+
+    def validate_context(self, context_signature: str) -> None:
+        """Reject a changed compiler/system, block layout or caller tag."""
+        if context_signature != self.context_signature:
+            msg = (
+                "Independent block schedule context changed; discover a fresh schedule."
+            )
+            raise ValueError(msg)
+
+    def batches(self, config: OpEngineEngineConfig) -> tuple[tuple[int, ...], ...]:
+        """Group equal total lengths, with no padding, or execute serially.
+
+        A size limit splits each bucket while retaining original indices.
+        Different interval boundaries are carried in each block's plan arrays.
+        """
+        buckets: dict[int, list[int]] = {}
+        for index, count in enumerate(self.step_counts):
+            key = index if config.block_batching == "serial" else count
+            buckets.setdefault(key, []).append(index)
+        limit = 1 if config.block_batching == "serial" else config.block_batch_size
+        return tuple(
+            tuple(indices[start : start + (limit or len(indices))])
+            for indices in buckets.values()
+            for start in range(0, len(indices), limit or len(indices))
+        )
+
+
+ProviderAdaptiveSchedule = AdaptiveSchedule | IndependentBlockSchedule
+
+
+class _JaxReplayPlan(NamedTuple):
+    """Per-member plan arrays; equal-length members need no inactive padding."""
+
+    step_times: Array
+    step_sizes: Array
+    output_slots: Array
+
+
 class AdaptiveReplayDiagnostics(NamedTuple):
     """Array-valued local-error diagnostics from frozen-mesh replay."""
 
@@ -294,7 +398,7 @@ class AdaptiveReplayDiagnostics(NamedTuple):
         Returns:
             This unchanged record after successful host-side validation.
         """
-        if not bool(self.accurate.item()):
+        if not bool(_namespace_of(self.accurate).all(self.accurate).item()):
             raise AdaptiveScheduleAccuracyError(self)
         return self
 
@@ -316,9 +420,10 @@ class AdaptiveRunResult:
     """Trajectory, frozen schedule, and optional nonlinear diagnostics."""
 
     trajectory: Array
-    schedule: AdaptiveSchedule
+    schedule: ProviderAdaptiveSchedule
     diagnostics: NonlinearIntegrationDiagnostics | None = None
     replay_diagnostics: AdaptiveReplayDiagnostics | None = None
+    block_replay_diagnostics: AdaptiveReplayDiagnostics | None = None
 
     def require_converged(self) -> AdaptiveRunResult:
         """Validate any nonlinear diagnostics attached to this result.
@@ -410,9 +515,10 @@ class _ExecutionResult:
     """Internal result shared by ordinary and schedule-aware entry points."""
 
     trajectory: Array
-    schedule: AdaptiveSchedule | None = None
+    schedule: ProviderAdaptiveSchedule | None = None
     diagnostics: NonlinearIntegrationDiagnostics | None = None
     replay_diagnostics: AdaptiveReplayDiagnostics | None = None
+    block_replay_diagnostics: AdaptiveReplayDiagnostics | None = None
 
 
 class _JaxDiscoveryInterval(NamedTuple):
@@ -721,7 +827,7 @@ def _prepared_execution_signature(  # noqa: PLR0917
     raw_params: Mapping[str, object],
     model_state: ModelStateSpecification | None,
     config: OpEngineEngineConfig,
-    schedule: AdaptiveSchedule | None,
+    schedule: ProviderAdaptiveSchedule | None,
 ) -> str:
     """Hash static execution structure while excluding dynamic contents.
 
@@ -744,7 +850,7 @@ def _prepared_execution_signature(  # noqa: PLR0917
         ),
         "parameter_contract": _signature_value(_prepared_value_contract(raw_params)),
         "adaptive_schedule": (
-            _signature_value(schedule.step_schedule) if schedule is not None else None
+            _signature_value(schedule) if schedule is not None else None
         ),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -1241,6 +1347,7 @@ def _run_jax_validated_adaptive_trajectory(
     error_reduction: Literal["rms", "max"],
     checkpoint: ReplayCheckpoint,
     checkpoint_chunk_size: int,
+    plan: _JaxReplayPlan | None = None,
 ) -> AdaptiveReplayDiagnostics:
     """Replay a frozen mesh and retain requested states plus error diagnostics.
 
@@ -1269,20 +1376,23 @@ def _run_jax_validated_adaptive_trajectory(
             error_factor=threshold,
         )
 
-    step_times = cast(
-        "Array",
-        xp.asarray(step_times_values, dtype=initial_state.dtype),
-    )
-    step_sizes = cast(
-        "Array",
-        xp.asarray(step_sizes_values, dtype=initial_state.dtype),
-    )
-    output_slot_values = np.full(len(step_sizes_values), -1, dtype=np.int32)
-    output_slot_values[output_indices] = np.arange(
-        len(output_indices),
-        dtype=np.int32,
-    )
-    output_slots = cast("Array", xp.asarray(output_slot_values))
+    if plan is not None:
+        step_times, step_sizes, output_slots = plan
+    else:
+        step_times = cast(
+            "Array",
+            xp.asarray(step_times_values, dtype=initial_state.dtype),
+        )
+        step_sizes = cast(
+            "Array",
+            xp.asarray(step_sizes_values, dtype=initial_state.dtype),
+        )
+        output_slot_values = np.full(len(step_sizes_values), -1, dtype=np.int32)
+        output_slot_values[output_indices] = np.arange(
+            len(output_indices),
+            dtype=np.int32,
+        )
+        output_slots = cast("Array", xp.asarray(output_slot_values))
     requested = cast(
         "Array",
         xp.zeros(
@@ -1912,7 +2022,7 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
     params: Mapping[IdentifierString, ParameterValue],
     model_state: ModelStateSpecification | None,
     config: OpEngineEngineConfig,
-    schedule: AdaptiveSchedule | None,
+    schedule: ProviderAdaptiveSchedule | None,
     *,
     n_state: int,
 ) -> tuple[
@@ -1924,6 +2034,9 @@ def _prepare_flat_explicit_executor(  # noqa: PLR0917
     Returns:
         Prepared array callable and its number of internal accepted steps.
     """
+    if isinstance(schedule, IndependentBlockSchedule):
+        msg = "Independent block schedules cannot execute a flat layout."
+        raise TypeError(msg)
     if schedule is None:
         step_times, step_sizes, output_indices = _fixed_step_plan(
             times,
@@ -2030,7 +2143,7 @@ def _prepare_structured_explicit_executor(  # noqa: PLR0917
     params: Mapping[IdentifierString, ParameterValue],
     model_state: ModelStateSpecification | None,
     config: OpEngineEngineConfig,
-    schedule: AdaptiveSchedule | None,
+    schedule: ProviderAdaptiveSchedule | None,
     *,
     n_state: int,
 ) -> tuple[
@@ -2048,6 +2161,8 @@ def _prepare_structured_explicit_executor(  # noqa: PLR0917
             config.fixed_max_step,
             forcing_breakpoints=config.forcing_breakpoints,
         )
+    elif isinstance(schedule, IndependentBlockSchedule):
+        step_sizes = ()
     else:
         _step_times, step_sizes, _output_indices = _schedule_step_plan(
             schedule.step_schedule, forcing_breakpoints=config.forcing_breakpoints
@@ -2079,6 +2194,17 @@ def _prepare_structured_explicit_executor(  # noqa: PLR0917
                 f"expected {(n_state,)}."
             )
             raise ValueError(msg)
+        if isinstance(schedule, IndependentBlockSchedule):
+            result = _run_independent_blocks(
+                system,
+                times,
+                y0,
+                raw_params,
+                config=config,
+                context_signature=schedule.context_signature,
+                schedule=schedule,
+            )
+            return result.trajectory
         states, _replay_diagnostics = _run_structured_deterministic(
             system,
             times,
@@ -2089,7 +2215,12 @@ def _prepare_structured_explicit_executor(  # noqa: PLR0917
         )
         return _format_result(times, states)
 
-    return execute, len(step_sizes)
+    internal_steps = (
+        sum(schedule.step_counts)
+        if isinstance(schedule, IndependentBlockSchedule)
+        else len(step_sizes)
+    )
+    return execute, internal_steps
 
 
 def _tree_weighted_sum(
@@ -2565,6 +2696,7 @@ def _run_jax_adaptive_explicit_pytree(
     error_reduction: Literal["rms", "max"],
     checkpoint: ReplayCheckpoint,
     checkpoint_chunk_size: int,
+    plan: _JaxReplayPlan | None = None,
 ) -> tuple[StateTree, AdaptiveReplayDiagnostics]:
     """Replay one shared adaptive schedule through a JAX state PyTree."""
     flat_initial = _flatten_state_tree(initial_state, template_shapes)
@@ -2577,7 +2709,7 @@ def _run_jax_adaptive_explicit_pytree(
         xp = _namespace_of(flat)
         return cast("Array", xp.reshape(flat, state.shape))
 
-    replay_diagnostics = _run_jax_adaptive_explicit_trajectory(
+    replay_diagnostics = _run_jax_validated_adaptive_trajectory(
         solver,
         flat_rhs,
         method=method,
@@ -2587,6 +2719,7 @@ def _run_jax_adaptive_explicit_pytree(
         error_reduction=error_reduction,
         checkpoint=checkpoint,
         checkpoint_chunk_size=checkpoint_chunk_size,
+        plan=plan,
     )
     flat_trajectory = _extract_states_2d(core, n_state=int(flat_initial.shape[0]))
     return (
@@ -2611,6 +2744,250 @@ def _select_block_axis(
         )
         raise ValueError(msg)
     return info
+
+
+def _validate_independent_block_state(state: Array) -> None:
+    """Require the qualified namespace and real integration/time precision."""
+    if not _is_jax_namespace(_namespace_of(state)):
+        msg = "Independent block schedules require JAX arrays."
+        raise TypeError(msg)
+    if str(state.dtype) not in {"float32", "float64"}:
+        msg = "Independent block schedules require real float32 or float64 states."
+        raise TypeError(msg)
+
+
+def _run_independent_blocks(
+    system: SystemABC,
+    times: np.ndarray,
+    y0: Array,
+    raw_params: Mapping[str, object],
+    *,
+    config: OpEngineEngineConfig,
+    context_signature: str,
+    schedule: IndependentBlockSchedule | None,
+) -> _ExecutionResult:
+    """Discover serial block meshes or replay equal-length vmapped buckets."""
+    import jax  # noqa: PLC0415
+
+    _validate_independent_block_state(y0)
+    xp = _namespace_of(y0)
+    template_shapes = system.option("template_shapes", None)
+    block_shapes = system.option("block_template_shapes", None)
+    stepper = system.option("block_pytree_stepper_fn", None)
+    if (
+        not isinstance(template_shapes, Mapping)
+        or not isinstance(block_shapes, Mapping)
+        or not callable(stepper)
+    ):
+        msg = (
+            "Independent block schedules require compiler-proven "
+            "block shapes and stepper."
+        )
+        raise TypeError(msg)
+    info = _select_block_axis(system.option("block_axes", ()), config.block_axis)
+    initial_tree = _flat_state_to_pytree(y0, template_shapes)
+    if set(info.state_axis_pos) != set(initial_tree) or info.size < 1:
+        msg = "The proven block axis must be present in every state template."
+        raise ValueError(msg)
+    state_axes = {name: info.state_axis_pos[name] for name in initial_tree}
+    param_axes = {name: info.param_axis_pos.get(name) for name in raw_params}
+    output_axes = {name: axis + 1 for name, axis in state_axes.items()}
+    run_config = config.to_run_config()
+
+    def rhs_for(
+        state: StateTree,
+        parameters: Mapping[str, object],
+    ) -> Callable[[Scalar, StateTree], StateTree]:
+        drift = _system_explicit_operator_drift(
+            system,
+            parameters,
+            state,
+            excluded_axes=(info.name,),
+        )
+        return _structured_rhs(
+            stepper,
+            parameters,
+            source="system option 'block_pytree_stepper_fn'",
+            operator_drift=drift,
+        )
+
+    def select(
+        values: Mapping[str, object],
+        axes: Mapping[str, int | None],
+        index: object,
+    ) -> dict[str, Any]:
+        return {
+            name: value
+            if axes[name] is None
+            else xp.take(value, index, axis=axes[name])
+            for name, value in values.items()
+        }
+
+    if schedule is None:
+        blocks: list[AdaptiveSchedule] = []
+        trajectories: list[StateTree] = []
+        for index in range(info.size):
+            state = select(initial_tree, state_axes, index)
+            parameters = select(raw_params, param_axes, index)
+            rhs = rhs_for(state, parameters)
+            initial = _flatten_state_tree(state, block_shapes)
+            core = _make_core(times, initial)
+            solver = CoreSolver(core)
+
+            def flat_rhs(
+                time: Scalar,
+                value: Array,
+                *,
+                active_rhs: Callable[[Scalar, StateTree], StateTree] = rhs,
+            ) -> Array:
+                tree = _flat_state_to_pytree(value, block_shapes)
+                result = _flatten_state_tree(active_rhs(time, tree), block_shapes)
+                return cast("Array", xp.reshape(result, value.shape))
+
+            mesh = _run_jax_adaptive_explicit_discovery(
+                solver,
+                flat_rhs,
+                method=config.method,
+                times=times,
+                config=run_config,
+                error_reduction="max",
+            )
+            block_context = hashlib.sha256(
+                f"{context_signature}:{info.name}:{index}".encode(),
+            ).hexdigest()
+            blocks.append(
+                AdaptiveSchedule.from_core(
+                    mesh,
+                    config,
+                    context_signature=block_context,
+                )
+            )
+            trajectories.append(
+                _flat_trajectory_to_pytree(
+                    _extract_states_2d(core, n_state=int(initial.shape[0])),
+                    block_shapes,
+                )
+            )
+        schedule = IndependentBlockSchedule(tuple(blocks), info.name, context_signature)
+        trajectory = {
+            name: cast(
+                "Array", xp.stack(tuple(tree[name] for tree in trajectories), axis=axis)
+            )
+            for name, axis in output_axes.items()
+        }
+        return _ExecutionResult(
+            trajectory=_format_result(
+                times, _flatten_pytree_trajectory(trajectory, template_shapes)
+            ),
+            schedule=schedule,
+        )
+
+    if schedule.block_axis != info.name or len(schedule.blocks) != info.size:
+        msg = "Independent schedule does not match the compiler-proven block axis/size."
+        raise ValueError(msg)
+    if schedule.output_times != tuple(float(value) for value in times):
+        msg = (
+            "Independent block schedule output grid changed; discover a fresh schedule."
+        )
+        raise ValueError(msg)
+    trajectories = []
+    diagnostics: list[AdaptiveReplayDiagnostics] = []
+    order: list[int] = []
+    for indices in schedule.batches(config):
+        representative = schedule.blocks[indices[0]].step_schedule
+        plans = tuple(
+            _schedule_step_plan(
+                schedule.blocks[index].step_schedule,
+                forcing_breakpoints=config.forcing_breakpoints,
+            )
+            for index in indices
+        )
+        slots = []
+        for _starts, sizes, output_indices in plans:
+            values = np.full(len(sizes), -1, dtype=np.int32)
+            values[output_indices] = np.arange(len(output_indices), dtype=np.int32)
+            slots.append(values)
+        plan = _JaxReplayPlan(
+            xp.asarray(tuple(values[0] for values in plans), dtype=y0.dtype),
+            xp.asarray(tuple(values[1] for values in plans), dtype=y0.dtype),
+            xp.asarray(np.stack(slots)),
+        )
+
+        def replay(
+            state: StateTree,
+            parameters: Mapping[str, object],
+            member_plan: _JaxReplayPlan,
+            *,
+            mesh: AdaptiveStepSchedule = representative,
+        ) -> tuple[StateTree, AdaptiveReplayDiagnostics]:
+            return _run_jax_adaptive_explicit_pytree(
+                rhs_for(state, parameters),
+                state,
+                template_shapes=block_shapes,
+                method=config.method,
+                schedule=mesh,
+                config=run_config,
+                error_factor=config.replay_error_factor,
+                error_reduction="max",
+                checkpoint=config.replay_checkpoint,
+                checkpoint_chunk_size=config.checkpoint_chunk_size,
+                plan=member_plan,
+            )
+
+        members = xp.asarray(indices, dtype=xp.int32)
+        trajectory, evidence = jax.vmap(
+            replay,
+            in_axes=(state_axes, param_axes, 0),
+            out_axes=(output_axes, 0),
+            axis_size=len(indices),
+        )(
+            select(initial_tree, state_axes, members),
+            select(raw_params, param_axes, members),
+            plan,
+        )
+        trajectories.append(trajectory)
+        diagnostics.append(evidence)
+        order.extend(indices)
+    restore = xp.asarray(np.argsort(order), dtype=xp.int32)
+    trajectory = {
+        name: cast(
+            "Array",
+            xp.take(
+                xp.concat(tuple(tree[name] for tree in trajectories), axis=axis),
+                restore,
+                axis=axis,
+            ),
+        )
+        for name, axis in output_axes.items()
+    }
+    evidence = AdaptiveReplayDiagnostics(
+        *(
+            cast(
+                "Array",
+                xp.take(
+                    xp.concat(tuple(item[field] for item in diagnostics)),
+                    restore,
+                    axis=0,
+                ),
+            )
+            for field in range(len(AdaptiveReplayDiagnostics._fields))
+        )
+    )
+    aggregate = AdaptiveReplayDiagnostics(
+        accurate=cast("Array", xp.all(evidence.accurate)),
+        max_error_norm=cast("Array", xp.max(evidence.max_error_norm)),
+        inaccurate_steps=cast("Array", xp.sum(evidence.inaccurate_steps)),
+        step_count=cast("Array", xp.sum(evidence.step_count)),
+        error_factor=xp.asarray(config.replay_error_factor, dtype=y0.dtype),
+    )
+    return _ExecutionResult(
+        trajectory=_format_result(
+            times, _flatten_pytree_trajectory(trajectory, template_shapes)
+        ),
+        schedule=schedule,
+        replay_diagnostics=aggregate,
+        block_replay_diagnostics=evidence,
+    )
 
 
 def _run_structured_deterministic(
@@ -3558,11 +3935,11 @@ class OpEngineFlepimop2Engine(EngineABC):
     module: Literal["flepimop2.engine.op_engine"] = "flepimop2.engine.op_engine"
     state_change: StateChangeEnum
     config: OpEngineEngineConfig = Field(default_factory=OpEngineEngineConfig)
-    _last_adaptive_schedule: AdaptiveSchedule | None = PrivateAttr(default=None)
+    _last_adaptive_schedule: ProviderAdaptiveSchedule | None = PrivateAttr(default=None)
     _prepared_cache: dict[str, PreparedExecution] = PrivateAttr(default_factory=dict)
 
     @property
-    def last_adaptive_schedule(self) -> AdaptiveSchedule | None:
+    def last_adaptive_schedule(self) -> ProviderAdaptiveSchedule | None:
         """Return the schedule discovered or replayed by the latest run."""
         return self._last_adaptive_schedule
 
@@ -3589,7 +3966,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         params: Mapping[IdentifierString, ParameterValue],
         model_state: ModelStateSpecification | None = None,
         *,
-        adaptive_schedule: AdaptiveSchedule | None = None,
+        adaptive_schedule: ProviderAdaptiveSchedule | None = None,
     ) -> PreparedExecution:
         """Prepare and cache a stable explicit execution callable.
 
@@ -3635,6 +4012,8 @@ class OpEngineFlepimop2Engine(EngineABC):
         raw_initial_state = _unwrap_parameter_values(initial_state)
         raw_params = _unwrap_parameter_values(params)
         y0 = _assemble_initial_state(system, initial_state, params, model_state)
+        if config.block_schedule == "independent":
+            _validate_independent_block_state(y0)
         n_state = int(y0.shape[0])
         context_signature = _schedule_context_signature(
             system,
@@ -3647,6 +4026,14 @@ class OpEngineFlepimop2Engine(EngineABC):
             adaptive_schedule.validate_config(config)
             adaptive_schedule.validate_context(context_signature)
 
+        if isinstance(adaptive_schedule, IndependentBlockSchedule) and (
+            adaptive_schedule.output_times != tuple(float(value) for value in times)
+        ):
+            msg = (
+                "Independent block schedule output grid changed; "
+                "discover a fresh schedule."
+            )
+            raise ValueError(msg)
         signature = _prepared_execution_signature(
             system,
             times,
@@ -3862,7 +4249,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         params: Mapping[IdentifierString, ParameterValue],
         model_state: ModelStateSpecification | None = None,
         *,
-        adaptive_schedule: AdaptiveSchedule | None = None,
+        adaptive_schedule: ProviderAdaptiveSchedule | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> Array:
         """Execute a simulation, optionally replaying a frozen adaptive mesh."""
@@ -3887,7 +4274,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         params: Mapping[IdentifierString, ParameterValue],
         model_state: ModelStateSpecification | None = None,
         *,
-        schedule: AdaptiveSchedule | None = None,
+        schedule: ProviderAdaptiveSchedule | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> AdaptiveRunResult:
         """Discover or replay an adaptive schedule with explicit metadata.
@@ -3929,6 +4316,7 @@ class OpEngineFlepimop2Engine(EngineABC):
             schedule=result.schedule,
             diagnostics=result.diagnostics,
             replay_diagnostics=result.replay_diagnostics,
+            block_replay_diagnostics=result.block_replay_diagnostics,
         )
 
     def _execute(
@@ -3939,7 +4327,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         params: Mapping[IdentifierString, ParameterValue],
         model_state: ModelStateSpecification | None = None,
         *,
-        adaptive_schedule: AdaptiveSchedule | None = None,
+        adaptive_schedule: ProviderAdaptiveSchedule | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> _ExecutionResult:
         """Execute one provider run and retain schedule-aware metadata."""
@@ -3964,8 +4352,13 @@ class OpEngineFlepimop2Engine(EngineABC):
             )
             raise ValueError(msg)
         if adaptive_schedule is not None:
-            if not isinstance(adaptive_schedule, AdaptiveSchedule):
-                msg = "adaptive_schedule must be an AdaptiveSchedule"
+            if not isinstance(
+                adaptive_schedule, AdaptiveSchedule | IndependentBlockSchedule
+            ):
+                msg = (
+                    "adaptive_schedule must be an AdaptiveSchedule or "
+                    "IndependentBlockSchedule"
+                )
                 raise TypeError(msg)
             if mode is not ExecutionMode.DETERMINISTIC:
                 msg = "Adaptive schedule replay requires deterministic mode."
@@ -3989,6 +4382,24 @@ class OpEngineFlepimop2Engine(EngineABC):
         if adaptive_schedule is not None:
             adaptive_schedule.validate_context(context_signature)
 
+        if config.block_schedule == "independent":
+            if adaptive_schedule is not None and not isinstance(
+                adaptive_schedule, IndependentBlockSchedule
+            ):
+                msg = "Independent block policy requires an IndependentBlockSchedule."
+                raise TypeError(msg)
+            return _run_independent_blocks(
+                system,
+                times,
+                y0,
+                raw_params,
+                config=config,
+                context_signature=context_signature,
+                schedule=adaptive_schedule,
+            )
+        if isinstance(adaptive_schedule, IndependentBlockSchedule):
+            msg = "Shared replay cannot consume an IndependentBlockSchedule."
+            raise TypeError(msg)
         if config.state_layout is not StateLayout.FLAT and (
             not config.adaptive or adaptive_schedule is not None
         ):
@@ -4259,9 +4670,11 @@ __all__ = [
     "AdaptiveSchedule",
     "AdaptiveScheduleAccuracyError",
     "ExecutionMode",
+    "IndependentBlockSchedule",
     "OpEngineEngineConfig",
     "OpEngineFlepimop2Engine",
     "PreparedExecution",
+    "ProviderAdaptiveSchedule",
     "ReplayCheckpoint",
     "SolverMethod",
     "StateLayout",
