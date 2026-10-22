@@ -171,8 +171,18 @@ design; their caches, global settings and application reporting policies are not
 part of the core interface. Live adaptive and frozen-mesh measurements remain
 separate, with cold/warm and memory evidence retained.
 
-Next, implement local stability diagnostics (#256), checked
-dependency/derivative structure (op_system #296), and the corresponding Fisher
-screen (trade-study #216). Broader estimator/statistical-method qualification and
-application studies retain their own gates. Rust IR normalization remains deferred
-until a measured compile-time or interoperability requirement justifies it.
+The compiler dependency/independent-block metadata and optional native state
+JVP/VJP actions (op_system #296), and the artifact-led Fisher screen
+(trade-study #216) are merged. Table sensitivity scope/group handling and Sobol
+workload accounting also landed. Native action construction is a capability,
+not an automatic warm-runtime or peak-RSS gain.
+
+The first [operator/solve contract](../guides/linear-operators.md) increment
+extends the existing registry with checked native actions and an uncached
+eager solve callback; no additional backend registry is introduced. Finish
+banded/tridiagonal and matrix-free adapter qualification in #221, then wire
+nonlinear stage JVPs and bounded Newton--Krylov integration in #222. Local
+stability diagnostics (#256) remain open. Broader estimator/statistical-method
+qualification and application studies retain their own gates. Rust IR
+normalization remains deferred until a measured compile-time or interoperability
+requirement justifies it.

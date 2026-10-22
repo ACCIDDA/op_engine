@@ -18,10 +18,24 @@ from .core_solver import (
     NonlinearMethodConfig,
 )
 from .firing import FiringRecorder
+from .linear_operator import (
+    ActionOperator,
+    ApplicableOperator,
+    LinearSolveCandidate,
+    LinearSolveDiagnostics,
+    LinearSolveError,
+    LinearSolveOptions,
+    LinearSolver,
+    LinearSolveRequest,
+    LinearSolveResult,
+    require_linear_converged,
+    solve_linear,
+)
 from .matrix_ops import (
     DiffusionConfig,
     GridGeometry,
     Operator,
+    SparseAdapter,
     build_advection_matrix,
     build_crank_nicolson_operator,
     build_diffusion_matrix,
@@ -38,7 +52,9 @@ from .matrix_ops import (
     matrix_grouped_count,
     matrix_grouped_sum,
     matrix_masked_sum,
+    register_sparse_adapter,
     smooth,
+    unregister_sparse_adapter,
 )
 from .model_core import ModelCore
 from .nonlinear_solver import (
@@ -125,9 +141,11 @@ from .thinning_ssa import (
 )
 
 __all__ = [
+    "ActionOperator",
     "AdaptiveScheduleProvenance",
     "AdaptiveTauLeapingConfig",
     "AdaptiveTauLeapingSolver",
+    "ApplicableOperator",
     "Array",
     "BatchedDirectSSASolver",
     "BatchedSSAConfig",
@@ -143,6 +161,13 @@ __all__ = [
     "FiringRecorder",
     "GridGeometry",
     "JacobianVectorProduct",
+    "LinearSolveCandidate",
+    "LinearSolveDiagnostics",
+    "LinearSolveError",
+    "LinearSolveOptions",
+    "LinearSolveRequest",
+    "LinearSolveResult",
+    "LinearSolver",
     "ModelCore",
     "NewtonConfig",
     "NonlinearConvergenceError",
@@ -181,6 +206,7 @@ __all__ = [
     "SensitivityOptions",
     "SensitivitySolution",
     "SensitivitySystem",
+    "SparseAdapter",
     "SteadyStateConfig",
     "SteadyStateConvergenceError",
     "SteadyStateResult",
@@ -220,12 +246,16 @@ __all__ = [
     "observe_model",
     "observe_solution",
     "reduce_observations",
+    "register_sparse_adapter",
     "require_converged",
+    "require_linear_converged",
     "require_steady_state",
     "sink_states",
     "smooth",
+    "solve_linear",
     "solve_sensitivities",
     "steady_state",
+    "unregister_sparse_adapter",
 ]
 
 __version__ = _metadata_version("op_engine")

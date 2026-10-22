@@ -38,7 +38,7 @@ Stage operator factories (IMEX/TR-BDF2 support):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module
 from numbers import Integral
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
@@ -50,6 +50,14 @@ from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import factorized as sparse_factorized
 
 from ._array import array_namespace as _namespace_of
+from .linear_operator import (
+    ActionOperator,
+    LinearSolveOptions,
+    LinearSolver,
+    LinearSolveRequest,
+    require_linear_converged,
+    solve_linear,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -178,18 +186,68 @@ _SolverCacheEntry: TypeAlias = tuple[_SolverMeta, object, object, Any]
 
 @dataclass(frozen=True, slots=True)
 class SparseAdapter:
-    """Function bundle for one sparse-array ecosystem.
+    """Function bundle in the existing sparse/operator registry.
 
     Sparse acceleration is optional: dense operators always fall back to the
     input array's Array-API ``linalg.solve`` implementation. Adapters are
-    selected structurally with their own ``issparse`` predicate.
+    selected structurally with their own ``issparse`` predicate. Existing
+    factorize/solve/cache_key bundles retain their historical identity cache.
+    Alternatively, ``linear_solver`` opts into a checked, uncached eager NumPy
+    solve. The two routes are mutually exclusive. ``accepts_right`` optionally
+    recognizes mixed right operators; otherwise ``issparse`` must accept both.
+    New callbacks own preparation, context invalidation and preconditioner use.
     """
 
     ecosystem_id: str
     issparse: Callable[[object], bool]
-    factorize: Callable[[object], Any]
-    solve: Callable[[Any, object, Array], Array]
-    cache_key: Callable[[object, object], tuple[int, int]]
+    factorize: Callable[[object], Any] | None = None
+    solve: Callable[[Any, object, Array], Array] | None = None
+    cache_key: Callable[[object, object], tuple[int, int]] | None = None
+    linear_solver: LinearSolver | None = None
+    solve_options: LinearSolveOptions = field(default_factory=LinearSolveOptions)
+    preconditioner: ActionOperator | None = None
+    context: object | None = None
+    accepts_right: Callable[[object], bool] | None = None
+
+    def __post_init__(self) -> None:
+        """Reject incomplete or conflicting dispatch routes.
+
+        Raises:
+            ValueError: If the identifier or route configuration is invalid.
+            TypeError: If a predicate or callback is not callable.
+        """
+        if (
+            not isinstance(self.ecosystem_id, str)
+            or not self.ecosystem_id
+            or self.ecosystem_id.strip() != self.ecosystem_id
+        ):
+            msg = "adapter ecosystem_id must be a nonempty stripped string"
+            raise ValueError(msg)
+        if not callable(self.issparse):
+            msg = "adapter issparse predicate must be callable"
+            raise TypeError(msg)
+        legacy = (self.factorize, self.solve, self.cache_key)
+        if (self.linear_solver is None and any(v is None for v in legacy)) or (
+            self.linear_solver is not None and any(v is not None for v in legacy)
+        ):
+            msg = "supply either factorize/solve/cache_key or linear_solver"
+            raise ValueError(msg)
+        for callback in (
+            self.issparse,
+            *legacy,
+            self.linear_solver,
+            self.accepts_right,
+        ):
+            if callback is not None and not callable(callback):
+                msg = "adapter callbacks and predicates must be callable"
+                raise TypeError(msg)
+        if self.linear_solver is None and (
+            self.preconditioner is not None
+            or self.context is not None
+            or self.solve_options != LinearSolveOptions()
+        ):
+            msg = "solve options, preconditioner and context require linear_solver"
+            raise ValueError(msg)
 
 
 _SPARSE_ADAPTERS: dict[str, SparseAdapter] = {}
@@ -1008,6 +1066,46 @@ def clear_implicit_solver_cache() -> None:
     _IMPLICIT_SOLVER_CACHE.clear()
 
 
+def _clear_adapter_cache(ecosystem_id: str) -> None:
+    for key in list(_IMPLICIT_SOLVER_CACHE):
+        if key[0] == ecosystem_id:
+            del _IMPLICIT_SOLVER_CACHE[key]
+
+
+def register_sparse_adapter(adapter: SparseAdapter, *, replace: bool = False) -> None:
+    """Register an operator adapter in the existing sparse dispatch registry.
+
+    Replacement clears that ecosystem's cached factors. Predicates must be
+    pure; overlapping pair matches are rejected when dispatching a solve.
+
+    Raises:
+        ValueError: If an identifier already exists without explicit replacement.
+    """
+    if adapter.ecosystem_id in _SPARSE_ADAPTERS and not replace:
+        msg = f"adapter {adapter.ecosystem_id!r} is already registered"
+        raise ValueError(msg)
+    _clear_adapter_cache(adapter.ecosystem_id)
+    _SPARSE_ADAPTERS[adapter.ecosystem_id] = adapter
+
+
+def unregister_sparse_adapter(ecosystem_id: str) -> None:
+    """Remove an adapter and release all of its cached factors.
+
+    Raises:
+        KeyError: If the adapter is not registered.
+    """  # noqa: DOC502 - dictionary removal raises KeyError
+    del _SPARSE_ADAPTERS[ecosystem_id]
+    _clear_adapter_cache(ecosystem_id)
+
+
+def _is_registered_operator(op: object) -> bool:
+    return any(
+        adapter.issparse(op)
+        or (adapter.accepts_right is not None and adapter.accepts_right(op))
+        for adapter in _SPARSE_ADAPTERS.values()
+    )
+
+
 def _operator_meta(
     left_op: object,
     right_op: object,
@@ -1192,11 +1290,21 @@ def _find_sparse_adapter(
     left_op: object,
     right_op: object,
 ) -> SparseAdapter | None:
-    """Return the adapter whose own predicate recognizes both operators."""
-    for adapter in _SPARSE_ADAPTERS.values():
-        if adapter.issparse(left_op) and adapter.issparse(right_op):
-            return adapter
-    return None
+    """Return a unique adapter recognizing the left/right pair.
+
+    Raises:
+        ValueError: If multiple adapters match the same solve.
+    """
+    matches = [
+        adapter
+        for adapter in _SPARSE_ADAPTERS.values()
+        if adapter.issparse(left_op)
+        and (adapter.accepts_right or adapter.issparse)(right_op)
+    ]
+    if len(matches) > 1:
+        msg = f"ambiguous operator adapters: {[a.ecosystem_id for a in matches]}"
+        raise ValueError(msg)
+    return matches[0] if matches else None
 
 
 def _dense_operator_array(op: object, *, xp: Any, dtype: object) -> Array:  # noqa: ANN401
@@ -1204,7 +1312,15 @@ def _dense_operator_array(op: object, *, xp: Any, dtype: object) -> Array:  # no
 
     Returns:
         Dense operator array.
+
+    Raises:
+        TypeError: If an action/registered operator would be densified.
     """
+    if isinstance(op, ActionOperator) or (
+        not isinstance(op, (np.ndarray, csr_matrix)) and _is_registered_operator(op)
+    ):
+        msg = "registered/action operators require an explicitly supported solve pair"
+        raise TypeError(msg)
     toarray = getattr(op, "toarray", None)
     value = toarray() if callable(toarray) else op
     return cast("Array", xp.asarray(value, dtype=dtype))
@@ -1220,7 +1336,34 @@ def _sparse_implicit_solve(
 
     Returns:
         Solution in the sparse adapter's array ecosystem.
+
+    Raises:
+        TypeError: If the checked eager callback changes namespace, dtype or shape.
     """
+    if adapter.linear_solver is not None:
+        if not isinstance(x, np.ndarray):
+            msg = "registered checked linear solves require eager NumPy inputs"
+            raise TypeError(msg)
+        rhs = cast("Any", right_op) @ x
+        if (
+            not isinstance(rhs, np.ndarray)
+            or rhs.dtype != x.dtype
+            or rhs.shape != x.shape
+        ):
+            msg = "right operator must preserve input shape and NumPy dtype"
+            raise TypeError(msg)
+        request = LinearSolveRequest(
+            cast("Any", left_op),
+            rhs,
+            adapter.solve_options,
+            adapter.preconditioner,
+            adapter.context,
+        )
+        return require_linear_converged(solve_linear(request, adapter.linear_solver))
+
+    assert adapter.cache_key is not None  # noqa: S101 - validated adapter route
+    assert adapter.factorize is not None  # noqa: S101
+    assert adapter.solve is not None  # noqa: S101
     left_id, right_id = adapter.cache_key(left_op, right_op)
     key = (adapter.ecosystem_id, left_id, right_id)
     meta = _operator_meta(left_op, right_op, sparse=True)

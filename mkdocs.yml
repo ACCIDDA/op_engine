@@ -69,6 +69,7 @@ nav:
       - Per-run Random Streams: guides/random-streams.md
       - Linear Multistep Methods: guides/linear-multistep-methods.md
       - Nonlinear Solvers: guides/nonlinear-solvers.md
+      - Linear Actions and External Solves: guides/linear-operators.md
       - Steady States: guides/steady-states.md
       - Biogeochemical Network: guides/biogeochemical-network.md
       - Trait-Structured Chemostat: guides/chemostat-pde.md
@@ -87,6 +88,7 @@ nav:
       - Core Solver: api-reference/core_solver.md
       - Diffrax: api-reference/diffrax.md
       - Firing: api-reference/firing.md
+      - Linear Operator: api-reference/linear_operator.md
       - Loop Ops: api-reference/loop_ops.md
       - Matrix Ops: api-reference/matrix_ops.md
       - Model Core: api-reference/model_core.md

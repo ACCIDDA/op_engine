@@ -67,10 +67,13 @@ through matrix construction and solve; eager NumPy/SciPy assembly and
 factorization do not. An external PETSc or FEniCSx provider would own any
 custom differentiation rule for its solver.
 
-Nonlinear forms such as \(M(y,t)\dot y=r(t,y)\), differential-algebraic
-constraints, and external Krylov/preconditioner callbacks are outside the
-current stage-operator contract. They require a concrete use case before a new
-portable solver interface is added.
+An [external eager solve callback](../guides/linear-operators.md) can now opt
+into checked operator actions, per-column original-residual diagnostics and
+explicit inverse-preconditioner/context inputs through the existing adapter
+registry. It owns any preparation/cache lifecycle; native differentiable
+implicit solves and concrete banded/Krylov adapters need separate qualification.
+Nonlinear forms such as \(M(y,t)\dot y=r(t,y)\) and differential-algebraic
+constraints remain separate, use-case-led work.
 
 ## Proof of concept
 

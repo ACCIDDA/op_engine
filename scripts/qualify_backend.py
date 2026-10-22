@@ -21,6 +21,11 @@ def main() -> int:
     parser.add_argument("backend", choices=["numpy", "jax", "torch"])
     contracts = parser.add_mutually_exclusive_group()
     contracts.add_argument(
+        "--linear-operators",
+        action="store_true",
+        help="Require native actions and the selected eager operator contract",
+    )
+    contracts.add_argument(
         "--compiler-contract",
         action="store_true",
         help="Qualify the separately installed pinned compiler observation contract",
@@ -60,7 +65,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="op-engine-qualification-") as directory:
         report = Path(directory) / "results.xml"
         files = (
-            ["tests/op_engine/test_jax_diffrax.py"]
+            ["tests/op_engine/test_linear_operator.py"]
+            if args.linear_operators
+            else ["tests/op_engine/test_jax_diffrax.py"]
             if args.diffrax
             else ["tests/op_engine/test_torch_loop.py"]
             if args.torch_compile
@@ -75,6 +82,7 @@ def main() -> int:
                 "tests/op_engine/test_sensitivities.py",
                 "tests/op_engine/test_explicit_forcing.py",
                 "tests/op_engine/test_operator_precision.py",
+                "tests/op_engine/test_linear_operator.py",
                 "tests/op_engine/test_hierarchical_ode.py",
                 "tests/op_engine/test_observations.py",
                 "tests/op_engine/test_observation_reductions.py",

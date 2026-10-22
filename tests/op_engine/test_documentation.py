@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import runpy
+from doctest import DocTestParser, DocTestRunner
 from pathlib import Path
 from typing import Any
 
@@ -58,3 +59,15 @@ def test_observation_guide_has_expected_measured_total() -> None:
     np.testing.assert_allclose(
         namespace["observed"].series["total"].values, [2.0, 10.2, 18.9]
     )
+
+
+def test_linear_operator_guide_executes_checked_callback() -> None:
+    """The actual public registration/solve/cleanup example remains executable."""
+    guide = ROOT / "docs/guides/linear-operators.md"
+    runner = DocTestRunner()
+    blocks = re.findall(r"```python\n(.*?)\n```", guide.read_text(), re.DOTALL)
+    assert len(blocks) == 1
+    case = DocTestParser().get_doctest(blocks[0], {}, str(guide), str(guide), 0)
+    result = runner.run(case)
+    assert result.failed == 0
+    assert result.attempted > 0
