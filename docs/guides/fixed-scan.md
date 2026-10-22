@@ -95,3 +95,9 @@ trace/lower/compile/first/warm phases, gradient error, graph/scan counts and XLA
 temporary-buffer estimates. Whole-worker peak RSS includes both execution paths
 and setup; it is not per-path or live solver memory. Use bounded workers and
 retain censored cases when expanding the mesh.
+
+
+For an explicit bounded CPU Torch option, see the
+[Torch compiled-loop contract](torch-loop.md). Its static unrolling has different
+cold compilation and memory costs from JAX's constant-size scan graph. Eager
+execution remains the default.

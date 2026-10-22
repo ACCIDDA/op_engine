@@ -123,3 +123,44 @@ setting already used scans. Benchmark source identities, matched meshes, graph
 structure, values/gradients, compile/warm time and memory remain necessary for any
 performance comparison. This control fix alone does not establish an application
 speedup.
+
+
+## Delivery update (2026-10-22)
+
+Merged producer/inference prerequisites now include portable derivative/Julia
+export, forward measured sensitivities, shared iid priors/observations, scoped
+geometry/calibration interfaces and the grouped JAX observation scan. The latter
+retains a full CPU pipeline record, including unsuccessful baseline attempts;
+its evidence is separate from estimator training and application decisions.
+
+Optional NumPy CPU lowering landed in
+[op_system #337](https://github.com/ACCIDDA/op_system/pull/337). Final fresh-worker
+RHS gains were 6.4–10.0×, or 2.1–2.3× including input packing and structured return
+conversion, with approximately ten seconds cold setup and approximately 210 MiB
+additional worker peak RSS. It remains explicit opt-in. The
+[cache audit](https://github.com/ACCIDDA/op_system/pull/338) removed the remaining
+global expanded-template mapping retention and fixed shaped-exclusion context;
+its traced Python retention probe is not an RSS or training-memory claim.
+Minimum Torch gradient conversion and reusable scalar/observable callables landed
+in [#340](https://github.com/ACCIDDA/op_system/pull/340) and
+[#341](https://github.com/ACCIDDA/op_system/pull/341).
+
+The [bounded CPU Torch sequential adapter](../guides/torch-loop.md) is separately
+qualified from ordinary eager Torch and JAX constant-size scan graphs. Its cold
+forward/backward, warm and memory costs must guide explicit use; it does not
+change defaults or establish GPU/training performance.
+
+All further CuPy, JAX and Torch GPU execution is on maintainer hold, pending a
+workstation session. [Draft op_system #339](https://github.com/ACCIDDA/op_system/pull/339)
+contains the complete isolated setup, source selection, commands, case counts,
+receipt requirements and native-device gates. It stays draft and #182 stays open.
+Earlier A100 records remain historical evidence. No publication or application
+adoption is authorized by this engineering handoff.
+
+Next, profile the existing stochastic kernels for #259 before choosing a coarse
+Numba/Rust experiment; callback and propensity costs must be included. Follow with
+the scoped Diffrax adapter (#255), local stability diagnostics (#256), checked
+dependency/derivative structure (op_system #296), and the corresponding Fisher
+screen (trade-study #216). Broader estimator/statistical-method qualification and
+application studies retain their own gates. Rust IR normalization remains deferred
+until a measured compile-time or interoperability requirement justifies it.

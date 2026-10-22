@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Add an explicitly registered, bounded CPU Torch fullgraph Inductor loop adapter
+  for fixed explicit methods, optional Tensor/None carry and measured output
+  trees. Qualify values/first gradients, input/output bounds and strict failure
+  behavior separately from eager Torch and JAX scan. Skip empty bootstrap tails
+  in fixed and replay consumers; keep eager defaults and unsupported checkpoint
+  behavior.
+
 - Integrate bounded smooth forward parameter sensitivities with existing fixed
   explicit kernels, required initial-state derivatives, ordered measurement
   derivatives and final-only output by default. Qualify native CPU transforms,
