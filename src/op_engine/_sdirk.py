@@ -19,6 +19,7 @@ from .nonlinear_solver import (
 
 ImplicitRhs = Callable[[float, Array], Array]
 ImplicitRhsJacobian = Callable[[float, Array], Array]
+ImplicitRhsJvp = Callable[[float, Array, Array], Array]
 
 
 @dataclass(slots=True, frozen=True)
@@ -195,14 +196,15 @@ def _evaluate_rhs(
 
 def _make_stage_problem(  # noqa: PLR0913
     rhs: ImplicitRhs,
-    rhs_jacobian: ImplicitRhsJacobian,
+    rhs_jacobian: ImplicitRhsJacobian | None,
     *,
     base: Array,
     stage_t: float,
     dt_diagonal: float,
-    identity: Array,
+    identity: Array | None,
+    rhs_jvp: ImplicitRhsJvp | None,
 ) -> NonlinearProblem:
-    """Bind one stage's residual and Jacobian callbacks.
+    """Bind one stage's residual and supplied derivative callbacks.
 
     Returns:
         Nonlinear problem for one implicit stage.
@@ -220,6 +222,9 @@ def _make_stage_problem(  # noqa: PLR0913
         )
 
     def jacobian(stage_state: Array) -> Array:
+        # This callback is exposed only when the dense inputs are present.
+        assert rhs_jacobian is not None  # noqa: S101
+        assert identity is not None  # noqa: S101
         rhs_jacobian_value = rhs_jacobian(float(stage_t), stage_state)
         if _namespace_of(rhs_jacobian_value) is not xp:
             msg = "SDIRK rhs_jacobian must preserve the state array namespace"
@@ -241,7 +246,37 @@ def _make_stage_problem(  # noqa: PLR0913
             ),
         )
 
-    return NonlinearProblem(residual=residual, jacobian=jacobian)
+    def jvp(stage_state: Array, vector: Array) -> Array:
+        # Validate directions before calling user code, without host conversion.
+        _validate_stage_vector(vector, stage_state, label="rhs_jvp direction")
+        assert rhs_jvp is not None  # noqa: S101
+        action = rhs_jvp(float(stage_t), stage_state, vector)
+        _validate_stage_vector(action, stage_state, label="rhs_jvp result")
+        return cast("Array", xp.subtract(vector, xp.multiply(action, dt_diagonal)))
+
+    return NonlinearProblem(
+        residual=residual,
+        jacobian=jacobian if rhs_jacobian is not None else None,
+        jvp=jvp if rhs_jvp is not None else None,
+    )
+
+
+def _validate_stage_vector(value: Array, state: Array, *, label: str) -> None:
+    """Check a full-state derivative direction or result without coercion.
+
+    Raises:
+        TypeError: If namespace or dtype changes.
+        ValueError: If full-state shape changes.
+    """
+    if _namespace_of(value) is not _namespace_of(state):
+        msg = f"SDIRK {label} must preserve the state array namespace"
+        raise TypeError(msg)
+    if value.shape != state.shape:
+        msg = f"SDIRK {label} shape {value.shape} does not match state {state.shape}"
+        raise ValueError(msg)
+    if value.dtype != state.dtype:
+        msg = f"SDIRK {label} must preserve the state dtype"
+        raise TypeError(msg)
 
 
 def evaluate_sdirk_step(  # noqa: PLR0913
@@ -249,10 +284,11 @@ def evaluate_sdirk_step(  # noqa: PLR0913
     tableau: SdirkTableau,
     nonlinear_solver: NonlinearSolver,
     rhs: ImplicitRhs,
-    rhs_jacobian: ImplicitRhsJacobian,
     t: float,
     dt: float,
     y: Array,
+    rhs_jacobian: ImplicitRhsJacobian | None = None,
+    rhs_jvp: ImplicitRhsJvp | None = None,
 ) -> SdirkStepResult:
     """Evaluate one SDIRK step without host convergence decisions.
 
@@ -267,7 +303,7 @@ def evaluate_sdirk_step(  # noqa: PLR0913
     """
     xp = _namespace_of(y)
     n_unknowns = math.prod(y.shape)
-    identity = xp.eye(n_unknowns, dtype=y.dtype)
+    identity = xp.eye(n_unknowns, dtype=y.dtype) if rhs_jacobian is not None else None
     derivatives: list[Array] = []
     stage_results: list[NonlinearSolveResult] = []
     converged: Array | None = None
@@ -288,6 +324,7 @@ def evaluate_sdirk_step(  # noqa: PLR0913
                 stage_t=stage_t,
                 dt_diagonal=dt * diagonal,
                 identity=identity,
+                rhs_jvp=rhs_jvp,
             ),
             base,
         )
@@ -314,10 +351,11 @@ def attempt_sdirk_step(  # noqa: PLR0913
     tableau: SdirkTableau,
     nonlinear_solver: NonlinearSolver,
     rhs: ImplicitRhs,
-    rhs_jacobian: ImplicitRhsJacobian,
     t: float,
     dt: float,
     y: Array,
+    rhs_jacobian: ImplicitRhsJacobian | None = None,
+    rhs_jvp: ImplicitRhsJvp | None = None,
 ) -> SdirkStepAttempt:
     """Return a step-doubling SDIRK candidate and local-error estimate."""
     xp = _namespace_of(y)
@@ -326,6 +364,7 @@ def attempt_sdirk_step(  # noqa: PLR0913
         nonlinear_solver=nonlinear_solver,
         rhs=rhs,
         rhs_jacobian=rhs_jacobian,
+        rhs_jvp=rhs_jvp,
         t=t,
         dt=dt,
         y=y,
@@ -336,6 +375,7 @@ def attempt_sdirk_step(  # noqa: PLR0913
         nonlinear_solver=nonlinear_solver,
         rhs=rhs,
         rhs_jacobian=rhs_jacobian,
+        rhs_jvp=rhs_jvp,
         t=t,
         dt=half_dt,
         y=y,
@@ -345,6 +385,7 @@ def attempt_sdirk_step(  # noqa: PLR0913
         nonlinear_solver=nonlinear_solver,
         rhs=rhs,
         rhs_jacobian=rhs_jacobian,
+        rhs_jvp=rhs_jvp,
         t=t + half_dt,
         dt=half_dt,
         y=first_half.state,

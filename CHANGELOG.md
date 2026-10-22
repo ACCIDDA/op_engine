@@ -7,6 +7,12 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Accept full-state RHS JVPs through fixed, adaptive and replayed SDIRK stages,
+  validating derivative directions/results without creating a dense identity
+  on the JVP-only path. Preserve dense configuration and qualify scoped CPU
+  values and finite-iteration derivatives with a custom test solver. Production
+  Newton--Krylov and converged-root differentiation remain separate work.
+
 - Add explicit eager NumPy banded direct and matrix-free SciPy GMRES adapters,
   with copied band storage, Euclidean transpose application, left inverse
   preconditioning and a per-column inner-iteration budget. Require original

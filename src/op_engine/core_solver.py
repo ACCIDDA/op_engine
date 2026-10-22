@@ -175,6 +175,7 @@ _MAX_FIXED_STEPS_PER_INTERVAL = 1_000_000
 RHSFunction = Callable[..., Array]
 JacobianFunction = Callable[..., "OperatorLike"]
 FullRhsJacobianFunction = Callable[[float, Array], Array]
+FullRhsJvpFunction = Callable[[float, Array, Array], Array]
 MethodName = Literal[
     "euler",
     "heun",
@@ -739,27 +740,41 @@ class OperatorSpecs:
 class NonlinearMethodConfig:
     """Configuration for fully nonlinear integration methods.
 
-    The Jacobian acts on the entire flattened RHS state. It is deliberately
-    separate from :attr:`RunConfig.jacobian`, whose operators act only along
-    ``CoreSolver.operator_axis`` for linearly implicit methods.
+    Derivatives act on the entire RHS state, including cross-axis coupling.
+    They are deliberately separate from :attr:`RunConfig.jacobian`, whose
+    operators act only along ``CoreSolver.operator_axis`` for linearly implicit
+    methods. Supply at least one derivative form and a solver that supports it.
+    The default dense solver requires ``rhs_jacobian``.
 
     Attributes:
         rhs_jacobian: Dense full-system Jacobian with shape
             ``(state.size, state.size)``.
         solver: Backend-neutral nonlinear solver implementation.
+        rhs_jvp: Optional full RHS derivative action ``(t, state, direction)``
+            returning the state shape, dtype and namespace. No dense Jacobian
+            is inferred from this callback.
     """
 
-    rhs_jacobian: FullRhsJacobianFunction
+    rhs_jacobian: FullRhsJacobianFunction | None = None
     solver: NonlinearSolver = field(default_factory=DenseNewtonSolver)
+    rhs_jvp: FullRhsJvpFunction | None = None
 
     def __post_init__(self) -> None:
         """Validate the method boundary without selecting an array backend.
 
         Raises:
-            TypeError: If a callback or nonlinear solver is invalid.
+            TypeError: If a callback or nonlinear solver is invalid, or neither
+                derivative form is supplied.
         """
-        if not callable(self.rhs_jacobian):
-            msg = "rhs_jacobian must be callable"
+        for name, callback in (
+            ("rhs_jacobian", self.rhs_jacobian),
+            ("rhs_jvp", self.rhs_jvp),
+        ):
+            if callback is not None and not callable(callback):
+                msg = f"{name} must be callable"
+                raise TypeError(msg)
+        if self.rhs_jacobian is None and self.rhs_jvp is None:
+            msg = "Supply at least one of rhs_jacobian or rhs_jvp"
             raise TypeError(msg)
         if not isinstance(self.solver, NonlinearSolver):
             msg = "solver must implement the NonlinearSolver protocol"
@@ -3041,8 +3056,8 @@ class CoreSolver:
         if method_in == "sdirk2":
             if cfg.nonlinear is None:
                 msg = (
-                    "Method 'sdirk2' requires NonlinearMethodConfig with a full "
-                    "flattened rhs_jacobian"
+                    "Method 'sdirk2' requires NonlinearMethodConfig with "
+                    "rhs_jacobian or rhs_jvp and a compatible nonlinear solver"
                 )
                 raise ValueError(msg)
             return RunPlan(
@@ -4716,6 +4731,7 @@ class CoreSolver:
                     nonlinear_solver=nonlinear.solver,
                     rhs=rhs_func,
                     rhs_jacobian=nonlinear.rhs_jacobian,
+                    rhs_jvp=nonlinear.rhs_jvp,
                     t=t,
                     dt=dt,
                     y=y_current,
@@ -4840,6 +4856,7 @@ class CoreSolver:
                     nonlinear_solver=nonlinear.solver,
                     rhs=rhs_func,
                     rhs_jacobian=nonlinear.rhs_jacobian,
+                    rhs_jvp=nonlinear.rhs_jvp,
                     t=t0,
                     dt=t1 - t0,
                     y=current_state,
@@ -4905,6 +4922,7 @@ class CoreSolver:
                     nonlinear_solver=nonlinear.solver,
                     rhs=rhs_func,
                     rhs_jacobian=nonlinear.rhs_jacobian,
+                    rhs_jvp=nonlinear.rhs_jvp,
                     t=t,
                     dt=dt,
                     y=state,

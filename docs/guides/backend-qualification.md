@@ -97,7 +97,9 @@ namespace, numerical values, and convergence diagnostics for nonlinear stages.
 The IMEX fixture splits scalar loss from native dense transport. Its factories
 use the appropriate implicit-Euler/trapezoidal stage schemes, including both
 TR-BDF2 factories. Linearly implicit Jacobians act along the trait axis;
-SDIRK2 receives a full flattened-system Jacobian. Geometry and method choices
+SDIRK2 receives a full flattened-system Jacobian in this fixture. A separate
+[JVP-only contract](nonlinear-solvers.md#matrix-free-stage-boundary) covers
+custom-solver stage actions and its bounded CPU transformations. Geometry and method choices
 remain static. This is portability evidence on a linear structured model,
 with nonlinear stage machinery, rather than a stiff accuracy survey.
 

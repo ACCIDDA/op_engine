@@ -24,7 +24,7 @@ NumPy does not select a different numerical method.
 | `trapezoidal` | 2 | Jacobian callable | One-linearization, second-order integration |
 | `bdf2` | 2 | Jacobian callable | Uniform, fixed-step, one-linearization integration |
 | `ros2` | 2 (embedded 1) | Jacobian callable | L-stable linearly implicit integration |
-| `sdirk2` | 2 | Full RHS Jacobian and nonlinear solver | L-stable fully nonlinear integration |
+| `sdirk2` | 2 | Full RHS Jacobian or JVP and compatible nonlinear solver | L-stable fully nonlinear integration |
 
 `bdf2` currently requires a uniform output grid and `adaptive=False`. Its first
 step uses linearly implicit Euler because no previous state exists yet. The
