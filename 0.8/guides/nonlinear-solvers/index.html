@@ -1030,6 +1030,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Configuring SDIRK2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#matrix-free-stage-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Matrix-free stage boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2105,6 +2122,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Configuring SDIRK2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#matrix-free-stage-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Matrix-free stage boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2248,10 +2282,14 @@ lower-triangular predictor, and returns its <code>NonlinearSolveDiagnostics</cod
 a host decision. Adaptive step doubling evaluates one full step and two
 half steps, scales their difference by <code>1 / (2**order - 1)</code>, and combines all
 six stage-convergence flags for an adaptive controller.</p>
-<p>Supply its full-system RHS Jacobian through a separate configuration. This
-Jacobian always has shape <code>(state.size, state.size)</code>, even when the state has
-several axes. It is not the operator-axis <code>RunConfig.jacobian</code> used by the
-linearly implicit methods.</p>
+<p>Supply at least one full-system RHS derivative through
+<code>NonlinearMethodConfig</code>: <code>rhs_jacobian(t, state)</code> or
+<code>rhs_jvp(t, state, direction)</code>. The dense Jacobian has shape
+<code>(state.size, state.size)</code>, even when the state has several axes. The JVP maps a
+full-state direction to the same shape, dtype and namespace, including all
+cross-axis coupling. Neither uses the operator-axis <code>RunConfig.jacobian</code> of
+linearly implicit methods. Existing positional <code>(rhs_jacobian, solver)</code> calls
+retain their meaning.</p>
 <pre><code class="language-python">import numpy as np
 
 from op_engine import CoreSolver, ModelCore, NonlinearMethodConfig
@@ -2282,7 +2320,39 @@ diagnostics.require_converged()
 </code></pre>
 <p><code>NonlinearMethodConfig</code> defaults to the backend-neutral <code>DenseNewtonSolver</code> and
 also accepts another <code>NonlinearSolver</code> implementation. It never stores an
-array namespace or backend module.</p>
+array namespace or backend module. A JVP-only configuration needs a custom
+solver that consumes <code>NonlinearProblem.jvp</code>; the default dense solver still
+requires the dense callback and raises if it is absent.</p>
+<h3 id="matrix-free-stage-boundary">Matrix-free stage boundary<a class="headerlink" href="#matrix-free-stage-boundary" title="Permanent link">&para;</a></h3>
+<p>For stage time <code>t_i</code>, predictor <code>base</code> and diagonal step <code>d = dt * gamma</code>,
+the stage residual is <code>R(Y) = Y - base - d * rhs(t_i, Y)</code>. Its action is exactly
+<code>R'(Y) v = v - d * rhs_jvp(t_i, Y, v)</code>. The method supplies this action through
+the existing <code>NonlinearProblem.jvp</code> field, checking both direction and result
+shape, dtype and namespace before returning it to the solver. Callback errors
+remain fatal model/derivative errors.</p>
+<p>Provide <code>NonlinearMethodConfig(rhs_jvp=full_rhs_jvp, solver=jvp_solver)</code> for a
+JVP-aware solver. When <code>rhs_jacobian</code> is omitted, the stage constructs neither a
+dense identity nor a dense Jacobian, and never probes basis vectors to infer
+one. Supplying both callbacks exposes both derivative forms; the provider must
+ensure they describe the same RHS. Fixed integration, live adaptive step
+doubling and frozen-mesh replay all use the same stage action.</p>
+<p>The focused CPU contract in <code>tests/op_engine/test_sdirk_jvp.py</code> uses an
+explicitly diagonal manufactured nonlinear problem and a test-only diagonal
+Newton solver. It compares trajectories with dense Newton and the independent
+continuous solution, checks a coupled time-dependent action against dense and
+finite-difference references, and checks float32/64 native values in NumPy,
+JAX and Torch. JAX fixed solves support JIT, first gradients and <code>vmap</code> in this
+contract; Torch supports eager functional first gradients. The existing
+public Torch SDIRK convergence check calls <code>.item()</code> and excludes <code>vmap</code>.
+This change does not qualify Torch compilation or GPU execution.</p>
+<p>These derivatives follow the <strong>finite iterations performed by the supplied
+solver</strong>. They are not a converged-root derivative rule. A production
+Newton--Krylov solver, its inner/outer tolerances, preconditioner, globalization
+and linear-solve diagnostics remain separate work using the checked linear
+operator interfaces. The stage boundary adds no operator registry, automatic
+backend selection or implicit differentiation rule. Keep a custom solver's
+configuration and derivative semantics fixed when replaying a recorded mesh;
+custom configuration is caller-owned rather than automatically fingerprinted.</p>
 <h2 id="integration-diagnostics-and-replay">Integration diagnostics and replay<a class="headerlink" href="#integration-diagnostics-and-replay" title="Permanent link">&para;</a></h2>
 <p><code>CoreSolver.run</code> and <code>replay_adaptive_schedule</code> return
 <code>NonlinearIntegrationDiagnostics</code> for SDIRK2. All fields are native arrays.
