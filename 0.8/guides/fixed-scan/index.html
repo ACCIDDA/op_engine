@@ -14,7 +14,7 @@
         <link rel="prev" href="../getting-started/">
       
       
-        <link rel="next" href="../sensitivities/">
+        <link rel="next" href="../torch-loop/">
       
       
         
@@ -678,6 +678,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../torch-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional Torch Compiled Loops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1745,6 +1773,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-reference/torch_loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torch Loop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1944,6 +2000,10 @@ trace/lower/compile/first/warm phases, gradient error, graph/scan counts and XLA
 temporary-buffer estimates. Whole-worker peak RSS includes both execution paths
 and setup; it is not per-path or live solver memory. Use bounded workers and
 retain censored cases when expanding the mesh.</p>
+<p>For an explicit bounded CPU Torch option, see the
+<a href="../torch-loop/">Torch compiled-loop contract</a>. Its static unrolling has different
+cold compilation and memory costs from JAX's constant-size scan graph. Eager
+execution remains the default.</p>
 
 
 
