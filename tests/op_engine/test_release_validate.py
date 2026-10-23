@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import pathlib
+import tomllib
 
 import pytest
+from packaging.version import Version
 
 from scripts import release_validate
 from scripts.release_validate import (
@@ -110,10 +112,14 @@ def test_core_release_allows_provider_to_remain_on_prior_version(
 
 def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> None:
     """Docs must not equate an exact provider pin with simultaneous releases."""
+    core_metadata = tomllib.loads(pathlib.Path("pyproject.toml").read_text("utf-8"))
+    core_version = str(core_metadata["project"]["version"])
+    root_readme = pathlib.Path("README.md")
     required = {
-        pathlib.Path("README.md"): (
+        root_readme: (
             "independent release lifecycle",
-            "published 0.8.0 package requires `op-engine==0.8.0`",
+            f"core `op-engine` is now `{core_version}`",
+            "published provider remains `0.8.0` and requires `op-engine==0.8.0`",
         ),
     }
     capabilities = pathlib.Path("docs/guides/capabilities.md")
@@ -129,9 +135,51 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
         )
     provider = pathlib.Path("flepimop2-op_engine")
     if provider.is_dir():
+        provider_metadata = tomllib.loads(
+            (provider / "pyproject.toml").read_text("utf-8")
+        )
+        provider_version = str(provider_metadata["project"]["version"])
+        provider_core_dependencies = [
+            dependency
+            for dependency in provider_metadata["project"]["dependencies"]
+            if dependency.startswith("op-engine")
+        ]
+        assert len(provider_core_dependencies) == 1
+        provider_core_dependency = provider_core_dependencies[0]
+        dependency_name, separator, pinned_core_version = (
+            provider_core_dependency.partition("==")
+        )
+        assert dependency_name == "op-engine"
+        assert separator == "=="
+        assert pinned_core_version
+        assert provider_core_dependency == f"op-engine=={pinned_core_version}"
+        assert Version(provider_version) < Version(core_version)
+        assert Version(pinned_core_version) < Version(core_version)
+
+        required[root_readme] += (
+            (
+                f"development provider source remains `{provider_version}` and "
+                f"requires `{provider_core_dependency}`"
+            ),
+            (
+                "both provider versions therefore lag the current core and are "
+                "incompatible with it"
+            ),
+            f"does not make the provider compatible with this {core_version} checkout",
+        )
         required[provider / "README.md"] = (
             "independent release lifecycles",
             "depends on the exact matching `op-engine` version",
+            f"core `op-engine` is now `{core_version}`",
+            (
+                f"development source is version `{provider_version}` and requires "
+                f"`{provider_core_dependency}`"
+            ),
+            f"both provider versions lag core `{core_version}`",
+            (
+                "the target does not make the provider compatible with this "
+                f"{core_version} checkout"
+            ),
         )
     optional_changelogs = (
         pathlib.Path("CHANGELOG.md"),
@@ -157,7 +205,7 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
 
     for path, phrases in required.items():
         for phrase in phrases:
-            assert phrase in normalized[path], (path, phrase)
+            assert phrase.casefold() in normalized[path].casefold(), (path, phrase)
 
 
 def test_release_unit_has_one_matching_maturity() -> None:

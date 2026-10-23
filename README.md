@@ -70,14 +70,16 @@ automatic differentiation, adaptivity, or stochastic sampling have identical
 semantics across namespaces.
 
 The `flepimop2-op-engine` provider has an independent release lifecycle. Its
-published 0.8.0 package requires `op-engine==0.8.0` and is not compatible with
-this 0.9.0 core release. Compatible provider source is present in this
-repository as the unpublished development version `0.9.0.dev0`; developers who
-need to test the two together should clone the repository and run
-`just provider-sync`. The same source environment supplies the optional
-`op_system` integration used by provider development. Do not use the provider's
-PyPI installation commands for an `op-engine==0.9.0` environment until a
-compatible provider release is published.
+core `op-engine` is now `0.9.1`. The published provider remains `0.8.0` and
+requires `op-engine==0.8.0`; development provider source remains `0.9.0.dev0`
+and requires `op-engine==0.9.0`. Both provider versions therefore lag the
+current core and are incompatible with it. The `just provider-sync` target is
+only valid in a checkout whose core satisfies the development provider's exact
+pin; it does not make the provider compatible with this 0.9.1 checkout. Such a
+compatible source environment also supplies the optional `op_system`
+integration used by provider development. Do not use the provider's PyPI
+installation commands with `op-engine==0.9.1` until a compatible provider
+release is published.
 
 ## Quickstart
 
