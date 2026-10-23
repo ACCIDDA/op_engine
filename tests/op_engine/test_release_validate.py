@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import pathlib
+import tomllib
 
 import pytest
+from packaging.version import Version
 
 from scripts import release_validate
 from scripts.release_validate import (
@@ -15,6 +17,43 @@ from scripts.release_validate import (
     validate_release_version,
     write_github_outputs,
 )
+
+
+def _project_version(path: pathlib.Path) -> str:
+    """Read one declared project version from its package metadata.
+
+    Returns:
+        The declared project version.
+    """
+    metadata = tomllib.loads(path.read_text("utf-8"))
+    return str(metadata["project"]["version"])
+
+
+def _lagging_provider_metadata(
+    path: pathlib.Path, core_version: str
+) -> tuple[str, str]:
+    """Read and validate the provider version and exact, lagging core pin.
+
+    Returns:
+        The provider version and its exact core dependency.
+    """
+    metadata = tomllib.loads(path.read_text("utf-8"))
+    provider_version = str(metadata["project"]["version"])
+    core_dependencies = [
+        dependency
+        for dependency in metadata["project"]["dependencies"]
+        if dependency.startswith("op-engine")
+    ]
+    assert len(core_dependencies) == 1
+    core_dependency = core_dependencies[0]
+    dependency_name, separator, pinned_core_version = core_dependency.partition("==")
+    assert dependency_name == "op-engine"
+    assert separator == "=="
+    assert pinned_core_version
+    assert core_dependency == f"op-engine=={pinned_core_version}"
+    assert Version(provider_version) < Version(core_version)
+    assert Version(pinned_core_version) < Version(core_version)
+    return provider_version, core_dependency
 
 
 @pytest.mark.parametrize(
@@ -106,6 +145,86 @@ def test_core_release_allows_provider_to_remain_on_prior_version(
     assert validate_release_version("core") == "0.9.0"
     with pytest.raises(SystemExit, match="do not match"):
         validate_release_version("provider")
+
+
+def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> None:
+    """Docs must not equate an exact provider pin with simultaneous releases."""
+    core_version = _project_version(pathlib.Path("pyproject.toml"))
+    root_readme = pathlib.Path("README.md")
+    required = {
+        root_readme: (
+            "independent release lifecycle",
+            f"core `op-engine` is now `{core_version}`",
+            "published provider remains `0.8.0` and requires `op-engine==0.8.0`",
+        ),
+    }
+    capabilities = pathlib.Path("docs/guides/capabilities.md")
+    core_source = pathlib.Path("src/op_engine")
+    # The wheel clean-room fixture copies selected guides but not the core
+    # source tree or the complete documentation set. A source distribution or
+    # checkout must retain the capabilities guide; an artifact that includes
+    # that guide must still receive the same content check.
+    if core_source.is_dir() or capabilities.is_file():
+        required[capabilities] = (
+            "independent release lifecycle",
+            "pins the exactly matching `op-engine` version",
+        )
+    provider = pathlib.Path("flepimop2-op_engine")
+    if provider.is_dir():
+        provider_version, provider_core_dependency = _lagging_provider_metadata(
+            provider / "pyproject.toml", core_version
+        )
+
+        required[root_readme] += (
+            (
+                f"development provider source remains `{provider_version}` and "
+                f"requires `{provider_core_dependency}`"
+            ),
+            (
+                "both provider versions therefore lag the current core and are "
+                "incompatible with it"
+            ),
+            f"does not make the provider compatible with this {core_version} checkout",
+        )
+        required[provider / "README.md"] = (
+            "independent release lifecycles",
+            "depends on the exact matching `op-engine` version",
+            f"core `op-engine` is now `{core_version}`",
+            (
+                f"development source is version `{provider_version}` and requires "
+                f"`{provider_core_dependency}`"
+            ),
+            f"both provider versions lag core `{core_version}`",
+            (
+                "the target does not make the provider compatible with this "
+                f"{core_version} checkout"
+            ),
+        )
+    optional_changelogs = (
+        pathlib.Path("CHANGELOG.md"),
+        pathlib.Path("flepimop2-op_engine/CHANGELOG.md"),
+    )
+    public_docs = [
+        *required,
+        *(path for path in optional_changelogs if path.is_file()),
+        *pathlib.Path("docs").rglob("*.md"),
+    ]
+    sources = {path: path.read_text("utf-8") for path in public_docs}
+    normalized = {path: " ".join(source.split()) for path, source in sources.items()}
+
+    forbidden = (
+        "shares its version",
+        "share one release version",
+        "shared package version",
+        "shared release version",
+    )
+    for path, source in normalized.items():
+        for phrase in forbidden:
+            assert phrase not in source.casefold(), (path, phrase)
+
+    for path, phrases in required.items():
+        for phrase in phrases:
+            assert phrase.casefold() in normalized[path].casefold(), (path, phrase)
 
 
 def test_release_unit_has_one_matching_maturity() -> None:

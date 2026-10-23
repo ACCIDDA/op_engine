@@ -3,6 +3,19 @@
 Notable user-facing changes are recorded here. Versions follow semantic
 versioning while the project remains pre-1.0.
 
+## [Unreleased]
+
+## [0.9.1] - 2026-10-23
+
+### Documentation
+
+- Clarify that the `op_engine` core and `flepimop2-op_engine` provider are
+  released independently, while each published provider release pins its
+  exactly matching core version. Provider publication may therefore lag core
+  publication. At core 0.9.1, both the published provider 0.8.0 and development
+  provider 0.9.0.dev0 lag the core; the development provider still pins
+  `op-engine==0.9.0`.
+
 ## [0.9.0] - 2026-10-23
 
 ### Added
