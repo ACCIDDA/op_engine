@@ -48,11 +48,10 @@ solver structure. An `op_system` stepper converts bound parameter values into
 the state namespace when it evaluates the RHS, so a JAX state can safely consume
 static NumPy parameters without moving the evolving state back to the host.
 
-Install the JAX runtime for portable fixed-step JIT and differentiation:
-
-```bash
-pip install "flepimop2-op_engine[jax]"
-```
+The `just provider-sync` source-development environment installs the JAX
+runtime used for portable fixed-step JIT and differentiation. The published
+`flepimop2-op_engine[jax]` extra remains a 0.8.0 provider installation and
+should not be used with core 0.9.0.
 
 Diffrax is not required for JAX differentiation of fixed-step Euler, Heun, RK4,
 Dormand--Prince 5(4), or dense IMEX/implicit methods. Fixed-step explicit JAX
