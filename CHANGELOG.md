@@ -5,13 +5,14 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-23
+
 ### Documentation
 
 - Clarify that the `op_engine` core and `flepimop2-op_engine` provider are
   released independently, while each published provider release pins its
   exactly matching core version. Provider publication may therefore lag core
   publication.
-
 
 ## [0.9.0] - 2026-10-23
 
