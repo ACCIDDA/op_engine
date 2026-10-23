@@ -111,19 +111,28 @@ def test_core_release_allows_provider_to_remain_on_prior_version(
 def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> None:
     """Docs must not equate an exact provider pin with simultaneous releases."""
     required = {
-        pathlib.Path("docs/guides/capabilities.md"): (
-            "independent release lifecycle",
-            "pins the exactly matching `op-engine` version",
-        ),
         pathlib.Path("README.md"): (
             "independent release lifecycle",
             "published 0.8.0 package requires `op-engine==0.8.0`",
         ),
-        pathlib.Path("flepimop2-op_engine/README.md"): (
+    }
+    capabilities = pathlib.Path("docs/guides/capabilities.md")
+    core_source = pathlib.Path("src/op_engine")
+    # The wheel clean-room fixture copies selected guides but not the core
+    # source tree or the complete documentation set. A source distribution or
+    # checkout must retain the capabilities guide; an artifact that includes
+    # that guide must still receive the same content check.
+    if core_source.is_dir() or capabilities.is_file():
+        required[capabilities] = (
+            "independent release lifecycle",
+            "pins the exactly matching `op-engine` version",
+        )
+    provider = pathlib.Path("flepimop2-op_engine")
+    if provider.is_dir():
+        required[provider / "README.md"] = (
             "independent release lifecycles",
             "depends on the exact matching `op-engine` version",
-        ),
-    }
+        )
     optional_changelogs = (
         pathlib.Path("CHANGELOG.md"),
         pathlib.Path("flepimop2-op_engine/CHANGELOG.md"),
