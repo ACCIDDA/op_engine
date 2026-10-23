@@ -1,0 +1,101 @@
+{
+  "status": "passed",
+  "workers": 88,
+  "source_commit": "9bf3be12b03f4628fba645d668be9ca3c344fe0a",
+  "current_versions": {
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "jax": "0.12.0",
+    "jaxlib": "0.12.0",
+    "diffrax": "0.7.2",
+    "equinox": "0.13.8",
+    "lineax": "0.1.1",
+    "optimistix": "0.1.0",
+    "array-api-compat": "1.15.0",
+    "op-engine": "0.8.0",
+    "op-system": "0.9.0"
+  },
+  "minimum_versions": {
+    "numpy": "2.0.2",
+    "scipy": "1.18.1",
+    "jax": "0.4.38",
+    "jaxlib": "0.4.38",
+    "diffrax": "0.7.2",
+    "equinox": "0.13.8",
+    "lineax": "0.0.8",
+    "optimistix": "0.1.0",
+    "array-api-compat": "1.12.0",
+    "op-engine": "0.8.0",
+    "op-system": "0.9.0"
+  },
+  "producer_source_equivalence": {
+    "benchmark_checkout": "30ef3c49c4255c1417967c9ae49a5424c6173b1c",
+    "public_qualified_merge": "bbde00697428f16f6cf948e7aff207f7b65231c8",
+    "git_trees": {
+      "30ef3c49c4255c1417967c9ae49a5424c6173b1c": "dbc0b34c456fe83308bb6eead66d1e772933eafd",
+      "bbde00697428f16f6cf948e7aff207f7b65231c8": "dbc0b34c456fe83308bb6eead66d1e772933eafd"
+    },
+    "identical_source_tree": true
+  },
+  "limits": [
+    "one process per condition and five warm calls; no statistical speedup or adoption claim",
+    "small synthetic CPU cases; no application training or GPU qualification",
+    "process RSS includes imports, verification and auxiliary compilations; XLA buffer estimates separately recorded"
+  ],
+  "max_trajectory_absolute_error": 2.056243286752135e-09,
+  "max_derivative_absolute_errors": {
+    "grad-fwd": 8.400732753877094e-08,
+    "grad-rev": 3.8505849009329296e-07,
+    "hessian": 2.2837567925648727e-07
+  },
+  "compiled_worker_peak_rss_mib_range": [
+    301.53515625,
+    611.296875
+  ],
+  "selected_case": {
+    "groups": 4,
+    "local_dimension": 2,
+    "coupled": true,
+    "regime": "nonstiff",
+    "parameter_count": 18,
+    "state_count": 16
+  },
+  "selected_rows": [
+    {
+      "solver": "compiled-diffrax-fixed",
+      "derivative": "trajectory",
+      "accepted_steps": 19,
+      "setup_seconds": 0.30635384895140305,
+      "trace_compile_seconds": 0.6860884749912657,
+      "warm_median_seconds": 3.854400711134076e-05,
+      "peak_process_rss_mib": 308.1640625
+    },
+    {
+      "solver": "compiled-diffrax-fixed",
+      "derivative": "grad-rev",
+      "accepted_steps": 19,
+      "setup_seconds": 0.3412222719634883,
+      "trace_compile_seconds": 2.360384392028209,
+      "warm_median_seconds": 7.9283956438303e-05,
+      "peak_process_rss_mib": 351.70703125
+    },
+    {
+      "solver": "compiled-diffrax-adaptive",
+      "derivative": "trajectory",
+      "accepted_steps": 17,
+      "setup_seconds": 0.3020859539974481,
+      "trace_compile_seconds": 0.7075864420039579,
+      "warm_median_seconds": 3.954500425606966e-05,
+      "peak_process_rss_mib": 306.52734375
+    },
+    {
+      "solver": "compiled-diffrax-adaptive",
+      "derivative": "grad-rev",
+      "accepted_steps": 17,
+      "setup_seconds": 0.30507429799763486,
+      "trace_compile_seconds": 2.6227010659640655,
+      "warm_median_seconds": 9.019498247653246e-05,
+      "peak_process_rss_mib": 352.83203125
+    }
+  ]
+}
