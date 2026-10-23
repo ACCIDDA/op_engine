@@ -12,6 +12,11 @@ name: 'GitHub Pages Documentation'
         required: false
         default: 'push'
         type: 'string'
+      release-ref:
+        description: 'Exact v-prefixed tag to deploy in release mode'
+        required: false
+        default: ''
+        type: 'string'
   workflow_dispatch:
     inputs:
       deploy-mode:
@@ -22,10 +27,15 @@ name: 'GitHub Pages Documentation'
         options:
           - 'push'
           - 'release'
+      release-ref:
+        description: 'Exact v-prefixed tag to deploy in release mode'
+        required: false
+        default: ''
+        type: 'string'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: 'op-engine-pages'
+  cancel-in-progress: false
 
 permissions:
   contents: 'read'
@@ -41,6 +51,37 @@ jobs:
     permissions:
       contents: 'write'  # Needed to push to gh-pages
     steps:
+      - name: 'Resolve deployment inputs'
+        id: deployment
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = 'workflow_call' ]; then
+            MODE="${CALL_MODE}"
+            RELEASE_REF="${CALL_RELEASE_REF}"
+          elif [ "${EVENT_NAME}" = 'workflow_dispatch' ]; then
+            MODE="${DISPATCH_MODE:-push}"
+            RELEASE_REF="${DISPATCH_RELEASE_REF}"
+          else
+            MODE='push'
+            RELEASE_REF=''
+          fi
+          CHECKOUT_REF="${EVENT_SHA}"
+          if [ "${MODE}" = 'release' ]; then
+            if [ -z "${RELEASE_REF}" ]; then
+              echo 'Release mode requires an exact v-prefixed release-ref.' >&2
+              exit 1
+            fi
+            CHECKOUT_REF="${RELEASE_REF}"
+          fi
+          echo "deploy-mode=${MODE}" >> "${GITHUB_OUTPUT}"
+          echo "checkout-ref=${CHECKOUT_REF}" >> "${GITHUB_OUTPUT}"
+        env:
+          CALL_MODE: '${{ inputs.deploy-mode }}'
+          CALL_RELEASE_REF: '${{ inputs.release-ref }}'
+          DISPATCH_MODE: '${{ github.event.inputs.deploy-mode }}'
+          DISPATCH_RELEASE_REF: '${{ github.event.inputs.release-ref }}'
+          EVENT_NAME: '${{ github.event_name }}'
+          EVENT_SHA: '${{ github.sha }}'
       - name: 'Install just'
         uses: 'taiki-e/install-action@v2'
         with:
@@ -48,7 +89,8 @@ jobs:
       - name: 'Checkout repository'
         uses: 'actions/checkout@v6'
         with:
-          ref: 'main'
+          fetch-depth: 0
+          ref: '${{ steps.deployment.outputs.checkout-ref }}'
           persist-credentials: true
       - name: 'Fetch gh-pages branch'
         run: |
@@ -63,48 +105,42 @@ jobs:
           enable-cache: true
           cache-dependency-glob: 'pyproject.toml'
           python-version: '${{ matrix.python-version }}'
-      - name: 'Extract op_engine version'
-        id: extract-version
-        run: |
-          cat > version.py << EOF
-          import tomllib
-          with open('pyproject.toml', 'rb') as f:
-              data = tomllib.load(f)
-          version = data['project']['version']
-          version = '.'.join(version.split('.')[:2])
-          print(f"version={version}")
-          EOF
-          uv run -qq python version.py >> $GITHUB_OUTPUT
-          rm version.py
+      - name: 'Classify op_engine version'
+        id: classify-version
+        run: >-
+          uv run python scripts/release_validate.py --scope core
+          --github-output "${GITHUB_OUTPUT}"
       - name: 'Build API Reference'
         run: 'just api-reference'
-      - name: 'Determine deploy mode'
-        id: determine-mode
-        run: |
-          if [ "${EVENT_NAME}" = "workflow_call" ]; then
-            echo "deploy-mode=${CALL_MODE}" >> "${GITHUB_OUTPUT}"
-          elif [ "${EVENT_NAME}" = "workflow_dispatch" ] \
-            && [ -n "${DISPATCH_MODE}" ]; then
-            echo "deploy-mode=${DISPATCH_MODE}" >> "${GITHUB_OUTPUT}"
-          else
-            echo "deploy-mode=push" >> "${GITHUB_OUTPUT}"
-          fi
-        env:
-          CALL_MODE: '${{ inputs.deploy-mode }}'
-          DISPATCH_MODE: '${{ github.event.inputs.deploy-mode }}'
-          EVENT_NAME: '${{ github.event_name }}'
       - name: 'Deploy to GitHub Pages'
         run: |
-          uv run mike set-default latest
-          if [ "${DEPLOY_MODE}" = "release" ] || [[ $VERSION == 0* ]]; then
-            ALIAS=latest
+          set -euo pipefail
+          if [ "${DEPLOY_MODE}" = 'release' ]; then
+            EXPECTED_TAG="v${PACKAGE_VERSION}"
+            if [ "${CHECKOUT_REF}" != "${EXPECTED_TAG}" ]; then
+              echo "Release ref must equal ${EXPECTED_TAG}." >&2
+              exit 1
+            fi
+            if ! git tag --points-at HEAD --list "${EXPECTED_TAG}" | grep -Fxq "${EXPECTED_TAG}"; then
+              echo "Release documentation must be built from ${EXPECTED_TAG}." >&2
+              exit 1
+            fi
+            VERSION="${PACKAGE_VERSION}"
+            ALIAS="${PACKAGE_DOCS_ALIAS}"
+            if uv run mike list | awk '{print $1}' | grep -Fxq "${VERSION}"; then
+              echo "Documentation version ${VERSION} already exists; exact versions are immutable." >&2
+              exit 1
+            fi
           else
-            ALIAS=dev
+            VERSION='dev'
+            ALIAS='dev'
           fi
           uv run mike deploy \
             --push --update-aliases \
-            ${VERSION} ${ALIAS}
+            "${VERSION}" "${ALIAS}"
         env:
-          DEPLOY_MODE: "${{ steps.determine-mode.outputs.deploy-mode }}"
+          CHECKOUT_REF: '${{ steps.deployment.outputs.checkout-ref }}'
+          DEPLOY_MODE: '${{ steps.deployment.outputs.deploy-mode }}'
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          VERSION: "${{ steps.extract-version.outputs.version }}"
+          PACKAGE_DOCS_ALIAS: '${{ steps.classify-version.outputs.docs-alias }}'
+          PACKAGE_VERSION: '${{ steps.classify-version.outputs.docs-version }}'

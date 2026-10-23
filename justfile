@@ -152,10 +152,14 @@ build-all: build-all-core build-all-provider
 # Release validation
 # -------------------------------------------------
 
-release-check:
-	uv run python scripts/release_validate.py
+release-check-core:
+	uv run python scripts/release_validate.py --scope core
 
-release-validate: citation release-check build-all
+release-validate-core: citation release-check-core build-all-core
+
+release-check: release-check-core
+
+release-validate: release-validate-core
 
 
 # -------------------------------------------------

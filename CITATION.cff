@@ -1,13 +1,12 @@
 cff-version: "1.2.0"
 message: >-
-  If you use op_engine or its flepimop2 provider, please cite this software
-  and record the exact shared release version used in your methods.
+  If you use op_engine, please cite this software and record the exact core
+  release version used in your methods.
 type: software
-title: "op_engine: Operator-partitioned numerical solvers and flepimop2 provider"
+title: "op_engine: Operator-partitioned numerical solvers"
 abstract: >-
   Array-API numerical kernels for explicit, implicit, IMEX and stochastic
-  integration of structured ODE/PDE models, with frozen-mesh replay and a
-  separately distributed flepimop2 provider.
+  integration of structured ODE/PDE models, with frozen-mesh replay.
 authors:
   - family-names: Macdonald
     given-names: Joshua
@@ -20,9 +19,7 @@ authors:
     email: twillard@unc.edu
 version: "0.8.0"
 date-released: "2026-10-19"
-license:
-  - MIT
-  - GPL-3.0-or-later
+license: MIT
 repository-code: "https://github.com/ACCIDDA/op_engine"
 repository-artifact: "https://github.com/ACCIDDA/op_engine/releases/tag/v0.8.0"
 url: "https://accidda.github.io/op_engine/"

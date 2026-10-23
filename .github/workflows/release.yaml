@@ -33,8 +33,12 @@ jobs:
     runs-on: 'ubuntu-latest'
     outputs:
       version: '${{ steps.validate-version.outputs.version }}'
+      release-tag: '${{ steps.validate-version.outputs.release-tag }}'
       docs-version: '${{ steps.validate-version.outputs.docs-version }}'
+      docs-alias: '${{ steps.validate-version.outputs.docs-alias }}'
       prerelease: '${{ steps.validate-version.outputs.prerelease }}'
+      release-phase: '${{ steps.validate-version.outputs.release-phase }}'
+      maturity: '${{ steps.validate-version.outputs.maturity }}'
     steps:
       - name: 'Install just'
         uses: 'taiki-e/install-action@v2'
@@ -49,17 +53,37 @@ jobs:
         uses: 'astral-sh/setup-uv@v7.2.0'
         with:
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            flepimop2-op_engine/pyproject.toml
+          cache-dependency-glob: 'pyproject.toml'
           python-version: '3.12'
-      - name: 'Validate shared package version'
+      - name: 'Require authoritative main for production actions'
+        if: >-
+          ${{
+            inputs.publish-target == 'pypi' ||
+            inputs.create-github-release ||
+            inputs.deploy-docs
+          }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_NAME}" != "${DEFAULT_BRANCH}" ]; then
+            echo 'PyPI publication, GitHub releases, and release docs must run from the default branch.' >&2
+            exit 1
+          fi
+          git fetch origin "${DEFAULT_BRANCH}"
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/${DEFAULT_BRANCH}")" ]; then
+            echo 'Production actions require the current default-branch head.' >&2
+            exit 1
+          fi
+        env:
+          DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
+      - name: 'Validate core package version'
         id: validate-version
         run: |
-          uv run python scripts/release_validate.py --github-output "${GITHUB_OUTPUT}"
+          uv run python scripts/release_validate.py \
+            --scope core \
+            --github-output "${GITHUB_OUTPUT}"
           just citation
       - name: 'Run release build validation'
-        run: 'just build-all'
+        run: 'just build-all-core'
         env:
           UV_PYTHON_VERSION: '3.12'
       - name: 'Build core release artifacts'
@@ -68,23 +92,11 @@ jobs:
           mkdir -p release-dist/op_engine
           uv run --with build --with twine python -m build --outdir release-dist/op_engine
           uv run --with twine python -m twine check --strict release-dist/op_engine/*
-      - name: 'Build provider release artifacts'
-        run: |
-          mkdir -p release-dist/flepimop2-op_engine
-          cd flepimop2-op_engine
-          uv run --no-project --with build --with twine python -m build --outdir ../release-dist/flepimop2-op_engine
-          uv run --no-project --with twine python -m twine check --strict ../release-dist/flepimop2-op_engine/*
       - name: 'Upload core package artifacts'
         uses: 'actions/upload-artifact@v7'
         with:
           name: 'op-engine-dist'
           path: 'release-dist/op_engine/*'
-          if-no-files-found: 'error'
-      - name: 'Upload provider package artifacts'
-        uses: 'actions/upload-artifact@v7'
-        with:
-          name: 'flepimop2-op-engine-dist'
-          path: 'release-dist/flepimop2-op_engine/*'
           if-no-files-found: 'error'
 
   publish-core:
@@ -116,46 +128,16 @@ jobs:
         with:
           packages-dir: 'dist'
 
-  publish-provider:
-    name: 'Publish flepimop2-op_engine'
-    needs:
-      - 'validate'
-      - 'publish-core'
-    runs-on: 'ubuntu-latest'
-    permissions:
-      id-token: 'write'
-    steps:
-      - name: 'Skip provider publish'
-        if: "${{ github.event.inputs.publish-target == 'none' }}"
-        run: 'echo "publish-target=none; skipping flepimop2-op_engine publish."'
-      - name: 'Download provider package artifacts'
-        if: "${{ github.event.inputs.publish-target != 'none' }}"
-        uses: 'actions/download-artifact@v8'
-        with:
-          name: 'flepimop2-op-engine-dist'
-          path: 'dist'
-      - name: 'Publish provider package to TestPyPI'
-        if: "${{ github.event.inputs.publish-target == 'testpypi' }}"
-        uses: 'pypa/gh-action-pypi-publish@release/v1'
-        with:
-          packages-dir: 'dist'
-          repository-url: 'https://test.pypi.org/legacy/'
-      - name: 'Publish provider package to PyPI'
-        if: "${{ github.event.inputs.publish-target == 'pypi' }}"
-        uses: 'pypa/gh-action-pypi-publish@release/v1'
-        with:
-          packages-dir: 'dist'
-
   create-github-release:
     name: 'Create GitHub release'
     needs:
       - 'validate'
-      - 'publish-provider'
+      - 'publish-core'
     if: >-
       ${{
         github.event.inputs.create-github-release == 'true' &&
-        (github.event.inputs.publish-target == 'none' ||
-        needs.publish-provider.result == 'success')
+        needs.validate.result == 'success' &&
+        needs.publish-core.result == 'success'
       }}
     runs-on: 'ubuntu-latest'
     permissions:
@@ -164,10 +146,10 @@ jobs:
       - name: 'Create release'
         run: |
           ARGS=(
-            release create "v${VERSION}"
+            release create "${RELEASE_TAG}"
             --repo "${GITHUB_REPOSITORY}"
             --target "${GITHUB_SHA}"
-            --title "v${VERSION}"
+            --title "${RELEASE_TAG}"
             --generate-notes
           )
           if [ "${PRERELEASE}" = 'true' ]; then
@@ -179,11 +161,12 @@ jobs:
           GITHUB_REPOSITORY: '${{ github.repository }}'
           GITHUB_SHA: '${{ github.sha }}'
           PRERELEASE: '${{ needs.validate.outputs.prerelease }}'
-          VERSION: '${{ needs.validate.outputs.version }}'
+          RELEASE_TAG: '${{ needs.validate.outputs.release-tag }}'
 
   deploy-docs:
     name: 'Deploy release docs'
     needs:
+      - 'validate'
       - 'create-github-release'
     if: >-
       ${{
@@ -195,4 +178,5 @@ jobs:
     uses: './.github/workflows/gh-pages.yaml'
     with:
       deploy-mode: 'release'
+      release-ref: '${{ needs.validate.outputs.release-tag }}'
     secrets: 'inherit'

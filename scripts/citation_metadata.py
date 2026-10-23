@@ -14,19 +14,14 @@ from ruamel.yaml import YAML  # type: ignore[import-not-found, unused-ignore]
 
 
 def main() -> None:
-    """Fail when shared software citation fields drift from released metadata.
+    """Fail when core citation fields drift from released metadata.
 
     Raises:
         SystemExit: If attribution, version, date, or release URL disagree.
     """
     root = Path(__file__).resolve().parent.parent
     citation = YAML(typ="safe").load((root / "CITATION.cff").read_text("utf-8"))
-    projects = [
-        tomllib.loads((root / directory / "pyproject.toml").read_text("utf-8"))[
-            "project"
-        ]
-        for directory in [".", "flepimop2-op_engine"]
-    ]
+    project = tomllib.loads((root / "pyproject.toml").read_text("utf-8"))["project"]
     authors = [
         {
             "name": f"{person['given-names']} {person['family-names']}",
@@ -34,44 +29,33 @@ def main() -> None:
         }
         for person in citation["authors"]
     ]
-    if citation["license"] != ["MIT", "GPL-3.0-or-later"]:
-        msg = (
-            "Citation licenses must match the core MIT and "
-            "provider GPLv3-or-later grants"
-        )
+    if citation["license"] != "MIT":
+        msg = "Citation license must match the core MIT grant"
         raise SystemExit(msg)
-    shared = str(citation["version"])
-    for project in projects:
-        if project["version"] != shared or project["authors"] != authors:
-            msg = (
-                "Citation attribution/version differs from "
-                f"{project['name']} package metadata"
-            )
-            raise SystemExit(msg)
+    version = str(citation["version"])
+    if project["version"] != version or project["authors"] != authors:
+        msg = "Citation attribution/version differs from op_engine package metadata"
+        raise SystemExit(msg)
     changelog = (root / "CHANGELOG.md").read_text("utf-8")
     released = re.search(
-        rf"^## \[{re.escape(shared)}\] - (\d{{4}}-\d{{2}}-\d{{2}})$",
+        rf"^## \[{re.escape(version)}\] - (\d{{4}}-\d{{2}}-\d{{2}})$",
         changelog,
         re.MULTILINE,
     )
     if released is None or str(citation["date-released"]) != released.group(1):
         msg = (
-            "Citation date-released must match the shared version's "
-            "dated changelog entry"
+            "Citation date-released must match the core version's dated changelog entry"
         )
         raise SystemExit(msg)
-    repository = projects[0]["urls"]["Repository"]
-    expected = f"{repository}/releases/tag/v{shared}"
+    repository = project["urls"]["Repository"]
+    expected = f"{repository}/releases/tag/v{version}"
     if (
         citation["repository-code"] != repository
         or citation["repository-artifact"] != expected
     ):
-        msg = (
-            "Citation repository and release URL must identify "
-            "the shared software release"
-        )
+        msg = "Citation repository and release URL must identify the core release"
         raise SystemExit(msg)
-    print(f"Validated citation attribution and release metadata: {shared}")
+    print(f"Validated core citation attribution and release metadata: {version}")
 
 
 if __name__ == "__main__":

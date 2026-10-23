@@ -71,6 +71,16 @@ versioning while the project remains pre-1.0.
   derivatives and final-only output by default. Qualify native CPU transforms,
   independent analytic/refinement references and the optional compiler boundary.
 
+### Changed
+
+- Separate final, alpha, beta and release-candidate classification from the
+  project's alpha maturity; publish mutable development docs only at `dev` and
+  build immutable full-version release docs from the exact Git tag.
+
+- Make the release workflow publish only the independently usable `op_engine`
+  core. Reserve FlepiMoP2-provider publication for a separate future workflow
+  coordinated with that project's maintainers.
+
 ### Fixed
 
 - Preserve native state autograd graphs during adoption and dtype conversion,
@@ -90,6 +100,11 @@ versioning while the project remains pre-1.0.
 
 - Replace issue and pull-request breadcrumbs in guides and API docstrings with
   current behavior, named interfaces and explicit limitations.
+
+- Correct install commands to use the published distribution name, add the
+  package root to the generated API reference, document the live confidential
+  security-reporting route, and align citation/archive guidance with release
+  0.8.0 and the existing release-event hook.
 
 
 ## [0.8.0] - 2026-10-19

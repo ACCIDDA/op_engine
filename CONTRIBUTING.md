@@ -41,7 +41,8 @@ a frozen dataclass is appropriate for validated/computed configuration. New
 behavior tests should assert independently expected equations, references, invariants
 or error contracts, rather than reproducing implementation expressions.
 Document changed public behavior and migration in the relevant guide and
-`CHANGELOG.md` under `Unreleased`. Ordinary fixes retain the shared version.
+`CHANGELOG.md` under `Unreleased`. Ordinary fixes retain current version
+declarations until a release is prepared.
 
 Run these checks locally **before pushing/opening a PR**:
 
@@ -98,24 +99,27 @@ core step kernel from framework execution. Describe hardware for GPU reports.
 
 ## Releases, documentation and citation
 
-`op_engine` and `flepimop2-op_engine` share one version and GitHub tag. The
-provider requires the exact corresponding `op-engine==X.Y.Z`, and publication
-builds/publishes core before provider. See
+`op_engine` can be released independently of its optional
+`flepimop2-op_engine` provider. The core workflow cannot publish the provider.
+A provider release requires separate coordination with FlepiMoP2 maintainers,
+the exact corresponding `op-engine==X.Y.Z`, and a separate reviewed workflow. See
 [creating a release](docs/development/creating-a-release.md); merging readiness
 work is separate from publishing or archiving a release.
 
 Core is MIT-licensed. Provider source grants GPL version 3 or any later version
 (`GPL-3.0-or-later`). Preserve the applicable grants and existing attribution.
-[CITATION.cff](CITATION.cff) retains authors/order from both package metadata
-files; maintainers review attribution when it changes. `just citation` validates
-CFF syntax and alignment with versions, authors, grants, dated changelog and
-release URL. The CFF records the shared 0.8.0 release metadata; unreleased main changes
-require a new release before they become part of an archived software version.
+[CITATION.cff](CITATION.cff) retains authors and order from the core package
+metadata; maintainers review attribution when it changes. `just citation` validates
+CFF syntax and alignment with the core version, authors, MIT grant, dated
+changelog and release URL. The CFF records core release 0.8.0; provider methods
+must record the provider version separately. Unreleased main changes require a
+new release before they become part of an archived software version.
 
 Use the [documentation version selector](https://accidda.github.io/op_engine/)
-and exact release tag for reproducibility. The docs deployment groups
-major/minor releases, so patch-specific behavior should use that exact tag's
-source/changelog. [Citation and archiving](docs/development/citation-and-archiving.md)
+and exact release tag for reproducibility. `main` publishes only the mutable
+`dev` documentation; each release publishes its full, immutable version. Final
+releases move `latest`, while alpha, beta, and release-candidate versions move
+`pre`. [Citation and archiving](docs/development/citation-and-archiving.md)
 describes version-specific identifiers and the ACCIDDA Zenodo follow-up. Add a
 preferred paper citation only once its authors and bibliographic record exist.
 
