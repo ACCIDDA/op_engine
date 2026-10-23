@@ -3,7 +3,7 @@
 Notable user-facing changes are recorded here. Versions follow semantic
 versioning while the project remains pre-1.0.
 
-## [Unreleased]
+## [0.9.0] - 2026-10-23
 
 ### Added
 
@@ -90,9 +90,9 @@ versioning while the project remains pre-1.0.
   current behavior, named interfaces and explicit limitations.
 
 - Correct install commands to use the published distribution name, add the
-  package root to the generated API reference, document the live confidential
-  security-reporting route, and align citation/archive guidance with release
-  0.8.0 and the existing release-event hook.
+  package root to the generated API reference, document the confidential
+  security-reporting route, and align citation/archive guidance with the
+  core-only release lifecycle and current archive-integration status.
 
 
 ## [0.8.0] - 2026-10-19
