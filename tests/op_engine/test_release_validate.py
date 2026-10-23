@@ -121,6 +121,20 @@ def test_pages_writers_are_serialized_without_cancellation() -> None:
     assert "Require authoritative main for development docs" in workflow
 
 
+def test_reusable_release_docs_use_the_unified_inputs_context() -> None:
+    """A called workflow must not branch on the caller's event name."""
+    workflow = pathlib.Path(".github/workflows/gh-pages.yaml").read_text("utf-8")
+    assert 'MODE="${INPUT_MODE:-push}"' in workflow
+    assert "INPUT_MODE: '${{ inputs.deploy-mode }}'" in workflow
+    assert "INPUT_RELEASE_REF: '${{ inputs.release-ref }}'" in workflow
+    assert "github.event.inputs.deploy-mode" not in workflow
+    assert "github.event.inputs.release-ref" not in workflow
+    resolver = workflow.split("      - name: 'Resolve deployment inputs'", maxsplit=1)[
+        1
+    ].split("      - name: 'Install just'", maxsplit=1)[0]
+    assert "'workflow_call'" not in resolver
+
+
 def test_release_docs_require_exact_ref_before_checkout() -> None:
     """Release deployments reject an empty or mismatched tag before writing."""
     workflow = pathlib.Path(".github/workflows/gh-pages.yaml").read_text("utf-8")

@@ -11,10 +11,10 @@ separately, plus flepimop2, op_system and backend versions relevant to the run.
 For published work, cite the exact version and its verified identifier. The
 initial CFF describes Joshua Macdonald, Carl Pearson, and Timothy Willard,
 *op_engine: Operator-partitioned numerical solvers*,
-version 0.8.0, released 2026-10-19, with the
-[v0.8.0 release URL](https://github.com/ACCIDDA/op_engine/releases/tag/v0.8.0).
+version 0.9.0, released 2026-10-23, with the
+[v0.9.0 release URL](https://github.com/ACCIDDA/op_engine/releases/tag/v0.9.0).
 Development results also need the commit and any local changes. Unreleased
-features on main are not retroactively part of 0.8.0; use the exact tag's source
+features on main are not retroactively part of 0.9.0; use the exact tag's source
 and changelog and the documentation version selector.
 
 Run `just citation` to validate CFF 1.2.0 with pinned `cffconvert==2.0.0` in an

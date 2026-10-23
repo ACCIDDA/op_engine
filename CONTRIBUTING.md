@@ -111,7 +111,7 @@ Core is MIT-licensed. Provider source grants GPL version 3 or any later version
 [CITATION.cff](CITATION.cff) retains authors and order from the core package
 metadata; maintainers review attribution when it changes. `just citation` validates
 CFF syntax and alignment with the core version, authors, MIT grant, dated
-changelog and release URL. The CFF records core release 0.8.0; provider methods
+changelog and release URL. The CFF records core release 0.9.0; provider methods
 must record the provider version separately. Unreleased main changes require a
 new release before they become part of an archived software version.
 

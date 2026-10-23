@@ -5,6 +5,9 @@ repository-root changelog and use an independent release lifecycle.
 
 ## [Unreleased]
 
+The development source is labelled `0.9.0.dev0`; it is not part of the core
+0.9.0 release and has not been published.
+
 ### Added
 
 - Add opt-in independent adaptive schedules for compiler-proven JAX blocks,

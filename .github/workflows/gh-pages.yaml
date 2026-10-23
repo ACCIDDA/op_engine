@@ -55,13 +55,9 @@ jobs:
         id: deployment
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = 'workflow_call' ]; then
-            MODE="${CALL_MODE}"
-            RELEASE_REF="${CALL_RELEASE_REF}"
-          elif [ "${EVENT_NAME}" = 'workflow_dispatch' ]; then
-            MODE="${DISPATCH_MODE:-push}"
-            RELEASE_REF="${DISPATCH_RELEASE_REF}"
-          else
+          MODE="${INPUT_MODE:-push}"
+          RELEASE_REF="${INPUT_RELEASE_REF}"
+          if [ "${EVENT_NAME}" = 'push' ]; then
             MODE='push'
             RELEASE_REF=''
           fi
@@ -76,10 +72,8 @@ jobs:
           echo "deploy-mode=${MODE}" >> "${GITHUB_OUTPUT}"
           echo "checkout-ref=${CHECKOUT_REF}" >> "${GITHUB_OUTPUT}"
         env:
-          CALL_MODE: '${{ inputs.deploy-mode }}'
-          CALL_RELEASE_REF: '${{ inputs.release-ref }}'
-          DISPATCH_MODE: '${{ github.event.inputs.deploy-mode }}'
-          DISPATCH_RELEASE_REF: '${{ github.event.inputs.release-ref }}'
+          INPUT_MODE: '${{ inputs.deploy-mode }}'
+          INPUT_RELEASE_REF: '${{ inputs.release-ref }}'
           EVENT_NAME: '${{ github.event_name }}'
           EVENT_SHA: '${{ github.sha }}'
       - name: 'Install just'
