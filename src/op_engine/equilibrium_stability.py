@@ -284,7 +284,7 @@ def _invariant_rows(value: object, n: int) -> NDArray[np.float64]:
     if np.any(norms == 0):
         msg = "invariants must not contain zero rows"
         raise ValueError(msg)
-    return rows / norms[:, None]
+    return cast("NDArray[np.float64]", rows / norms[:, None])
 
 
 def _strict_numpy_vector(value: object, state: NumpyArray, name: str) -> NumpyArray:
