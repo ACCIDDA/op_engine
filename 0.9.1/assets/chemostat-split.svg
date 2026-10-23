@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280" role="img" aria-labelledby="title desc">
+  <title id="title">Chemostat PDE operator split</title>
+  <desc id="desc">Population density and resource enter explicit reaction and implicit diffusion partitions, which are combined by the IMEX solver into observables.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#4051b5"/>
+    </marker>
+    <style>
+      .box { fill: #f7f8fc; stroke: #4051b5; stroke-width: 2; rx: 10; }
+      .accent { fill: #eef7f3; stroke: #16866b; stroke-width: 2; rx: 10; }
+      .text { font: 16px sans-serif; fill: #202124; text-anchor: middle; }
+      .small { font: 13px sans-serif; fill: #4b4d52; text-anchor: middle; }
+      .arrow { stroke: #4051b5; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="box" x="25" y="75" width="190" height="120"/>
+  <text class="text" x="120" y="110">State</text>
+  <text class="small" x="120" y="140">trait density n(theta)</text>
+  <text class="small" x="120" y="165">resource S</text>
+
+  <path class="arrow" d="M215 115 H295"/>
+  <path class="arrow" d="M215 165 H295"/>
+
+  <rect class="accent" x="300" y="25" width="245" height="95"/>
+  <text class="text" x="422" y="58">Explicit partition</text>
+  <text class="small" x="422" y="83">growth + dilution</text>
+  <text class="small" x="422" y="103">resource coupling</text>
+
+  <rect class="accent" x="300" y="155" width="245" height="95"/>
+  <text class="text" x="422" y="188">Implicit partition</text>
+  <text class="small" x="422" y="213">non-uniform no-flux</text>
+  <text class="small" x="422" y="233">trait diffusion</text>
+
+  <path class="arrow" d="M545 73 C600 73 600 112 640 125"/>
+  <path class="arrow" d="M545 203 C600 203 600 164 640 151"/>
+
+  <rect class="box" x="645" y="75" width="225" height="120"/>
+  <text class="text" x="757" y="110">IMEX trajectory</text>
+  <text class="small" x="757" y="140">biomass + resource</text>
+  <text class="small" x="757" y="165">mean + central moments</text>
+</svg>

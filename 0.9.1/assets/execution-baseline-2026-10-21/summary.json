@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-21",
+  "matrix_cases": 30,
+  "process_repeats": 3,
+  "corrected_records": 90,
+  "counts": {
+    "compiler": {
+      "success": 36,
+      "timeout": 0,
+      "error": 0
+    },
+    "solver": {
+      "success": 30,
+      "timeout": 0,
+      "error": 0
+    },
+    "loop": {
+      "success": 12,
+      "timeout": 6,
+      "error": 0
+    },
+    "ssa": {
+      "success": 6,
+      "timeout": 0,
+      "error": 0
+    }
+  },
+  "receipt_sha256": "de59a9354821876031da736e95270ecedc846f979a9bede2274377d8a7b6ed1a",
+  "loop_probes": [
+    {
+      "case_id": "loop-scan-n64-grad",
+      "completed": 3,
+      "censored": 0,
+      "median_compile_seconds": 0.5064691260049585,
+      "median_run_seconds": 0.0020011760061606765,
+      "median_worker_peak_rss_mib": 252.6171875
+    },
+    {
+      "case_id": "loop-scan-n64-hessian",
+      "completed": 3,
+      "censored": 0,
+      "median_compile_seconds": 1.1341260820045136,
+      "median_run_seconds": 0.004516148997936398,
+      "median_worker_peak_rss_mib": 282.64453125
+    },
+    {
+      "case_id": "loop-scan-n8-grad",
+      "completed": 3,
+      "censored": 0,
+      "median_compile_seconds": 0.46679498901357874,
+      "median_run_seconds": 0.0012960000021848828,
+      "median_worker_peak_rss_mib": 251.71484375
+    },
+    {
+      "case_id": "loop-unroll-n64-grad",
+      "completed": 0,
+      "censored": 3,
+      "median_compile_seconds": null,
+      "median_run_seconds": null,
+      "median_worker_peak_rss_mib": null
+    },
+    {
+      "case_id": "loop-unroll-n64-hessian",
+      "completed": 0,
+      "censored": 3,
+      "median_compile_seconds": null,
+      "median_run_seconds": null,
+      "median_worker_peak_rss_mib": null
+    },
+    {
+      "case_id": "loop-unroll-n8-grad",
+      "completed": 3,
+      "censored": 0,
+      "median_compile_seconds": 13.434659571008524,
+      "median_run_seconds": 0.0024963229952845722,
+      "median_worker_peak_rss_mib": 556.78125
+    }
+  ],
+  "compiler_structured": [
+    {
+      "case_id": "compiler-jax-g16-s8-coupled",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 4.214479995425791e-05,
+      "maximum_absolute_value_error": 1.7763568394002505e-15,
+      "normalize_initial_process_samples_seconds": [
+        0.08149953300016932,
+        0.07944871101062745,
+        0.08977568600676022
+      ],
+      "normalize_median_initial_process_seconds": 0.08149953300016932,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.012870106991613284,
+        0.012985577981453389,
+        0.013401680014794692
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.012985577981453389
+    },
+    {
+      "case_id": "compiler-jax-g16-s8-independent",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 4.0798450936563316e-05,
+      "maximum_absolute_value_error": 1.7763568394002505e-15,
+      "normalize_initial_process_samples_seconds": [
+        0.07991711699287407,
+        0.08169872799771838,
+        0.0784818539978005
+      ],
+      "normalize_median_initial_process_seconds": 0.07991711699287407,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.02704458899097517,
+        0.02673185200546868,
+        0.027150301000801846
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.02704458899097517
+    },
+    {
+      "case_id": "compiler-jax-g4-s2-coupled",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 2.759494964266196e-05,
+      "maximum_absolute_value_error": 1.1102230246251565e-16,
+      "normalize_initial_process_samples_seconds": [
+        0.00683808300527744,
+        0.004501426010392606,
+        0.0045593590184580535
+      ],
+      "normalize_median_initial_process_seconds": 0.0045593590184580535,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.011993963998975232,
+        0.007176689978223294,
+        0.007158113003242761
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.007176689978223294
+    },
+    {
+      "case_id": "compiler-jax-g4-s2-independent",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 2.3548949684482068e-05,
+      "maximum_absolute_value_error": 0.0,
+      "normalize_initial_process_samples_seconds": [
+        0.005080870003439486,
+        0.004352928983280435,
+        0.004312529985327274
+      ],
+      "normalize_median_initial_process_seconds": 0.004352928983280435,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.011438476998591796,
+        0.010261586983688176,
+        0.010620382992783561
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.010620382992783561
+    },
+    {
+      "case_id": "compiler-numpy-g16-s8-coupled",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 0.00012201740028103814,
+      "maximum_absolute_value_error": 1.7763568394002505e-15,
+      "normalize_initial_process_samples_seconds": [
+        0.08858197301742621,
+        0.07898598699830472,
+        0.07562875398434699
+      ],
+      "normalize_median_initial_process_seconds": 0.07898598699830472,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.013221582979895175,
+        0.012733865005429834,
+        0.01185202898341231
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.012733865005429834
+    },
+    {
+      "case_id": "compiler-numpy-g16-s8-independent",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 0.00011844545078929514,
+      "maximum_absolute_value_error": 1.7763568394002505e-15,
+      "normalize_initial_process_samples_seconds": [
+        0.08577022899407893,
+        0.08319192501949146,
+        0.07397766798385419
+      ],
+      "normalize_median_initial_process_seconds": 0.08319192501949146,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.027605945011600852,
+        0.026923038996756077,
+        0.02237982299993746
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.026923038996756077
+    },
+    {
+      "case_id": "compiler-numpy-g4-s2-coupled",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 7.442255009664223e-05,
+      "maximum_absolute_value_error": 1.1102230246251565e-16,
+      "normalize_initial_process_samples_seconds": [
+        0.006814199005020782,
+        0.004660261009121314,
+        0.004618058999767527
+      ],
+      "normalize_median_initial_process_seconds": 0.004660261009121314,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.01210023500607349,
+        0.0072421540098730475,
+        0.007194239995442331
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.0072421540098730475
+    },
+    {
+      "case_id": "compiler-numpy-g4-s2-independent",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 6.954234995646403e-05,
+      "maximum_absolute_value_error": 0.0,
+      "normalize_initial_process_samples_seconds": [
+        0.006786101002944633,
+        0.004320951993577182,
+        0.004297072009649128
+      ],
+      "normalize_median_initial_process_seconds": 0.004320951993577182,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.028814939985750243,
+        0.010176976007642224,
+        0.01001721402280964
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.010176976007642224
+    },
+    {
+      "case_id": "compiler-torch-g16-s8-coupled",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 0.00013942924997536465,
+      "maximum_absolute_value_error": 1.7763568394002505e-15,
+      "normalize_initial_process_samples_seconds": [
+        0.0789916529902257,
+        0.07901318700169213,
+        0.08837528398726135
+      ],
+      "normalize_median_initial_process_seconds": 0.07901318700169213,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.013695759000256658,
+        0.012934534985106438,
+        0.014182629995048046
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.013695759000256658
+    },
+    {
+      "case_id": "compiler-torch-g16-s8-independent",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 0.00013722240109927952,
+      "maximum_absolute_value_error": 1.7763568394002505e-15,
+      "normalize_initial_process_samples_seconds": [
+        0.09444353700382635,
+        0.07652529099141248,
+        0.07506341399857774
+      ],
+      "normalize_median_initial_process_seconds": 0.07652529099141248,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.028558466990943998,
+        0.023941983003169298,
+        0.023095815995475277
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.023941983003169298
+    },
+    {
+      "case_id": "compiler-torch-g4-s2-coupled",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 0.0001255151495570317,
+      "maximum_absolute_value_error": 1.1102230246251565e-16,
+      "normalize_initial_process_samples_seconds": [
+        0.004542146023595706,
+        0.00448466298985295,
+        0.005027712002629414
+      ],
+      "normalize_median_initial_process_seconds": 0.004542146023595706,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.007144566014176235,
+        0.00691758599714376,
+        0.007749135984340683
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.007144566014176235
+    },
+    {
+      "case_id": "compiler-torch-g4-s2-independent",
+      "completed": 3,
+      "warm_sample_count": 9,
+      "median_seconds_per_call": 0.00010427490051370114,
+      "maximum_absolute_value_error": 0.0,
+      "normalize_initial_process_samples_seconds": [
+        0.0048853320186026394,
+        0.004375859978608787,
+        0.004313878976972774
+      ],
+      "normalize_median_initial_process_seconds": 0.004375859978608787,
+      "compile_rhs_initial_process_samples_seconds": [
+        0.010454720992129296,
+        0.010392845986643806,
+        0.010113249998539686
+      ],
+      "compile_rhs_median_initial_process_seconds": 0.010392845986643806
+    }
+  ],
+  "ssa": [
+    {
+      "case_id": "ssa-r16",
+      "completed": 3,
+      "median_bank_execution_seconds": 0.017588419985258952,
+      "event_counts": [
+        402,
+        402,
+        402
+      ]
+    },
+    {
+      "case_id": "ssa-r64",
+      "completed": 3,
+      "median_bank_execution_seconds": 0.029115178011124954,
+      "event_counts": [
+        1667,
+        1667,
+        1667
+      ]
+    }
+  ]
+}
