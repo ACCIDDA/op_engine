@@ -112,23 +112,41 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
     """Docs must not equate an exact provider pin with simultaneous releases."""
     public_docs = [
         pathlib.Path("README.md"),
+        pathlib.Path("CHANGELOG.md"),
         pathlib.Path("flepimop2-op_engine/README.md"),
+        pathlib.Path("flepimop2-op_engine/CHANGELOG.md"),
         *pathlib.Path("docs").rglob("*.md"),
     ]
     sources = {path: path.read_text("utf-8") for path in public_docs}
+    normalized = {path: " ".join(source.split()) for path, source in sources.items()}
 
-    for path, source in sources.items():
-        assert "shares its version" not in source, path
-    capabilities = " ".join(
-        sources[pathlib.Path("docs/guides/capabilities.md")].split()
+    forbidden = (
+        "shares its version",
+        "share one release version",
+        "shared package version",
+        "shared release version",
     )
-    assert "independent release lifecycle" in capabilities
-    assert "pins the exactly matching `op-engine` version" in capabilities
-    assert "independent release lifecycle" in sources[pathlib.Path("README.md")]
-    assert (
-        "independent lifecycle"
-        in sources[pathlib.Path("flepimop2-op_engine/README.md")]
-    )
+    for path, source in normalized.items():
+        for phrase in forbidden:
+            assert phrase not in source.casefold(), (path, phrase)
+
+    required = {
+        pathlib.Path("docs/guides/capabilities.md"): (
+            "independent release lifecycle",
+            "pins the exactly matching `op-engine` version",
+        ),
+        pathlib.Path("README.md"): (
+            "independent release lifecycle",
+            "published 0.8.0 package requires `op-engine==0.8.0`",
+        ),
+        pathlib.Path("flepimop2-op_engine/README.md"): (
+            "independent release lifecycles",
+            "depends on the exact matching `op-engine` version",
+        ),
+    }
+    for path, phrases in required.items():
+        for phrase in phrases:
+            assert phrase in normalized[path], (path, phrase)
 
 
 def test_release_unit_has_one_matching_maturity() -> None:
