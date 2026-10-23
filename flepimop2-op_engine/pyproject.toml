@@ -66,10 +66,10 @@ op-engine = { path = "..", editable = true }
 # Exercise the Array producer/consumer and callable seams stacked in flepimop2
 # PRs #344, #347, and #348 while those changes await review and merge.
 flepimop2 = { git = "https://github.com/ACCIDDA/flepimop2", rev = "4b75ac5130f5942360cd668250d80e5b33182576" }
-# Reproducible development pins for the op_system 0.8.0 release.
+# Reproducible development pins for the op_system 0.9.0 compiler contract.
 # Published wheel metadata continues to use the registry requirements above.
-flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "9a1180e5989e1e0b1fd5994090ddacad0fd9cac6", subdirectory = "flepimop2-op_system" }
-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "9a1180e5989e1e0b1fd5994090ddacad0fd9cac6" }
+flepimop2-op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "38cc97721922597310cf6e2049f206ade224e0be", subdirectory = "flepimop2-op_system" }
+op-system = { git = "https://github.com/ACCIDDA/op_system", rev = "38cc97721922597310cf6e2049f206ade224e0be" }
 
 
 [tool.mypy]

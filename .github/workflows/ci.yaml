@@ -125,7 +125,7 @@ jobs:
         run: |
           uv venv --python 3.12
           uv pip install -e '.[diffrax]' pytest 'diffrax==0.7.2' 'jax==${{ matrix.jax }}' 'numpy==${{ matrix.numpy }}' 'array-api-compat==${{ matrix.compat }}'
-          uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@bbde00697428f16f6cf948e7aff207f7b65231c8'
+          uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@38cc97721922597310cf6e2049f206ade224e0be'
       - name: 'Require current compiler values and each claimed transform without skips'
         run: 'uv run --no-sync python scripts/qualify_backend.py jax --diffrax'
       - name: 'Require native operator actions on the selected JAX contract'
@@ -296,7 +296,7 @@ jobs:
       - name: 'Install immutable merged compiler contract'
         run: >-
           uv pip install
-          'op-system @ git+https://github.com/ACCIDDA/op_system.git@ad3c28ac63e9af3b1210413a764b44a9c9bd2074'
+          'op-system @ git+https://github.com/ACCIDDA/op_system.git@38cc97721922597310cf6e2049f206ade224e0be'
       - name: 'Check two-mesh values and native derivatives without selected skips'
         run: >-
           uv run --no-sync python scripts/qualify_backend.py

@@ -206,7 +206,7 @@ qualify-torch:
 
 # Run after the CPU namespaces above; no compiler runtime dependency is introduced.
 qualify-observations:
-    uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@0becde52474b48fef6b6f3c42a344498a17552a8'
+    uv pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@38cc97721922597310cf6e2049f206ade224e0be'
     uv run --no-sync python scripts/qualify_backend.py numpy --compiler-contract
     uv run --no-sync python scripts/qualify_backend.py jax --compiler-contract
     uv run --no-sync python scripts/qualify_backend.py torch --compiler-contract

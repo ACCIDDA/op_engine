@@ -8,13 +8,13 @@ not acquire a Diffrax or compiler runtime dependency.
 
 Install the `diffrax` extra from the checkout containing this adapter. The
 qualified producer is the merged op_system compiler contract at
-`bbde00697428f16f6cf948e7aff207f7b65231c8`; the required CI installs that source
+`38cc97721922597310cf6e2049f206ade224e0be`; the required CI installs that source
 explicitly. Consumer plugins written against older compiler releases are design
 references and need fresh qualification against the current fields and outputs.
 
 ```sh
 python -m pip install '.[diffrax]'
-python -m pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@bbde00697428f16f6cf948e7aff207f7b65231c8'
+python -m pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@38cc97721922597310cf6e2049f206ade224e0be'
 ```
 
 ## Native input and output contract
