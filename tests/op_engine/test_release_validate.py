@@ -110,11 +110,27 @@ def test_core_release_allows_provider_to_remain_on_prior_version(
 
 def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> None:
     """Docs must not equate an exact provider pin with simultaneous releases."""
-    public_docs = [
-        pathlib.Path("README.md"),
+    required = {
+        pathlib.Path("docs/guides/capabilities.md"): (
+            "independent release lifecycle",
+            "pins the exactly matching `op-engine` version",
+        ),
+        pathlib.Path("README.md"): (
+            "independent release lifecycle",
+            "published 0.8.0 package requires `op-engine==0.8.0`",
+        ),
+        pathlib.Path("flepimop2-op_engine/README.md"): (
+            "independent release lifecycles",
+            "depends on the exact matching `op-engine` version",
+        ),
+    }
+    optional_changelogs = (
         pathlib.Path("CHANGELOG.md"),
-        pathlib.Path("flepimop2-op_engine/README.md"),
         pathlib.Path("flepimop2-op_engine/CHANGELOG.md"),
+    )
+    public_docs = [
+        *required,
+        *(path for path in optional_changelogs if path.is_file()),
         *pathlib.Path("docs").rglob("*.md"),
     ]
     sources = {path: path.read_text("utf-8") for path in public_docs}
@@ -130,20 +146,6 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
         for phrase in forbidden:
             assert phrase not in source.casefold(), (path, phrase)
 
-    required = {
-        pathlib.Path("docs/guides/capabilities.md"): (
-            "independent release lifecycle",
-            "pins the exactly matching `op-engine` version",
-        ),
-        pathlib.Path("README.md"): (
-            "independent release lifecycle",
-            "published 0.8.0 package requires `op-engine==0.8.0`",
-        ),
-        pathlib.Path("flepimop2-op_engine/README.md"): (
-            "independent release lifecycles",
-            "depends on the exact matching `op-engine` version",
-        ),
-    }
     for path, phrases in required.items():
         for phrase in phrases:
             assert phrase in normalized[path], (path, phrase)
