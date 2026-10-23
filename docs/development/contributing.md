@@ -11,5 +11,6 @@ changing namespace or frozen-mesh behavior. The
 [hierarchical numerical evidence](../guides/hierarchical-ode.md) illustrates
 independent scientific equations and derivative checks.
 
-[Citation and archiving](citation-and-archiving.md) describes the shared release
-unit, existing attribution, verified release identifiers and archival follow-up.
+[Citation and archiving](citation-and-archiving.md) describes the independent
+core and provider release units, existing attribution, verified release
+identifiers and archival follow-up.

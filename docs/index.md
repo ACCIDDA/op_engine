@@ -21,7 +21,8 @@ specialized adaptive solvers.
 
 The [contributor guide](development/contributing.md) documents setup, required
 checks and support. [Citation and archiving](development/citation-and-archiving.md)
-explains attribution, shared releases and the software-paper archive plan.
+explains attribution, the independent core and provider release lifecycles, and
+the software-paper archive plan.
 
 See [capabilities and executable examples](guides/capabilities.md) for current interfaces,
 optional dependencies, limitations and the checks that run in CI.

@@ -18,12 +18,19 @@ Provider package that adapts `op_engine` to `flepimop2`.
 | How does splitting affect a spatial numerical result? | [Chemostat comparison](https://accidda.github.io/op_engine/latest/guides/chemostat-pde/) | Reproduce the stated model, mesh and error reference. |
 | Which state/backend combinations are qualified? | [Qualification matrix](https://accidda.github.io/op_engine/latest/guides/backend-qualification/) | Evidence is specific to each method, layout and backend. |
 
-Install the provider directly, or include its op_system integration extra:
+PyPI currently serves provider version 0.8.0 for `op-engine==0.8.0`. The
+compatible source in this repository is the unpublished development version
+`0.9.0.dev0`; it is not part of the core 0.9.0 release. To test current provider
+source with current core source, clone the repository and run from its root:
 
 ```bash
-pip install flepimop2-op-engine
-pip install "flepimop2-op-engine[op-system]"
+just provider-sync
 ```
+
+This development environment also supplies the optional `op_system`
+integration. Do not use the published provider installation command in an
+`op-engine==0.9.0` environment until a compatible provider release is
+published.
 
 For systems supplied by `flepimop2-op_system`, the provider consumes the
 compiled `state_names`, `initial_state`, and `axis_labels` options to assemble
