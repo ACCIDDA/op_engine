@@ -2199,11 +2199,11 @@ controller, adjoint and result handling. Python, NumPy and the core solver do
 not acquire a Diffrax or compiler runtime dependency.</p>
 <p>Install the <code>diffrax</code> extra from the checkout containing this adapter. The
 qualified producer is the merged op_system compiler contract at
-<code>bbde00697428f16f6cf948e7aff207f7b65231c8</code>; the required CI installs that source
+<code>38cc97721922597310cf6e2049f206ade224e0be</code>; the required CI installs that source
 explicitly. Consumer plugins written against older compiler releases are design
 references and need fresh qualification against the current fields and outputs.</p>
 <pre><code class="language-sh">python -m pip install '.[diffrax]'
-python -m pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@bbde00697428f16f6cf948e7aff207f7b65231c8'
+python -m pip install 'op-system @ git+https://github.com/ACCIDDA/op_system.git@38cc97721922597310cf6e2049f206ade224e0be'
 </code></pre>
 <h2 id="native-input-and-output-contract">Native input and output contract<a class="headerlink" href="#native-input-and-output-contract" title="Permanent link">&para;</a></h2>
 <table>
