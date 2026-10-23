@@ -80,9 +80,13 @@ class _ForcingSchedule:
         """
         xp = array_namespace(reference)
         points = xp.asarray((*self.breakpoints, math.inf), dtype=reference.dtype)
-        index = xp.searchsorted(
-            points, xp.asarray(time, dtype=reference.dtype), side="right"
-        )
+        # Counting values at or before ``time`` is equivalent to
+        # ``searchsorted(..., side="right")`` for this validated, strictly
+        # increasing array.  Unlike JAX's searchsorted lowering, it does not
+        # introduce a nested loop into an enclosing replay scan.  That nested
+        # loop prevents XLA's CUDA compiler from compiling reverse-mode
+        # gradients of a replay whose stage times are loop parameters.
+        index = xp.sum(points <= xp.asarray(time, dtype=reference.dtype))
         return cast("Array", cast("Any", points)[index])
 
     def rhs_for_step(

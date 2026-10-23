@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from op_engine import CoreSolver, ModelCore, array_namespace
+from op_engine._forcing import _ForcingSchedule  # noqa: PLC2701
 from op_engine.core_solver import (
     AdaptiveConfig,
     AdaptiveStepSchedule,
@@ -201,6 +202,36 @@ def test_fixed_partition_includes_jumps_without_changing_outputs() -> None:
         0.75,
         0.25,
     )
+
+
+def test_jax_forcing_lookup_remains_loop_free_inside_scan_gradient() -> None:
+    """A forcing lookup does not nest a search loop inside a replay scan."""
+    jax = pytest.importorskip("jax")
+    jnp = pytest.importorskip("jax.numpy")
+    schedule = _ForcingSchedule((0.7, 1.0))
+    reference = jnp.asarray(0.0)
+
+    times = jnp.asarray([0.2, 0.8, 1.2])
+
+    def objective(scale: Any) -> Any:  # noqa: ANN401
+        def body(total: Any, time: Any) -> tuple[Any, None]:  # noqa: ANN401
+            incoming = schedule.rhs_for_step(
+                lambda stage_time, _state: scale * stage_time,
+                time,
+                reference,
+            )(time, reference)
+            return total + incoming, None
+
+        return jax.lax.scan(body, reference, times)[0]
+
+    scale = jnp.asarray(1.0)
+    gradient = jax.jit(jax.grad(objective))(scale)
+    np.testing.assert_allclose(np.asarray(gradient), np.asarray(times).sum())
+
+    jaxpr = str(jax.make_jaxpr(jax.grad(objective))(scale))
+    assert "scan[" in jaxpr
+    assert "searchsorted" not in jaxpr.lower()
+    assert "while[" not in jaxpr
 
 
 @pytest.mark.parametrize("backend", ["jax", "torch"])

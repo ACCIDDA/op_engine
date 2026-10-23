@@ -30,7 +30,7 @@ off-grid boundaries or constant-memory reverse-mode differentiation.
 
 Separate required `Compiler observations (numpy|jax|torch, 3.12)` jobs install
 op_system's merged observation contract at immutable commit
-`0becde52474b48fef6b6f3c42a344498a17552a8`, then run
+`38cc97721922597310cf6e2049f206ade224e0be`, then run
 `scripts/qualify_backend.py BACKEND --compiler-contract`. These reject absent
 backends, selected skips and empty selection as well. A cell-average linear
 density on two meshes gives the same physical integral and sample at a shared
