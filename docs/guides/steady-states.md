@@ -111,6 +111,159 @@ sirs_state = require_steady_state(
 ).state
 ```
 
+## Local linear-stability evidence
+
+`local_stability` examines the linearization at a candidate equilibrium without
+changing how `steady_state` solves for that candidate. Let `y*` be an
+`n`-coordinate state and let `f(t, y)` be the right-hand side, with units of
+state per unit time. The diagnostic first evaluates every coordinate of
+`f(t, y*)`. For the free-coordinate set `A` and positive residual tolerances
+`r_i`, it accepts the candidate only when
+
+```text
+sqrt(mean((f_i(t, y*) / r_i)**2 for i in A)) <= 1.
+```
+
+Residuals at fixed coordinates do not enter this test, because a cumulative
+counter can have nonzero flow at an equilibrium of the other coordinates. The
+result retains both the complete residual and the tested free-coordinate
+residual. An unconverged `SteadyStateResult` remains a solve failure even when
+its state passes a separately chosen residual threshold.
+
+The following two-state system has Jacobian eigenvalues `-1 +/- 2i`, in inverse
+days. Its local perturbations therefore decay with a leading e-folding time of
+one day.
+
+```python
+import numpy as np
+
+from op_engine import LocalStabilityConfig, local_stability
+
+jacobian = np.array([[-1.0, -2.0], [2.0, -1.0]])
+candidate = np.zeros(2)
+controls = LocalStabilityConfig(
+    residual_tolerance=1e-10,
+    spectral_absolute_tolerance=1e-10,
+    spectral_relative_tolerance=1e-8,
+    boundary_tolerance=1e-12,
+)
+stability = local_stability(
+    lambda _t, state: jacobian @ state,
+    candidate,
+    config=controls,
+    jacobian=lambda _t, _state: jacobian,
+    jacobian_reference="analytic matrix in this example",
+    coordinates=("x", "y"),
+    time_unit="day",
+)
+
+assert stability.classification.value == "asymptotically_stable"
+assert np.isclose(stability.leading_timescale, 1.0)
+```
+
+The configuration has no scientific defaults. `residual_tolerance` has the
+units of the corresponding right-hand-side coordinate;
+`spectral_absolute_tolerance` has inverse-time units;
+`spectral_relative_tolerance` is dimensionless; and `boundary_tolerance` has
+the units of the state coordinate. Each residual or boundary tolerance may be
+a scalar or an `n`-vector. Central finite differences use the configured
+`finite_difference_step`, in state units, or record the default perturbation
+`cbrt(machine epsilon) * max(abs(y_i), 1)` for each coordinate.
+
+### Jacobian sources and constraints
+
+For a local stability interpretation, `f` must be continuously differentiable
+near `y*` and autonomous. If `f` depends explicitly on time, the returned
+matrix and eigenvalues describe only the frozen time supplied as `t`; they do
+not establish stability of the nonautonomous system.
+
+The diagnostic accepts one of three mutually exclusive Jacobian sources:
+
+- an `op_system.SymbolicDerivatives` artifact, evaluated in its declared state
+  order and recorded with its structural model digest;
+- a dense analytic callback with a required `jacobian_reference`; or
+- an explicit central finite-difference run when neither source is supplied.
+
+A failed symbolic evaluation remains a Jacobian failure. It does not silently
+switch to finite differences. All successful right-hand-side and Jacobian
+evaluations must return NumPy arrays with the candidate's shape and floating
+dtype. When an `op_system` artifact is supplied, the caller must also ensure
+that the RHS and parameter bindings represent that same compiled model. The
+diagnostic verifies the artifact's state order and structural digest, but it
+cannot prove the identity of an arbitrary Python RHS callback.
+
+Fixed coordinates and declared linear invariants restrict admissible local
+perturbations. If `E_F` selects the fixed coordinates and the rows of `W`
+contain the invariants, the diagnostic forms `C = [E_F; W]` and obtains an
+orthonormal basis `Q` for `ker(C)` by singular value decomposition. It analyzes
+the tangent Jacobian
+
+```text
+J_T = Q.T @ J @ Q,
+```
+
+where `J` is the complete `n` by `n` Jacobian. The result retains the complete,
+free-coordinate and tangent spectra. It also checks that `W` annihilates the
+free-coordinate Jacobian within the reported scale-aware tolerance. Dependent
+constraint rows and failed invariant checks return an explicit failure instead
+of removing modes. A stable tangent spectrum therefore means asymptotic
+stability of the linearization on the declared constraint manifold, not in the
+unrestricted state space.
+
+For tangent eigenvalues `lambda`, the reported spectral band is
+
+```text
+tau = spectral_absolute_tolerance
+      + spectral_relative_tolerance * max(abs(lambda)).
+```
+
+The result is `asymptotically_stable` only when every real part is strictly
+less than `-tau`, and it is `unstable` when any real part is strictly greater
+than `tau`. If every real part lies within the closed band, the result reports
+`neutral_spectrum`; a mixture of critical and decaying modes reports
+`nonhyperbolic`. Neither critical result establishes nonlinear stability. For
+example, a zero linearization can occur at an attracting cubic root and in a
+nilpotent system with growing solutions. Equality with either threshold is
+treated as critical.
+
+Eigenvalues of repeated, defective or strongly nonnormal matrices can be
+sensitive to floating-point perturbations even when the reported values lie
+outside the chosen band. The diagnostic does not estimate eigenvalue condition
+numbers, transient amplification or a pseudospectrum. Examine those properties
+separately when the model or coordinates make nonnormality plausible.
+
+A leading e-folding time is reported only for a strictly stable or unstable
+interior classification. A stable result uses
+`-1 / max(real(lambda))`; an unstable result uses
+`1 / max(real(lambda))`. The caller supplies the time-unit label.
+
+### Boundaries and execution scope
+
+Set `nonnegative=True`, or provide a boolean mask, only for coordinates with a
+one-sided non-negative domain. If a free coordinate lies within its declared
+boundary tolerance, the result reports the affected coordinates and suppresses
+an interior classification. A supplied Jacobian can still provide descriptive
+spectral evidence, but a tangent-cone or complementarity analysis is required
+for a boundary conclusion. The central-difference route stops before probing
+across such a boundary.
+
+Boundary declarations refer to the supplied coordinate system. A zero boundary
+in natural population or concentration coordinates is not a finite point after
+a logarithmic transformation, so a result in log coordinates cannot be used as
+the corresponding natural-coordinate boundary analysis.
+
+`local_stability` is an eager, dense NumPy CPU diagnostic. It is not JIT
+traceable, differentiable, or qualified as a CUDA or portable Array API
+eigensolver. Transfer another backend's state explicitly at the caller
+boundary, for example with `np.asarray(jax.device_get(state))`. This host-only
+scope does not change the native JAX behavior of `steady_state`.
+
+The returned `status` distinguishes residual, solve, Jacobian, constraint,
+eigensolver, non-finite, boundary and zero-dimensional outcomes. Inspect the
+status before using the optional classification or timescale. Numerical
+eigenvalues support a local linearized conclusion under these declarations;
+they do not certify nonlinear or global stability.
+
 ## Convergence
 
 A solve converges when two conditions hold, with the scale `atol + |y|` per

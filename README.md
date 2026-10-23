@@ -32,6 +32,10 @@ tested methods and array backends.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `from_compiled_rhs` / `compile_reaction_network`: build the flat stochastic network (stoichiometry, reactant orders, propensity) from an op_system spec's reaction artifacts, with no flepimop2 dependency.
 - `steady_state`: equilibria by pseudo-transient continuation, with absorbing states held fixed, declared conservation constraints, and a Newton-correction convergence test; runs under `jax.jit`/`vmap`.
+- `local_stability`: eager dense NumPy CPU evidence for a residual-qualified
+  equilibrium, including explicit Jacobian provenance, constraint-manifold
+  spectra, boundary and failure statuses, and interpretable leading
+  e-folding times. It does not certify nonlinear or global stability.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 

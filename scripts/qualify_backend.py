@@ -92,6 +92,7 @@ def main() -> int:
                 "tests/op_engine/test_compiled_observations.py",
                 "tests/op_engine/test_compiled_forcing.py",
                 "tests/op_engine/test_compiled_sensitivities.py",
+                "tests/op_engine/test_equilibrium_stability.py",
             ]
             if args.compiler_contract
             else [
