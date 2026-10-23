@@ -106,6 +106,8 @@ build-test-core:
 	cp -R tests "${CLEANROOM}/tests"
 	cp -R scripts "${CLEANROOM}/scripts"
 	cp -R examples "${CLEANROOM}/examples"
+	mkdir -p "${CLEANROOM}/.github/workflows"
+	cp .github/workflows/gh-pages.yaml .github/workflows/release.yaml "${CLEANROOM}/.github/workflows/"
 	cp README.md "${CLEANROOM}/README.md"
 	mkdir -p "${CLEANROOM}/docs/guides"
 	cp docs/guides/getting-started.md docs/guides/observations.md docs/guides/linear-operators.md docs/guides/scipy-operators.md "${CLEANROOM}/docs/guides/"
