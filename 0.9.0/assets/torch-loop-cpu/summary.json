@@ -1,0 +1,114 @@
+{
+  "scope": "bounded native CPU Torch sequential loop consumers",
+  "source_revisions": {
+    "engine_candidate": "7a7e6fc",
+    "system_prerequisite": "bbde00697428f16f6cf948e7aff207f7b65231c8",
+    "infer_consumer": "713a2b76119e174dab75290eaf5bff9ffce63af6"
+  },
+  "notes": [
+    "32 serial fresh workers: core/actual observation consumer x 8/32 steps x float32/64 x eager/compiled x two repetitions; order reversed in repetition two. One CPU affinity; OMP/OpenBLAS/Inductor compile threads one. Empty isolated compiler caches, cache disabled for native records. 25 warm forward and value+gradient calls per worker; independent discrete RK4 value/gradient gates for two parameter sets.",
+    "Both modes in the primary 32-worker protocol import compiler diagnostic modules. This inflates instrumented eager import/RSS compared with ordinary eager use; do not present that baseline as plain eager memory. Eight additional plain-eager controls omit unused diagnostic imports and retain all other numerical consumer code. Controls are a separate memory/import probe with one worker per shape/precision/consumer, not pooled with the primary timing ratios.",
+    "Cold forward and cold backward are separate; warm value+gradient includes its forward. RSS is the main Python process high-water mark, includes imports/compiler state, and excludes child compiler processes. It is not a hard memory cap or device memory.",
+    "Two source snapshots during collection differ only in lint comments; their complete executable ASTs are identical and all exact snapshots/hashes are retained. Other recorded numerical/fixture sources have one exact hash across every worker.",
+    "Only two timed worker replicates per condition, one host and bounded synthetic consumers. There are no timing CI thresholds, universal speedup, accuracy, GPU, SBI training or application-adoption claims. The 8-step core float32 warm forward regresses; retain that result.",
+    "Compiler counters are version-specific diagnostics: all compiled workers have native Inductor kernels and no graph-break counter events; source selects fullgraph=True, backend=inductor. Strict disabled/graph-break tests are qualified separately."
+  ],
+  "summary": [
+    {
+      "consumer": "core",
+      "steps": 8,
+      "dtype": "float32",
+      "warm_forward_ratio_eager_over_compiled": 0.8577218791501973,
+      "warm_value_gradient_ratio_eager_over_compiled": 1.1418980857557282,
+      "compiled_first_forward_seconds": 10.755860561999725,
+      "compiled_first_backward_seconds": 8.147842908510938,
+      "instrumented_eager_peak_rss_bytes": 332429312.0,
+      "compiled_peak_rss_bytes": 462010368.0,
+      "plain_eager_control_peak_rss_bytes": 261648384
+    },
+    {
+      "consumer": "core",
+      "steps": 8,
+      "dtype": "float64",
+      "warm_forward_ratio_eager_over_compiled": 1.3697081915972122,
+      "warm_value_gradient_ratio_eager_over_compiled": 1.743129046742139,
+      "compiled_first_forward_seconds": 10.3240902890102,
+      "compiled_first_backward_seconds": 8.555716938513797,
+      "instrumented_eager_peak_rss_bytes": 332341248.0,
+      "compiled_peak_rss_bytes": 461926400.0,
+      "plain_eager_control_peak_rss_bytes": 261500928
+    },
+    {
+      "consumer": "core",
+      "steps": 32,
+      "dtype": "float32",
+      "warm_forward_ratio_eager_over_compiled": 3.697703054271092,
+      "warm_value_gradient_ratio_eager_over_compiled": 4.503806344214613,
+      "compiled_first_forward_seconds": 27.828896013495978,
+      "compiled_first_backward_seconds": 29.172707477991935,
+      "instrumented_eager_peak_rss_bytes": 332711936.0,
+      "compiled_peak_rss_bytes": 540422144.0,
+      "plain_eager_control_peak_rss_bytes": 262983680
+    },
+    {
+      "consumer": "core",
+      "steps": 32,
+      "dtype": "float64",
+      "warm_forward_ratio_eager_over_compiled": 3.6668190684621083,
+      "warm_value_gradient_ratio_eager_over_compiled": 4.328778393765582,
+      "compiled_first_forward_seconds": 31.73419381250278,
+      "compiled_first_backward_seconds": 41.29411448200699,
+      "instrumented_eager_peak_rss_bytes": 332750848.0,
+      "compiled_peak_rss_bytes": 540508160.0,
+      "plain_eager_control_peak_rss_bytes": 262971392
+    },
+    {
+      "consumer": "observations",
+      "steps": 8,
+      "dtype": "float32",
+      "warm_forward_ratio_eager_over_compiled": 2.2202958599814053,
+      "warm_value_gradient_ratio_eager_over_compiled": 2.340538858634101,
+      "compiled_first_forward_seconds": 19.91448464250425,
+      "compiled_first_backward_seconds": 10.794870915502543,
+      "instrumented_eager_peak_rss_bytes": 350722048.0,
+      "compiled_peak_rss_bytes": 491526144.0,
+      "plain_eager_control_peak_rss_bytes": 281411584
+    },
+    {
+      "consumer": "observations",
+      "steps": 8,
+      "dtype": "float64",
+      "warm_forward_ratio_eager_over_compiled": 2.1318030683534004,
+      "warm_value_gradient_ratio_eager_over_compiled": 2.4456211791452658,
+      "compiled_first_forward_seconds": 24.688277697976446,
+      "compiled_first_backward_seconds": 10.551155024993932,
+      "instrumented_eager_peak_rss_bytes": 350648320.0,
+      "compiled_peak_rss_bytes": 495382528.0,
+      "plain_eager_control_peak_rss_bytes": 281714688
+    },
+    {
+      "consumer": "observations",
+      "steps": 32,
+      "dtype": "float32",
+      "warm_forward_ratio_eager_over_compiled": 7.39604332239366,
+      "warm_value_gradient_ratio_eager_over_compiled": 8.632875863620768,
+      "compiled_first_forward_seconds": 55.33232582101482,
+      "compiled_first_backward_seconds": 49.36714057048084,
+      "instrumented_eager_peak_rss_bytes": 357339136.0,
+      "compiled_peak_rss_bytes": 611526656.0,
+      "plain_eager_control_peak_rss_bytes": 287752192
+    },
+    {
+      "consumer": "observations",
+      "steps": 32,
+      "dtype": "float64",
+      "warm_forward_ratio_eager_over_compiled": 6.730365138759216,
+      "warm_value_gradient_ratio_eager_over_compiled": 7.829210343714724,
+      "compiled_first_forward_seconds": 55.257133653969504,
+      "compiled_first_backward_seconds": 33.54955312854145,
+      "instrumented_eager_peak_rss_bytes": 357302272.0,
+      "compiled_peak_rss_bytes": 615036928.0,
+      "plain_eager_control_peak_rss_bytes": 287772672
+    }
+  ]
+}
