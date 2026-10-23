@@ -81,8 +81,9 @@ ci:
 
 build-check-core:
 	rm -rf dist
-	uv run --with build --with twine python -m build --wheel
+	uv run --with build --with twine python -m build
 	uv run --with twine python -m twine check --strict dist/*
+	uv run python scripts/validate_core_artifacts.py dist/*
 
 build-check-provider:
 	cd flepimop2-op_engine && rm -rf dist
@@ -105,6 +106,8 @@ build-test-core:
 	cp -R tests "${CLEANROOM}/tests"
 	cp -R scripts "${CLEANROOM}/scripts"
 	cp -R examples "${CLEANROOM}/examples"
+	mkdir -p "${CLEANROOM}/.github/workflows"
+	cp .github/workflows/gh-pages.yaml .github/workflows/release.yaml "${CLEANROOM}/.github/workflows/"
 	cp README.md "${CLEANROOM}/README.md"
 	mkdir -p "${CLEANROOM}/docs/guides"
 	cp docs/guides/getting-started.md docs/guides/observations.md docs/guides/linear-operators.md docs/guides/scipy-operators.md "${CLEANROOM}/docs/guides/"
@@ -152,10 +155,14 @@ build-all: build-all-core build-all-provider
 # Release validation
 # -------------------------------------------------
 
-release-check:
-	uv run python scripts/release_validate.py
+release-check-core:
+	uv run python scripts/release_validate.py --scope core
 
-release-validate: citation release-check build-all
+release-validate-core: citation release-check-core build-all-core
+
+release-check: release-check-core
+
+release-validate: release-validate-core
 
 
 # -------------------------------------------------

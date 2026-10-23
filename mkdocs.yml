@@ -85,6 +85,7 @@ nav:
       - Hierarchical Measurements: guides/hierarchical-measurements.md
       - Backend Strategies: guides/backends.md
   - API Reference:
+      - OP Engine: api-reference/op-engine.md
       - Adaptive Tau: api-reference/adaptive_tau.md
       - Batched Ssa: api-reference/batched_ssa.md
       - Core Solver: api-reference/core_solver.md

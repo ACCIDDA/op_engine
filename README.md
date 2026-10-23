@@ -27,7 +27,7 @@ tested methods and array backends.
 - `ModelCore`: state/time manager; configure axes, dtype, and optional history.
 - `CoreSolver`: portable explicit methods through Dormand--Prince 5(4), plus dense IMEX and linearly implicit methods; accepts `RunConfig` with `AdaptiveConfig`, `DtControllerConfig`, and `OperatorSpecs`.
 - `DirectSSASolver`: exact Gillespie direct-method trajectories with injected, backend-specific exponential and categorical sampling.
-- `BatchedDirectSSASolver`: independent-clock NumPy simulation banks with stable replicate streams and optional accepted firing counts; see the [replicate guide](docs/guides/replicate-ssa.md).
+- `BatchedDirectSSASolver`: independent-clock NumPy simulation banks with stable replicate streams and optional accepted firing counts; see the [replicate guide](https://accidda.github.io/op_engine/latest/guides/replicate-ssa/).
 - `AdaptiveTauLeapingSolver`: bounded adaptive tau-leaping with leap-condition control, exact critical events, and explicit post-leap rejection. Non-mass-action propensities (frequency-dependent infection) are supported through per-reaction dependency incidence and elasticity orders.
 - `TauLeapingSolver`: fixed-step stochastic reaction-network integration with injected, backend-specific Poisson sampling.
 - `from_compiled_rhs` / `compile_reaction_network`: build the flat stochastic network (stoichiometry, reactant orders, propensity) from an op_system spec's reaction artifacts, with no flepimop2 dependency.
@@ -39,33 +39,33 @@ tested methods and array backends.
 - `matrix_ops`: portable dense advection/diffusion, sparse Laplacian/Crank–Nicolson, implicit Euler/trapezoidal builders, predictor–corrector, implicit solve cache, Kronecker helpers, and grouped aggregations.
 - Extras: `OperatorSpecs`, `RunConfig`, `AdaptiveConfig`, `DtControllerConfig`, `Operator`, `GridGeometry`, `DiffusionConfig`.
 
-See the documentation guides for [solver selection](docs/guides/solver-methods.md),
-[the biogeochemical splitting tutorial](docs/guides/biogeochemical-network.md),
-[stochastic simulation from an op_system spec](docs/guides/op-system-reactions.md),
-[steady states](docs/guides/steady-states.md),
-and [backend boundaries](docs/guides/backends.md).
+See the documentation guides for [solver selection](https://accidda.github.io/op_engine/latest/guides/solver-methods/),
+[the biogeochemical splitting tutorial](https://accidda.github.io/op_engine/latest/guides/biogeochemical-network/),
+[stochastic simulation from an op_system spec](https://accidda.github.io/op_engine/latest/guides/op-system-reactions/),
+[steady states](https://accidda.github.io/op_engine/latest/guides/steady-states/),
+and [backend boundaries](https://accidda.github.io/op_engine/latest/guides/backends/).
 
 ## Installation
 
 ```bash
-pip install op_engine
+pip install op-engine
 ```
 
 With JAX as the array namespace:
 
 ```bash
-pip install "op_engine[jax]"
+pip install "op-engine[jax]"
 ```
 
 For the other packaged Array-API backends:
 
 ```bash
-pip install "op_engine[torch]"
-pip install "op_engine[cupy]"
+pip install "op-engine[torch]"
+pip install "op-engine[cupy]"
 ```
 
 NumPy is installed with the core package. Backend support is method-specific;
-consult the [backend guide](docs/guides/backends.md) before assuming that JIT,
+consult the [backend guide](https://accidda.github.io/op_engine/latest/guides/backends/) before assuming that JIT,
 automatic differentiation, adaptivity, or stochastic sampling have identical
 semantics across namespaces.
 
@@ -84,10 +84,10 @@ pip install "flepimop2-op-engine[op-system]"
 ## Quickstart
 
 This SIR example is a compartmental ODE introducing the deterministic call surface. For other model classes,
-see the [trait-structured PDE](docs/guides/chemostat-pde.md),
-[spatial operator splitting](docs/guides/biogeochemical-network.md),
-[nonlocal/operator factories](docs/guides/solver-methods.md), and
-[stochastic reaction simulation](docs/guides/op-system-reactions.md).
+see the [trait-structured PDE](https://accidda.github.io/op_engine/latest/guides/chemostat-pde/),
+[spatial operator splitting](https://accidda.github.io/op_engine/latest/guides/biogeochemical-network/),
+[nonlocal/operator factories](https://accidda.github.io/op_engine/latest/guides/solver-methods/), and
+[stochastic reaction simulation](https://accidda.github.io/op_engine/latest/guides/op-system-reactions/).
 
 ```python
 import numpy as np
@@ -119,8 +119,8 @@ and dense solver operations stay in that namespace. There is no `xp=` or
 backend option. This supports standard Array-API objects and native arrays such
 as `torch.Tensor`. Fixed-step methods can be differentiated by JAX; the built-in
 adaptive controller is eager Python control flow. See the
-[backend guide](docs/guides/backends.md) for the precise contract and the
-[solver guide](docs/guides/solver-methods.md) for method-specific examples.
+[backend guide](https://accidda.github.io/op_engine/latest/guides/backends/) for the precise contract and the
+[solver guide](https://accidda.github.io/op_engine/latest/guides/solver-methods/) for method-specific examples.
 
 ### IMEX with operators (tuple form)
 
@@ -156,9 +156,14 @@ solver.run(
 
 This compact example uses identity left/right operators to show the API. For a
 nontrivial implicit term, construct timestep-aware operator factories as in the
-[solver guide](docs/guides/solver-methods.md#imex-methods-and-operator-factories).
+[solver guide](https://accidda.github.io/op_engine/latest/guides/solver-methods/#imex-methods-and-operator-factories).
 
-## Public API
+## Selected public API
+
+This list is a practical entry point rather than an exhaustive root export
+list. See the [generated API reference](https://accidda.github.io/op_engine/latest/api-reference/op-engine/)
+for the documented module-level surface.
+
 - `ModelCore`: state tensor + time grid manager; supports extra axes and optional history.
 - `CoreSolver`: portable explicit and dense IMEX/implicit stepping selected by the state array namespace.
 - `DirectSSASolver`: exact event-by-event stochastic reaction trajectories with NumPy, JAX, or another Array-API namespace supplying random draws.
@@ -183,15 +188,16 @@ just ci
 MIT License
 
 Required CPU method qualification is documented in the
-[capability matrix](docs/guides/backend-qualification.md). Run `just qualify`
+[capability matrix](https://accidda.github.io/op_engine/latest/guides/backend-qualification/). Run `just qualify`
 alongside `just ci`, `just docs`, and `just build-all` before submitting a change.
 NumPy/JAX/CPU Torch jobs reject missing/skipped selected contracts; GPU checks
 and large benchmark timings remain explicit opt-in work.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for clean setup, focused submissions,
-required checks and support. Use [CITATION.cff](CITATION.cff) for attribution and
-[citation/archiving guidance](docs/development/citation-and-archiving.md) for the
-shared core/provider release unit and version-specific identifiers.
+See [CONTRIBUTING.md](https://github.com/ACCIDDA/op_engine/blob/main/CONTRIBUTING.md) for clean setup, focused submissions,
+required checks and support. Report suspected vulnerabilities through the
+[security policy](https://github.com/ACCIDDA/op_engine/blob/main/SECURITY.md). Use [CITATION.cff](https://github.com/ACCIDDA/op_engine/blob/main/CITATION.cff) for attribution and
+[citation/archiving guidance](https://accidda.github.io/op_engine/latest/development/citation-and-archiving/) for
+core and provider version-specific identifiers.
 
-The [capability guide](docs/guides/capabilities.md) maps deterministic and
+The [capability guide](https://accidda.github.io/op_engine/latest/guides/capabilities/) maps deterministic and
 stochastic solvers, observations, replay, runnable examples and CI checks.

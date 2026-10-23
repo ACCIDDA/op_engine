@@ -118,6 +118,13 @@ def generate_api_doc(item_path: Path, src_root: Path, output_dir: Path) -> str:
     return doc_name
 
 
+def generate_api_index_doc(output_dir: Path) -> None:
+    """Generate the top-level API index page for the package."""
+    output_file = output_dir / "op-engine.md"
+    output_file.write_text("# OP Engine\n\n## ::: op_engine\n")
+    print(f"Generated: {output_file}")
+
+
 def update_mkdocs_nav(mkdocs_path: Path, api_docs: list[str]) -> None:
     """Update the mkdocs.yml navigation with generated API docs.
 
@@ -149,10 +156,12 @@ def update_mkdocs_nav(mkdocs_path: Path, api_docs: list[str]) -> None:
         return
 
     # Build the new API navigation structure
-    nav[api_reference_idx]["API Reference"] = [
+    api_nav = [{"OP Engine": "api-reference/op-engine.md"}]
+    api_nav.extend(
         {doc.replace("_", " ").title(): f"api-reference/{doc}.md"}
         for doc in sorted(api_docs)
-    ]
+    )
+    nav[api_reference_idx]["API Reference"] = api_nav
     with mkdocs_path.open("w", encoding="utf-8") as f:
         yaml.dump(config, f)
     print(f"Updated mkdocs.yml navigation with {len(api_docs)} API docs")
@@ -177,6 +186,7 @@ def main() -> None:
 
     # Find all public packages and modules
     generated_docs = []
+    generate_api_index_doc(output_dir)
     for item in sorted(op_engine_root.iterdir()):
         if item.name == "py.typed":
             continue

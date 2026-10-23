@@ -14,12 +14,6 @@ versioning while the project remains pre-1.0.
   nonhyperbolic, growth and decay evidence. Preserve the existing native
   steady-state API and make no nonlinear, global, JIT or accelerator claim.
 
-- Add opt-in independent adaptive schedules for compiler-proven JAX blocks,
-  with per-block context and replay diagnostics, equal-length batching without
-  padded ODE steps, a batch-size limit and serial replay. Preserve shared-mesh
-  defaults and qualify frozen-mesh parameter/initial-state gradients, proof
-  refusal and bounded CPU discovery/compile/replay/memory measurements.
-
 - Add an optional eager NumPy Newton–Krylov solver using full residual JVPs,
   checked GMRES inner solves and bounded Armijo backtracking. Bind inverse
   preparation to each current stage/linearization, preserve failed candidates
@@ -71,17 +65,21 @@ versioning while the project remains pre-1.0.
   derivatives and final-only output by default. Qualify native CPU transforms,
   independent analytic/refinement references and the optional compiler boundary.
 
+### Changed
+
+- Separate final, alpha, beta and release-candidate classification from the
+  project's alpha maturity; publish mutable development docs only at `dev` and
+  build immutable full-version release docs from the exact Git tag.
+
+- Make the release workflow publish only the independently usable `op_engine`
+  core. Reserve FlepiMoP2-provider publication for a separate future workflow
+  coordinated with that project's maintainers.
+
 ### Fixed
 
 - Preserve native state autograd graphs during adoption and dtype conversion,
   including Torch 2.6, and allocate stored history on the initial state's device.
   Require minimum-version Torch state/gradient checks in CI.
-
-- Honor explicit provider fixed-loop controls on ordinary and prepared flat,
-  PyTree and block solves, retaining omitted-setting defaults. Separate general
-  scan rematerialization from existing DOPRI5 step/chunk checkpoint policies,
-  reject conflicting or unsupported selections, and preserve the unbounded
-  provider step limit through configuration JSON round-trips.
 
 ### Documentation
 
@@ -90,6 +88,11 @@ versioning while the project remains pre-1.0.
 
 - Replace issue and pull-request breadcrumbs in guides and API docstrings with
   current behavior, named interfaces and explicit limitations.
+
+- Correct install commands to use the published distribution name, add the
+  package root to the generated API reference, document the live confidential
+  security-reporting route, and align citation/archive guidance with release
+  0.8.0 and the existing release-event hook.
 
 
 ## [0.8.0] - 2026-10-19
