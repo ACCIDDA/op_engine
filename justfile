@@ -81,8 +81,9 @@ ci:
 
 build-check-core:
 	rm -rf dist
-	uv run --with build --with twine python -m build --wheel
+	uv run --with build --with twine python -m build
 	uv run --with twine python -m twine check --strict dist/*
+	uv run python scripts/validate_core_artifacts.py dist/*
 
 build-check-provider:
 	cd flepimop2-op_engine && rm -rf dist

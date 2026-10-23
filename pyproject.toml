@@ -120,5 +120,8 @@ exclude = ["examples/"]
 packages = ["src/op_engine"]
 include = ["src/op_engine/py.typed"]
 
+[tool.hatch.build.targets.sdist]
+exclude = ["/flepimop2-op_engine"]
+
 [tool.uv]
 required-version = ">=0.4.17"

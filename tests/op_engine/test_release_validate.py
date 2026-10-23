@@ -118,6 +118,7 @@ def test_pages_writers_are_serialized_without_cancellation() -> None:
     workflow = pathlib.Path(".github/workflows/gh-pages.yaml").read_text("utf-8")
     assert "group: 'op-engine-pages'" in workflow
     assert "cancel-in-progress: false" in workflow
+    assert "Require authoritative main for development docs" in workflow
 
 
 def test_release_docs_require_exact_ref_before_checkout() -> None:
@@ -131,6 +132,7 @@ def test_release_docs_require_exact_ref_before_checkout() -> None:
     assert "git tag --points-at HEAD" in workflow
     assert "already exists; exact versions are immutable" in workflow
     assert "mike set-default" not in workflow
+    assert "scripts/docs_deploy.py" in workflow
 
 
 def test_release_workflow_publishes_only_core_distribution() -> None:
@@ -144,3 +146,4 @@ def test_release_workflow_publishes_only_core_distribution() -> None:
     assert "just build-all-core" in workflow
     assert "--scope core" in workflow
     assert 'release create "${RELEASE_TAG}"' in workflow
+    assert "scripts/validate_core_artifacts.py" in workflow

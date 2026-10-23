@@ -1,5 +1,10 @@
 # flepimop2-op_engine
 
+Provider-specific release notes are maintained in the
+[provider changelog](https://github.com/ACCIDDA/op_engine/blob/main/flepimop2-op_engine/CHANGELOG.md).
+Core `op-engine` releases have an independent lifecycle and do not publish this
+provider.
+
 The provider connects structured PDE/field and nonlocal operators, compartmental
 dynamics and reaction networks to the numerical core. Model geometry and
 discretization, deterministic/stochastic partitioning and backend qualification

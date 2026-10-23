@@ -14,12 +14,6 @@ versioning while the project remains pre-1.0.
   nonhyperbolic, growth and decay evidence. Preserve the existing native
   steady-state API and make no nonlinear, global, JIT or accelerator claim.
 
-- Add opt-in independent adaptive schedules for compiler-proven JAX blocks,
-  with per-block context and replay diagnostics, equal-length batching without
-  padded ODE steps, a batch-size limit and serial replay. Preserve shared-mesh
-  defaults and qualify frozen-mesh parameter/initial-state gradients, proof
-  refusal and bounded CPU discovery/compile/replay/memory measurements.
-
 - Add an optional eager NumPy Newton–Krylov solver using full residual JVPs,
   checked GMRES inner solves and bounded Armijo backtracking. Bind inverse
   preparation to each current stage/linearization, preserve failed candidates
@@ -86,12 +80,6 @@ versioning while the project remains pre-1.0.
 - Preserve native state autograd graphs during adoption and dtype conversion,
   including Torch 2.6, and allocate stored history on the initial state's device.
   Require minimum-version Torch state/gradient checks in CI.
-
-- Honor explicit provider fixed-loop controls on ordinary and prepared flat,
-  PyTree and block solves, retaining omitted-setting defaults. Separate general
-  scan rematerialization from existing DOPRI5 step/chunk checkpoint policies,
-  reject conflicting or unsupported selections, and preserve the unbounded
-  provider step limit through configuration JSON round-trips.
 
 ### Documentation
 

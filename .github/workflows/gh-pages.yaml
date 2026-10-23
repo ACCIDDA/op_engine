@@ -92,6 +92,17 @@ jobs:
           fetch-depth: 0
           ref: '${{ steps.deployment.outputs.checkout-ref }}'
           persist-credentials: true
+      - name: 'Require authoritative main for development docs'
+        if: "${{ steps.deployment.outputs.deploy-mode == 'push' }}"
+        run: |
+          set -euo pipefail
+          git fetch origin "${DEFAULT_BRANCH}"
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/${DEFAULT_BRANCH}")" ]; then
+            echo 'Development docs require the current default-branch head.' >&2
+            exit 1
+          fi
+        env:
+          DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
       - name: 'Fetch gh-pages branch'
         run: |
           git fetch origin gh-pages:gh-pages --depth=1
@@ -125,19 +136,15 @@ jobs:
               echo "Release documentation must be built from ${EXPECTED_TAG}." >&2
               exit 1
             fi
-            VERSION="${PACKAGE_VERSION}"
-            ALIAS="${PACKAGE_DOCS_ALIAS}"
-            if uv run mike list | awk '{print $1}' | grep -Fxq "${VERSION}"; then
-              echo "Documentation version ${VERSION} already exists; exact versions are immutable." >&2
+            if uv run mike list | awk '{print $1}' | grep -Fxq "${PACKAGE_VERSION}"; then
+              echo "Documentation version ${PACKAGE_VERSION} already exists; exact versions are immutable." >&2
               exit 1
             fi
-          else
-            VERSION='dev'
-            ALIAS='dev'
           fi
-          uv run mike deploy \
-            --push --update-aliases \
-            "${VERSION}" "${ALIAS}"
+          uv run python scripts/docs_deploy.py \
+            --mode "${DEPLOY_MODE}" \
+            --version "${PACKAGE_VERSION}" \
+            --alias "${PACKAGE_DOCS_ALIAS}"
         env:
           CHECKOUT_REF: '${{ steps.deployment.outputs.checkout-ref }}'
           DEPLOY_MODE: '${{ steps.deployment.outputs.deploy-mode }}'
