@@ -89,6 +89,7 @@ nav:
       - Batched Ssa: api-reference/batched_ssa.md
       - Core Solver: api-reference/core_solver.md
       - Diffrax: api-reference/diffrax.md
+      - Equilibrium Stability: api-reference/equilibrium_stability.md
       - Firing: api-reference/firing.md
       - Linear Operator: api-reference/linear_operator.md
       - Loop Ops: api-reference/loop_ops.md

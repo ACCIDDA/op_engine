@@ -7,6 +7,13 @@ versioning while the project remains pre-1.0.
 
 ### Added
 
+- Add eager dense NumPy CPU local equilibrium diagnostics with explicit
+  residual, boundary and spectral tolerances; analytic, compiler-symbolic or
+  recorded central-difference Jacobians; fixed/invariant tangent reduction;
+  full and reduced spectra; and separate failure, boundary, neutral,
+  nonhyperbolic, growth and decay evidence. Preserve the existing native
+  steady-state API and make no nonlinear, global, JIT or accelerator claim.
+
 - Add opt-in independent adaptive schedules for compiler-proven JAX blocks,
   with per-block context and replay diagnostics, equal-length batching without
   padded ODE steps, a batch-size limit and serial replay. Preserve shared-mesh

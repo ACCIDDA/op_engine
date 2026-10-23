@@ -37,7 +37,7 @@ for its scope and restrictions.
 | Record accepted channel firings | `FiringRecorder` | Ordinary, thinning, tau and independent-bank solvers; counts do not consume randomness. |
 | Replay stochastic experiments | `RandomStream`, solver `rng` and stable replicate IDs | [Random streams](random-streams.md); distinguish reproducibility within a supported runtime from cross-version bitwise identity. |
 | Evaluate observations and summaries | `ObservationSpec`, `observe_model`, `observe_solution`, `reduce_observations` | [Named observations](observations.md); explicit measures, interval/point semantics and storage choices. |
-| Inspect equilibria and conservation | `steady_state`, `conserved_quantities`, `linear_invariants`, `sink_states` | [Steady states](steady-states.md); convergence and conditional structural identities are separate checks. |
+| Inspect equilibria, local spectra and conservation | `steady_state`, `local_stability`, `conserved_quantities`, `linear_invariants`, `sink_states` | [Steady states](steady-states.md); solver convergence, residual acceptance, constraint-relative local linearization and structural identities are separate checks. `local_stability` is eager dense NumPy CPU. |
 | Reuse an adaptive time-step schedule | `AdaptiveScheduleProvenance`, replay controls | [Replay provenance](replay-provenance.md); validate accuracy away from the producing parameters. |
 
 The [backend matrix](backend-qualification.md) states which NumPy/JAX/CPU Torch
