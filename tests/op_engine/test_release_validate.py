@@ -19,6 +19,43 @@ from scripts.release_validate import (
 )
 
 
+def _project_version(path: pathlib.Path) -> str:
+    """Read one declared project version from its package metadata.
+
+    Returns:
+        The declared project version.
+    """
+    metadata = tomllib.loads(path.read_text("utf-8"))
+    return str(metadata["project"]["version"])
+
+
+def _lagging_provider_metadata(
+    path: pathlib.Path, core_version: str
+) -> tuple[str, str]:
+    """Read and validate the provider version and exact, lagging core pin.
+
+    Returns:
+        The provider version and its exact core dependency.
+    """
+    metadata = tomllib.loads(path.read_text("utf-8"))
+    provider_version = str(metadata["project"]["version"])
+    core_dependencies = [
+        dependency
+        for dependency in metadata["project"]["dependencies"]
+        if dependency.startswith("op-engine")
+    ]
+    assert len(core_dependencies) == 1
+    core_dependency = core_dependencies[0]
+    dependency_name, separator, pinned_core_version = core_dependency.partition("==")
+    assert dependency_name == "op-engine"
+    assert separator == "=="
+    assert pinned_core_version
+    assert core_dependency == f"op-engine=={pinned_core_version}"
+    assert Version(provider_version) < Version(core_version)
+    assert Version(pinned_core_version) < Version(core_version)
+    return provider_version, core_dependency
+
+
 @pytest.mark.parametrize(
     "version", ["0.8.0", "1.0.0", "0.9.0a1", "0.9.0b2", "0.9.0rc3"]
 )
@@ -112,8 +149,7 @@ def test_core_release_allows_provider_to_remain_on_prior_version(
 
 def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> None:
     """Docs must not equate an exact provider pin with simultaneous releases."""
-    core_metadata = tomllib.loads(pathlib.Path("pyproject.toml").read_text("utf-8"))
-    core_version = str(core_metadata["project"]["version"])
+    core_version = _project_version(pathlib.Path("pyproject.toml"))
     root_readme = pathlib.Path("README.md")
     required = {
         root_readme: (
@@ -135,26 +171,9 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
         )
     provider = pathlib.Path("flepimop2-op_engine")
     if provider.is_dir():
-        provider_metadata = tomllib.loads(
-            (provider / "pyproject.toml").read_text("utf-8")
+        provider_version, provider_core_dependency = _lagging_provider_metadata(
+            provider / "pyproject.toml", core_version
         )
-        provider_version = str(provider_metadata["project"]["version"])
-        provider_core_dependencies = [
-            dependency
-            for dependency in provider_metadata["project"]["dependencies"]
-            if dependency.startswith("op-engine")
-        ]
-        assert len(provider_core_dependencies) == 1
-        provider_core_dependency = provider_core_dependencies[0]
-        dependency_name, separator, pinned_core_version = (
-            provider_core_dependency.partition("==")
-        )
-        assert dependency_name == "op-engine"
-        assert separator == "=="
-        assert pinned_core_version
-        assert provider_core_dependency == f"op-engine=={pinned_core_version}"
-        assert Version(provider_version) < Version(core_version)
-        assert Version(pinned_core_version) < Version(core_version)
 
         required[root_readme] += (
             (
