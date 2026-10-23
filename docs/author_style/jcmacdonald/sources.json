@@ -1,0 +1,901 @@
+{
+  "schema_version": 1,
+  "profile_version": 4,
+  "created": "2026-10-22",
+  "status": "Version 4; independently reviewed guidance; installation and manuscript application require separate review",
+  "source_issue": "https://github.com/yoavram-lab/pp-eigentest/issues/422",
+  "purpose": "Reusable prose, author-voice, Methods, complete-proof and figure guidance; general author/editorial requirements distinguished from unchanged coauthored-corpus observations",
+  "corpus_paper_count": 2,
+  "corpus_scope": "Accessible non-pathogen mathematical ecology and cultural variation/network papers, sampled main prose, SI and mathematical proofs",
+  "sources": [
+    {
+      "id": "ehs2024_main",
+      "title": "Cultural transmission, networks, and clusters among Austronesian-speaking peoples",
+      "authors": [
+        "Joshua C. Macdonald",
+        "Javier Blanco-Portillo",
+        "Marcus W. Feldman",
+        "Yoav Ram"
+      ],
+      "publication": {
+        "journal": "Evolutionary Human Sciences",
+        "year": 2024,
+        "volume": "6",
+        "article": "e51",
+        "doi": "10.1017/ehs.2024.45",
+        "published_online": "2024-12-06"
+      },
+      "edition": "Published main text",
+      "identity_evidence": [
+        "https://doi.org/10.1017/ehs.2024.45",
+        "https://jcmacdonald.dev/publications/"
+      ],
+      "identity_notes": "Publisher record and local published title page agree on e51; author website gives e45, not adopted.",
+      "read_scope": [
+        {
+          "lines": [
+            1,
+            174
+          ],
+          "sections": "Title/abstract and introduction opening/definitions"
+        },
+        {
+          "lines": [
+            175,
+            404
+          ],
+          "sections": "Introduction end, Methods, opening Results and cultural-outlier comparison"
+        },
+        {
+          "lines": [
+            540,
+            760
+          ],
+          "sections": "Discussion, including its closing limitations/interpretation"
+        },
+        {
+          "lines": [
+            761,
+            790
+          ],
+          "sections": "End matter and author-contribution statement"
+        }
+      ],
+      "not_read": "Results lines 405–539 and reference list not used for profile; no claim of whole-paper close reading.",
+      "authorship_limit": "Contribution statement credits JCM with original draft and all authors with review/editing; sentence-level ownership unknown.",
+      "local_path": "/home/jcmacdonald/Downloads/cultural-transmission-networks-and-clusters-among-austronesian-speaking-peoples.pdf",
+      "local_pdf_sha256": "75825132d3d9bef7f458078a7bbcced2494d94e74e0f527dcc680a28cace4fad",
+      "extracted_text_path": "/tmp/pp-author-corpus-20261022/ehs2024_main.txt",
+      "extracted_text_sha256": "af92f894922e6d688cd79a08dff338f352cbad312cb7cba1a543577d840dffc7",
+      "extracted_text_line_count": 1080,
+      "second_pass_read_scope": [
+        {
+          "lines": [
+            209,
+            339
+          ],
+          "sections": "Published complete Methods, pp. 5-7, compared with author TeX Methods"
+        }
+      ],
+      "second_pass_extraction": {
+        "command": "pdftotext -layout INPUT.pdf OUTPUT.txt",
+        "path": "/tmp/pp-methods376-corpus/ehs-main-layout.txt",
+        "sha256": "af92f894922e6d688cd79a08dff338f352cbad312cb7cba1a543577d840dffc7",
+        "lf_character_count": 1060,
+        "line_numbering": "Read ranges use 1-based sed/nl line numbering. lf_character_count counts LF characters only; the terminal form-feed line has no final LF. Inherited extracted_text_line_count uses Python splitlines, including form-feed page separators."
+      }
+    },
+    {
+      "id": "ehs2024_si",
+      "title": "Supplementary Information for Cultural transmission, networks, and clusters among Austronesian-speaking peoples",
+      "authors": [
+        "Joshua C. Macdonald",
+        "Javier Blanco-Portillo",
+        "Marcus W. Feldman",
+        "Yoav Ram"
+      ],
+      "publication": {
+        "parent_doi": "10.1017/ehs.2024.45"
+      },
+      "edition": "Publisher-attached supplement; internal title-page date 17 July 2024",
+      "identity_evidence": [
+        "https://doi.org/10.1017/ehs.2024.45"
+      ],
+      "read_scope": [
+        {
+          "lines": [
+            1,
+            198
+          ],
+          "sections": "Title and contents/list metadata; not running-prose evidence"
+        },
+        {
+          "lines": [
+            199,
+            350
+          ],
+          "sections": "S1.1–S1.6 running text: imputation, denoising, missingness, definitions/naming, interpretation and hierarchical clustering"
+        }
+      ],
+      "not_read": "S2 numerical tables/figures and references not extracted into the style profile.",
+      "local_path": "/home/jcmacdonald/Downloads/urn_cambridge.org_id_binary_20241205135450110-0933_S2513843X24000458_S2513843X24000458sup001.pdf",
+      "local_pdf_sha256": "c1e1ce8938eda2c030755d8c2ba312c4a39d6382a35890b7d9ff1bec9ecbd175",
+      "extracted_text_path": "/tmp/pp-author-corpus-20261022/ehs2024_si.txt",
+      "extracted_text_sha256": "04dac0afc8513b182a7458c816e734122fb11f40e4a4412e852705c74c0faa18",
+      "extracted_text_line_count": 1181,
+      "second_pass_read_scope": [
+        {
+          "lines": [
+            199,
+            350
+          ],
+          "sections": "Published S1.1-S1.6 running text, pp. 1-4; methodological operation details and limits"
+        }
+      ],
+      "second_pass_extraction": {
+        "command": "pdftotext -layout INPUT.pdf OUTPUT.txt",
+        "path": "/tmp/pp-methods376-corpus/ehs-si-layout.txt",
+        "sha256": "04dac0afc8513b182a7458c816e734122fb11f40e4a4412e852705c74c0faa18",
+        "lf_character_count": 1141,
+        "line_numbering": "Read ranges use 1-based sed/nl line numbering. lf_character_count counts LF characters only; the terminal form-feed line has no final LF. Inherited extracted_text_line_count uses Python splitlines, including form-feed page separators."
+      }
+    },
+    {
+      "id": "npzd2023_arxiv",
+      "title": "Forward hysteresis and Hopf bifurcation in an NPZD model with application to harmful algal blooms",
+      "authors": [
+        "Joshua C. Macdonald",
+        "Hayriye Gulbudak"
+      ],
+      "publication": {
+        "journal": "Journal of Mathematical Biology",
+        "year": 2023,
+        "volume": "87",
+        "article": "45",
+        "doi": "10.1007/s00285-023-01969-7",
+        "arxiv": "2307.06234v1"
+      },
+      "edition": "arXiv v1, 12 July 2023; not final publisher typesetting",
+      "identity_evidence": [
+        "https://arxiv.org/abs/2307.06234",
+        "https://jcmacdonald.dev/publications/"
+      ],
+      "read_scope": [
+        {
+          "lines": [
+            1,
+            115
+          ],
+          "sections": "Title/abstract and introduction sample"
+        },
+        {
+          "lines": [
+            386,
+            470
+          ],
+          "sections": "Section 3 opening and propositions/threshold interpretation"
+        },
+        {
+          "lines": [
+            645,
+            697
+          ],
+          "sections": "Main-text global-stability proof opening and calculation sequence"
+        },
+        {
+          "lines": [
+            1493,
+            1552
+          ],
+          "sections": "Discussion sample"
+        },
+        {
+          "lines": [
+            1586,
+            1650
+          ],
+          "sections": "Appendix A propositions 1, 2, 4 and proof sequence"
+        }
+      ],
+      "not_read": "Full model construction, remaining results and references not close-read for this editorial task.",
+      "authorship_limit": "Two-author paper; drafting/proof authorship not separately established.",
+      "local_path": "/home/jcmacdonald/Documents/GitHub/fmdv-carrier-within-host/references/papers/MacdonaldGulbudak2023_JMB_NPZD_arXiv2307.06234.pdf",
+      "local_pdf_sha256": "8147d17c248001160c9e8d8e3dab5ee916415e504235133c803e2dbbc5a8ad3f",
+      "extracted_text_path": "/tmp/pp-author-corpus-20261022/npzd2023_arxiv.txt",
+      "extracted_text_sha256": "32216bbc5bdb60b35b97a098952b48280b12388c9f16b51d3a658ec2cc1e2a55",
+      "extracted_text_line_count": 2030
+    },
+    {
+      "id": "npzd2023_revision",
+      "title": "Forward hysteresis and Hopf bifurcation in an NPZD model with application to harmful algal blooms",
+      "authors": [
+        "Joshua C. Macdonald",
+        "Hayriye Gulbudak"
+      ],
+      "publication": {
+        "journal": "Journal of Mathematical Biology",
+        "year": 2023,
+        "volume": "87",
+        "article": "45",
+        "doi": "10.1007/s00285-023-01969-7"
+      },
+      "edition": "Local author revision labelled Nov3; not assumed version of record",
+      "identity_evidence": [
+        "https://arxiv.org/abs/2307.06234",
+        "https://jcmacdonald.dev/publications/"
+      ],
+      "read_scope": [
+        {
+          "lines": [
+            52,
+            80
+          ],
+          "sections": "Title/byline and abstract opening"
+        },
+        {
+          "lines": [
+            108,
+            185
+          ],
+          "sections": "Introduction sample"
+        },
+        {
+          "lines": [
+            518,
+            555
+          ],
+          "sections": "Threshold/proposition/interpretation sample"
+        },
+        {
+          "lines": [
+            1721,
+            1810
+          ],
+          "sections": "Appendix A proof sample"
+        }
+      ],
+      "extraction_limits": "PDF extraction has template artifacts, line-number debris and damaged mathematical glyphs. Use TeX and arXiv to read syntax; no raw-revision-PDF prose metrics.",
+      "publisher_access": "DOI/Springer landing page could not be retrieved on 2026-10-22; journal identity corroborated by author bibliography, primary arXiv identity and local revision title/byline; final publisher text not read.",
+      "local_path": "/home/jcmacdonald/Documents/GitHub/fmdv-carrier-within-host/references/papers/MacdonaldGulbudak2023_JMB_NPZD_revision_Nov3.pdf",
+      "local_pdf_sha256": "801bb351b2c5e832971cc3c75b362a5300d71cefe3d87744732a2348ef8649c0",
+      "extracted_text_path": "/tmp/pp-author-corpus-20261022/npzd2023_revision.txt",
+      "extracted_text_sha256": "9ada1dcbde7e850167aaba546a3c7ef6880e7c3ecb99ea9dcd0059c83807a550",
+      "extracted_text_line_count": 2680
+    },
+    {
+      "id": "npzd2023_revision_tex",
+      "title": "NPZD author revision source",
+      "local_path": "/home/jcmacdonald/Downloads/NPZarticleNov3/Revision.tex",
+      "sha256": "bb41806aa516384d3a5da8c449785e255754aeba7a20f4a9c04fef1784a7c896",
+      "edition": "Local author source; same work as NPZD entries, not an independent paper",
+      "read_scope": [
+        {
+          "lines": [
+            121,
+            141
+          ],
+          "sections": "Introduction prose"
+        },
+        {
+          "lines": [
+            294,
+            337
+          ],
+          "sections": "Propositions and threshold interpretation"
+        },
+        {
+          "lines": [
+            453,
+            498
+          ],
+          "sections": "Complete main-text global-stability proof"
+        },
+        {
+          "lines": [
+            977,
+            990
+          ],
+          "sections": "Discussion prose"
+        },
+        {
+          "lines": [
+            1005,
+            1055
+          ],
+          "sections": "Appendix A proof examples"
+        }
+      ],
+      "not_read": "Other source sections not required to derive style; no scientific-method analysis undertaken.",
+      "second_pass_read_scope": [
+        {
+          "lines": [
+            285,
+            375
+          ],
+          "sections": "Parameter assumptions, equilibria, threshold definitions, full coexistence statement/proof and interpretation; local-stability/Hopf setup"
+        },
+        {
+          "lines": [
+            424,
+            497
+          ],
+          "sections": "Closed-system setup, invariant set, threshold, complete planar global-stability statement and proof"
+        },
+        {
+          "lines": [
+            510,
+            588
+          ],
+          "sections": "Coexistence setup, five-hypothesis cited existence theorem, complete proposition/application with dissipativity and persistence arguments"
+        },
+        {
+          "lines": [
+            1005,
+            1055
+          ],
+          "sections": "Complete Appendix A local-stability arguments, Jacobians, symbolic-tool attribution, characteristic polynomial, Hurwitz determinants and criterion application"
+        }
+      ],
+      "second_pass_limits": "Read as exposition examples, including abbreviated steps; not a correctness certification. The original Smith/Thieme, Salceanu, Liu and other theorem/criterion sources cited here were not inspected in this guidance pass. NPZD arXiv and revision PDF were not re-opened; their version-1 read metadata remain historical."
+    },
+    {
+      "id": "ehs2024_author_tex",
+      "title": "EHS author main-text source",
+      "local_path": "/home/jcmacdonald/Downloads/MainText.tex",
+      "sha256": "0e8cfb80e742debd3dd1029012560df0911ad5ef841f9ecd1c603631a84a162c",
+      "edition": "Local author TeX; same work as published EHS main and SI; not assumed byte-equivalent to the version of record",
+      "read_scope": [
+        {
+          "lines": [
+            187,
+            276
+          ],
+          "sections": "Complete author-TeX Methods, including imputation, archetypal definitions, metrics, model/test sequence and network construction"
+        }
+      ],
+      "comparison": "Compared with published EHS main Methods pp. 5-7 and published SI S1.1-S1.6; source citations are observed placement/key evidence, not independent validation of those external references",
+      "not_read": "No other section of this author TeX was used in the second guidance pass",
+      "authorship_limit": "Coauthored paper; original-draft contribution does not establish sentence-level ownership"
+    }
+  ],
+  "excluded_metadata_only": [
+    {
+      "id": "fmdv2024_accepted",
+      "local_path": "/tmp/pp-author-corpus-20261022/fmdv2024_accepted.pdf",
+      "cached_pdf_sha256": "592d94b22bb2ef7bfc8a993b42d91e9fbaf64ee1344e12d9e92f05d5ad3cd007",
+      "status": "metadata only; excluded from corpus; cached text not read in this pass",
+      "reason": "Task restricted to accessible non-pathogen mathematical-ecology/cultural style corpus after earlier retrieval restriction."
+    },
+    {
+      "id": "atkins2026_published",
+      "local_path": "/home/jcmacdonald/Downloads/s11538-026-01760-x.pdf",
+      "cached_pdf_sha256": "85eb80c50cce58f221f83afb72af79141150d56d6ce19be2fe6195ee20170b50",
+      "status": "metadata only; excluded from corpus; cached text not read in this pass",
+      "reason": "Task restricted to accessible non-pathogen mathematical-ecology/cultural style corpus after earlier retrieval restriction."
+    }
+  ],
+  "controls": [
+    {
+      "path": "audit/proof_style_guide.md",
+      "sha256": "291b45be6c91701b091de64a0df45c17c50ec9ff92aa04d4de1fa2e14dbc08b0",
+      "role": "Existing repository guidance; not a newly sampled published paper",
+      "repository_path": "audit/proof_style_guide.md",
+      "commit": "f644bfb3c02c99bf6ffb109fd44434e94daeeb0e",
+      "permalink": "https://github.com/yoavram-lab/pp-eigentest/blob/f644bfb3c02c99bf6ffb109fd44434e94daeeb0e/audit/proof_style_guide.md"
+    },
+    {
+      "path": "audit/proof_plan_2026-10-16.md",
+      "sha256": "801f59489a99db6e3778297f7593b74a3ed6f2377a34260854dcb5bfb18310b9",
+      "role": "Existing repository guidance; not a newly sampled published paper",
+      "repository_path": "audit/proof_plan_2026-10-16.md",
+      "commit": "f644bfb3c02c99bf6ffb109fd44434e94daeeb0e",
+      "permalink": "https://github.com/yoavram-lab/pp-eigentest/blob/f644bfb3c02c99bf6ffb109fd44434e94daeeb0e/audit/proof_plan_2026-10-16.md"
+    },
+    {
+      "path": "/tmp/pp-writing-style-guide-b9749f6.md",
+      "sha256": "28a22f02bcbb29a859b14352d2cce8165952ecfb7ba6553d24d462954ac47521",
+      "role": "Author-approved prose-guide snapshot, PR336 revision b9749f6; inherited guidance, broader original corpus not re-read",
+      "repository_path": "audit/writing_style_guide.md",
+      "commit": "b9749f6fc2563fe143a8f08c0e5d7041e01ef639",
+      "permalink": "https://github.com/yoavram-lab/pp-eigentest/blob/b9749f6fc2563fe143a8f08c0e5d7041e01ef639/audit/writing_style_guide.md"
+    },
+    {
+      "path": "/tmp/pp-style_metrics.py",
+      "sha256": "29d07be5fa20bf2c349fc0f621b316a6b109e43f4472c8db2b9e149a497eb2de",
+      "role": "Approximate style-rate screen",
+      "repository_path": "audit/style_metrics.py",
+      "commit": "b9749f6fc2563fe143a8f08c0e5d7041e01ef639",
+      "permalink": "https://github.com/yoavram-lab/pp-eigentest/blob/b9749f6fc2563fe143a8f08c0e5d7041e01ef639/audit/style_metrics.py"
+    },
+    {
+      "path": "/tmp/pp-style_flags.py",
+      "sha256": "226d7aac8cb6aefe966310df428bcd9860549f265e7c337d164a1cfef6f7b1c2",
+      "role": "Approximate sentence-pattern screen",
+      "repository_path": "audit/style_flags.py",
+      "commit": "b9749f6fc2563fe143a8f08c0e5d7041e01ef639",
+      "permalink": "https://github.com/yoavram-lab/pp-eigentest/blob/b9749f6fc2563fe143a8f08c0e5d7041e01ef639/audit/style_flags.py"
+    }
+  ],
+  "audience": {
+    "planned_journal": "Methods in Ecology and Evolution",
+    "scope_url": "https://besjournals.onlinelibrary.wiley.com/journal/2041210X",
+    "accessed": "2026-10-22",
+    "scope_used": "Broad methodological ecology/evolution readership; gloss/order recommendations are editorial adaptations, not submission rules"
+  },
+  "metrics": {
+    "samples": {
+      "ehs_methods": {
+        "selection": {
+          "source": "ehs2024_main",
+          "lines": [
+            [
+              209,
+              339
+            ]
+          ]
+        },
+        "metrics": {
+          "words": 1428,
+          "sent_mean": 30.081632653061224,
+          "sent_p90": 51,
+          "em": 0.0,
+          "en_prose": 2.1008403361344534,
+          "colon": 1.4005602240896358,
+          "semi": 6.302521008403361,
+          "paren": 28.011204481792717,
+          "we": 22.408963585434172,
+          "hedge": 1.4005602240896358,
+          "boost": 0.7002801120448179,
+          "slogan": 0.0,
+          "short": 0.7002801120448179
+        }
+      },
+      "ehs_discussion": {
+        "selection": {
+          "source": "ehs2024_main",
+          "lines": [
+            [
+              540,
+              760
+            ]
+          ]
+        },
+        "metrics": {
+          "words": 2493,
+          "sent_mean": 32.4875,
+          "sent_p90": 57,
+          "em": 0.0,
+          "en_prose": 1.6044925792218212,
+          "colon": 1.6044925792218212,
+          "semi": 16.84717208182912,
+          "paren": 35.69995988768552,
+          "we": 4.011231448054553,
+          "hedge": 14.039310068190936,
+          "boost": 1.203369434416366,
+          "slogan": 0.0,
+          "short": 0.4011231448054553
+        }
+      },
+      "ehs_si_running_text": {
+        "selection": {
+          "source": "ehs2024_si",
+          "lines": [
+            [
+              199,
+              350
+            ]
+          ]
+        },
+        "metrics": {
+          "words": 1557,
+          "sent_mean": 27.153846153846153,
+          "sent_p90": 46,
+          "em": 0.0,
+          "en_prose": 1.2845215157353886,
+          "colon": 1.926782273603083,
+          "semi": 8.349389852280027,
+          "paren": 43.03147077713552,
+          "we": 7.707129094412332,
+          "hedge": 3.853564547206166,
+          "boost": 1.2845215157353886,
+          "slogan": 0.0,
+          "short": 3.2113037893384715
+        }
+      },
+      "npzd_intro_discussion_tex": {
+        "selection": {
+          "source": "npzd2023_revision_tex",
+          "lines": [
+            [
+              127,
+              140
+            ],
+            [
+              979,
+              989
+            ]
+          ]
+        },
+        "metrics": {
+          "words": 1420,
+          "sent_mean": 33.883720930232556,
+          "sent_p90": 51,
+          "em": 0.0,
+          "en_prose": 0.0,
+          "colon": 0.0,
+          "semi": 0.704225352112676,
+          "paren": 19.014084507042252,
+          "we": 11.267605633802816,
+          "hedge": 4.929577464788732,
+          "boost": 5.633802816901408,
+          "slogan": 0.0,
+          "short": 0.0
+        }
+      }
+    },
+    "cleaning": "1-based inclusive extracted/source line ranges. EHS: remove DOI download footer, page headers, isolated page numbers and leading two/three-digit margin numbers; then style_metrics.clean_pdf. NPZD: concatenate selected author-TeX lines and use style_metrics.clean_tex. Apply style_metrics.metrics; include headings/inline-math placeholders that survive this approximate cleaner. No include-file expansion.",
+    "rates_per": 1000,
+    "limitations": [
+      "Selected passages are not statistically independent.",
+      "EHS PDF citations remain while TeX citation commands are removed.",
+      "PDF line joins, mathematical notation and headings affect sentence estimates.",
+      "No attribution of coauthored statistics to an individual author.",
+      "No numerical quota is imposed on a new manuscript."
+    ]
+  },
+  "change_history": [
+    {
+      "date": "2026-10-22",
+      "version": 1,
+      "change": "Initial profile and transparent source/read inventory; two papers only; other cached papers excluded."
+    },
+    {
+      "date": "2026-10-22",
+      "version": 1,
+      "change": "Coordinator-provided independent review clarified software PRMS as held-out RMS error per indicator from mean-prediction residuals. Added recommended terminology; this is an application-specific correction, not an observed corpus preference."
+    },
+    {
+      "date": "2026-10-22",
+      "version": 2,
+      "change": "Second-pass guidance: direct EHS author Methods/published main-SI comparison, complete selected NPZD proof/setup re-reading, operational Methods guide, complete-proof/binding-review policy, review gates and honest retained exclusions. Independent review approved application after LF-count metadata and optional inventory-link corrections; manuscript review remains separate."
+    },
+    {
+      "date": "2026-10-22",
+      "version": 3,
+      "change": "Candidate adds current-author quantifier/connective requirements, binder/dependency tables, explicit asymptotic regimes and pinned Lean hypothesis/limit correspondence checks. No paper newly retrieved or re-read; restricted two-paper corpus and all source/read limits retained. Independently approved in revision-2 guidance and integration review: https://github.com/yoavram-lab/pp-eigentest/issues/401#issuecomment-6354658758."
+    },
+    {
+      "date": "2026-10-23",
+      "version": 4,
+      "change": "Version 4 generalizes author-requested explanatory/voice, figure/presentation and claim-scope lessons; adds figures.md. Existing corpus observations, editions, hashes, metrics and exclusions retained unchanged; no new papers or artwork read/retrieved in this preparation. Independently reviewed after resolving rollout-state wording and Methods applicability guards; separate installation/application gates remain."
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/yoavram-lab/pp-eigentest",
+    "durable_checkout": "/home/jcmacdonald/Documents/GitHub/pp-eigentest",
+    "editorial_base": "f644bfb3c02c99bf6ffb109fd44434e94daeeb0e",
+    "approved_prose_guidance_commit": "b9749f6fc2563fe143a8f08c0e5d7041e01ef639",
+    "temporary_path_note": "Temporary paths identify this extraction session; immutable links and persistent source PDF/TeX paths are provided for reuse. The profiles are self-contained without the cached text or guide snapshot. Exact original PDF extraction command was not recorded; cached text hashes fix the sampled representation and line ranges. The second guidance pass recorded fresh pdftotext -layout commands and matching extraction hashes under second_pass_extraction; its LF-character counts distinguish terminal form-feed and inherited splitlines counting.",
+    "second_pass_editorial_base": "b019089"
+  },
+  "review_record": "https://github.com/yoavram-lab/pp-eigentest/issues/422#issuecomment-6367360639",
+  "initial_source_issue": "https://github.com/yoavram-lab/pp-eigentest/issues/369",
+  "second_pass": {
+    "date": "2026-10-22",
+    "editorial_base": "b019089",
+    "branch": "editorial/376-methods-proof-guidance",
+    "worktree": "/tmp/pp-eigentest-methods-proof-pass",
+    "requirement_source": "Author instructions supplied in the current issue-376 task; the issue URL is a tracking pointer, not a claim that its live text was fetched",
+    "observations": [
+      {
+        "id": "methods_local_attribution",
+        "source": "ehs2024_author_tex",
+        "lines": [
+          192,
+          199
+        ],
+        "observed": "VBPCA method and Matlab implementation citations at the operation; named and cited Scikit-learn comparator"
+      },
+      {
+        "id": "methods_dimensions_and_optimization",
+        "source": "ehs2024_author_tex",
+        "lines": [
+          205,
+          219
+        ],
+        "observed": "Input roles/dimensions, displayed reconstruction, matrix constraints, optimization target, separate algorithm/package attribution and interpretation"
+      },
+      {
+        "id": "methods_named_metrics",
+        "source": "ehs2024_author_tex",
+        "lines": [
+          232,
+          236
+        ],
+        "observed": "Named/cited metrics with value meanings, finite candidate range, agreement rule and fallback"
+      },
+      {
+        "id": "methods_model_and_operation_sequence",
+        "source": "ehs2024_author_tex",
+        "lines": [
+          241,
+          255
+        ],
+        "observed": "Declared null/alternative models, posterior-sampling/fitting/scoring/test sequence and rejection threshold; numerical N not supplied in this excerpt"
+      },
+      {
+        "id": "methods_algorithm_implementation_geometry",
+        "source": "ehs2024_author_tex",
+        "lines": [
+          264,
+          272
+        ],
+        "observed": "Euclidean input geometry, separate Neighbor-Net/SplitsTree references and interpretations of network metrics"
+      },
+      {
+        "id": "proof_threshold_statement_interpretation",
+        "source": "npzd2023_revision_tex",
+        "lines": [
+          285,
+          350
+        ],
+        "observed": "Parameter domain, named quantities, conditional statement, complete example argument and ecological parameter-limit reading; compressed steps not endorsed"
+      },
+      {
+        "id": "proof_complete_global_argument",
+        "source": "npzd2023_revision_tex",
+        "lines": [
+          424,
+          497
+        ],
+        "observed": "Invariant-set setup, statement, Jacobian/sign calculations, boundary argument and conclusion; criterion applicability not independently certified"
+      },
+      {
+        "id": "proof_enumerated_theorem_application",
+        "source": "npzd2023_revision_tex",
+        "lines": [
+          510,
+          588
+        ],
+        "observed": "Five cited existence hypotheses and subsequent application sequence; source ends with a blanket condition assertion, which current guidance strengthens to explicit hypothesis-by-hypothesis verification"
+      },
+      {
+        "id": "proof_symbolic_support",
+        "source": "npzd2023_revision_tex",
+        "lines": [
+          1005,
+          1055
+        ],
+        "observed": "Evaluated matrices, characteristic polynomial, determinants and software attribution; abbreviated endings are source limits, not rigor requirements"
+      }
+    ],
+    "required_by_author": [
+      "Definitions before use for all symbols, dimensions, strategies and metrics, separately in main text and SI",
+      "Natural explanatory procedure names with exact artifact-identifier mapping",
+      "Verifiable primary method, algorithm, validation, protocol, data and software attribution at Methods use; distinguish method from implementation/version",
+      "Actual operations, targets and reproducibility details with independently readable SI",
+      "Complete coherent mathematical statements, proofs and interpretation, including all hypotheses, parameter domains, logical/algebraic steps and case boundaries",
+      "Precise cited-theorem source/number and hypothesis-by-hypothesis verification; symbolic/formal/numeric checks support the written argument",
+      "Needed binding improvements authorized after guidance review, with semantic mathematical review and prospective audit scope if bound content genuinely changes; no blind rehashing",
+      "Claims, audited numbers, unfavorable findings, caveats and pending validations retain their meaning",
+      "Independent guidance review before application or durable installation, then complete main/SI audit and separate manuscript review"
+    ],
+    "source_discrepancies": [
+      {
+        "source": [
+          "ehs2024_author_tex",
+          "ehs2024_main",
+          "ehs2024_si"
+        ],
+        "locations": [
+          "Author Methods lines 196-198",
+          "Published main Methods p. 5",
+          "Published SI S1.1 p. 1"
+        ],
+        "finding": "Author/published main Methods specify median initialization; published SI specifies mean initialization. Recorded as a source limitation; neither operation was imported into pp-eigentest."
+      }
+    ],
+    "limits": [
+      "Exactly two permitted non-pathogen mathematical-ecology/cultural papers, with multiple editions of one work counted once",
+      "No other biological article source or excluded cached text read/retrieved; metadata exclusions retained without content inspection",
+      "No new web/publisher retrieval or primary-method bibliography verification in this guidance pass; earlier publication identities/metrics remain explicitly inherited",
+      "Observed citation keys and named criteria are source-placement evidence; they do not certify external cited sources or applicability",
+      "No full scientific audit of EHS or NPZD; complete selected proof passages read as exposition examples, with omissions acknowledged",
+      "No statistical style quotas; version-1 metrics retained as historical descriptive diagnostics",
+      "No manuscript/proof-binding/ledger/historical-evidence edit, model fit, runtime change, commit/push/full CI or durable snapshot overwrite in guidance preparation"
+    ],
+    "independent_guidance_review": {
+      "status": "approved for application after metadata correction",
+      "record": "https://github.com/yoavram-lab/pp-eigentest/issues/376#issuecomment-6347130563",
+      "scope": [
+        "README.md",
+        "prose.md",
+        "methods.md",
+        "proofs.md",
+        "sources.json"
+      ],
+      "must_precede": [
+        "manuscript application",
+        "durable author-style snapshot installation"
+      ]
+    }
+  },
+  "prior_review_records": [
+    {
+      "profile_version": 1,
+      "record": "https://github.com/yoavram-lab/pp-eigentest/pull/371"
+    },
+    {
+      "profile_version": 2,
+      "record": "https://github.com/yoavram-lab/pp-eigentest/issues/376#issuecomment-6347130563",
+      "scope_note": "Historical version-2 approval only; does not approve version 3"
+    },
+    {
+      "profile_version": 3,
+      "record": "https://github.com/yoavram-lab/pp-eigentest/issues/401#issuecomment-6354658758",
+      "scope_note": "Historical version-3 approval only; does not approve version 4"
+    }
+  ],
+  "third_pass": {
+    "date": "2026-10-22",
+    "tracking_issue": "https://github.com/yoavram-lab/pp-eigentest/issues/401",
+    "status": "independently-reviewed-for-application-and-installation",
+    "requirement_source": "Current author instruction supplied in the issue-401 conversation; issue URL is tracking only, live text not fetched",
+    "corpus_changed": false,
+    "papers_newly_read": 0,
+    "new_corpus_observations": [],
+    "unchanged_component_versions": {
+      "prose.md": 2,
+      "methods.md": 2
+    },
+    "required_by_author": [
+      "Binder table with every domain, order, scope, fixed/varying status and permitted dependence; precise forall/exists/exists-unique and uniqueness domain",
+      "Let/define/denote introduce variables/notation under stated conditions rather than prove existence, uniqueness or well-definedness; suppose marks an assumption",
+      "And requires both; mathematical or is inclusive with overlap permitted; exclusivity explicit; implication, iff, converse and counterexample distinguished",
+      "Branch, equality, zero and operation domains specified before use",
+      "Limits declare sequence/filter/index, fixed/varying parameters, epsilon/N order and dependence, pointwise/uniform scope, stochastic mode, parameter-dependent/common null sets, fixed/growing capacities, eventual denominator conditions, measurability and conditioning",
+      "Lean primary internal check of logical forms, hypothesis application and limit bridges via actual pinned Filter/Tendsto/mathlib where feasible; no sorry or new axioms; print-axioms and existing declaration audit",
+      "TeX-Lean correspondence table exposes supplied assumptions versus conditions proved for the application and all unformalized bridges; kernel/type checks alone do not certify intended prose semantics",
+      "Complete written setup/proof/interpretation and cited-theorem hypothesis application retained; conditional finite cores do not establish full asymptotic or random-matrix applications",
+      "Independent guidance review before installation/propagation, followed by independent complete main/SI quantifier audit and separate semantic manuscript review; bound-byte changes use prospective scope versions and preserve history"
+    ],
+    "local_operational_evidence": {
+      "repository_worktree": "/tmp/pp-eigentest-paired-output-399",
+      "repository_base": "fb62229f50a8d6e838421f439cc89af4dd4716b0",
+      "lean_toolchain": "leanprover/lean4:v4.34.1",
+      "mathlib_revision": "d13f23b723b8a846827a245b89c10fc7d3f11612",
+      "coverage_note": "docs/literature/LEAN_SYMBOLIC_COVERAGE_2026-10-20.md",
+      "coverage_limit": "Existing scalar/event/measure and deterministic-limit implications have explicit supplied hypotheses; cited random-matrix limits and full fitted-pipeline application are not formalized",
+      "inventory_record": "Version-3 preparation source hashes and rollout targets are supplied separately with the candidate package; not additional paper corpus entries",
+      "lean_build_executed_this_preparation": false,
+      "network_or_package_retrieval_this_preparation": false
+    },
+    "limits": [
+      "No new paper, excluded cached text, primary theorem article or publisher content read/retrieved; version-2 publication identity/read records and metrics remain historical",
+      "Repository/Lean/dependency definitions and administrative rollout evidence were read locally as operational controls, not as author-style corpus observations",
+      "No manuscript, binding, ledger, historical-evidence, durable source or installed repository-guide edits; candidate written only under /tmp",
+      "No scientific fits, draws, arrays, jobs, package installs, full Lean builds, Git mutations or environment changes",
+      "Operational branch hygiene is a distinct proposed AGENTS addendum, not part of the author-style corpus or proof claims"
+    ],
+    "independent_guidance_review": {
+      "status": "approved",
+      "record": "https://github.com/yoavram-lab/pp-eigentest/issues/401#issuecomment-6354658758",
+      "scope": [
+        "README.md",
+        "prose.md",
+        "methods.md",
+        "proofs.md",
+        "sources.json"
+      ],
+      "must_precede": [
+        "manuscript application",
+        "durable installation",
+        "repository propagation"
+      ],
+      "date": "2026-10-22",
+      "reviewer": "/root/review_paired_wiring_plan",
+      "artifact_hashes": {
+        "review_json_sha256": "11202632d37bd16afbf0b836b9562834ff6fb7edf2847933e576ee12913a5223",
+        "review_markdown_sha256": "41a85e50e9301fdf3226a52dae6c5382fd7beb2162a37113839addfbdf0603aa"
+      }
+    }
+  },
+  "updated": "2026-10-23",
+  "fourth_pass": {
+    "date": "2026-10-23",
+    "tracking_issue": "https://github.com/yoavram-lab/pp-eigentest/issues/422",
+    "status": "independently-reviewed-guidance",
+    "requirement_source": "Current author request to propagate recent presentation/figure/proof/prose/voice lessons, commit/push all relevant manuscript-guidance copies and begin the approved work order",
+    "corpus_changed": false,
+    "papers_newly_read": 0,
+    "new_corpus_observations": [],
+    "corpus_record_policy": "The sources, excluded_metadata_only, metrics and prior observed/read records are copied without modification from version 3. Recent project/source-review records supply transferable requested requirements, not new first-hand corpus inspection.",
+    "package_files": [
+      "README.md",
+      "prose.md",
+      "methods.md",
+      "proofs.md",
+      "figures.md",
+      "sources.json"
+    ],
+    "parent_package_sha256": {
+      "sources.json": "52a90428a6c938402c418b4524cbf127661e32bad29e3ab06285760ab5c2f345",
+      "proofs.md": "cd5a6827fd4ecd48038eae3fe9c2cdb14cf25b38453423a45f1f92d033f28278",
+      "methods.md": "860bd98a23100770cd35b619d33c94de856f12b31f49df8e500e25a69622c210",
+      "prose.md": "59328530b2d976b0027e828b32a86a6f9568801fe2cc57a927a5faa77c419a08",
+      "README.md": "05781e6a109896e0346564d77544a526bc50a0746810c43963d456df7c5f35a5"
+    },
+    "operational_controls_read": [
+      {
+        "path": "/home/jcmacdonald/Documents/GitHub/pp-eigentest/AGENTS.md",
+        "sha256": "76bd52799bbb2326e9f69b3b182ad4c7ad2a82a5955c683c5522bb2bf9af1ec8",
+        "role": "Author-approved or reviewed operational guidance/assessment read for transferable requirements; not a newly inspected published-style source"
+      },
+      {
+        "path": "/home/jcmacdonald/Documents/GitHub/pp-eigentest/docs/author_style/pp_eigentest_exposition.md",
+        "sha256": "191e987b5c6c114101a7f1695c6132591d79ef84270e0cd3de5f4b4e2a61bbac",
+        "role": "Author-approved or reviewed operational guidance/assessment read for transferable requirements; not a newly inspected published-style source"
+      },
+      {
+        "path": "/home/jcmacdonald/Documents/GitHub/pp-eigentest/docs/author_style/pp_eigentest_figures.md",
+        "sha256": "b4296f966c70d6f24ed8c31e02fc828e8e307eb3e76b043a400db4f8fd577ac4",
+        "role": "Author-approved or reviewed operational guidance/assessment read for transferable requirements; not a newly inspected published-style source"
+      },
+      {
+        "path": "/home/jcmacdonald/Documents/GitHub/pp-eigentest/analysis/results/distance_network_review_420_20261023/REPORT.md",
+        "sha256": "8cfcf90d9c753c75a11ac45ff570774c68343e084be41a86d9cc620a3023adc5",
+        "role": "Author-approved or reviewed operational guidance/assessment read for transferable requirements; not a newly inspected published-style source"
+      },
+      {
+        "path": "/tmp/pp-eigentest-guidance-v4-422/docs/plans/2026-10-23-guidance-and-distance-endpoint.md",
+        "sha256": "2c7969d920268451d3469ad50f9224b7d3ccadf856620a0da96ff9f03b54e105",
+        "role": "Author-approved or reviewed operational guidance/assessment read for transferable requirements; not a newly inspected published-style source"
+      }
+    ],
+    "approved_project_source_commit": "0c04269f302d9147eed674a33678df7065021d4c",
+    "required_by_author": [
+      "Connected scientific explanation of operations, targets, reasons and evidence-supported interpretations; agency when it explains real work, not pronoun quotas",
+      "Remove internal revision framing while preserving attribution, implementation/study identity, exploratory/confirmatory status, negative findings and pending work",
+      "Original visual operations, caption-only schematic status, actual integrated figure/caption and grayscale inspection, accessible redundant encodings",
+      "Preserve full precision and exact source summaries; renderers do not silently estimate new results; no scientific environment upgrade for styling",
+      "Complete precise written proofs and quantifiers, pinned Lean/SymPy/numerical checks within real coverage, no proof fragments or historical rehashing",
+      "State the actual geometric/metric/diagnostic/scientific target; do not infer topology or causal history from a projection example",
+      "Independent exact-package guidance review before propagation, separate installed-file/preservation review and separate complete manuscript application review"
+    ],
+    "inherited_comparator_access_record": {
+      "path": "/home/jcmacdonald/Documents/GitHub/pp-eigentest/docs/author_style/pp_eigentest_figures.md",
+      "sha256": "b4296f966c70d6f24ed8c31e02fc828e8e307eb3e76b043a400db4f8fd577ac4",
+      "role": "Earlier purpose-specific comparison, not personal-style corpus or a fresh reading",
+      "actually_viewed_in_earlier_task": "Greenacre et al. 2022 earlier author preprint Figure 2, PDF page 3",
+      "not_actually_viewed_in_earlier_task": [
+        "Greenacre et al. published-version artwork",
+        "Abid et al. 2018 artwork",
+        "Kujala et al. 2018 artwork"
+      ],
+      "new_visual_access_this_preparation": false
+    },
+    "limits": [
+      "No new external paper, excluded cached text, primary theorem source or artwork read/retrieved",
+      "Original corpus source/read records and descriptive diagnostics retained; two coauthored papers only; sentence-level authorship unknown",
+      "Project scientific endpoints, topology campaign, publication targets, dimensions/font quotas, runtimes and branch-cleanup rules do not propagate as general mandates",
+      "Candidate written under /tmp only; no installation, Git mutation, scientific run, environment change or historical-evidence rewrite"
+    ],
+    "independent_guidance_review": {
+      "status": "approved",
+      "record": "https://github.com/yoavram-lab/pp-eigentest/issues/422#issuecomment-6367360639",
+      "scope": [
+        "README.md",
+        "prose.md",
+        "methods.md",
+        "proofs.md",
+        "figures.md",
+        "sources.json"
+      ],
+      "must_precede": [
+        "manuscript application",
+        "durable installation",
+        "repository propagation"
+      ]
+    }
+  }
+}
