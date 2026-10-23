@@ -2227,8 +2227,9 @@
 <p><code>op_engine</code> is a framework-independent numerical core for structured
 deterministic and stochastic dynamics, including PDEs, nonlocal interactions,
 compartmental models, ODEs and reaction networks. NumPy is the core dependency.
-The separate GPL
-<code>flepimop2-op_engine</code> package adapts it to flepimop2 and shares its version.</p>
+The separate GPL <code>flepimop2-op_engine</code> package adapts it to flepimop2 and has an
+independent release lifecycle. Each published provider release pins the exactly
+matching <code>op-engine</code> version, so provider publication may lag core publication.</p>
 <h2 id="model-classes-and-numerical-representations">Model classes and numerical representations<a class="headerlink" href="#model-classes-and-numerical-representations" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
