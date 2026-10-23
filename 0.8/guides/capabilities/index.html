@@ -1548,6 +1548,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/equilibrium_stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Equilibrium Stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/firing/" class="md-nav__link">
         
   
@@ -2277,9 +2305,9 @@ for its scope and restrictions.</p>
 <td><a href="../observations/">Named observations</a>; explicit measures, interval/point semantics and storage choices.</td>
 </tr>
 <tr>
-<td>Inspect equilibria and conservation</td>
-<td><code>steady_state</code>, <code>conserved_quantities</code>, <code>linear_invariants</code>, <code>sink_states</code></td>
-<td><a href="../steady-states/">Steady states</a>; convergence and conditional structural identities are separate checks.</td>
+<td>Inspect equilibria, local spectra and conservation</td>
+<td><code>steady_state</code>, <code>local_stability</code>, <code>conserved_quantities</code>, <code>linear_invariants</code>, <code>sink_states</code></td>
+<td><a href="../steady-states/">Steady states</a>; solver convergence, residual acceptance, constraint-relative local linearization and structural identities are separate checks. <code>local_stability</code> is eager dense NumPy CPU.</td>
 </tr>
 <tr>
 <td>Reuse an adaptive time-step schedule</td>
