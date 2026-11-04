@@ -30,6 +30,7 @@ from .equilibrium_stability import (
     local_stability,
 )
 from .firing import FiringRecorder
+from .impulses import StateImpulse
 from .linear_operator import (
     ActionOperator,
     ApplicableOperator,
@@ -249,6 +250,7 @@ __all__ = [
     "SparseAdapter",
     "StabilityJacobianSource",
     "StabilityTimescaleKind",
+    "StateImpulse",
     "SteadyStateConfig",
     "SteadyStateConvergenceError",
     "SteadyStateResult",

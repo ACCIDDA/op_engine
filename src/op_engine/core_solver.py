@@ -104,6 +104,7 @@ from ._sdirk import (
     evaluate_sdirk_step,
 )
 from ._typing import Array, Scalar
+from .impulses import StateImpulse, _ImpulseSchedule
 from .linear_operator import ActionOperator, ApplicableOperator
 from .loop_ops import LoopAdapter, get_loop_adapter
 from .matrix_ops import (
@@ -407,6 +408,7 @@ class AdaptiveScheduleProvenance(NamedTuple):
     model_id: str | None
     reference_regime: str | None
     forcing_breakpoints: tuple[float, ...] = ()
+    impulse_signature: tuple[tuple[float, str | None], ...] = ()
 
 
 @dataclass(slots=True, frozen=True)
@@ -891,6 +893,9 @@ class RunConfig:
             right-continuous RHS. Explicit methods split internal steps here
             and evaluate incoming endpoint stages from the left. Other
             deterministic methods reject nonempty declarations.
+        impulses: Static state replacements, applied in (initial, final] time.
+            Initial state is already post-event; saved event outputs are post-map.
+            Explicit eager loops only; adaptive runs require replay_model_id.
         replay_require_provenance: Reject manually constructed/legacy meshes
             without provenance when True. False preserves compatibility.
     """
@@ -914,6 +919,7 @@ class RunConfig:
     fixed_loop: Literal["auto", "scan", "unroll"] = "unroll"
     fixed_checkpoint: bool = False
     state_checks: OutputStateCheckConfig | None = None
+    impulses: tuple[StateImpulse, ...] = ()
 
     def __post_init__(self) -> None:
         """Normalize the method and validate context-free configuration.
@@ -929,6 +935,7 @@ class RunConfig:
         self._validate_forcing_options(method)
         self._validate_fixed_options(method)
         self._validate_state_options()
+        self._validate_impulse_options(method)
 
         if self.fixed_max_step is not None:
             fixed_max_step = float(self.fixed_max_step)
@@ -957,6 +964,31 @@ class RunConfig:
             gamma = float(self.gamma)
             if not np.isfinite(gamma) or not (0.0 < gamma < 1.0):
                 raise ValueError(_GAMMA_RANGE_ERROR_MSG)
+
+    def _validate_impulse_options(self, method: str) -> None:
+        """Reject paths without state-map/cache policies before numerical work.
+
+        Raises:
+            ValueError: Schedule, method, loop, or replay identity is unsupported.
+        """
+        schedule = _ImpulseSchedule(self.impulses)
+        object.__setattr__(self, "impulses", schedule.events)  # noqa: PLC2801
+        if not schedule.events:
+            return
+        if method not in _EXPLICIT_METHODS:
+            msg = "State impulses require an explicit method"
+            raise ValueError(msg)
+        if (
+            self.fixed_loop == "scan"
+            or self.replay_loop == "scan"
+            or self.fixed_checkpoint
+            or self.replay_checkpoint
+        ):
+            msg = "State impulses require eager unrolled loops without checkpointing"
+            raise ValueError(msg)
+        if self.adaptive and self.replay_model_id is None:
+            msg = "Adaptive impulses require replay_model_id identifying map semantics"
+            raise ValueError(msg)
 
     def _validate_state_options(self) -> None:
         """Validate the opt-in output-state diagnostic configuration.
@@ -1464,6 +1496,7 @@ class CoreSolver:
             config.replay_model_id,
             config.replay_reference_regime,
             config.forcing_breakpoints,
+            tuple((event.time, event.name) for event in config.impulses),
         )
 
     def _validate_schedule_provenance(
@@ -1476,7 +1509,7 @@ class CoreSolver:
         """
         recorded = schedule.provenance
         if recorded is None:
-            if config.replay_require_provenance:
+            if config.replay_require_provenance or config.impulses:
                 msg = "Adaptive schedule has no provenance; discover a verified mesh"
                 raise ValueError(msg)
             return
@@ -1490,6 +1523,7 @@ class CoreSolver:
             "nonlinear_signature",
             "model_id",
             "forcing_breakpoints",
+            "impulse_signature",
         ):
             if getattr(recorded, name) != getattr(active, name):
                 msg = (
@@ -4194,7 +4228,7 @@ class CoreSolver:
             gamma=plan.gamma,
         )
 
-    def _advance_explicit_adaptive_to_time(  # noqa: PLR0913
+    def _advance_explicit_adaptive_to_time(  # noqa: PLR0913, PLR0914
         self,
         rhs_func: RHSFunction,
         *,
@@ -4207,6 +4241,7 @@ class CoreSolver:
         accepted_steps: list[float],
         first_stage: Array | None = None,
         forcing_breakpoints: tuple[float, ...] = (),
+        impulses: tuple[StateImpulse, ...] = (),
     ) -> tuple[Array, Array | None]:
         """Advance an explicit method with functional adaptive substeps.
 
@@ -4217,7 +4252,8 @@ class CoreSolver:
             RuntimeError: If step rejection, minimum-dt, or step-count limits
                 are exceeded.
         """
-        forcing = _ForcingSchedule(forcing_breakpoints)
+        events = _ImpulseSchedule(impulses)
+        boundaries = events.boundaries(forcing_breakpoints)
         t = float(t0)
         target = float(t1)
         dt_out = target - t
@@ -4241,7 +4277,7 @@ class CoreSolver:
             if n_internal >= adaptive_cfg.max_steps:
                 raise RuntimeError(_MAX_STEPS_ERROR_MSG)
 
-            step_target = min(target, forcing.next_after(t))
+            step_target = min(target, boundaries.next_after(t))
             remaining = step_target - t
             if remaining <= 0.0:
                 break
@@ -4273,7 +4309,8 @@ class CoreSolver:
                     accepted_steps.append(float(dt))
                     t = step_target if dt == remaining else t + dt
                     y_current = result.state
-                    cached_first_stage = result.last_stage
+                    y_current, jumped = events.apply(t, y_current)
+                    cached_first_stage = None if jumped else result.last_stage
                     dt = self._propose_dt(
                         dt,
                         error_norm,
@@ -4298,7 +4335,7 @@ class CoreSolver:
 
         return y_current, cached_first_stage
 
-    def _run_explicit(
+    def _run_explicit(  # noqa: C901
         self,
         rhs_func: RHSFunction,
         *,
@@ -4310,7 +4347,11 @@ class CoreSolver:
         Raises:
             ValueError: If an output interval is not strictly increasing.
         """
-        if not config.adaptive and config.fixed_loop != "unroll":
+        if (
+            not config.adaptive
+            and config.fixed_loop != "unroll"
+            and not config.impulses
+        ):
             adapter = get_loop_adapter(_namespace_of(self.core.get_current_state()))
             if adapter is not None:
                 self._run_fixed_scan(
@@ -4322,6 +4363,7 @@ class CoreSolver:
                 raise ValueError(msg)
         time_grid = np.asarray(self.core.time_grid, dtype=float)
         n_steps = int(self.core.n_timesteps)
+        events = _ImpulseSchedule(config.impulses)
         schedule_steps: list[tuple[float, ...]] = []
         first_stage: Array | None = None
 
@@ -4345,12 +4387,13 @@ class CoreSolver:
                     accepted_steps=accepted_steps,
                     first_stage=first_stage,
                     forcing_breakpoints=config.forcing_breakpoints,
+                    impulses=config.impulses,
                 )
                 schedule_steps.append(tuple(accepted_steps))
             else:
                 t = t0
                 y_next = y_current
-                endpoints = _ForcingSchedule(config.forcing_breakpoints).segments(
+                endpoints = events.boundaries(config.forcing_breakpoints).segments(
                     t0, t1
                 )
                 for left, right in pairwise(endpoints):
@@ -4366,6 +4409,9 @@ class CoreSolver:
                             forcing_breakpoints=config.forcing_breakpoints,
                         )
                         t += dt
+                    y_next, jumped = events.apply(right, y_next)
+                    if jumped:
+                        first_stage = None
             self._advance_output_state(y_next)
 
         if config.adaptive:
@@ -5048,19 +5094,21 @@ class CoreSolver:
         plan: RunPlan,
         schedule: AdaptiveStepSchedule,
         forcing_breakpoints: tuple[float, ...],
+        impulses: tuple[StateImpulse, ...],
     ) -> None:
         """Replay accepted explicit steps with functional Array-API kernels."""
         first_stage: Array | None = None
-        for t0, interval_steps in zip(
-            schedule.output_times[:-1],
+        events = _ImpulseSchedule(impulses)
+        boundaries = events.boundaries(forcing_breakpoints)
+        for (t0, t1), interval_steps in zip(
+            pairwise(schedule.output_times),
             schedule.step_sizes,
             strict=True,
         ):
-            starts = _ForcingSchedule(forcing_breakpoints).step_times(
-                t0, interval_steps
-            )
+            starts = boundaries.step_times(t0, interval_steps)
             state = self.core.get_current_state()
-            for t, dt in zip(starts, interval_steps, strict=True):
+            ends = (*starts[1:], t1)
+            for t, dt, end in zip(starts, interval_steps, ends, strict=True):
                 result = self._attempt_explicit_step(
                     rhs_func,
                     method=plan.method,
@@ -5070,8 +5118,8 @@ class CoreSolver:
                     first_stage=first_stage,
                     forcing_breakpoints=forcing_breakpoints,
                 )
-                state = result.state
-                first_stage = result.last_stage
+                state, jumped = events.apply(end, result.state)
+                first_stage = None if jumped else result.last_stage
             self._advance_output_state(state)
 
     def _replay_array_implicit_schedule(
@@ -5262,13 +5310,13 @@ class CoreSolver:
         self._validate_schedule_time_grid(schedule)
         plan = self._resolve_run_plan(config)
         self._validate_schedule_provenance(schedule, config, plan)
-        _ForcingSchedule(config.forcing_breakpoints).validate_mesh(
-            schedule.output_times, schedule.step_sizes
-        )
+        _ImpulseSchedule(config.impulses).boundaries(
+            config.forcing_breakpoints
+        ).validate_mesh(schedule.output_times, schedule.step_sizes)
         self._start_state_diagnostics(config)
 
         adapter = None
-        if config.replay_loop != "unroll":
+        if config.replay_loop != "unroll" and not config.impulses:
             adapter = get_loop_adapter(_namespace_of(self.core.get_current_state()))
             if plan.method == "sdirk2":
                 adapter = None
@@ -5303,6 +5351,7 @@ class CoreSolver:
                 plan=plan,
                 schedule=schedule,
                 forcing_breakpoints=config.forcing_breakpoints,
+                impulses=config.impulses,
             )
         else:
             current_state = self.core.get_current_state()

@@ -96,6 +96,68 @@ The implementation follows the known-jump split/cache-refresh principles in
 and [SciML's solver options](https://docs.sciml.ai/DiffEqDocs/dev/basics/common_solver_opts/),
 with explicit one-sided times for op_system's right-continuous convention.
 
+## State maps at known times
+
+`RunConfig.impulses` accepts an immutable sequence of `StateImpulse(time, update,
+name=None)` records. Each pure callback returns `update(time, pre_state)` in the
+same native array namespace, shape and dtype. It must not mutate its input.
+Euler, Heun, RK4 and Dormand–Prince split fixed or adaptive steps at these times,
+apply each map once, and clear the cached first stage after the replacement.
+
+```python
+import numpy as np
+from op_engine import CoreSolver, ModelCore, StateImpulse
+from op_engine.core_solver import RunConfig
+
+core = ModelCore(1, 1, np.asarray([0.0, 0.5, 1.0]))
+core.set_initial_state(np.ones((1, 1)))
+CoreSolver(core).run(
+    lambda time, state: 0.0 * state,
+    config=RunConfig(
+        method="rk4",
+        impulses=(StateImpulse(0.5, lambda time, state: state + 2.0, "add"),),
+    ),
+)
+assert np.allclose(core.state_array[:, 0, 0], [1.0, 3.0, 3.0])
+```
+
+Coordinates must be finite, real and strictly increasing. Combine simultaneous
+updates into one map to make their order explicit. The supplied initial state
+is **already the post-event state at the initial time**. Only events in
+`(initial_time, final_time]` are applied: an event exactly at the final output
+is included, and declarations before/at the start or after the end are ignored.
+A stored output at an event is always post-map; no extra pre-event row is
+inserted. A map receives the pre-event state. Modeling a pre-event measurement
+requires a separately specified observation workflow, not relabeling the saved
+post-event output. Forcing jumps and maps can coincide without double updates.
+
+Adaptive discovery and replay require a nonempty `replay_model_id` identifying
+the equations **and map semantics**. Recorded event times and names must also
+match. Names alone do not identify a callback; the caller must change the model
+identity when the mathematical map changes. Fitted array parameter values may
+change while retaining that structural identity. Legacy/manual meshes lacking
+provenance are refused for impulses, and replay refuses steps crossing an event.
+A matching mesh still needs an independent accuracy check when parameters move.
+
+This first increment supports eager loops only. `auto` selects eager execution
+when impulses are present; forced scans and checkpointing are rejected. Static
+unrolled fixed meshes and frozen replay retain NumPy/JAX/CPU Torch arrays, with
+qualified JAX JIT and JAX/Torch parameter/initial-state derivatives. Gradients
+are conditional on event times and the fixed/frozen mesh. Live adaptive
+controller differentiation, inferred/state-triggered events, stochastic maps,
+implicit/multistep methods, augmented forward sensitivities, and Diffrax terms
+are outside this contract and are rejected where declared.
+
+The provider consumes `system.option("impulses")`, matching `impulse_times`, and
+an explicit `impulse_rhs` evaluator. Only ordinary flat deterministic explicit
+execution is supported; prepared, structured, independent-block, stochastic,
+hybrid and forced scan/compact modes reject these declarations. Adaptive
+provider runs require `schedule_tag` to identify the RHS and map semantics.
+The compiler provider's ordinary RHS refuses impulse systems so older engines
+cannot silently drop maps. These development-source changes require a
+compatible compiler/provider build; they do not establish a released package
+combination. This is the explicit-method increment of issue #286.
+
 ## Stochastic reaction networks
 
 All stochastic solvers use one reaction contract: the stoichiometric matrix

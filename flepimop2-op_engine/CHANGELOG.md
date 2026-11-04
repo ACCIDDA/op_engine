@@ -10,6 +10,11 @@ The development source is labelled `0.9.0.dev0`; it is not part of the core
 
 ### Added
 
+- Consume compiler state-map records in ordinary flat eager explicit fixed,
+  adaptive and replayed execution, with explicit post-event output semantics.
+  Require adaptive map identity and reject unsupported prepared, structured,
+  stochastic/hybrid and scan/compact paths before executing an ordinary RHS.
+
 - Add opt-in independent adaptive schedules for compiler-proven JAX blocks,
   with per-block context and replay diagnostics, equal-length batching without
   padded ODE steps, a batch-size limit and serial replay. Preserve shared-mesh

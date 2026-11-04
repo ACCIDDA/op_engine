@@ -5,6 +5,15 @@ versioning while the project remains pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Add native-array state maps at fixed times for eager explicit fixed/adaptive
+  integration and frozen replay. Split at each event, reset cached stages,
+  store post-map outputs, validate map results, and require semantic model
+  identity for adaptive replay. Qualify NumPy/JAX/CPU Torch values and bounded
+  static-mesh derivatives; reject unsupported solver/scan/sensitivity paths.
+  This is a bounded explicit-method increment of #286.
+
 ## [0.9.1] - 2026-10-23
 
 ### Documentation

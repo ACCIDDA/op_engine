@@ -191,7 +191,7 @@ class SensitivityOptions:
             cfg.adaptive
             or not cfg.strict
             or cfg.method not in {"euler", "heun", "rk4", "dopri5"}
-            or cfg.forcing_breakpoints
+            or any((cfg.forcing_breakpoints, cfg.impulses))
             or any(
                 value is not None
                 for value in (

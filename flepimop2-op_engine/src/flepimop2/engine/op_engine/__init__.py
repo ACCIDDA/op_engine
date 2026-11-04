@@ -52,6 +52,7 @@ from op_engine.core_solver import (
     scaled_error_norm,
 )
 from op_engine.firing import FiringRecorder
+from op_engine.impulses import StateImpulse
 from op_engine.model_core import ModelCore, ModelCoreOptions
 from op_engine.stochastic_solver import (
     DirectSSAConfig,
@@ -3190,6 +3191,89 @@ def _split_numpy_seeds(seed: int | None) -> tuple[int | None, int | None]:
     return poisson_seed, ssa_seed
 
 
+def _system_impulse_records(
+    system: SystemABC, config: OpEngineEngineConfig, *, prepared: bool = False
+) -> tuple[object, ...]:
+    """Refuse unsupported execution before a producer state map can be lost.
+
+    Returns:
+        Validated producer records for the bounded flat explicit path.
+
+    Raises:
+        ValueError: Metadata is inconsistent or an execution path is unsupported.
+        TypeError: Producer records or the explicit RHS escape hatch are absent.
+    """
+    records = system.option("impulses", ())
+    times = system.option("impulse_times", ())
+    if not isinstance(records, tuple) or not isinstance(times, tuple):
+        msg = "Producer impulses and impulse_times must be immutable tuples"
+        raise TypeError(msg)
+    if not records and not times:
+        return ()
+    if not records or tuple(getattr(item, "time", None) for item in records) != times:
+        msg = "Producer impulse records and impulse_times disagree"
+        raise ValueError(msg)
+    if not callable(system.option("impulse_rhs", None)):
+        msg = "Impulse systems require callable system.option('impulse_rhs')"
+        raise TypeError(msg)
+    if any((
+        prepared,
+        config.mode is not ExecutionMode.DETERMINISTIC,
+        not config.method.is_explicit,
+        config.state_layout is not StateLayout.FLAT,
+        config.block_schedule == "independent",
+        config.fixed_loop == "scan",
+        config.adaptive_replay is AdaptiveReplayMode.COMPACT,
+        config.fixed_scan_checkpoint,
+        config.fixed_checkpoint is not ReplayCheckpoint.NONE,
+        config.replay_checkpoint is not ReplayCheckpoint.NONE,
+    )):
+        msg = (
+            "State impulses require ordinary flat eager explicit "
+            "deterministic execution"
+        )
+        raise ValueError(msg)
+    if config.adaptive and not config.schedule_tag:
+        msg = "Adaptive impulses require schedule_tag identifying RHS and map semantics"
+        raise ValueError(msg)
+    return records
+
+
+def _bind_system_impulse(
+    record: object, params: Mapping[str, object], n_state: int
+) -> StateImpulse:
+    """Bind one producer map without host conversion or dtype repair.
+
+    Returns:
+        Core state map reshaped for the provider's flat (N,1) state.
+
+    Raises:
+        TypeError: The producer evaluator is absent or changes namespace/dtype.
+    """
+    evaluator = getattr(record, "eval_fn", None)
+    if not callable(evaluator):
+        msg = "Each producer impulse must expose callable eval_fn"
+        raise TypeError(msg)
+
+    def update(time: Scalar, state: Array) -> Array:
+        xp = _namespace_of(state)
+        flat = cast("Array", xp.reshape(state, (n_state,)))
+        result = evaluator(time, flat, **params)
+        if _namespace_of(result) is not xp or result.dtype != state.dtype:
+            msg = "Producer impulse must preserve state namespace and dtype"
+            raise TypeError(msg)
+        if result.shape != (n_state,):
+            msg = "Producer impulse must preserve flat state shape"
+            raise ValueError(msg)
+        return cast("Array", xp.reshape(result, state.shape))
+
+    return StateImpulse(
+        cast("float", getattr(record, "time", None)),
+        update,
+        getattr(record, "name", None),
+    )
+
+
 def _stochastic_forcing_config(
     system: SystemABC,
     config: OpEngineEngineConfig,
@@ -3985,6 +4069,7 @@ class OpEngineFlepimop2Engine(EngineABC):
             ValueError: If an adaptive schedule is missing or incompatible.
         """
         config = _stochastic_forcing_config(system, self.config.model_copy(deep=True))
+        _system_impulse_records(system, config, prepared=True)
         if config.mode is not ExecutionMode.DETERMINISTIC:
             msg = "Prepared execution currently requires deterministic mode."
             raise TypeError(msg)
@@ -4093,6 +4178,10 @@ class OpEngineFlepimop2Engine(EngineABC):
             )
 
         mode = self.config.mode
+        try:
+            _system_impulse_records(system, self.config)
+        except (ValueError, TypeError) as error:
+            issues.append(ValidationIssue(msg=str(error), kind="invalid_impulses"))
         try:
             _stochastic_forcing_config(system, self.config)
         except ValueError as error:
@@ -4334,6 +4423,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         times = _as_float64_1d(eval_times, name="eval_times")
         _ensure_strictly_increasing(times, name="eval_times")
         config = _stochastic_forcing_config(system, self.config)
+        impulse_records = _system_impulse_records(system, config)
         mode = config.mode
         stochastic_config = config
         if kwargs.get("firing_recorder") is not None and (
@@ -4463,6 +4553,15 @@ class OpEngineFlepimop2Engine(EngineABC):
                 )
 
         run_cfg = config.to_run_config(nonlinear=nonlinear)
+        if impulse_records:
+            run_cfg = replace(
+                run_cfg,
+                impulses=tuple(
+                    _bind_system_impulse(item, raw_params, n_state)
+                    for item in impulse_records
+                ),
+                replay_model_id=config.schedule_tag,
+            )
         is_imex = method.is_imex
         operators = run_cfg.operators
         compiled_system_operators = False
@@ -4509,8 +4608,12 @@ class OpEngineFlepimop2Engine(EngineABC):
 
         # Bind raw payloads once. Systems such as op_system merge their own
         # static mixing kernels and should never receive ParameterValue wrappers.
-        stepper: SystemProtocol = system.bind(params=raw_params)
-        rhs = _rhs_from_stepper(stepper, n_state=n_state)
+        if impulse_records:
+            stepper = cast("SystemProtocol", system.option("impulse_rhs"))
+            rhs = _rhs_from_stepper(stepper, n_state=n_state, params=raw_params)
+        else:
+            stepper = system.bind(params=raw_params)
+            rhs = _rhs_from_stepper(stepper, n_state=n_state)
         system_descriptors = typed_operator_descriptors(
             system.option("operators", None)
         )
@@ -4577,6 +4680,7 @@ class OpEngineFlepimop2Engine(EngineABC):
         state_namespace = _namespace_of(y0)
         use_jax_scan = (
             not run_cfg.adaptive
+            and not impulse_records
             and method
             in {
                 SolverMethod.EULER,
@@ -4589,8 +4693,10 @@ class OpEngineFlepimop2Engine(EngineABC):
         diagnostics: NonlinearIntegrationDiagnostics | None = None
         replay_diagnostics: AdaptiveReplayDiagnostics | None = None
         discovered_step_schedule: AdaptiveStepSchedule | None = None
-        if adaptive_schedule is not None and _uses_compact_adaptive_replay(
-            config, state_namespace
+        if (
+            adaptive_schedule is not None
+            and not impulse_records
+            and _uses_compact_adaptive_replay(config, state_namespace)
         ):
             replay_diagnostics = _run_jax_adaptive_explicit_trajectory(
                 solver,
@@ -4624,6 +4730,7 @@ class OpEngineFlepimop2Engine(EngineABC):
             )
         elif (
             run_cfg.adaptive
+            and not impulse_records
             and method.is_explicit
             and _is_jax_namespace(state_namespace)
         ):
