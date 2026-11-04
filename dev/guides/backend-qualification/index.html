@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -1634,6 +1634,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/impulses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Impulses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/linear_operator/" class="md-nav__link">
         
   
@@ -2282,6 +2310,13 @@ Torch eager gradients use piecewise exponential references on a fixed mesh.
 Real op_system tables, provider preparation and structured layouts are checked
 separately in provider integration tests. These do not qualify implicit/hybrid
 forcing or derivatives of jump locations.</p>
+<p>Required known-time state-map tests additionally cover all four explicit methods
+in fixed/live adaptive/eager replay modes on NumPy/JAX/CPU Torch in float32 and
+float64. Independent additive/multiplicative maps exercise off-grid and endpoint
+updates; decay refinement checks RK4/Dormand–Prince order and FSAL reset. JAX JIT
+and CPU Torch gradients cover rate, map and initial-state parameters in float64
+on static unrolled fixed/frozen meshes. No scan, process-noise or moving-time
+transformation claim follows from these tests.</p>
 <h2 id="independent-provider-block-schedules">Independent provider block schedules<a class="headerlink" href="#independent-provider-block-schedules" title="Permanent link">&para;</a></h2>
 <p>Required <code>Independent block schedules (current|minimum, CPU, 3.12)</code> jobs run the
 real pinned compiler/provider contract, independent mesh discovery, replay,
@@ -2533,10 +2568,10 @@ See <a href="../backends/">backend strategies</a> for functional steps and loop 
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

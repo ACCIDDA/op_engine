@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -836,6 +836,17 @@
     <span class="md-ellipsis">
       
         Known deterministic forcing jumps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-maps-at-known-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State maps at known times
       
     </span>
   </a>
@@ -1751,6 +1762,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api-reference/impulses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Impulses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api-reference/linear_operator/" class="md-nav__link">
         
   
@@ -2304,6 +2343,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#state-maps-at-known-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State maps at known times
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#stochastic-reaction-networks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2617,6 +2667,60 @@ Smooth <code>linear</code> tables publish no jumps and retain their existing beh
 <a href="https://docs.kidger.site/diffrax/api/stepsize_controller/">Diffrax's controllers</a>
 and <a href="https://docs.sciml.ai/DiffEqDocs/dev/basics/common_solver_opts/">SciML's solver options</a>,
 with explicit one-sided times for op_system's right-continuous convention.</p>
+<h2 id="state-maps-at-known-times">State maps at known times<a class="headerlink" href="#state-maps-at-known-times" title="Permanent link">&para;</a></h2>
+<p><code>RunConfig.impulses</code> accepts an immutable sequence of <code>StateImpulse(time, update,
+name=None)</code> records. Each pure callback returns <code>update(time, pre_state)</code> in the
+same native array namespace, shape and dtype. It must not mutate its input.
+Euler, Heun, RK4 and Dormand–Prince split fixed or adaptive steps at these times,
+apply each map once, and clear the cached first stage after the replacement.</p>
+<pre><code class="language-python">import numpy as np
+from op_engine import CoreSolver, ModelCore, StateImpulse
+from op_engine.core_solver import RunConfig
+
+core = ModelCore(1, 1, np.asarray([0.0, 0.5, 1.0]))
+core.set_initial_state(np.ones((1, 1)))
+CoreSolver(core).run(
+    lambda time, state: 0.0 * state,
+    config=RunConfig(
+        method=&quot;rk4&quot;,
+        impulses=(StateImpulse(0.5, lambda time, state: state + 2.0, &quot;add&quot;),),
+    ),
+)
+assert np.allclose(core.state_array[:, 0, 0], [1.0, 3.0, 3.0])
+</code></pre>
+<p>Coordinates must be finite, real and strictly increasing. Combine simultaneous
+updates into one map to make their order explicit. The supplied initial state
+is <strong>already the post-event state at the initial time</strong>. Only events in
+<code>(initial_time, final_time]</code> are applied: an event exactly at the final output
+is included, and declarations before/at the start or after the end are ignored.
+A stored output at an event is always post-map; no extra pre-event row is
+inserted. A map receives the pre-event state. Modeling a pre-event measurement
+requires a separately specified observation workflow, not relabeling the saved
+post-event output. Forcing jumps and maps can coincide without double updates.</p>
+<p>Adaptive discovery and replay require a nonempty <code>replay_model_id</code> identifying
+the equations <strong>and map semantics</strong>. Recorded event times and names must also
+match. Names alone do not identify a callback; the caller must change the model
+identity when the mathematical map changes. Fitted array parameter values may
+change while retaining that structural identity. Legacy/manual meshes lacking
+provenance are refused for impulses, and replay refuses steps crossing an event.
+A matching mesh still needs an independent accuracy check when parameters move.</p>
+<p>This first increment supports eager loops only. <code>auto</code> selects eager execution
+when impulses are present; forced scans and checkpointing are rejected. Static
+unrolled fixed meshes and frozen replay retain NumPy/JAX/CPU Torch arrays, with
+qualified JAX JIT and JAX/Torch parameter/initial-state derivatives. Gradients
+are conditional on event times and the fixed/frozen mesh. Live adaptive
+controller differentiation, inferred/state-triggered events, stochastic maps,
+implicit/multistep methods, augmented forward sensitivities, and Diffrax terms
+are outside this contract and are rejected where declared.</p>
+<p>The provider consumes <code>system.option("impulses")</code>, matching <code>impulse_times</code>, and
+an explicit <code>impulse_rhs</code> evaluator. Only ordinary flat deterministic explicit
+execution is supported; prepared, structured, independent-block, stochastic,
+hybrid and forced scan/compact modes reject these declarations. Adaptive
+provider runs require <code>schedule_tag</code> to identify the RHS and map semantics.
+The compiler provider's ordinary RHS refuses impulse systems so older engines
+cannot silently drop maps. These development-source changes require a
+compatible compiler/provider build; they do not establish a released package
+combination. This is the explicit-method increment of issue #286.</p>
 <h2 id="stochastic-reaction-networks">Stochastic reaction networks<a class="headerlink" href="#stochastic-reaction-networks" title="Permanent link">&para;</a></h2>
 <p>All stochastic solvers use one reaction contract: the stoichiometric matrix
 has shape <code>(n_species, n_reactions)</code>, while the propensity function returns
@@ -3164,10 +3268,10 @@ for a larger IMEX splitting example.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
