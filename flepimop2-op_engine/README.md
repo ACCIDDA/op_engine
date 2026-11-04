@@ -18,22 +18,18 @@ Provider package that adapts `op_engine` to `flepimop2`.
 | How does splitting affect a spatial numerical result? | [Chemostat comparison](https://accidda.github.io/op_engine/latest/guides/chemostat-pde/) | Reproduce the stated model, mesh and error reference. |
 | Which state/backend combinations are qualified? | [Qualification matrix](https://accidda.github.io/op_engine/latest/guides/backend-qualification/) | Evidence is specific to each method, layout and backend. |
 
-Core `op-engine` is now `0.9.1`. The published provider version `0.8.0`
-requires `op-engine==0.8.0`; development source is version `0.9.0.dev0` and
-requires `op-engine==0.9.0`. Both provider versions lag core `0.9.1`, and
-neither is compatible with it. To work on the development provider, first use
-a checkout whose core satisfies its exact pin, then run from the repository
-root:
+Core `op-engine` is `0.9.1`. The published provider version `0.8.0` requires
+`op-engine==0.8.0`; development source remains `0.9.0.dev0` and requires
+`op-engine==0.9.1`. To work on this compatible source combination, run from
+the repository root:
 
 ```bash
 just provider-sync
 ```
 
-The target does not make the provider compatible with this 0.9.1 checkout. In
-a compatible checkout, its development environment also supplies the optional
-`op_system` integration. Do not use the published provider installation
-command in an `op-engine==0.9.1` environment until a compatible provider
-release is published.
+The development environment also supplies optional `op_system` integration.
+This does not publish a provider release or change the older published
+provider's dependency contract.
 
 For systems supplied by `flepimop2-op_system`, the provider consumes the
 compiled `state_names`, `initial_state`, and `axis_labels` options to assemble
@@ -51,8 +47,7 @@ solver structure. An `op_system` stepper converts bound parameter values into
 the state namespace when it evaluates the RHS, so a JAX state can safely consume
 static NumPy parameters without moving the evolving state back to the host.
 
-When the checked-out core satisfies the provider's exact pin, the
-`just provider-sync` source-development environment installs the JAX runtime
+The `just provider-sync` source-development environment installs the JAX runtime
 used for portable fixed-step JIT and differentiation. The published
 `flepimop2-op_engine[jax]` extra remains a 0.8.0 provider installation and
 should not be used with core 0.9.1.

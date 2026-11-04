@@ -13,7 +13,7 @@ from numbers import Integral
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
-from array_api_compat import device  # type: ignore[import-untyped]
+from array_api_compat import device
 
 from ._array import array_namespace
 

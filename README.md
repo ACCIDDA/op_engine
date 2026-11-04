@@ -69,17 +69,13 @@ consult the [backend guide](https://accidda.github.io/op_engine/latest/guides/ba
 automatic differentiation, adaptivity, or stochastic sampling have identical
 semantics across namespaces.
 
-The `flepimop2-op-engine` provider has an independent release lifecycle. Its
-core `op-engine` is now `0.9.1`. The published provider remains `0.8.0` and
-requires `op-engine==0.8.0`; development provider source remains `0.9.0.dev0`
-and requires `op-engine==0.9.0`. Both provider versions therefore lag the
-current core and are incompatible with it. The `just provider-sync` target is
-only valid in a checkout whose core satisfies the development provider's exact
-pin; it does not make the provider compatible with this 0.9.1 checkout. Such a
-compatible source environment also supplies the optional `op_system`
-integration used by provider development. Do not use the provider's PyPI
-installation commands with `op-engine==0.9.1` until a compatible provider
-release is published.
+The `flepimop2-op-engine` provider has an independent release lifecycle. The
+published provider remains `0.8.0` and requires `op-engine==0.8.0`.
+Development provider source remains `0.9.0.dev0` and now requires the current
+`op-engine==0.9.1` core. Run `just provider-sync` in this checkout for the source
+integration environment, including optional `op_system` fixtures. This source
+compatibility does not publish a provider release; the provider's existing
+PyPI installation commands still require their matching older core.
 
 ## Quickstart
 

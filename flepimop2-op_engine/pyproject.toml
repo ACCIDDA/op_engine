@@ -12,7 +12,7 @@ authors = [
 ]
 keywords = ["flepimop2", "op_engine", "engine", "provider"]
 dependencies = [
-  "op-engine==0.9.0",
+  "op-engine==0.9.1",
   "flepimop2>=0.3.0",
   "pydantic>=2.0,<3",
   "numpy>=2.0",
