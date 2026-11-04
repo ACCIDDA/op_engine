@@ -44,14 +44,16 @@ class StateImpulse:
             ValueError: Time is not a finite real scalar or name is empty.
             TypeError: The update is not callable or name is not a string.
         """
-        if (
-            not isinstance(self.time, Real)
-            or isinstance(self.time, bool)
-            or not math.isfinite(self.time)
-        ):
-            msg = "Impulse time must be a finite real scalar"
+        msg = "Impulse time must be a finite real scalar"
+        if not isinstance(self.time, Real) or isinstance(self.time, bool):
             raise ValueError(msg)
-        object.__setattr__(self, "time", float(self.time))
+        try:
+            time = float(self.time)
+        except (OverflowError, ValueError) as error:
+            raise ValueError(msg) from error
+        if not math.isfinite(time):
+            raise ValueError(msg)
+        object.__setattr__(self, "time", time)
         if not callable(self.update):
             msg = "Impulse update must be callable"
             raise TypeError(msg)

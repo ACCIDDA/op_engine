@@ -256,7 +256,7 @@ def test_numpy_impulse_replay_identity_and_mesh_guards() -> None:
         )
 
 
-@pytest.mark.parametrize("time", [True, math.nan, math.inf, [1.0]])
+@pytest.mark.parametrize("time", [True, math.nan, math.inf, [1.0], 10**400])
 def test_numpy_impulse_invalid_time(time: object) -> None:
     """Dynamic/invalid coordinates cannot be interpreted as a static schedule."""
     with pytest.raises(ValueError, match="finite real"):
@@ -278,6 +278,17 @@ def test_numpy_impulse_configuration_guards() -> None:
         RunConfig(impulses=(object(),))  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="smooth fixed explicit"):
         SensitivityOptions(solver=RunConfig(impulses=(event,)))
+
+
+def test_numpy_impulse_normalized_times_remain_distinct() -> None:
+    """Distinct integers that coalesce in solver time cannot silently merge."""
+    with pytest.raises(ValueError, match="strictly increasing"):
+        RunConfig(
+            impulses=(
+                StateImpulse(2**53, lambda _time, state: state),
+                StateImpulse(2**53 + 1, lambda _time, state: state),
+            )
+        )
 
 
 @pytest.mark.parametrize("bad_result", [np.ones(2), np.ones((1, 1), dtype=np.float32)])
