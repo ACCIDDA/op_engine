@@ -92,6 +92,7 @@ nav:
       - Diffrax: api-reference/diffrax.md
       - Equilibrium Stability: api-reference/equilibrium_stability.md
       - Firing: api-reference/firing.md
+      - Impulses: api-reference/impulses.md
       - Linear Operator: api-reference/linear_operator.md
       - Loop Ops: api-reference/loop_ops.md
       - Matrix Ops: api-reference/matrix_ops.md
