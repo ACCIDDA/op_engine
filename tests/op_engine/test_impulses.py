@@ -226,6 +226,12 @@ def test_numpy_impulse_replay_identity_and_mesh_guards() -> None:
     schedule = solver.last_adaptive_schedule
     assert schedule is not None
     replay = _solver(np.ones((1, 1)), (0.0, 1.0))
+    with pytest.raises(ValueError, match=r"config\.adaptive=True"):
+        replay.replay_adaptive_schedule(
+            lambda _time, state: state,
+            schedule,
+            config=replace(config, adaptive=False, replay_model_id=None),
+        )
     with pytest.raises(ValueError, match="model_id mismatch"):
         replay.replay_adaptive_schedule(
             lambda _time, state: state * 0.0,
