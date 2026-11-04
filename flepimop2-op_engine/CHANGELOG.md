@@ -8,6 +8,13 @@ repository-root changelog and use an independent release lifecycle.
 The development source is labelled `0.9.0.dev0`; it is not part of the core
 0.9.0 release and has not been published.
 
+### Changed
+
+- Align the development provider's exact core dependency with `op-engine==0.9.1`
+  and qualify compiler state-map integration at immutable compiler revision
+  `f5905e4fdb8260bef08f500ca9408609a9c1a26d`. Package versions and the published
+  provider's older dependency contract are unchanged.
+
 ### Added
 
 - Consume compiler state-map records in ordinary flat eager explicit fixed,
