@@ -46,7 +46,7 @@ class StateImpulse:
         """
         msg = "Impulse time must be a finite real scalar"
         if not isinstance(self.time, Real) or isinstance(self.time, bool):
-            raise ValueError(msg)
+            raise ValueError(msg)  # noqa: TRY004 - invalid schedule coordinate
         try:
             time = float(self.time)
         except (OverflowError, ValueError) as error:
