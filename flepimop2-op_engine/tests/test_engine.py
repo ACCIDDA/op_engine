@@ -326,7 +326,7 @@ def test_fixed_dopri_checkpoint_policies_preserve_gradients(
         40 if checkpoint is ReplayCheckpoint.STEP else math.ceil(40 / 7)
     )
     assert value == pytest.approx(np.e, rel=2e-5)
-    assert gradient == pytest.approx(value, rel=2e-5)
+    assert gradient == pytest.approx(float(value), rel=2e-5)
 
 
 def test_adaptive_schedule_discovery_and_replay_are_explicit() -> None:
@@ -522,7 +522,7 @@ def test_compact_replay_reports_frozen_mesh_accuracy() -> None:
 
     value, gradient = jax.jit(jax.value_and_grad(objective))(discovery_rate)
     assert value == pytest.approx(math.exp(0.1), rel=2e-5)
-    assert gradient == pytest.approx(value, rel=2e-5)
+    assert gradient == pytest.approx(float(value), rel=2e-5)
 
 
 def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
@@ -685,9 +685,9 @@ def test_compact_replay_scan_and_gradient_parity() -> None:  # noqa: PLR0914
     )
 
     assert len(scan_equations) == 1
-    assert compact_value == pytest.approx(unrolled_value, rel=1e-6)
-    assert compact_gradient == pytest.approx(unrolled_gradient, rel=2e-6)
-    assert compact_gradient == pytest.approx(finite_gradient, rel=2e-3)
+    assert compact_value == pytest.approx(float(unrolled_value), rel=1e-6)
+    assert compact_gradient == pytest.approx(float(unrolled_gradient), rel=2e-6)
+    assert compact_gradient == pytest.approx(float(finite_gradient), rel=2e-3)
 
 
 @pytest.mark.parametrize(
@@ -741,7 +741,7 @@ def test_checkpointed_compact_replay_rematerializes_the_scan_step(
 
     assert "remat" in str(jaxpr)
     assert value == pytest.approx(np.e, rel=2e-5)
-    assert gradient == pytest.approx(value, rel=2e-5)
+    assert gradient == pytest.approx(float(value), rel=2e-5)
 
 
 def test_schedule_context_and_forced_compact_backend_are_validated() -> None:
@@ -1316,7 +1316,7 @@ def test_sdirk2_runs_and_replays_adaptively_with_jax_gradients() -> None:
     value, derivative = jax.jit(jax.value_and_grad(solve))(initial)
 
     assert np.isfinite(float(value))
-    assert derivative == pytest.approx(value, rel=2e-5)
+    assert derivative == pytest.approx(float(value), rel=2e-5)
 
 
 class _ImpulseSystem(_GoodSystem, module="test_impulses"):
