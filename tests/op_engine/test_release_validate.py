@@ -29,10 +29,8 @@ def _project_version(path: pathlib.Path) -> str:
     return str(metadata["project"]["version"])
 
 
-def _lagging_provider_metadata(
-    path: pathlib.Path, core_version: str
-) -> tuple[str, str]:
-    """Read and validate the provider version and exact, lagging core pin.
+def _provider_metadata(path: pathlib.Path, core_version: str) -> tuple[str, str]:
+    """Read and validate the provider version and exact development core pin.
 
     Returns:
         The provider version and its exact core dependency.
@@ -52,7 +50,7 @@ def _lagging_provider_metadata(
     assert pinned_core_version
     assert core_dependency == f"op-engine=={pinned_core_version}"
     assert Version(provider_version) < Version(core_version)
-    assert Version(pinned_core_version) < Version(core_version)
+    assert Version(pinned_core_version) == Version(core_version)
     return provider_version, core_dependency
 
 
@@ -154,7 +152,7 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
     required = {
         root_readme: (
             "independent release lifecycle",
-            f"core `op-engine` is now `{core_version}`",
+            f"`op-engine=={core_version}`",
             "published provider remains `0.8.0` and requires `op-engine==0.8.0`",
         ),
     }
@@ -171,34 +169,22 @@ def test_public_docs_distinguish_release_lifecycle_from_compatible_pair() -> Non
         )
     provider = pathlib.Path("flepimop2-op_engine")
     if provider.is_dir():
-        provider_version, provider_core_dependency = _lagging_provider_metadata(
+        provider_version, provider_core_dependency = _provider_metadata(
             provider / "pyproject.toml", core_version
         )
 
         required[root_readme] += (
-            (
-                f"development provider source remains `{provider_version}` and "
-                f"requires `{provider_core_dependency}`"
-            ),
-            (
-                "both provider versions therefore lag the current core and are "
-                "incompatible with it"
-            ),
-            f"does not make the provider compatible with this {core_version} checkout",
+            f"development provider source remains `{provider_version}`",
+            f"`{provider_core_dependency}`",
+            "source compatibility does not publish a provider release",
         )
         required[provider / "README.md"] = (
             "independent release lifecycles",
             "depends on the exact matching `op-engine` version",
-            f"core `op-engine` is now `{core_version}`",
-            (
-                f"development source is version `{provider_version}` and requires "
-                f"`{provider_core_dependency}`"
-            ),
-            f"both provider versions lag core `{core_version}`",
-            (
-                "the target does not make the provider compatible with this "
-                f"{core_version} checkout"
-            ),
+            f"core `op-engine` is `{core_version}`",
+            f"development source remains `{provider_version}`",
+            f"requires `{provider_core_dependency}`",
+            "does not publish a provider release",
         )
     optional_changelogs = (
         pathlib.Path("CHANGELOG.md"),

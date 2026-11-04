@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, cast
 
 import numpy as np
-from array_api_compat import device as _device  # type: ignore[import-untyped]
+from array_api_compat import device as _device
 
 from ._array import array_namespace as _namespace_of
 

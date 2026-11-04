@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from array_api_compat import (  # type: ignore[import-untyped]
+from array_api_compat import (
     array_namespace as _array_namespace,
 )
 

@@ -63,6 +63,14 @@ Real op_system tables, provider preparation and structured layouts are checked
 separately in provider integration tests. These do not qualify implicit/hybrid
 forcing or derivatives of jump locations.
 
+Required known-time state-map tests additionally cover all four explicit methods
+in fixed/live adaptive/eager replay modes on NumPy/JAX/CPU Torch in float32 and
+float64. Independent additive/multiplicative maps exercise off-grid and endpoint
+updates; decay refinement checks RK4/Dormand–Prince order and FSAL reset. JAX JIT
+and CPU Torch gradients cover rate, map and initial-state parameters in float64
+on static unrolled fixed/frozen meshes. No scan, process-noise or moving-time
+transformation claim follows from these tests.
+
 ## Independent provider block schedules
 
 Required `Independent block schedules (current|minimum, CPU, 3.12)` jobs run the

@@ -99,6 +99,7 @@ def main() -> int:
                 "tests/op_engine/test_backend_qualification.py",
                 "tests/op_engine/test_sensitivities.py",
                 "tests/op_engine/test_explicit_forcing.py",
+                "tests/op_engine/test_impulses.py",
                 "tests/op_engine/test_operator_precision.py",
                 "tests/op_engine/test_linear_operator.py",
                 "tests/op_engine/test_sdirk_jvp.py",

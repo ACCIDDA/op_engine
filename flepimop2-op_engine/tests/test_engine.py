@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 import math
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -325,7 +326,7 @@ def test_fixed_dopri_checkpoint_policies_preserve_gradients(
         40 if checkpoint is ReplayCheckpoint.STEP else math.ceil(40 / 7)
     )
     assert value == pytest.approx(np.e, rel=2e-5)
-    assert gradient == pytest.approx(value, rel=2e-5)
+    assert gradient == pytest.approx(float(value), rel=2e-5)
 
 
 def test_adaptive_schedule_discovery_and_replay_are_explicit() -> None:
@@ -521,7 +522,7 @@ def test_compact_replay_reports_frozen_mesh_accuracy() -> None:
 
     value, gradient = jax.jit(jax.value_and_grad(objective))(discovery_rate)
     assert value == pytest.approx(math.exp(0.1), rel=2e-5)
-    assert gradient == pytest.approx(value, rel=2e-5)
+    assert gradient == pytest.approx(float(value), rel=2e-5)
 
 
 def test_adaptive_schedule_replay_validates_method_controls_and_grid() -> None:
@@ -684,9 +685,9 @@ def test_compact_replay_scan_and_gradient_parity() -> None:  # noqa: PLR0914
     )
 
     assert len(scan_equations) == 1
-    assert compact_value == pytest.approx(unrolled_value, rel=1e-6)
-    assert compact_gradient == pytest.approx(unrolled_gradient, rel=2e-6)
-    assert compact_gradient == pytest.approx(finite_gradient, rel=2e-3)
+    assert compact_value == pytest.approx(float(unrolled_value), rel=1e-6)
+    assert compact_gradient == pytest.approx(float(unrolled_gradient), rel=2e-6)
+    assert compact_gradient == pytest.approx(float(finite_gradient), rel=2e-3)
 
 
 @pytest.mark.parametrize(
@@ -740,7 +741,7 @@ def test_checkpointed_compact_replay_rematerializes_the_scan_step(
 
     assert "remat" in str(jaxpr)
     assert value == pytest.approx(np.e, rel=2e-5)
-    assert gradient == pytest.approx(value, rel=2e-5)
+    assert gradient == pytest.approx(float(value), rel=2e-5)
 
 
 def test_schedule_context_and_forced_compact_backend_are_validated() -> None:
@@ -1315,4 +1316,111 @@ def test_sdirk2_runs_and_replays_adaptively_with_jax_gradients() -> None:
     value, derivative = jax.jit(jax.value_and_grad(solve))(initial)
 
     assert np.isfinite(float(value))
-    assert derivative == pytest.approx(value, rel=2e-5)
+    assert derivative == pytest.approx(float(value), rel=2e-5)
+
+
+class _ImpulseSystem(_GoodSystem, module="test_impulses"):
+    """Producer contract with an ordinary stepper that refuses silent omission."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        def rhs(_time: object, state: np.ndarray, **params: object) -> np.ndarray:
+            return state * params["rate"]
+
+        def update(_time: object, state: np.ndarray, **params: object) -> np.ndarray:
+            return state + params["jump"]
+
+        self.options = {
+            "impulses": (SimpleNamespace(time=0.5, name="add", eval_fn=update),),
+            "impulse_times": (0.5,),
+            "impulse_rhs": rhs,
+        }
+
+    @override
+    def _bind_impl(
+        self, params: dict[IdentifierString, Any] | None = None
+    ) -> SystemProtocol:
+        msg = "Ordinary RHS must not silently omit impulses"
+        raise NotImplementedError(msg)
+
+
+@pytest.mark.parametrize("adaptive", [False, True])
+def test_provider_flat_impulses_and_replay(*, adaptive: bool) -> None:
+    """Producer records bind dynamic arrays and store the post-event solution."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig(
+            method="dopri5",
+            adaptive=adaptive,
+            schedule_tag="linear-decay-add-v1",
+            fixed_max_step=None if adaptive else 0.05,
+            rtol=1e-9,
+            atol=1e-11,
+        ),
+    )
+    initial, model_state = _initial_state(1.0)
+    params = {
+        "rate": ParameterValue(np.asarray(-0.4), ResolvedShape()),
+        "jump": ParameterValue(np.asarray(1.2), ResolvedShape()),
+    }
+    system = _ImpulseSystem()
+    times = np.asarray([0.0, 0.5, 2.0])
+    result = engine.run(system, times, initial, params, model_state=model_state)
+    expected = [1.0, math.exp(-0.2) + 1.2, math.exp(-0.8) + 1.2 * math.exp(-0.6)]
+    np.testing.assert_allclose(result[:, 1], expected, rtol=2e-8)
+    if adaptive:
+        assert engine.last_adaptive_schedule is not None
+        replay = engine.run(
+            system,
+            times,
+            initial,
+            params,
+            model_state=model_state,
+            adaptive_schedule=engine.last_adaptive_schedule,
+        )
+        np.testing.assert_allclose(replay, result, rtol=2e-8)
+
+
+@pytest.mark.parametrize(
+    "controls",
+    [
+        {"method": "bdf2"},
+        {"state_layout": "pytree"},
+        {"fixed_loop": "scan"},
+        {"mode": "stochastic"},
+        {"adaptive": True, "adaptive_replay": "compact"},
+    ],
+)
+def test_provider_impulses_refuse_unsupported_paths(
+    controls: dict[str, object],
+) -> None:
+    """Alternate drivers must not drop state replacements before dispatch."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW,
+        config=OpEngineEngineConfig.model_validate({"method": "rk4"} | controls),
+    )
+    system = _ImpulseSystem()
+    initial, model_state = _initial_state(1.0)
+    with pytest.raises(ValueError, match="ordinary flat eager"):
+        engine.run(system, np.asarray([0.0, 1.0]), initial, {}, model_state=model_state)
+    assert any(
+        issue.kind == "invalid_impulses"
+        for issue in engine.validate_system(system) or []
+    )
+
+
+def test_provider_impulses_refuse_prepared_execution() -> None:
+    """Prepared callbacks have no state-map contract in this increment."""
+    engine = OpEngineFlepimop2Engine(
+        state_change=StateChangeEnum.FLOW, config=OpEngineEngineConfig(method="rk4")
+    )
+    initial, model_state = _initial_state(1.0)
+    with pytest.raises(ValueError, match="ordinary flat eager"):
+        engine.prepare(
+            _ImpulseSystem(),
+            np.asarray([0.0, 1.0]),
+            initial,
+            {},
+            model_state=model_state,
+        )

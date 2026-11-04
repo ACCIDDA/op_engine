@@ -93,9 +93,12 @@ def _contract(compiled: DiffraxCompiledRhs, layout: str) -> _Contract:
         meta.get("op_system_may_have_history"),
         meta.get("time_varying_params"),
         meta.get("forcing_breakpoints"),
+        getattr(compiled, "impulses", ()),
+        meta.get("impulse_times"),
     )):
         msg = (
-            "Diffrax terms require a smooth ODE without operators/history/table forcing"
+            "Diffrax terms require a smooth ODE without "
+            "operators/history/table forcing/impulses"
         )
         raise NotImplementedError(msg)
     n_states = len(compiled.state_names)
